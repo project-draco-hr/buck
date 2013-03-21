@@ -1,0 +1,24 @@
+{
+  if (!ruleKey.isIdempotent()) {
+    return false;
+  }
+  boolean success=false;
+  try {
+    OperationResult<ColumnList<String>> result=keyspace.prepareQuery(CF_ARTIFACT).getKey(ruleKey.toString()).execute();
+    Column<String> column=result.getResult().getColumnByName(artifactColumnName);
+    if (column != null) {
+      byte[] artifact=column.getByteArrayValue();
+      Files.createParentDirs(output);
+      Files.write(artifact,output);
+      if (System.currentTimeMillis() * 1000L - column.getTimestamp() > ttl * 1000000L / 2L) {
+        store(ruleKey,output);
+      }
+      success=true;
+    }
+  }
+ catch (  Exception e) {
+    logger.warning(String.format("Artifact fetch(%s, %s) error: %s",ruleKey,output.getPath(),e.getMessage()));
+  }
+  logger.info(String.format("Artifact fetch(%s, %s) cache %s",ruleKey,output.getPath(),(success ? "hit" : "miss")));
+  return success;
+}
