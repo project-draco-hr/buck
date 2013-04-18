@@ -1,0 +1,44 @@
+{
+  Verbosity verbosity=options.getVerbosity();
+  Logging.setLoggingLevelForVerbosity(verbosity);
+  BuildFileTree buildFiles=BuildFileTree.constructBuildFileTree(getProjectFilesystem());
+  Parser parser=new Parser(getProjectFilesystem(),buildFiles,ansi);
+  BuildTargetParser buildTargetParser=parser.getBuildTargetParser();
+  List<String> buildTargetNames=options.getArgumentsFormattedAsBuildTargets();
+  if (buildTargetNames.isEmpty()) {
+    console.printFailure("Must specify at least one build target.");
+    return 1;
+  }
+  for (  String buildTargetName : buildTargetNames) {
+    try {
+      buildTargets.add(buildTargetParser.parse(buildTargetName,ParseContext.fullyQualified()));
+    }
+ catch (    NoSuchBuildTargetException e) {
+      console.printFailureWithoutStacktrace(e);
+      return 1;
+    }
+  }
+  DependencyGraph dependencyGraph;
+  try {
+    dependencyGraph=parser.parseBuildFilesForTargets(buildTargets,options.getDefaultIncludes());
+  }
+ catch (  NoSuchBuildTargetException e) {
+    console.printFailureWithoutStacktrace(e);
+    return 1;
+  }
+  try {
+    this.build=options.createBuild(dependencyGraph,getProjectFilesystem().getProjectRoot(),console);
+  }
+ catch (  NoAndroidSdkException e) {
+    console.printFailureWithoutStacktrace(e);
+    return 1;
+  }
+  stdErr.printf("BUILDING %s\n",Joiner.on(' ').join(buildTargets));
+  int exitCode=executeBuildAndPrintAnyFailuresToConsole(build,console);
+  if (exitCode != 0) {
+    return exitCode;
+  }
+  Tracer.addComment("Build targets built");
+  ansi.printlnHighlightedSuccessText(stdErr,"BUILD SUCCESSFUL");
+  return 0;
+}

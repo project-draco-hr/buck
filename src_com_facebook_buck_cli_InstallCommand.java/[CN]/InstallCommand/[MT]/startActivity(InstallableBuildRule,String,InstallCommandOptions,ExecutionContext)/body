@@ -1,0 +1,37 @@
+{
+  AndroidManifestReader reader=DefaultAndroidManifestReader.forPath(androidBinaryRule.getManifest());
+  if (activity == null) {
+    List<String> launcherActivities=reader.getLauncherActivities();
+    if (launcherActivities.isEmpty()) {
+      console.printFailure("No launchable activities found.");
+      return 1;
+    }
+ else     if (launcherActivities.size() > 1) {
+      console.printFailure("Default activity is ambiguous.");
+      return 1;
+    }
+    activity=reader.getPackage() + "/" + launcherActivities.get(0);
+  }
+ else   if (!activity.contains("/")) {
+    activity=reader.getPackage() + "/" + activity;
+  }
+  final String activityToRun=activity;
+  PrintStream stdOut=console.getStdOut();
+  stdOut.println(String.format("Starting activity %s...",activityToRun));
+  return adbCall(options.adbOptions(),context,new AdbCallable(){
+    @Override public boolean call(    IDevice device) throws Exception {
+      String err=deviceStartActivity(device,activityToRun);
+      if (err != null) {
+        console.printFailure(err);
+        return false;
+      }
+ else {
+        return true;
+      }
+    }
+    @Override public String toString(){
+      return "start activity";
+    }
+  }
+) ? 0 : 1;
+}

@@ -1,0 +1,40 @@
+{
+  final boolean trace1=m_log.atTRACE1();
+  if (trace1)   m_log.trace1("loadClass","(" + name + ", "+ resolve+ "): nest level "+ m_nestLevel);
+  Class c=null;
+  c=findLoadedClass(name);
+  if (c == null) {
+    Class parentsVersion=null;
+    if (m_parent != null) {
+      try {
+        parentsVersion=m_parent.loadClass(name);
+        if ((parentsVersion.getClassLoader() != m_parent) || ((m_forcedDelegationFilter == null) || m_forcedDelegationFilter.included(name))) {
+          c=parentsVersion;
+          if (trace1)           m_log.trace1("loadClass","using parent's version for [" + name + "]");
+        }
+      }
+ catch (      ClassNotFoundException cnfe) {
+        if ((m_forcedDelegationFilter == null) || m_forcedDelegationFilter.included(name))         throw cnfe;
+      }
+    }
+    if (c == null) {
+      try {
+        c=findClass(name);
+      }
+ catch (      ClassNotFoundException cnfe) {
+        if (parentsVersion != null) {
+          final boolean delegate=(m_throughDelegationFilter == null) || m_throughDelegationFilter.included(name);
+          if (delegate) {
+            c=parentsVersion;
+            if (trace1)             m_log.trace1("loadClass","[delegation filter] using parent's version for [" + name + "]");
+          }
+ else           throw cnfe;
+        }
+ else         throw cnfe;
+      }
+    }
+  }
+  if (c == null)   throw new ClassNotFoundException(name);
+  if (resolve)   resolveClass(c);
+  return c;
+}

@@ -1,0 +1,33 @@
+{
+  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  JavaLibraryRule libraryOne=createAndroidLibraryRule("//java/src/com/facebook/base:libraryOne",buildRuleIndex,null,"java/src/com/facebook/base/assets1",null);
+  JavaLibraryRule libraryTwo=createAndroidLibraryRule("//java/src/com/facebook/base:libraryTwo",buildRuleIndex,null,"java/src/com/facebook/base/assets2",null);
+  BuildTarget binaryBuildTarget=BuildTargetFactory.newInstance("//java/src/com/facebook/base:apk");
+  AndroidBinaryRule androidBinary=AndroidBinaryRule.newAndroidBinaryRuleBuilder().setBuildTarget(binaryBuildTarget).addDep(libraryOne.getFullyQualifiedName()).addDep(libraryTwo.getFullyQualifiedName()).setManifest("java/src/com/facebook/base/AndroidManifest.xml").setTarget("Google Inc.:Google APIs:16").setKeystorePropertiesPath("java/src/com/facebook/base/keystore.properties").setPackageType("debug").build(buildRuleIndex);
+  buildRuleIndex.put(androidBinary.getFullyQualifiedName(),androidBinary);
+  AndroidResourceRule resourceOne=(AndroidResourceRule)buildRuleIndex.get("//java/src/com/facebook/base:libraryOne_resources");
+  AndroidResourceRule resourceTwo=(AndroidResourceRule)buildRuleIndex.get("//java/src/com/facebook/base:libraryTwo_resources");
+  Set<String> assetsDirectories=ImmutableSet.of(resourceOne.getAssets(),resourceTwo.getAssets());
+  ImmutableList.Builder<Command> commands=ImmutableList.builder();
+  DirectoryTraverser traverser=new DirectoryTraverser(){
+    @Override public void traverse(    DirectoryTraversal traversal){
+      String rootPath=traversal.getRoot().getPath();
+      if ("java/src/com/facebook/base/assets1".equals(rootPath)) {
+        traversal.visit(new File("java/src/com/facebook/base/assets1","guava-10.0.1-fork.dex.1.jar"),"guava-10.0.1-fork.dex.1.jar");
+      }
+ else       if ("java/src/com/facebook/base/assets2".equals(rootPath)) {
+        traversal.visit(new File("java/src/com/facebook/base/assets2","fonts/Theinhardt-Medium.otf"),"fonts/Theinhardt-Medium.otf");
+        traversal.visit(new File("java/src/com/facebook/base/assets2","fonts/Theinhardt-Regular.otf"),"fonts/Theinhardt-Regular.otf");
+      }
+ else {
+        throw new RuntimeException("Unexpected path: " + rootPath);
+      }
+    }
+  }
+;
+  Optional<String> allAssetsDirectory=androidBinary.createAllAssetsDirectory(assetsDirectories,ImmutableMap.<String,File>of(),commands,traverser);
+  assertTrue(allAssetsDirectory.isPresent());
+  assertEquals(BIN_DIR + "/java/src/com/facebook/base/__assets_apk__",allAssetsDirectory.get());
+  List<? extends Command> expectedCommands=ImmutableList.of(new MakeCleanDirectoryCommand(BIN_DIR + "/java/src/com/facebook/base/__assets_apk__"),new MkdirAndSymlinkFileCommand("java/src/com/facebook/base/assets1/guava-10.0.1-fork.dex.1.jar",BIN_DIR + "/java/src/com/facebook/base/__assets_apk__/guava-10.0.1-fork.dex.1.jar"),new MkdirAndSymlinkFileCommand("java/src/com/facebook/base/assets2/fonts/Theinhardt-Medium.otf",BIN_DIR + "/java/src/com/facebook/base/__assets_apk__/fonts/Theinhardt-Medium.otf"),new MkdirAndSymlinkFileCommand("java/src/com/facebook/base/assets2/fonts/Theinhardt-Regular.otf",BIN_DIR + "/java/src/com/facebook/base/__assets_apk__/fonts/Theinhardt-Regular.otf"));
+  MoreAsserts.assertListEquals(expectedCommands,commands.build());
+}

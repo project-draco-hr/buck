@@ -1,0 +1,29 @@
+{
+  ImmutableList.Builder<Command> commands=ImmutableList.builder();
+  commands.add(new RmCommand(getOutputFilePath(),true));
+  commands.add(new MkdirCommand(outDirectory));
+  commands.add(new MakeCleanDirectoryCommand(tmpDirectory));
+  commands.add(new MakeCleanDirectoryCommand(srcDirectory));
+  addSymlinkCommands(commands);
+  final String cmd=replaceBinaryBuildRuleRefsInCmd();
+  final ImmutableList<String> commandArgs=ImmutableList.of("/bin/bash","-c",cmd);
+  ImmutableMap.Builder<String,String> environmentVariablesBuilder=ImmutableMap.builder();
+  addEnvironmentVariables(environmentVariablesBuilder);
+  final ImmutableMap<String,String> environmentVariables=environmentVariablesBuilder.build();
+  commands.add(new ShellCommand(){
+    @Override public String getShortName(    ExecutionContext context){
+      return String.format("genrule: %s",cmd);
+    }
+    @Override protected ImmutableList<String> getShellCommandInternal(    ExecutionContext context){
+      return commandArgs;
+    }
+    @Override public ImmutableMap<String,String> getEnvironmentVariables(){
+      return environmentVariables;
+    }
+    @Override protected boolean shouldPrintStdErr(    ExecutionContext context){
+      return true;
+    }
+  }
+);
+  return commands.build();
+}

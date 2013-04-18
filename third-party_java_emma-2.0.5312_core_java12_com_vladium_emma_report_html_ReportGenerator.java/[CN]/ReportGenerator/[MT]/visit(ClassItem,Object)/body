@@ -1,0 +1,67 @@
+{
+  HTMLWriter out=null;
+  try {
+    final File outFile=getItemFile(NESTED_ITEMS_PARENT_DIR,m_reportIDNamespace.getID(getItemKey(item)));
+    out=openOutFile(Files.newFile(m_settings.getOutDir(),outFile),m_settings.getOutEncoding(),true);
+    final int[] columns=m_settings.getColumnOrder();
+    final StringBuffer buf=new StringBuffer();
+    final HTMLDocument page=createPage(REPORT_HEADER_TITLE);
+{
+      final IItem[] path=getParentPath(item);
+      addPageHeader(page,item,path);
+      addPageFooter(page,item,path);
+    }
+{
+      final IElement itemname=IElement.Factory.create(Tag.SPAN);
+      itemname.setText(item.getName(),true);
+      itemname.setClass(CSS_ITEM_NAME);
+      final IElementList title=new ElementList();
+      title.add(new Text("COVERAGE SUMMARY FOR CLASS [",true));
+      title.add(itemname);
+      title.add(new Text("]",true));
+      page.addH(1,title,null);
+    }
+    final HTMLTable summaryTable=new HTMLTable("100%",null,null,"0");
+{
+      final HTMLTable.IRow header=summaryTable.newTitleRow();
+      final HTMLTable.IRow coverage=summaryTable.newRow();
+      for (int c=0; c < columns.length; ++c) {
+        final int attrID=columns[c];
+        final IItemAttribute attr=item.getAttribute(attrID,m_settings.getUnitsType());
+        final HTMLTable.ICell headercell=header.newCell();
+        headercell.setText(attr.getName(),true);
+        if (attr != null) {
+          boolean fail=(m_metrics[attrID] > 0) && !attr.passes(item,m_metrics[attrID]);
+          buf.setLength(0);
+          attr.format(item,buf);
+          final HTMLTable.ICell cell=coverage.newCell();
+          cell.setText(buf.toString(),true);
+          if (fail)           cell.setClass(CSS_DATA_HIGHLIGHT);
+        }
+      }
+    }
+    page.add(summaryTable);
+    page.addH(2,"COVERAGE BREAKDOWN BY METHOD",null);
+    final HTMLTable childSummaryTable=new HTMLTable("100%",null,null,"0");
+{
+      int[] headerColumns=null;
+      boolean odd=true;
+      final ItemComparator order=m_typeSortComparators[MethodItem.getTypeMetadata().getTypeID()];
+      for (Iterator methods=item.getChildren(order); methods.hasNext(); odd=!odd) {
+        final MethodItem method=(MethodItem)methods.next();
+        if (headerColumns == null) {
+          headerColumns=addHeaderRow(method,childSummaryTable,columns);
+        }
+        addItemRow(method,odd,childSummaryTable,headerColumns,null,false);
+      }
+    }
+    page.add(childSummaryTable);
+    page.emit(out);
+    out.flush();
+  }
+  finally {
+    if (out != null)     out.close();
+    out=null;
+  }
+  return ctx;
+}

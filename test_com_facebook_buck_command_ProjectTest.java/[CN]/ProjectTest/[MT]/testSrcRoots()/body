@@ -1,0 +1,33 @@
+{
+  Map<String,BuildRule> buildRuleIndex1=Maps.newHashMap();
+  AndroidResourceRule androidResourceRule=AndroidResourceRule.newAndroidResourceRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//resources/com/example:res")).build(buildRuleIndex1);
+  buildRuleIndex1.put(androidResourceRule.getFullyQualifiedName(),androidResourceRule);
+  ProjectConfigRule projectConfigNullSrcRoots=ProjectConfigRule.newProjectConfigRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//resources/com/example:project_config")).setSrcTarget("//resources/com/example:res").setSrcRoots(null).build(buildRuleIndex1);
+  buildRuleIndex1.put(projectConfigNullSrcRoots.getFullyQualifiedName(),projectConfigNullSrcRoots);
+  ProjectWithModules projectWithModules1=getModulesForPartialGraph(buildRuleIndex1,ImmutableList.of(projectConfigNullSrcRoots),null);
+  assertEquals(1,projectWithModules1.modules.size());
+  Module moduleNoJavaSource=projectWithModules1.modules.get(0);
+  assertListEquals("Only source folder should be gen/ when setSrcRoots(null) is specified.",ImmutableList.of(SourceFolder.GEN),moduleNoJavaSource.sourceFolders);
+  Map<String,BuildRule> buildRuleIndex2=Maps.newHashMap();
+  AndroidLibraryRule inPackageJavaLibraryRule=AndroidLibraryRule.newAndroidLibraryRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/example/base:base")).build(buildRuleIndex2);
+  buildRuleIndex2.put(inPackageJavaLibraryRule.getFullyQualifiedName(),inPackageJavaLibraryRule);
+  ProjectConfigRule inPackageProjectConfig=ProjectConfigRule.newProjectConfigRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/example/base:project_config")).setSrcTarget("//java/com/example/base:base").setSrcRoots(ImmutableList.<String>of()).build(buildRuleIndex2);
+  buildRuleIndex2.put(inPackageProjectConfig.getFullyQualifiedName(),inPackageProjectConfig);
+  JavaPackageFinder javaPackageFinder=EasyMock.createMock(JavaPackageFinder.class);
+  EasyMock.expect(javaPackageFinder.findJavaPackageForPath("java/com/example/base/module_java_com_example_base.iml")).andReturn("com.example.base");
+  EasyMock.replay(javaPackageFinder);
+  ProjectWithModules projectWithModules2=getModulesForPartialGraph(buildRuleIndex2,ImmutableList.of(inPackageProjectConfig),javaPackageFinder);
+  EasyMock.verify(javaPackageFinder);
+  assertEquals(1,projectWithModules2.modules.size());
+  Module moduleWithPackagePrefix=projectWithModules2.modules.get(0);
+  assertListEquals("The current directory should be a source folder with a package prefix " + "as well as the gen/ directory.",ImmutableList.of(new SourceFolder("file://$MODULE_DIR$",false,"com.example.base"),SourceFolder.GEN),moduleWithPackagePrefix.sourceFolders);
+  Map<String,BuildRule> buildRuleIndex3=Maps.newHashMap();
+  AndroidLibraryRule hasSrcFolderAndroidLibraryRule=AndroidLibraryRule.newAndroidLibraryRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/example/base:base")).build(buildRuleIndex3);
+  buildRuleIndex3.put(hasSrcFolderAndroidLibraryRule.getFullyQualifiedName(),hasSrcFolderAndroidLibraryRule);
+  ProjectConfigRule hasSrcFolderProjectConfig=ProjectConfigRule.newProjectConfigRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/example/base:project_config")).setSrcTarget("//java/com/example/base:base").setSrcRoots(ImmutableList.of("src")).build(buildRuleIndex3);
+  buildRuleIndex3.put(hasSrcFolderProjectConfig.getFullyQualifiedName(),hasSrcFolderProjectConfig);
+  ProjectWithModules projectWithModules3=getModulesForPartialGraph(buildRuleIndex3,ImmutableList.of(hasSrcFolderProjectConfig),null);
+  assertEquals(1,projectWithModules3.modules.size());
+  Module moduleHasSrcFolder=projectWithModules3.modules.get(0);
+  assertListEquals("Both src/ and gen/ should be source folders.",ImmutableList.of(new SourceFolder("file://$MODULE_DIR$/src",false),SourceFolder.GEN),moduleHasSrcFolder.sourceFolders);
+}

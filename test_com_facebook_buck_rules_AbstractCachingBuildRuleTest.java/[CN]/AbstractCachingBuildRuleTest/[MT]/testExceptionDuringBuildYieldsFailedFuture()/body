@@ -1,0 +1,38 @@
+{
+  BuildRuleParams buildRuleParams=new BuildRuleParams(BuildTargetFactory.newInstance("//java/src/com/example/base:base"),ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of());
+  final IOException exceptionThrownDuringBuildInternal=new IOException("some exception");
+  AbstractCachingBuildRule buildRule=new AbstractCachingBuildRule(buildRuleParams){
+    @Override protected Iterable<String> getInputsToCompareToOutput(    BuildContext context){
+      return ImmutableList.of();
+    }
+    @Override protected List<Command> buildInternal(    BuildContext context) throws IOException {
+      throw exceptionThrownDuringBuildInternal;
+    }
+    @Override public BuildRuleType getType(){
+      return BuildRuleType.JAVA_LIBRARY;
+    }
+    @Override boolean checkIsCached(    BuildContext context,    Logger logger) throws IOException {
+      return false;
+    }
+  }
+;
+  BuildContext buildContext=createMock(BuildContext.class);
+  ExecutorService executor=MoreExecutors.sameThreadExecutor();
+  expect(buildContext.getExecutor()).andReturn(executor).times(3);
+  expect(buildContext.getEventBus()).andStubReturn(new EventBus());
+  CommandRunner commandRunner=createMock(CommandRunner.class);
+  ListeningExecutorService executorService=MoreExecutors.listeningDecorator(executor);
+  expect(commandRunner.getListeningExecutorService()).andReturn(executorService);
+  expect(buildContext.getCommandRunner()).andReturn(commandRunner);
+  replay(buildContext,commandRunner);
+  ListenableFuture<BuildRuleSuccess> buildRuleSuccess=buildRule.build(buildContext);
+  try {
+    buildRuleSuccess.get();
+    fail("Should have thrown ExecutionException");
+  }
+ catch (  ExecutionException e) {
+    assertSame("The build rule should have the IOException packaged in an ExecutionException.",exceptionThrownDuringBuildInternal,e.getCause());
+  }
+  assertFalse("The rule should not be considered to have built successfully.",buildRule.isRuleBuilt());
+  verify(buildContext,commandRunner);
+}

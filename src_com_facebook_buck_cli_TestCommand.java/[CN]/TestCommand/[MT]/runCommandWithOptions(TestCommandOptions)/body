@@ -1,0 +1,23 @@
+{
+  if (options.isRunAllTests()) {
+    try {
+      return runAllTests(options);
+    }
+ catch (    NoSuchBuildTargetException e) {
+      console.printFailureWithoutStacktrace(e);
+      return 1;
+    }
+  }
+  BuildCommand buildCommand=new BuildCommand(stdOut,stdErr,console,getProjectFilesystem());
+  int exitCode=buildCommand.runCommandWithOptions(options);
+  if (exitCode != 0) {
+    return exitCode;
+  }
+  Build build=buildCommand.getBuild();
+  Iterable<TestRule> results=getCandidateRulesByIncludedLabels(build.getDependencyGraph(),options.getIncludedLabels());
+  results=filterTestRules(options,results);
+  BuildContext buildContext=build.getBuildContext();
+  ExecutionContext executionContext=build.getExecutionContext();
+  com.facebook.buck.shell.CommandRunner commandRunner=build.getCommandRunner();
+  return runTests(results,buildContext,executionContext,commandRunner,options);
+}

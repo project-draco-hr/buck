@@ -1,0 +1,25 @@
+{
+  Document doc=XmlDomParser.parse(xml);
+  Element classElement=(Element)doc.getElementsByTagName("class").item(0);
+  String classNameAttr=getAttribute(classElement,"name");
+  int splitIndex=classNameAttr.lastIndexOf('.');
+  String packageName=classNameAttr.substring(0,splitIndex);
+  String className=classNameAttr.substring(splitIndex + 1);
+  String creatorClassName=getAttribute(classElement,"creatorClass");
+  Element importsElement=(Element)doc.getElementsByTagName("imports").item(0);
+  String importsText=importsElement.getTextContent();
+  Iterable<String> imports=Splitter.on('\n').omitEmptyStrings().trimResults().split(importsText);
+  Element fieldsElement=(Element)doc.getElementsByTagName("fields").item(0);
+  String defaultFieldVisibility=getAttribute(fieldsElement,"defaultVisibility");
+  if (defaultFieldVisibility == null) {
+    defaultFieldVisibility="private";
+  }
+  ImmutableList.Builder<ParcelableField> fields=ImmutableList.builder();
+  NodeList fieldNodes=fieldsElement.getElementsByTagName("field");
+  for (int i=0; i < fieldNodes.getLength(); i++) {
+    Element fieldElement=(Element)fieldNodes.item(i);
+    ParcelableField field=new ParcelableField(escapeJavaType(getAttribute(fieldElement,"type")),getAttribute(fieldElement,"name"),getBooleanAttribute(fieldElement,"mutable"),getAttribute(fieldElement,"visibility"),getAttribute(fieldElement,"jsonProperty"),getAttribute(fieldElement,"defaultValue"));
+    fields.add(field);
+  }
+  return new ParcelableClass(packageName,imports,className,creatorClassName == null ? className : creatorClassName,defaultFieldVisibility,fields.build(),getAttribute(classElement,"extends"),getAttribute(classElement,"superParams"));
+}

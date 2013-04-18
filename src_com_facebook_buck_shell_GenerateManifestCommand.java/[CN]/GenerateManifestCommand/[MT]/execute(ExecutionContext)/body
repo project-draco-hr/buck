@@ -1,0 +1,29 @@
+{
+  if (Strings.isNullOrEmpty(skeletonManifestPath)) {
+    throw new HumanReadableException("Skeleton manifest filepath is missing");
+  }
+  if (Strings.isNullOrEmpty(outManifestPath)) {
+    throw new HumanReadableException("Output Manifest filepath is missing");
+  }
+  if (libraryManifestPaths == null || libraryManifestPaths.isEmpty()) {
+    warnUser(context,"No library manifests found. Aborting manifest merge step.");
+    return 1;
+  }
+  List<File> libraryManifestFiles=Lists.newArrayList();
+  for (  String path : libraryManifestPaths) {
+    libraryManifestFiles.add(new File(path));
+  }
+  File skeletonManifestFile=new File(skeletonManifestPath);
+  ICallback callback=new ICallback(){
+    @Override public int queryCodenameApiLevel(    @NonNull String codename){
+      return BASE_SDK_LEVEL;
+    }
+  }
+;
+  IMergerLog log=MergerLog.wrapSdkLog(new StdLogger(StdLogger.Level.VERBOSE));
+  ManifestMerger merger=new ManifestMerger(log,callback);
+  if (!merger.process(new File(outManifestPath),skeletonManifestFile,Iterables.toArray(libraryManifestFiles,File.class))) {
+    throw new HumanReadableException("Error generating manifest file");
+  }
+  return 0;
+}

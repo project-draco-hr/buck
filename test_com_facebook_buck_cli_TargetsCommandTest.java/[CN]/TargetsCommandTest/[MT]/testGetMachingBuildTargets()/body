@@ -1,0 +1,33 @@
+{
+  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  PrebuiltJarRule emptyRule=PrebuiltJarRule.newPrebuiltJarRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//empty:empty")).setBinaryJar("").addVisibilityPattern(BuildTargetPattern.MATCH_ALL).build(buildRuleIndex);
+  buildRuleIndex.put(emptyRule.getFullyQualifiedName(),emptyRule);
+  JavaLibraryRule javaLibraryRule=DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//javasrc:java-library")).addSrc("javasrc/JavaLibrary.java").addVisibilityPattern(BuildTargetPattern.MATCH_ALL).addDep("//empty:empty").build(buildRuleIndex);
+  buildRuleIndex.put(javaLibraryRule.getFullyQualifiedName(),javaLibraryRule);
+  JavaTestRule javaTestRule=JavaTestRule.newJavaTestRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//javatest:test-java-library")).addSrc("javatest/TestJavaLibrary.java").addDep("//javasrc:java-library").build(buildRuleIndex);
+  buildRuleIndex.put(javaTestRule.getFullyQualifiedName(),javaTestRule);
+  List<String> targets=Lists.newArrayList();
+  targets.add("//empty:empty");
+  targets.add("//javasrc:java-library");
+  targets.add("//javatest:test-java-library");
+  PartialGraph graph=createGraphFromBuildRules(buildRuleIndex.values(),targets);
+  ImmutableSet<BuildRuleType> buildRuleTypes=ImmutableSet.of();
+  ImmutableSet<String> referencedFiles;
+  referencedFiles=ImmutableSet.of("excludesrc/CannotFind.java");
+  TreeMap<String,BuildTarget> matchingBuildTargets=targetsCommand.getMachingBuildTargets(graph.getDependencyGraph(),new TargetsCommandPredicate(graph,buildRuleTypes,referencedFiles));
+  assertTrue(matchingBuildTargets.isEmpty());
+  referencedFiles=ImmutableSet.of("javatest/TestJavaLibrary.java");
+  matchingBuildTargets=targetsCommand.getMachingBuildTargets(graph.getDependencyGraph(),new TargetsCommandPredicate(graph,buildRuleTypes,referencedFiles));
+  assertEquals(ImmutableSet.of("//javatest:test-java-library"),matchingBuildTargets.keySet());
+  referencedFiles=ImmutableSet.of("javasrc/JavaLibrary.java");
+  matchingBuildTargets=targetsCommand.getMachingBuildTargets(graph.getDependencyGraph(),new TargetsCommandPredicate(graph,buildRuleTypes,referencedFiles));
+  assertEquals(ImmutableSet.of("//javatest:test-java-library","//javasrc:java-library"),matchingBuildTargets.keySet());
+  referencedFiles=ImmutableSet.of("javatest/TestJavaLibrary.java","othersrc/CannotFind.java");
+  matchingBuildTargets=targetsCommand.getMachingBuildTargets(graph.getDependencyGraph(),new TargetsCommandPredicate(graph,buildRuleTypes,referencedFiles));
+  assertEquals(ImmutableSet.of("//javatest:test-java-library"),matchingBuildTargets.keySet());
+  referencedFiles=null;
+  matchingBuildTargets=targetsCommand.getMachingBuildTargets(graph.getDependencyGraph(),new TargetsCommandPredicate(graph,buildRuleTypes,ImmutableSet.<String>of()));
+  assertEquals(ImmutableSet.of("//javatest:test-java-library","//javasrc:java-library","//empty:empty"),matchingBuildTargets.keySet());
+  matchingBuildTargets=targetsCommand.getMachingBuildTargets(graph.getDependencyGraph(),new TargetsCommandPredicate(graph,ImmutableSet.of(BuildRuleType.JAVA_TEST,BuildRuleType.JAVA_LIBRARY),ImmutableSet.<String>of()));
+  assertEquals(ImmutableSet.of("//javatest:test-java-library","//javasrc:java-library"),matchingBuildTargets.keySet());
+}

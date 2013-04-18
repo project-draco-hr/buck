@@ -1,0 +1,44 @@
+{
+  PartialGraph partialGraph;
+  try {
+    partialGraph=PartialGraph.createPartialGraph(predicate,getProjectFilesystem().getProjectRoot(),options.getDefaultIncludes(),ansi);
+  }
+ catch (  NoSuchBuildTargetException e) {
+    console.printFailureWithoutStacktrace(e);
+    return 1;
+  }
+  Optional<AndroidPlatformTarget> androidPlatformTarget;
+  try {
+    androidPlatformTarget=options.findAndroidPlatformTarget(partialGraph.getDependencyGraph(),stdErr);
+  }
+ catch (  NoAndroidSdkException e) {
+    console.printFailureWithoutStacktrace(e);
+    return 1;
+  }
+  ExecutionContext executionContext=new ExecutionContext(options.getVerbosity(),getProjectFilesystem().getProjectRoot(),androidPlatformTarget,options.findAndroidNdkDir(),ansi,false,false,stdOut,stdErr);
+  Project project=new Project(partialGraph,options.getBasePathToAliasMap(),options.getJavaPackageFinder(),executionContext,getProjectFilesystem(),options.getPathToDefaultAndroidManifest());
+  File tempFile=new File(Files.createTempDir(),"project.json");
+  int exitCode;
+  try {
+    exitCode=project.createIntellijProject(tempFile,console.getStdOut());
+    if (exitCode != 0) {
+      return exitCode;
+    }
+    if (options.hasInitialTargets()) {
+      BuildCommand buildCommand=new BuildCommand(stdOut,stdErr,console,getProjectFilesystem());
+      exitCode=buildCommand.runCommandWithOptions(options.createBuildCommandOptionsWithInitialTargets());
+      if (exitCode != 0) {
+        return exitCode;
+      }
+    }
+  }
+  finally {
+    if (options.getVerbosity().shouldPrintOutput()) {
+      stdErr.printf("project.json was written to %s",tempFile.getAbsolutePath());
+    }
+ else {
+      tempFile.deleteOnExit();
+    }
+  }
+  return 0;
+}

@@ -1,0 +1,24 @@
+{
+  if (!visited.isEmpty()) {
+    classParser.parse(bean,this);
+  }
+  Class<?> beanClass=bean.getClass();
+  if (visited.contains(beanClass)) {
+    throw new IllegalAnnotationError(beanClass.getCanonicalName() + " used more than once.");
+  }
+ else {
+    visited.add(beanClass);
+  }
+  for (  Field f : beanClass.getDeclaredFields()) {
+    if (f.isAnnotationPresent(AdditionalOptions.class)) {
+      try {
+        Object fieldValue=f.getType().newInstance();
+        Setters.create(f,bean).addValue(fieldValue);
+        parseAdditionalOptions(classParser,fieldValue,visited);
+      }
+ catch (      Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+  }
+}

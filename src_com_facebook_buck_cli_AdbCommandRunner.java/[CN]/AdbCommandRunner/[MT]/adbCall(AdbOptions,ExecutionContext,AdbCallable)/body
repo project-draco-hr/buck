@@ -1,0 +1,48 @@
+{
+  AndroidDebugBridge adb=createAdb(context);
+  if (adb == null) {
+    console.printFailure("Failed to create adb connection.");
+    return false;
+  }
+  List<IDevice> devices=filterDevices(adb.getDevices(),options);
+  if (devices == null) {
+    return false;
+  }
+  int adbThreadCount=options.getAdbThreadCount();
+  if (adbThreadCount <= 0) {
+    adbThreadCount=devices.size();
+  }
+  List<ListenableFuture<Boolean>> futures=Lists.newArrayList();
+  ListeningExecutorService executorService=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(adbThreadCount));
+  for (  final IDevice device : devices) {
+    futures.add(executorService.submit(adbCallable.forDevice(device)));
+  }
+  List<Boolean> results=null;
+  try {
+    results=Futures.allAsList(futures).get();
+  }
+ catch (  ExecutionException ex) {
+    console.printFailure("Failed: " + adbCallable);
+    ex.printStackTrace(console.getStdErr());
+    return false;
+  }
+catch (  InterruptedException ex) {
+    console.printFailure("Interrupted.");
+    ex.printStackTrace(console.getStdErr());
+    return false;
+  }
+  int successCount=0;
+  for (  Boolean result : results) {
+    if (result) {
+      successCount++;
+    }
+  }
+  int failureCount=results.size() - successCount;
+  if (successCount > 0) {
+    console.printSuccess(String.format("Succesfully ran %s on %d device(s)",adbCallable,successCount));
+  }
+  if (failureCount > 0) {
+    console.printFailure(String.format("Failed to %s on %d device(s).",adbCallable,failureCount));
+  }
+  return failureCount == 0;
+}

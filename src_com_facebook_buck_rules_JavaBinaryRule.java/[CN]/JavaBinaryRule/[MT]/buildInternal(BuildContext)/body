@@ -1,0 +1,25 @@
+{
+  ImmutableList.Builder<Command> commands=ImmutableList.builder();
+  String outputDirectory=getOutputDirectory();
+  Command mkdir=new MkdirCommand(outputDirectory);
+  commands.add(mkdir);
+  ImmutableSet<String> includePaths;
+  if (metaInfDirectory != null) {
+    String stagingRoot=outputDirectory + "/meta_inf_staging";
+    String stagingTarget=stagingRoot + "/META-INF";
+    MakeCleanDirectoryCommand createStagingRoot=new MakeCleanDirectoryCommand(stagingRoot);
+    commands.add(createStagingRoot);
+    MkdirAndSymlinkFileCommand link=new MkdirAndSymlinkFileCommand(metaInfDirectory,stagingTarget);
+    commands.add(link);
+    includePaths=ImmutableSet.<String>builder().add(stagingRoot).addAll(getClasspathEntries()).build();
+  }
+ else {
+    includePaths=getClasspathEntries();
+  }
+  String outputFile=getOutputFile();
+  Command jar=new JarDirectoryCommand(outputFile,includePaths,mainClass,manifestFile);
+  commands.add(jar);
+  Command echo=new EchoCommand(String.format("Created JAR at %s",outputFile));
+  commands.add(echo);
+  return commands.build();
+}

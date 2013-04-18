@@ -1,0 +1,29 @@
+{
+  String pathToGenFile=(GEN_DIR + "/com/facebook/GeneratedFile.java");
+  String pathToNonGenFile1=("package/src/SourceFile1.java");
+  String pathToNonGenFile2=("package/src-gen/SourceFile2.java");
+  ImmutableSortedSet<String> javaSrcs=ImmutableSortedSet.of(pathToGenFile,pathToNonGenFile1,pathToNonGenFile2);
+  File parentFile1=EasyMock.createMock(File.class);
+  EasyMock.expect(parentFile1.getName()).andReturn("src");
+  EasyMock.expect(parentFile1.getPath()).andReturn("package/src");
+  File sourceFile1=EasyMock.createMock(File.class);
+  EasyMock.expect(sourceFile1.getParentFile()).andReturn(parentFile1);
+  File parentFile2=EasyMock.createMock(File.class);
+  EasyMock.expect(parentFile2.getName()).andReturn("src");
+  EasyMock.expect(parentFile2.getPath()).andReturn("package/src-gen");
+  File sourceFile2=EasyMock.createMock(File.class);
+  EasyMock.expect(sourceFile2.getParentFile()).andReturn(parentFile2);
+  DefaultJavaPackageFinder defaultJavaPackageFinder=EasyMock.createMock(DefaultJavaPackageFinder.class);
+  EasyMock.expect(defaultJavaPackageFinder.getPathsFromRoot()).andReturn(pathsFromRoot).times(2);
+  EasyMock.expect(defaultJavaPackageFinder.getPathElements()).andReturn(pathElements).times(2);
+  ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
+  EasyMock.expect(projectFilesystem.getFileForRelativePath(pathToNonGenFile1)).andReturn(sourceFile1);
+  EasyMock.expect(projectFilesystem.getFileForRelativePath(pathToNonGenFile2)).andReturn(sourceFile2);
+  JavaLibraryRule javaLibraryRule=EasyMock.createMock(JavaLibraryRule.class);
+  EasyMock.expect(javaLibraryRule.getJavaSrcs()).andReturn(ImmutableSortedSet.copyOf(javaSrcs));
+  Object[] mocks=new Object[]{parentFile1,sourceFile1,parentFile2,sourceFile2,defaultJavaPackageFinder,projectFilesystem,javaLibraryRule};
+  EasyMock.replay(mocks);
+  ImmutableSet<String> result=TestCommand.getPathToSourceFolders(javaLibraryRule,Optional.of(defaultJavaPackageFinder),projectFilesystem);
+  assertEquals("The non-generated source files are under two different source folders.",ImmutableSet.of("package/src-gen/","package/src/"),result);
+  EasyMock.verify(mocks);
+}

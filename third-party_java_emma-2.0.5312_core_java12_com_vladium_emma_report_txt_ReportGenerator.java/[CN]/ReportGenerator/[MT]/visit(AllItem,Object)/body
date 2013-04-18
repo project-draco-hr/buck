@@ -1,0 +1,59 @@
+{
+  File outFile=m_settings.getOutFile();
+  if (outFile == null) {
+    outFile=new File("coverage.txt");
+    m_settings.setOutFile(outFile);
+  }
+  final File fullOutFile=Files.newFile(m_settings.getOutDir(),outFile);
+  m_log.info("writing [" + getType() + "] report to ["+ fullOutFile.getAbsolutePath()+ "] ...");
+  openOutFile(fullOutFile,m_settings.getOutEncoding(),true);
+  try {
+    final StringBuffer label=new StringBuffer(101);
+    label.append("[");
+    label.append(IAppConstants.APP_NAME);
+    label.append(" v");
+    label.append(IAppConstants.APP_VERSION_WITH_BUILD_ID_AND_TAG);
+    label.append(" report, generated ");
+    label.append(new Date(EMMAProperties.getTimeStamp()));
+    label.append("]");
+    m_out.write(label.toString());
+    m_out.newLine();
+    m_out.flush();
+  }
+ catch (  IOException ioe) {
+    throw new EMMARuntimeException(IAppErrorCodes.REPORT_IO_FAILURE,ioe);
+  }
+  final int[] columns=m_settings.getColumnOrder();
+  line();
+  addTitleRow("OVERALL COVERAGE SUMMARY",0,1);
+{
+    addHeaderRow(item,columns);
+    addItemRow(item,columns);
+  }
+  addTitleRow("OVERALL STATS SUMMARY",1,1);
+{
+    row("total packages:" + m_separator + item.getChildCount());
+    row("total classes:" + m_separator + item.getAggregate(IItem.TOTAL_CLASS_COUNT));
+    row("total methods:" + m_separator + item.getAggregate(IItem.TOTAL_METHOD_COUNT));
+    if (m_srcView && m_hasSrcFileInfo) {
+      row("total executable files:" + m_separator + item.getAggregate(IItem.TOTAL_SRCFILE_COUNT));
+      if (m_hasLineNumberInfo)       row("total executable lines:" + m_separator + item.getAggregate(IItem.TOTAL_LINE_COUNT));
+    }
+  }
+  final boolean deeper=(m_settings.getDepth() > item.getMetadata().getTypeID());
+  addTitleRow("COVERAGE BREAKDOWN BY PACKAGE",1,1);
+{
+    boolean headerDone=false;
+    final ItemComparator order=m_typeSortComparators[PackageItem.getTypeMetadata().getTypeID()];
+    for (Iterator packages=item.getChildren(order); packages.hasNext(); ) {
+      final IItem pkg=(IItem)packages.next();
+      if (!headerDone) {
+        addHeaderRow(pkg,columns);
+        headerDone=true;
+      }
+      addItemRow(pkg,columns);
+      if (deeper)       m_queue.addLast(pkg);
+    }
+  }
+  return ctx;
+}

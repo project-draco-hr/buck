@@ -1,0 +1,40 @@
+{
+  Set<String> srcFolders=Sets.newHashSet();
+  ImmutableSet<String> javaSrcPaths=rule.getJavaSrcs();
+  if (javaSrcPaths.isEmpty()) {
+    return ImmutableSet.of();
+  }
+  if (!defaultJavaPackageFinderOptional.isPresent()) {
+    throw new HumanReadableException("Please include a [java] section with src_root property in the .buckconfig file.");
+  }
+  DefaultJavaPackageFinder defaultJavaPackageFinder=defaultJavaPackageFinderOptional.get();
+  loopThroughSourcePath:   for (  String javaSrcPath : javaSrcPaths) {
+    if (!JavaTestRule.isGeneratedFile(javaSrcPath)) {
+      for (      String srcFolder : srcFolders) {
+        if (javaSrcPath.startsWith(srcFolder)) {
+          continue loopThroughSourcePath;
+        }
+      }
+      ImmutableSortedSet<String> pathsFromRoot=defaultJavaPackageFinder.getPathsFromRoot();
+      for (      String root : pathsFromRoot) {
+        if (javaSrcPath.startsWith(root)) {
+          srcFolders.add(root);
+          continue loopThroughSourcePath;
+        }
+      }
+      ImmutableSet<String> pathElements=defaultJavaPackageFinder.getPathElements();
+      File directory=projectFilesystem.getFileForRelativePath(javaSrcPath).getParentFile();
+      while (directory != null && !pathElements.contains(directory.getName())) {
+        directory=directory.getParentFile();
+      }
+      if (directory != null) {
+        String directoryPath=directory.getPath();
+        if (!directoryPath.endsWith("/")) {
+          directoryPath+="/";
+        }
+        srcFolders.add(directoryPath);
+      }
+    }
+  }
+  return ImmutableSet.copyOf(srcFolders);
+}

@@ -1,0 +1,31 @@
+{
+  int count=0;
+  next:   for (Reference _ref; (_ref=m_valueReferenceQueue.poll()) != null; ) {
+    final int bucketIndex=((IndexedSoftReference)_ref).m_bucketIndex;
+    if (bucketIndex >= 0) {
+      for (SoftEntry entry=m_buckets[bucketIndex], prev=null; entry != null; prev=entry, entry=entry.m_next) {
+        if (entry.m_softValue == _ref) {
+          if (prev == null) {
+            m_buckets[bucketIndex]=entry.m_next;
+          }
+ else {
+            prev.m_next=entry.m_next;
+          }
+          entry.m_softValue=null;
+          entry.m_key=null;
+          entry.m_next=null;
+          entry=null;
+          --m_size;
+          if (DEBUG)           ++count;
+          continue next;
+        }
+      }
+      final StringBuffer msg=new StringBuffer("removeClearedValues(): soft reference [" + _ref + "] did not match within bucket #"+ bucketIndex+ EOL);
+      debugDump(msg);
+      throw new Error(msg.toString());
+    }
+  }
+  if (DEBUG) {
+    if (count > 0)     System.out.println("DEBUG: removeClearedValues() cleared " + count + " keys, new size = "+ m_size);
+  }
+}

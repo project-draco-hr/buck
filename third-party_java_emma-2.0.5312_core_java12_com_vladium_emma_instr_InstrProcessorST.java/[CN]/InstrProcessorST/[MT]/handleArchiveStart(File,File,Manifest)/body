@@ -1,0 +1,40 @@
+{
+  final Logger log=m_log;
+  if (log.atTRACE2())   log.trace2("handleArchiveStart","[" + parentDir + "] ["+ archive+ "]");
+  if (DO_DEPENDS_CHECKING) {
+    final File fullArchiveFile=Files.newFile(parentDir,archive);
+    m_currentArchiveTS=fullArchiveFile.lastModified();
+    if ($assert.ENABLED)     $assert.ASSERT(m_currentArchiveTS > 0,"invalid ts: " + m_currentArchiveTS);
+  }
+  if ((m_outMode == OutMode.OUT_MODE_FULLCOPY) || (m_outMode == OutMode.OUT_MODE_OVERWRITE)) {
+    final Manifest outManifest=manifest != null ? new Manifest(manifest) : new Manifest();
+    final Attributes mainAttrs=outManifest.getMainAttributes();
+    if (manifest == null)     mainAttrs.put(Attributes.Name.MANIFEST_VERSION,"1.0");
+    mainAttrs.put(new Attributes.Name("Created-By"),IAppConstants.APP_NAME + " v" + IAppConstants.APP_VERSION_WITH_BUILD_ID_AND_TAG);
+    mainAttrs.put(Attributes.Name.IMPLEMENTATION_TITLE,"instrumented version of [" + archive.getAbsolutePath() + "]");
+    mainAttrs.put(Attributes.Name.SPECIFICATION_TITLE,"instrumented on " + new Date(m_timeStamp) + " ["+ Property.getSystemFingerprint()+ "]");
+    if (m_outMode == OutMode.OUT_MODE_FULLCOPY) {
+      try {
+        final OutputStream out=new FileOutputStream(getFullOutFile(parentDir,archive,IN_LIB));
+        m_archiveOut=outManifest != null ? new JarOutputStream(out,outManifest) : new JarOutputStream(out);
+      }
+ catch (      IOException ioe) {
+        throw new EMMARuntimeException(ioe);
+      }
+    }
+ else     if (m_outMode == OutMode.OUT_MODE_OVERWRITE) {
+      m_origArchiveFile=Files.newFile(parentDir,archive);
+      final String archiveName=Files.getFileName(archive) + IAppConstants.APP_NAME_LC;
+      final String archiveExt=EMMAProperties.PROPERTY_TEMP_FILE_EXT;
+      try {
+        m_tempArchiveFile=Files.createTempFile(parentDir,archiveName,archiveExt);
+        if (log.atTRACE2())         log.trace2("handleArchiveStart","created temp archive [" + m_tempArchiveFile.getAbsolutePath() + "]");
+        final OutputStream out=new FileOutputStream(m_tempArchiveFile);
+        m_archiveOut=outManifest != null ? new JarOutputStream(out,outManifest) : new JarOutputStream(out);
+      }
+ catch (      IOException ioe) {
+        throw new EMMARuntimeException(ioe);
+      }
+    }
+  }
+}

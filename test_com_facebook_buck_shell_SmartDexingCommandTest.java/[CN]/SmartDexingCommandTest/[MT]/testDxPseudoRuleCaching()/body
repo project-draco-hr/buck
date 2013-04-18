@@ -1,0 +1,22 @@
+{
+  ExecutionContext context=createMock(ExecutionContext.class);
+  replay(context);
+  File testIn=new File(tmpDir.getRoot(),"testIn");
+  ZipOutputStream zipOut=new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(testIn)));
+  try {
+    zipOut.putNextEntry(new ZipEntry("foobar"));
+    zipOut.write(new byte[]{0});
+  }
+  finally {
+    zipOut.close();
+  }
+  File outputFile=tmpDir.newFile("out.dex");
+  File outputHashFile=new File(tmpDir.getRoot(),"out.dex.hash");
+  Files.write("dummy",outputHashFile,Charsets.UTF_8);
+  DxPseudoRule rule=new DxPseudoRule(context,ImmutableSet.of(testIn.getPath()),outputFile.getPath(),outputHashFile.getPath());
+  assertFalse("'dummy' is not a matching input hash",rule.checkIsCached());
+  String actualHash=rule.hashInputs();
+  assertFalse(actualHash.isEmpty());
+  Files.write(actualHash,outputHashFile,Charsets.UTF_8);
+  assertTrue("Matching input hash should be considered cached",rule.checkIsCached());
+}

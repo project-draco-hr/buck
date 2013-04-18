@@ -1,0 +1,38 @@
+{
+  ImmutableList.Builder<Command> commands=ImmutableList.builder();
+  BuildTarget buildTarget=getBuildTarget();
+  androidResourceDeps=AndroidResourceRule.getAndroidResourceDeps(this,context.getDependencyGraph());
+  boolean dependsOnAndroidResourceRules=!androidResourceDeps.isEmpty();
+  if (dependsOnAndroidResourceRules) {
+    UberRDotJavaUtil.createDummyRDotJavaFiles(androidResourceDeps,buildTarget,commands);
+  }
+  ImmutableSet<String> classpathEntries=getClasspathEntries();
+  if (dependsOnAndroidResourceRules) {
+    ImmutableSet.Builder<String> classpathEntriesWithRDotJava=ImmutableSet.builder();
+    classpathEntriesWithRDotJava.addAll(classpathEntries);
+    classpathEntriesWithRDotJava.add(UberRDotJavaUtil.getRDotJavaBinFolder(buildTarget));
+    classpathEntries=classpathEntriesWithRDotJava.build();
+  }
+  Supplier<String> bootclasspathSupplier;
+  if (isAndroidRule()) {
+    bootclasspathSupplier=context.getAndroidBootclasspathSupplier();
+  }
+ else {
+    bootclasspathSupplier=Suppliers.ofInstance(null);
+  }
+  String annotationGenFolder=annotationProcessingParams.getGeneratedSourceFolderName();
+  if (annotationGenFolder != null) {
+    MakeCleanDirectoryCommand mkdirGeneratedSources=new MakeCleanDirectoryCommand(annotationGenFolder);
+    commands.add(mkdirGeneratedSources);
+  }
+  String outputDirectory=getClassesDir(getBuildTarget());
+  commands.add(new MakeCleanDirectoryCommand(outputDirectory));
+  List<Command> javac=createCommandsForJavac(outputDirectory,srcs,classpathEntries,bootclasspathSupplier,annotationProcessingParams,sourceLevel,targetLevel);
+  commands.addAll(javac);
+  addResourceCommands(commands,outputDirectory,context.getJavaPackageFinder());
+  if (outputJar.isPresent()) {
+    commands.add(new MakeCleanDirectoryCommand(outputJar.get().getParent()));
+    commands.add(new JarDirectoryCommand(outputJar.get().getPath(),Collections.singleton(outputDirectory),null,null));
+  }
+  return commands.build();
+}

@@ -1,0 +1,31 @@
+{
+  List<BuildTarget> matchingTargets=(filter == null) ? null : Lists.<BuildTarget>newArrayList();
+  for (  Map<String,Object> map : rules) {
+    String type=(String)map.get("type");
+    BuildRuleType buildRuleType=BuildRuleType.valueOf(type.toUpperCase());
+    BuildRuleFactory factory=ruleTypeToFactoryMap.get(buildRuleType);
+    if (factory == null) {
+      throw new RuntimeException("Unrecognized rule: " + type);
+    }
+    String name=(String)map.get("name");
+    String basePath=(String)map.get("buck_base_path");
+    File sourceOfBuildTarget;
+    if (source == null) {
+      String relativePathToBuildFile=!basePath.isEmpty() ? "./" + basePath + "/"+ BuckConstant.BUILD_RULES_FILE_NAME : "./" + BuckConstant.BUILD_RULES_FILE_NAME;
+      sourceOfBuildTarget=new File(relativePathToBuildFile);
+    }
+ else {
+      sourceOfBuildTarget=source;
+    }
+    BuildTarget target=new BuildTarget(sourceOfBuildTarget,"//" + basePath,name);
+    if (filter != null && filter.isMatch(map,buildRuleType,target)) {
+      matchingTargets.add(target);
+    }
+    BuildRuleBuilder buildRuleBuilder=factory.newInstance(new BuildRuleFactoryParams(map,System.err,projectFilesystem,buildFiles,buildTargetParser,target));
+    Object existingRule=knownBuildTargets.put(target.getFullyQualifiedName(),buildRuleBuilder);
+    if (existingRule != null) {
+      throw new RuntimeException("Duplicate definition for " + target.getFullyQualifiedName());
+    }
+  }
+  return matchingTargets;
+}

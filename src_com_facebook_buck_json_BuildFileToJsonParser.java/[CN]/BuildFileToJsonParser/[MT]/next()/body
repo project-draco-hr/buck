@@ -1,0 +1,57 @@
+{
+  String currentFieldName=null;
+  List<String> currentArray=null;
+  Map<String,Object> currentObject=null;
+  while (true) {
+    JsonToken token=parser.nextToken();
+    if (token == null) {
+      return null;
+    }
+switch (token) {
+case START_OBJECT:
+      currentObject=Maps.newHashMap();
+    break;
+case END_OBJECT:
+  Map<String,Object> out=currentObject;
+currentObject=null;
+return out;
+case START_ARRAY:
+currentArray=Lists.newArrayList();
+break;
+case END_ARRAY:
+currentObject.put(currentFieldName,currentArray);
+currentArray=null;
+currentFieldName=null;
+break;
+case FIELD_NAME:
+currentFieldName=parser.getText();
+break;
+case VALUE_STRING:
+if (currentArray == null) {
+currentObject.put(currentFieldName,parser.getText());
+currentFieldName=null;
+}
+ else {
+currentArray.add(parser.getText());
+}
+break;
+case VALUE_TRUE:
+case VALUE_FALSE:
+Preconditions.checkState(currentArray == null,"Unexpected boolean in JSON array");
+currentObject.put(currentFieldName,token == JsonToken.VALUE_TRUE);
+currentFieldName=null;
+break;
+case VALUE_NULL:
+if (currentArray == null) {
+currentObject.put(currentFieldName,null);
+currentFieldName=null;
+}
+ else {
+currentArray.add(null);
+}
+break;
+default :
+throw new JsonParseException("Unexpected token: " + token,parser.getCurrentLocation());
+}
+}
+}

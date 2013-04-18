@@ -1,0 +1,19 @@
+{
+  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  JavaLibraryRule libraryOne=createAndroidLibraryRule("//java/src/com/facebook/base:libraryOne",buildRuleIndex,null,null,null);
+  JavaLibraryRule libraryTwo=createAndroidLibraryRule("//java/src/com/facebook/base:libraryTwo",buildRuleIndex,null,null,null);
+  BuildTarget binaryBuildTarget=BuildTargetFactory.newInstance("//java/src/com/facebook/base:apk");
+  AndroidBinaryRule androidBinary=AndroidBinaryRule.newAndroidBinaryRuleBuilder().setBuildTarget(binaryBuildTarget).addDep(libraryOne.getFullyQualifiedName()).addDep(libraryTwo.getFullyQualifiedName()).setManifest("java/src/com/facebook/base/AndroidManifest.xml").setTarget("Google Inc.:Google APIs:16").setKeystorePropertiesPath("java/src/com/facebook/base/keystore.properties").setPackageType("debug").build(buildRuleIndex);
+  buildRuleIndex.put(androidBinary.getFullyQualifiedName(),androidBinary);
+  Set<String> assetsDirectories=ImmutableSet.of();
+  ImmutableList.Builder<Command> commands=ImmutableList.builder();
+  DirectoryTraverser traverser=new DirectoryTraverser(){
+    @Override public void traverse(    DirectoryTraversal traversal){
+      throw new RuntimeException("Unexpected: no assets directories to traverse!");
+    }
+  }
+;
+  Optional<String> allAssetsDirectory=androidBinary.createAllAssetsDirectory(assetsDirectories,ImmutableMap.<String,File>of(),commands,traverser);
+  assertFalse("There should not be an assets/ directory to pass to aapt.",allAssetsDirectory.isPresent());
+  assertTrue("There should not be any commands to build up an assets/ directory.",commands.build().isEmpty());
+}

@@ -1,0 +1,32 @@
+{
+  String name;
+  if (device.isEmulator()) {
+    name=device.getSerialNumber() + " (" + device.getAvdName()+ ")";
+  }
+ else {
+    name=device.getSerialNumber();
+    String model=device.getProperty("ro.product.model");
+    if (model != null) {
+      name+=" (" + model + ")";
+    }
+  }
+  PrintStream stdOut=console.getStdOut();
+  stdOut.printf("Removing apk from %s.\n",name);
+  try {
+    long start=System.currentTimeMillis();
+    String reason=deviceUninstallPackage(device,packageName,keepData);
+    long end=System.currentTimeMillis();
+    if (reason != null) {
+      console.printFailure(String.format("Failed to uninstall apk from %s: %s.",name,reason));
+      return false;
+    }
+    long delta=end - start;
+    stdOut.printf("Uninstalled apk from %s in %d.%03ds.\n",name,delta / 1000,delta % 1000);
+    return true;
+  }
+ catch (  InstallException ex) {
+    console.printFailure(String.format("Failed to uninstall apk from %s.",name));
+    ex.printStackTrace(console.getStdErr());
+    return false;
+  }
+}

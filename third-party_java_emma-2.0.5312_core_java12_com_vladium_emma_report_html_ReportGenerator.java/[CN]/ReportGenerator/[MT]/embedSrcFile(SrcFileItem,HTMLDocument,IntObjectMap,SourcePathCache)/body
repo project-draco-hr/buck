@@ -1,0 +1,114 @@
+{
+  if ($assert.ENABLED) {
+    $assert.ASSERT(item != null,"null input: item");
+    $assert.ASSERT(page != null,"null input: page");
+  }
+  final String fileName=item.getName();
+  if ($assert.ENABLED)   $assert.ASSERT(fileName.endsWith(".java"),"cache only handles .java extensions");
+  final String packageVMName=((PackageItem)item.getParent()).getVMName();
+  boolean success=false;
+  final HTMLTable srcTable=new HTMLTable("100%",null,null,"0");
+  if (cache != null) {
+    srcTable.setClass(CSS_SOURCE);
+    final File srcFile=cache.find(packageVMName,fileName);
+    if (srcFile != null) {
+      BufferedReader in=null;
+      try {
+        in=new BufferedReader(new FileReader(srcFile),IO_BUF_SIZE);
+        final boolean markupCoverage=m_hasLineNumberInfo;
+        final int unitsType=m_settings.getUnitsType();
+        IntObjectMap lineCoverageMap=null;
+        StringBuffer tooltipBuffer=null;
+        if (markupCoverage) {
+          lineCoverageMap=item.getLineCoverage();
+          $assert.ASSERT(lineCoverageMap != null,"null: lineCoverageMap");
+          tooltipBuffer=new StringBuffer(64);
+        }
+        int l=1;
+        for (String line; (line=in.readLine()) != null; ++l) {
+          final HTMLTable.IRow srcline=srcTable.newRow();
+          final HTMLTable.ICell lineNumCell=srcline.newCell();
+          lineNumCell.setClass(CSS_LINENUM);
+          if (anchorMap != null) {
+            final int adjustedl=l < SRC_LINE_OFFSET ? l : l + SRC_LINE_OFFSET;
+            final String anchor=(String)anchorMap.get(adjustedl);
+            if (anchor != null) {
+              final IElement a=IElement.Factory.create(Tag.A);
+              a.getAttributes().set(Attribute.NAME,anchor);
+              a.setText(Integer.toString(l),true);
+              lineNumCell.add(a);
+            }
+ else {
+              lineNumCell.setText(Integer.toString(l),true);
+            }
+          }
+ else {
+            lineNumCell.setText(Integer.toString(l),true);
+          }
+          final HTMLTable.ICell lineTxtCell=srcline.newCell();
+          lineTxtCell.setText(line.length() > 0 ? line : " ",true);
+          if (markupCoverage) {
+            final SrcFileItem.LineCoverageData lCoverageData=(SrcFileItem.LineCoverageData)lineCoverageMap.get(l);
+            if (lCoverageData != null) {
+switch (lCoverageData.m_coverageStatus) {
+case SrcFileItem.LineCoverageData.LINE_COVERAGE_ZERO:
+                srcline.setClass(CSS_COVERAGE_ZERO);
+              break;
+case SrcFileItem.LineCoverageData.LINE_COVERAGE_PARTIAL:
+{
+              srcline.setClass(CSS_COVERAGE_PARTIAL);
+              if (USE_LINE_COVERAGE_TOOLTIPS) {
+                tooltipBuffer.setLength(0);
+                final int[] coverageRatio=lCoverageData.m_coverageRatio[unitsType];
+                final int d=coverageRatio[0];
+                final int n=coverageRatio[1];
+                m_format.format((double)n / d,tooltipBuffer,m_fieldPosition);
+                tooltipBuffer.append(" line coverage (");
+                tooltipBuffer.append(n);
+                tooltipBuffer.append(" out of ");
+                tooltipBuffer.append(d);
+switch (unitsType) {
+case IItemAttribute.UNITS_COUNT:
+                  tooltipBuffer.append(" basic blocks)");
+                break;
+case IItemAttribute.UNITS_INSTR:
+              tooltipBuffer.append(" instructions)");
+            break;
+        }
+        lineNumCell.getAttributes().set(Attribute.TITLE,tooltipBuffer.toString());
+        lineTxtCell.getAttributes().set(Attribute.TITLE,tooltipBuffer.toString());
+      }
+    }
+  break;
+case SrcFileItem.LineCoverageData.LINE_COVERAGE_COMPLETE:
+srcline.setClass(CSS_COVERAGE_COMPLETE);
+break;
+default :
+$assert.ASSERT(false,"invalid line coverage status: " + lCoverageData.m_coverageStatus);
+}
+}
+}
+}
+success=true;
+}
+ catch (Throwable t) {
+t.printStackTrace(System.out);
+success=false;
+}
+ finally {
+if (in != null) try {
+in.close();
+}
+ catch (Throwable ignore) {
+}
+in=null;
+}
+}
+}
+if (!success) {
+srcTable.setClass(CSS_INVISIBLE_TABLE);
+final HTMLTable.IRow row=srcTable.newTitleRow();
+row.newCell().setText("[source file '" + Descriptors.combineVMName(packageVMName,fileName) + "' not found in sourcepath]",false);
+}
+page.add(srcTable);
+}

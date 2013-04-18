@@ -1,0 +1,18 @@
+{
+  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  PrebuiltJarRule cglib=PrebuiltJarRule.newPrebuiltJarRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//third_party/java/easymock:cglib")).setBinaryJar("third_party/java/easymock/cglib.jar").build(buildRuleIndex);
+  buildRuleIndex.put(cglib.getFullyQualifiedName(),cglib);
+  PrebuiltJarRule objenesis=PrebuiltJarRule.newPrebuiltJarRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//third_party/java/easymock:objenesis")).setBinaryJar("third_party/java/easymock/objenesis.jar").build(buildRuleIndex);
+  buildRuleIndex.put(objenesis.getFullyQualifiedName(),objenesis);
+  PrebuiltJarRule easymock=PrebuiltJarRule.newPrebuiltJarRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//third_party/java/easymock:easymock")).setBinaryJar("third_party/java/easymock/easymock.jar").addDep("//third_party/java/easymock:cglib").addDep("//third_party/java/easymock:objenesis").build(buildRuleIndex);
+  buildRuleIndex.put(easymock.getFullyQualifiedName(),easymock);
+  AndroidLibraryRule androidLibrary=AndroidLibraryRule.newAndroidLibraryRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//third_party/java/easymock:example")).addDep("//third_party/java/easymock:easymock").build(buildRuleIndex);
+  buildRuleIndex.put(androidLibrary.getFullyQualifiedName(),androidLibrary);
+  ProjectConfigRule projectConfig=ProjectConfigRule.newProjectConfigRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//third_party/java/easymock:project_config")).setSrcTarget("//third_party/java/easymock:example").build(buildRuleIndex);
+  buildRuleIndex.put(projectConfig.getFullyQualifiedName(),projectConfig);
+  ProjectWithModules projectWithModules=getModulesForPartialGraph(buildRuleIndex,ImmutableList.of(projectConfig),null);
+  List<Module> modules=projectWithModules.modules;
+  assertEquals("Should be one module for the android_library",1,modules.size());
+  Module androidLibraryModule=Iterables.getOnlyElement(modules);
+  assertListEquals(ImmutableList.of(DependentModule.newSourceFolder(),DependentModule.newLibrary(easymock.getBuildTarget(),"easymock"),DependentModule.newLibrary(cglib.getBuildTarget(),"cglib"),DependentModule.newLibrary(objenesis.getBuildTarget(),"objenesis"),DependentModule.newInheritedJdk()),androidLibraryModule.dependencies);
+}

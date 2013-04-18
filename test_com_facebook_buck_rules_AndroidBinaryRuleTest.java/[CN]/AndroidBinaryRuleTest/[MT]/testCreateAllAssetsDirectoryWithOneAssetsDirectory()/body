@@ -1,0 +1,27 @@
+{
+  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  JavaLibraryRule libraryOne=createAndroidLibraryRule("//java/src/com/facebook/base:libraryOne",buildRuleIndex,null,null,null);
+  JavaLibraryRule libraryTwo=createAndroidLibraryRule("//java/src/com/facebook/base:libraryTwo",buildRuleIndex,null,"java/src/com/facebook/base/assets2",null);
+  AndroidResourceRule resourceOne=(AndroidResourceRule)buildRuleIndex.get("//java/src/com/facebook/base:libraryTwo_resources");
+  BuildTarget binaryBuildTarget=BuildTargetFactory.newInstance("//java/src/com/facebook/base:apk");
+  AndroidBinaryRule androidBinary=AndroidBinaryRule.newAndroidBinaryRuleBuilder().setBuildTarget(binaryBuildTarget).addDep(libraryOne.getFullyQualifiedName()).addDep(libraryTwo.getFullyQualifiedName()).setManifest("java/src/com/facebook/base/AndroidManifest.xml").setTarget("Google Inc.:Google APIs:16").setKeystorePropertiesPath("java/src/com/facebook/base/keystore.properties").setPackageType("debug").build(buildRuleIndex);
+  buildRuleIndex.put(androidBinary.getFullyQualifiedName(),androidBinary);
+  Set<String> assetsDirectories=ImmutableSet.of(resourceOne.getAssets());
+  ImmutableList.Builder<Command> commands=ImmutableList.builder();
+  DirectoryTraverser traverser=new DirectoryTraverser(){
+    @Override public void traverse(    DirectoryTraversal traversal){
+      String rootPath=traversal.getRoot().getPath();
+      if ("java/src/com/facebook/base/assets2".equals(rootPath)) {
+        traversal.visit(new File("java/src/com/facebook/base/assets2","fonts/Theinhardt-Medium.otf"),"fonts/Theinhardt-Medium.otf");
+        traversal.visit(new File("java/src/com/facebook/base/assets2","fonts/Theinhardt-Regular.otf"),"fonts/Theinhardt-Regular.otf");
+      }
+ else {
+        throw new RuntimeException("Unexpected path: " + rootPath);
+      }
+    }
+  }
+;
+  Optional<String> allAssetsDirectory=androidBinary.createAllAssetsDirectory(assetsDirectories,ImmutableMap.<String,File>of(),commands,traverser);
+  assertTrue(allAssetsDirectory.isPresent());
+  assertEquals("Even though there is only one assets directory, the one in " + BIN_DIR + " should be used.",androidBinary.getPathToAllAssetsDirectory(),allAssetsDirectory.get());
+}

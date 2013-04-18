@@ -1,0 +1,19 @@
+{
+  DependencyGraph dependencyGraph=partialGraph.getDependencyGraph();
+  List<Module> modules=Lists.newArrayList();
+  ImmutableSet.Builder<String> noDxJarsBuilder=ImmutableSet.builder();
+  for (  BuildTarget target : partialGraph.getTargets()) {
+    BuildRule buildRule=dependencyGraph.findBuildRuleByTarget(target);
+    ProjectConfigRule projectConfigRule=(ProjectConfigRule)buildRule;
+    BuildRule srcRule=projectConfigRule.getSrcRule();
+    if (srcRule instanceof AndroidBinaryRule) {
+      AndroidBinaryRule androidBinary=(AndroidBinaryRule)srcRule;
+      noDxJarsBuilder.addAll(androidBinary.getClasspathEntriesToExcludeFromDex());
+    }
+    Module module=createModuleForProjectConfig(projectConfigRule);
+    modules.add(module);
+  }
+  ImmutableSet<String> noDxJars=noDxJarsBuilder.build();
+  markNoDxJarsAsProvided(modules,noDxJars,dependencyGraph);
+  return modules;
+}

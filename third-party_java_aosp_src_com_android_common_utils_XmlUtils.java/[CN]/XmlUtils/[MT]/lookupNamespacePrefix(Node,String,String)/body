@@ -1,0 +1,53 @@
+{
+  if (nsUri == null) {
+    return null;
+  }
+  if (XMLNS_URI.equals(nsUri)) {
+    return XMLNS;
+  }
+  HashSet<String> visited=new HashSet<String>();
+  Document doc=node == null ? null : node.getOwnerDocument();
+  String nsPrefix=null;
+  try {
+    nsPrefix=doc != null ? doc.lookupPrefix(nsUri) : null;
+    if (nsPrefix != null) {
+      return nsPrefix;
+    }
+  }
+ catch (  Throwable t) {
+  }
+  for (; node != null && node.getNodeType() == Node.ELEMENT_NODE; node=node.getParentNode()) {
+    NamedNodeMap attrs=node.getAttributes();
+    for (int n=attrs.getLength() - 1; n >= 0; --n) {
+      Node attr=attrs.item(n);
+      if (XMLNS.equals(attr.getPrefix())) {
+        String uri=attr.getNodeValue();
+        nsPrefix=attr.getLocalName();
+        if (nsUri.equals(uri)) {
+          return nsPrefix;
+        }
+        visited.add(nsPrefix);
+      }
+    }
+  }
+  if (defaultPrefix == null) {
+    return null;
+  }
+  String prefix=defaultPrefix;
+  String base=prefix;
+  for (int i=1; visited.contains(prefix); i++) {
+    prefix=base + Integer.toString(i);
+  }
+  if (doc != null) {
+    node=doc.getFirstChild();
+    while (node != null && node.getNodeType() != Node.ELEMENT_NODE) {
+      node=node.getNextSibling();
+    }
+    if (node != null) {
+      Attr attr=doc.createAttributeNS(XMLNS_URI,XMLNS_PREFIX + prefix);
+      attr.setValue(nsUri);
+      node.getAttributes().setNamedItemNS(attr);
+    }
+  }
+  return prefix;
+}

@@ -1,0 +1,40 @@
+{
+  if (jarFile == null) {
+    return ImmutableSet.of();
+  }
+  final Set<String> sourceClassNames=Sets.newHashSetWithExpectedSize(sources.size());
+  for (  String source : sources) {
+    int lastSlashIndex=source.lastIndexOf('/');
+    if (lastSlashIndex >= 0) {
+      source=source.substring(lastSlashIndex + 1);
+    }
+    source=source.substring(0,source.length() - ".java".length());
+    sourceClassNames.add(source);
+  }
+  final ImmutableSet.Builder<String> testClassNames=ImmutableSet.builder();
+  ZipFileTraversal traversal=new ZipFileTraversal(jarFile){
+    @Override public void visit(    ZipFile zipFile,    ZipEntry zipEntry){
+      final String name=new File(zipEntry.getName()).getName();
+      if (!name.endsWith(".class")) {
+        return;
+      }
+      String nameWithoutDotClass=name.substring(0,name.length() - ".class".length());
+      if (!sourceClassNames.contains(nameWithoutDotClass)) {
+        return;
+      }
+      if (!name.contains("$")) {
+        String fullyQualifiedNameWithDotClassSuffix=zipEntry.getName().replace('/','.');
+        String className=fullyQualifiedNameWithDotClassSuffix.substring(0,fullyQualifiedNameWithDotClassSuffix.length() - ".class".length());
+        testClassNames.add(className);
+      }
+    }
+  }
+;
+  try {
+    traversal.traverse();
+  }
+ catch (  IOException e) {
+    throw Throwables.propagate(e);
+  }
+  return testClassNames.build();
+}

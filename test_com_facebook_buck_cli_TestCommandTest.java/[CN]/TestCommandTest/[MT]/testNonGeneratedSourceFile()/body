@@ -1,0 +1,22 @@
+{
+  String pathToNonGenFile="package/src/SourceFile1.java";
+  assertFalse(JavaTestRule.isGeneratedFile(pathToNonGenFile));
+  ImmutableSortedSet<String> javaSrcs=ImmutableSortedSet.of(pathToNonGenFile);
+  File parentFile=EasyMock.createMock(File.class);
+  EasyMock.expect(parentFile.getName()).andReturn("src");
+  EasyMock.expect(parentFile.getPath()).andReturn("package/src");
+  File sourceFile=EasyMock.createMock(File.class);
+  EasyMock.expect(sourceFile.getParentFile()).andReturn(parentFile);
+  DefaultJavaPackageFinder defaultJavaPackageFinder=EasyMock.createMock(DefaultJavaPackageFinder.class);
+  EasyMock.expect(defaultJavaPackageFinder.getPathsFromRoot()).andReturn(pathsFromRoot);
+  EasyMock.expect(defaultJavaPackageFinder.getPathElements()).andReturn(pathElements);
+  ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
+  EasyMock.expect(projectFilesystem.getFileForRelativePath(pathToNonGenFile)).andReturn(sourceFile);
+  JavaLibraryRule javaLibraryRule=EasyMock.createMock(JavaLibraryRule.class);
+  EasyMock.expect(javaLibraryRule.getJavaSrcs()).andReturn(ImmutableSortedSet.copyOf(javaSrcs));
+  Object[] mocks=new Object[]{parentFile,sourceFile,defaultJavaPackageFinder,projectFilesystem,javaLibraryRule};
+  EasyMock.replay(mocks);
+  ImmutableSet<String> result=TestCommand.getPathToSourceFolders(javaLibraryRule,Optional.of(defaultJavaPackageFinder),projectFilesystem);
+  assertEquals("All non-generated source files are under one source folder.",ImmutableSet.of("package/src/"),result);
+  EasyMock.verify(mocks);
+}

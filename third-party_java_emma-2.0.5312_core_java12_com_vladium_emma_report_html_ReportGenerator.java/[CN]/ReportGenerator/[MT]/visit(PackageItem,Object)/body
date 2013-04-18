@@ -1,0 +1,75 @@
+{
+  HTMLWriter out=null;
+  try {
+    if (m_verbose)     m_log.verbose("  report: processing package [" + item.getName() + "] ...");
+    final File outFile=getItemFile(NESTED_ITEMS_PARENT_DIR,m_reportIDNamespace.getID(getItemKey(item)));
+    out=openOutFile(Files.newFile(m_settings.getOutDir(),outFile),m_settings.getOutEncoding(),true);
+    final int[] columns=m_settings.getColumnOrder();
+    final StringBuffer buf=new StringBuffer();
+    final HTMLDocument page=createPage(REPORT_HEADER_TITLE);
+{
+      final IItem[] path=getParentPath(item);
+      addPageHeader(page,item,path);
+      addPageFooter(page,item,path);
+    }
+{
+      final IElement itemname=IElement.Factory.create(Tag.SPAN);
+      itemname.setText(item.getName(),true);
+      itemname.setClass(CSS_ITEM_NAME);
+      final IElementList title=new ElementList();
+      title.add(new Text("COVERAGE SUMMARY FOR PACKAGE [",true));
+      title.add(itemname);
+      title.add(new Text("]",true));
+      page.addH(1,title,null);
+    }
+    final HTMLTable summaryTable=new HTMLTable("100%",null,null,"0");
+{
+      final HTMLTable.IRow header=summaryTable.newTitleRow();
+      final HTMLTable.IRow coverage=summaryTable.newRow();
+      for (int c=0; c < columns.length; ++c) {
+        final int attrID=columns[c];
+        final IItemAttribute attr=item.getAttribute(attrID,m_settings.getUnitsType());
+        final HTMLTable.ICell headercell=header.newCell();
+        headercell.setText(attr.getName(),true);
+        if (attr != null) {
+          boolean fail=(m_metrics[attrID] > 0) && !attr.passes(item,m_metrics[attrID]);
+          buf.setLength(0);
+          attr.format(item,buf);
+          final HTMLTable.ICell cell=coverage.newCell();
+          cell.setText(buf.toString(),true);
+          if (fail)           cell.setClass(CSS_DATA_HIGHLIGHT);
+        }
+      }
+    }
+    page.add(summaryTable);
+    final boolean deeper=(m_settings.getDepth() > item.getMetadata().getTypeID());
+    final String summaryTitle=m_srcView ? "COVERAGE BREAKDOWN BY SOURCE FILE" : "COVERAGE BREAKDOWN BY CLASS";
+    page.addH(2,summaryTitle,null);
+    final HTMLTable childSummaryTable=new HTMLTable("100%",null,null,"0");
+{
+      int[] headerColumns=null;
+      boolean odd=true;
+      final ItemComparator order=m_typeSortComparators[m_srcView ? SrcFileItem.getTypeMetadata().getTypeID() : ClassItem.getTypeMetadata().getTypeID()];
+      for (Iterator srcORclsFiles=item.getChildren(order); srcORclsFiles.hasNext(); odd=!odd) {
+        final IItem srcORcls=(IItem)srcORclsFiles.next();
+        if (headerColumns == null) {
+          headerColumns=addHeaderRow(srcORcls,childSummaryTable,columns);
+        }
+        String childHREF=null;
+        if (deeper) {
+          childHREF=getItemHREF(item,srcORcls);
+        }
+        addItemRow(srcORcls,odd,childSummaryTable,headerColumns,childHREF,false);
+        if (deeper)         m_queue.addLast(srcORcls);
+      }
+    }
+    page.add(childSummaryTable);
+    page.emit(out);
+    out.flush();
+  }
+  finally {
+    if (out != null)     out.close();
+    out=null;
+  }
+  return ctx;
+}

@@ -1,0 +1,66 @@
+{
+  final Logger log=Logger.getLogger();
+  final boolean trace1=log.atTRACE1();
+  final boolean trace2=log.atTRACE2();
+  final String method="mergeload";
+  long start=0, end;
+  if (trace1)   start=System.currentTimeMillis();
+  final IMergeable[] result=new IMergeable[2];
+  if (!file.exists()) {
+    throw new IOException("input file does not exist: [" + file.getAbsolutePath() + "]");
+  }
+ else {
+    RandomAccessFile raf=null;
+    try {
+      raf=new RandomAccessFile(file,"r");
+      final long length=raf.length();
+      if (trace1)       log.trace1(method,"[" + file + "]: file length = "+ length);
+      if (length < FILE_HEADER_LENGTH) {
+        throw new IOException("file [" + file.getAbsolutePath() + "] is corrupt or was not created by "+ IAppConstants.APP_NAME);
+      }
+ else {
+        if (length > FILE_HEADER_LENGTH) {
+          raf.seek(FILE_HEADER_LENGTH);
+          long position=FILE_HEADER_LENGTH;
+          long entryLength;
+          long entrystart=0;
+          while (true) {
+            if (trace2)             log.trace2(method,"[" + file + "]: position "+ raf.getFilePointer());
+            if (position >= length)             break;
+            entryLength=raf.readLong();
+            if ((entryLength <= 0) || (position + entryLength + ENTRY_HEADER_LENGTH > length))             break;
+ else {
+              final byte type=raf.readByte();
+              if ((type < 0) || (type >= result.length))               break;
+              if (trace2)               log.trace2(method,"[" + file + "]: found valid entry of size "+ entryLength+ " and type "+ type);
+{
+                if (trace2)                 entrystart=System.currentTimeMillis();
+                final IMergeable data=readEntry(raf,type,entryLength);
+                if (trace2)                 log.trace2(method,"entry read in " + (System.currentTimeMillis() - entrystart) + " ms");
+                final IMergeable current=result[type];
+                if (current == null)                 result[type]=data;
+ else                 result[type]=current.merge(data);
+              }
+              position+=entryLength + ENTRY_HEADER_LENGTH;
+              if ($assert.ENABLED)               $assert.ASSERT(raf.getFD().valid(),"FD invalid");
+              raf.seek(position);
+            }
+          }
+        }
+      }
+    }
+  finally {
+      if (raf != null)       try {
+        raf.close();
+      }
+ catch (      Throwable ignore) {
+      }
+      raf=null;
+    }
+  }
+  if (trace1) {
+    end=System.currentTimeMillis();
+    log.trace1(method,"[" + file + "]: file processed in "+ (end - start)+ " ms");
+  }
+  return result;
+}

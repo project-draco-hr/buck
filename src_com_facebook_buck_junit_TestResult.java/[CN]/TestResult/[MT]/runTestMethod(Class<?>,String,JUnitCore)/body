@@ -1,0 +1,24 @@
+{
+  Request request=Request.method(clazz,methodName);
+  PrintStream originalOut=System.out;
+  PrintStream originalErr=System.err;
+  ByteArrayOutputStream rawStdOutBytes=new ByteArrayOutputStream();
+  ByteArrayOutputStream rawStdErrBytes=new ByteArrayOutputStream();
+  PrintStream stdOutStream=new PrintStream(rawStdOutBytes,true,ENCODING);
+  PrintStream stdErrStream=new PrintStream(rawStdErrBytes,true,ENCODING);
+  System.setOut(stdOutStream);
+  System.setErr(stdErrStream);
+  Result result=testRunner.run(request);
+  System.setOut(originalOut);
+  System.setErr(originalErr);
+  stdOutStream.flush();
+  stdErrStream.flush();
+  String stdOut=rawStdOutBytes.size() == 0 ? null : rawStdOutBytes.toString(ENCODING);
+  String stdErr=rawStdErrBytes.size() == 0 ? null : rawStdErrBytes.toString(ENCODING);
+  int numFailures=result.getFailureCount();
+  if (numFailures < 0) {
+    throw new IllegalStateException(String.format("Unexpected number of failures while testing %s#%s(): %d (%s)",clazz.getName(),methodName,numFailures,result.getFailures()));
+  }
+  Failure failure=numFailures == 0 ? null : result.getFailures().get(0);
+  return new TestResult(clazz.getName(),methodName,result.getRunTime(),failure,stdOut,stdErr);
+}

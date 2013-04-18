@@ -1,0 +1,46 @@
+{
+  ExecutorService busExecutor=Executors.newCachedThreadPool();
+  EventBus events=new AsyncEventBus("buck-events",busExecutor);
+  addEventListeners(events);
+  Tracer buildTracer=Tracer.startTracer("buck build");
+  int exitCode;
+  try {
+    build.executeBuild(events).get();
+    exitCode=0;
+  }
+ catch (  IOException e) {
+    console.printFailureWithoutStacktrace(e);
+    exitCode=1;
+  }
+catch (  CommandFailedException e) {
+    console.printFailureWithoutStacktrace(e);
+    exitCode=e.getExitCode();
+  }
+catch (  ExecutionException e) {
+    Throwable cause=e.getCause();
+    if (cause instanceof HumanReadableException) {
+      throw ((HumanReadableException)cause);
+    }
+ else     if (cause instanceof ExceptionWithHumanReadableMessage) {
+      throw new HumanReadableException((ExceptionWithHumanReadableMessage)cause);
+    }
+ else {
+      if (cause instanceof RuntimeException) {
+        console.printFailureWithStacktrace(e);
+      }
+ else {
+        console.printFailureWithoutStacktrace(e);
+      }
+      exitCode=1;
+    }
+  }
+catch (  InterruptedException e) {
+    console.printFailureWithoutStacktrace(e);
+    exitCode=1;
+  }
+ finally {
+    buildTracer.stop(TRACER_THRESHOLD);
+  }
+  events.post(BuildEvents.finished(exitCode));
+  return exitCode;
+}

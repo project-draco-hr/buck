@@ -1,0 +1,26 @@
+{
+  Set<String> classpathEntries=deps.classpathEntriesToDex;
+  String proguardDirectory=getPathForProGuardDirectory();
+  commands.add(new MakeCleanDirectoryCommand(proguardDirectory));
+  String generatedProGuardConfig=proguardDirectory + "/proguard.txt";
+  GenProGuardConfigCommand genProGuardConfig=new GenProGuardConfigCommand(getAndroidManifestXml(),resDirectories,generatedProGuardConfig);
+  commands.add(genProGuardConfig);
+  Set<String> proguardConfigs=Sets.newHashSet();
+  proguardConfigs.addAll(deps.proguardConfigs);
+  if (proguardConfig != null) {
+    proguardConfigs.add(proguardConfig);
+  }
+  ImmutableMap.Builder<String,String> inputOutputEntriesBuilder=ImmutableMap.builder();
+  for (  String classpathEntry : classpathEntries) {
+    inputOutputEntriesBuilder.put(classpathEntry,getProguardOutputFromInputClasspath(classpathEntry));
+  }
+  final Map<String,String> inputOutputEntries=inputOutputEntriesBuilder.build();
+  ProGuardObfuscateCommand obfuscateCommand=new ProGuardObfuscateCommand(generatedProGuardConfig,proguardConfigs,useAndroidProguardConfigWithOptimizations,inputOutputEntries,additionalLibraryJarsForProguard,proguardDirectory);
+  commands.add(obfuscateCommand);
+  deps.applyClasspathTransformation(new AndroidTransitiveDependencies.InputTransformation(){
+    @Override public String apply(    String originalClasspath){
+      return inputOutputEntries.get(originalClasspath);
+    }
+  }
+);
+}

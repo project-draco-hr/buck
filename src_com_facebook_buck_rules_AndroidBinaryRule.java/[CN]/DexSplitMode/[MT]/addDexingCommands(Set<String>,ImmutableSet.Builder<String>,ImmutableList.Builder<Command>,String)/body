@@ -1,0 +1,35 @@
+{
+  final Set<String> primaryInputsToDex;
+  final Optional<String> secondaryDexDir;
+  final Optional<String> secondaryInputsDir;
+  if (shouldSplitDex()) {
+    String magicSecondaryDexSubdir="assets/secondary-program-dex-jars";
+    String splitZipDir=getBinPath("__split_zip__/%s");
+    commands.add(new MakeCleanDirectoryCommand(splitZipDir));
+    String primaryJarPath=splitZipDir + "/primary.jar";
+    String secondaryJarMetaDirParent=splitZipDir + "/secondary_meta/";
+    String secondaryJarMetaDir=secondaryJarMetaDirParent + magicSecondaryDexSubdir;
+    commands.add(new MakeCleanDirectoryCommand(secondaryJarMetaDir));
+    String secondaryJarMeta=secondaryJarMetaDir + "/metadata.txt";
+    String secondaryZipDir=getBinPath("__secondary_zip__/%s");
+    commands.add(new MakeCleanDirectoryCommand(secondaryZipDir));
+    SplitZipCommand splitZipCommand=new SplitZipCommand(classpathEntriesToDex,secondaryJarMeta,primaryJarPath,secondaryZipDir,"secondary-%d.jar",primaryDexSubstrings,dexSplitMode.getDexSplitStrategy());
+    commands.add(splitZipCommand);
+    String secondaryDexParentDir=getBinPath("__secondary_dex__/%s/");
+    secondaryDexDir=Optional.of(secondaryDexParentDir + magicSecondaryDexSubdir);
+    commands.add(new MkdirCommand(secondaryDexDir.get()));
+    secondaryDexDirectories.add(secondaryJarMetaDirParent);
+    secondaryDexDirectories.add(secondaryDexParentDir);
+    primaryInputsToDex=ImmutableSet.of(primaryJarPath);
+    secondaryInputsDir=Optional.of(secondaryZipDir);
+  }
+ else {
+    primaryInputsToDex=classpathEntriesToDex;
+    secondaryDexDir=Optional.absent();
+    secondaryInputsDir=Optional.absent();
+  }
+  String successDir=getBinPath("__smart_dex__/%s/.success");
+  commands.add(new MkdirCommand(successDir));
+  SmartDexingCommand smartDexingCommand=new SmartDexingCommand(primaryDexPath,primaryInputsToDex,secondaryDexDir,secondaryInputsDir,successDir,Optional.<Integer>absent());
+  commands.add(smartDexingCommand);
+}

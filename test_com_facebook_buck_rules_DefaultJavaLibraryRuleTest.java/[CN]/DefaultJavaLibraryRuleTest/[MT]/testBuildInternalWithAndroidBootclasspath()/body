@@ -1,0 +1,18 @@
+{
+  BuildTarget buildTarget=BuildTargetFactory.newInstance("//android/java/src/com/facebook:fb");
+  ImmutableSet<String> srcs=ImmutableSet.<String>of("android/java/src/com/facebook/Main.java");
+  DefaultJavaLibraryRule javaLibrary=new AndroidLibraryRule(new BuildRuleParams(buildTarget,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of()),srcs,ImmutableSet.<String>of(),null,AnnotationProcessingParams.EMPTY,null,JavacOptionsUtil.DEFAULT_SOURCE_LEVEL,JavacOptionsUtil.DEFAULT_TARGET_LEVEL);
+  String bootclasspath="effects.jar:maps.jar:usb.jar:";
+  BuildContext context=createBuildContext(javaLibrary,bootclasspath);
+  List<Command> commands=javaLibrary.buildInternal(context);
+  Command command=Iterables.find(commands,new Predicate<Command>(){
+    @Override public boolean apply(    Command command){
+      return command instanceof JavacInMemoryCommand;
+    }
+  }
+);
+  assertNotNull("Expected a JavacInMemoryCommand in the command list.",command);
+  JavacInMemoryCommand javac=(JavacInMemoryCommand)command;
+  assertEquals("Should compile Main.java rather than generated R.java.",srcs,javac.getSrcs());
+  EasyMock.verify(context);
+}

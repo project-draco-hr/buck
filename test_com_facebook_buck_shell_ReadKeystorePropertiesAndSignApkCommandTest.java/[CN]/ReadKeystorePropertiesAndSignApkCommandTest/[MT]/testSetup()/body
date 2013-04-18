@@ -1,0 +1,26 @@
+{
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  String pathToPropertiesFile="src/com/facebook/orca/keystore.properties";
+  Properties properties=new Properties();
+  String alias="androiddebugkey";
+  properties.put("key.store","debug.keystore");
+  properties.put("key.alias",alias);
+  properties.put("key.store.password","android");
+  properties.put("key.alias.password","diordna");
+  expect(projectFilesystem.readPropertiesFile(pathToPropertiesFile)).andReturn(properties);
+  ExecutionContext context=createMock(ExecutionContext.class);
+  replay(context,projectFilesystem);
+  String outputPath=BIN_DIR + "/src/com/facebook/orca/orca_signed.apk";
+  String unsignedApkPath=BIN_DIR + "/src/com/facebook/orca/orca_unsigned.apk";
+  ReadKeystorePropertiesAndSignApkCommand readKeystorePropertiesAndSignCommand=new ReadKeystorePropertiesAndSignApkCommand(pathToPropertiesFile,unsignedApkPath,outputPath,projectFilesystem);
+  readKeystorePropertiesAndSignCommand.setup(context);
+  SignApkCommand signApkCommand=readKeystorePropertiesAndSignCommand.getSignApkCommand();
+  assertEquals(outputPath,signApkCommand.getOutputPath());
+  assertEquals(unsignedApkPath,signApkCommand.getUnsignedApk());
+  assertEquals("The key.store property in the properties file should be resolved relative to" + "the path of the properties file that defined it.","src/com/facebook/orca/debug.keystore",signApkCommand.getKeystore());
+  assertEquals("android",signApkCommand.getStorepass());
+  assertEquals("diordna",signApkCommand.getKeypass());
+  assertEquals(alias,signApkCommand.getAlias());
+  assertEquals(ImmutableList.of("jarsigner","-sigalg","MD5withRSA","-digestalg","SHA1","-keystore","src/com/facebook/orca/debug.keystore","-storepass","android","-keypass","diordna","-signedjar",outputPath,unsignedApkPath,alias),readKeystorePropertiesAndSignCommand.getShellCommand(context));
+  verify(context,projectFilesystem);
+}

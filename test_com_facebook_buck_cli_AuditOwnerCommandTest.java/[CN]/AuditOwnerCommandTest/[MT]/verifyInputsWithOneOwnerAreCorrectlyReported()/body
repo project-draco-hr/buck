@@ -1,0 +1,24 @@
+{
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem(){
+    @Override public File getFileForRelativePath(    String pathRelativeToProjectRoot){
+      return new ExistingFile(getProjectRoot(),pathRelativeToProjectRoot);
+    }
+  }
+;
+  String[] args=new String[]{"java/somefolder/badfolder/somefile.java","java/somefolder/perfect.java","com/test/subtest/random.java"};
+  ImmutableSortedSet<InputRule> inputs=InputRule.inputPathsAsInputRules(ImmutableSortedSet.copyOf(args));
+  BuildTarget target=BuildTargetFactory.newInstance("//base/name","name");
+  BuildRule ownerRule=new StubBuildRule(target,inputs);
+  MutableDirectedGraph<BuildRule> mutableGraph=new MutableDirectedGraph<BuildRule>();
+  mutableGraph.addNode(ownerRule);
+  DependencyGraph graph=new DependencyGraph(mutableGraph);
+  AuditOwnerOptions options=getOptions(args);
+  AuditOwnerCommand command=createAuditOwnerCommand(filesystem);
+  AuditOwnerCommand.OwnersReport report=command.generateOwnersReport(graph,options);
+  assertTrue(report.nonFileInputs.isEmpty());
+  assertTrue(report.nonExistentInputs.isEmpty());
+  assertTrue(report.inputsWithNoOwners.isEmpty());
+  assertEquals(inputs.size(),report.owners.size());
+  assertTrue(report.owners.containsKey(ownerRule));
+  assertEquals(ownerRule.getInputs(),report.owners.get(ownerRule));
+}

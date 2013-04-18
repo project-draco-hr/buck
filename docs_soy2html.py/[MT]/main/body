@@ -1,0 +1,25 @@
+def main(output_dir):
+    opener = urllib2.OpenerDirector()
+    opener.add_handler(urllib2.ProxyHandler())
+    opener.add_handler(urllib2.UnknownHandler())
+    opener.add_handler(urllib2.HTTPHandler())
+    opener.add_handler(urllib2.HTTPDefaultErrorHandler())
+    opener.add_handler(urllib2.HTTPSHandler())
+    opener.add_handler(urllib2.HTTPErrorProcessor())
+    for (root, dirs, files) in os.walk('.'):
+        for file_name in files:
+            if (file_name.endswith('.soy') and (not file_name.startswith('__'))):
+                if root.startswith('./'):
+                    root = root[2:]
+                soy_file = file_name
+                html_file = (((root + '/') + soy_file[:(- len('.soy'))]) + '.html')
+                url = ('http://localhost:9811/' + html_file)
+                req = urllib2.Request(url)
+                res = opener.open(req)
+                html = res.read()
+                copy_to_output_dir(html_file, output_dir, html)
+            elif (file_name.endswith('.css') or file_name.endswith('.js')):
+                relative_path = os.path.join(root, file_name)
+                with open(relative_path) as resource_file:
+                    resource = resource_file.read()
+                    copy_to_output_dir(relative_path, output_dir, resource)

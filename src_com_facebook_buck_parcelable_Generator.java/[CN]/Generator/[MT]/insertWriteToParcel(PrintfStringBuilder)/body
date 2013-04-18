@@ -1,0 +1,25 @@
+{
+  out.append('\n');
+  out.appendLines("  @Override","  public void writeToParcel(Parcel dest, int flags) {");
+  for (  ParcelableField field : clazz.getFields()) {
+    String type=field.getType();
+    String fieldName=field.getName();
+    ReadWriteMethod readWriteMethod=SIMPLE_TYPE_MAPPINGS.get(type);
+    if (readWriteMethod != null && readWriteMethod.hasWriteMethod()) {
+      out.appendLine("    dest.%s(this.%s);",readWriteMethod.writeMethod,fieldName);
+    }
+ else     if ("boolean".equals(type)) {
+      out.appendLine("    dest.writeByte((byte)(this.%s ? 1 : 0));",fieldName);
+    }
+ else     if ("List".equals(type)) {
+      out.appendLine("    dest.writeList(this.%s);",fieldName);
+    }
+ else     if (type.startsWith("List<")) {
+      out.appendLine("    dest.writeTypedList(this.%s);",fieldName);
+    }
+ else {
+      out.appendLine("    dest.writeParcelable(this.%s, flags);",fieldName);
+    }
+  }
+  out.appendLines("  }");
+}

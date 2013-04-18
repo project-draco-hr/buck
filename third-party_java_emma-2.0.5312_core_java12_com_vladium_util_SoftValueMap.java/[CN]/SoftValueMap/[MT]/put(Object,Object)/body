@@ -1,0 +1,41 @@
+{
+  if (key == null)   throw new IllegalArgumentException("null input: key");
+  if (value == null)   throw new IllegalArgumentException("null input: value");
+  if ((++m_writeAccessCount % m_writeClearCheckFrequency) == 0)   removeClearedValues();
+  SoftEntry currentKeyEntry=null;
+  final int keyHashCode=key.hashCode();
+  SoftEntry[] buckets=m_buckets;
+  int bucketIndex=(keyHashCode & 0x7FFFFFFF) % buckets.length;
+  for (SoftEntry entry=buckets[bucketIndex]; entry != null; entry=entry.m_next) {
+    final Object entryKey=entry.m_key;
+    if (IDENTITY_OPTIMIZATION) {
+      if ((key == entryKey) || ((keyHashCode == entryKey.hashCode()) && key.equals(entryKey))) {
+        currentKeyEntry=entry;
+        break;
+      }
+    }
+ else {
+      if ((keyHashCode == entryKey.hashCode()) && key.equals(entryKey)) {
+        currentKeyEntry=entry;
+        break;
+      }
+    }
+  }
+  if (currentKeyEntry != null) {
+    final IndexedSoftReference ref=currentKeyEntry.m_softValue;
+    final Object currentKeyValue=ref.get();
+    if (currentKeyValue == null)     ref.m_bucketIndex=-1;
+    currentKeyEntry.m_softValue=new IndexedSoftReference(value,m_valueReferenceQueue,bucketIndex);
+    return currentKeyValue;
+  }
+ else {
+    if (m_size >= m_sizeThreshold)     rehash();
+    buckets=m_buckets;
+    bucketIndex=(keyHashCode & 0x7FFFFFFF) % buckets.length;
+    final SoftEntry bucketListHead=buckets[bucketIndex];
+    final SoftEntry newEntry=new SoftEntry(m_valueReferenceQueue,key,value,bucketListHead,bucketIndex);
+    buckets[bucketIndex]=newEntry;
+    ++m_size;
+    return null;
+  }
+}

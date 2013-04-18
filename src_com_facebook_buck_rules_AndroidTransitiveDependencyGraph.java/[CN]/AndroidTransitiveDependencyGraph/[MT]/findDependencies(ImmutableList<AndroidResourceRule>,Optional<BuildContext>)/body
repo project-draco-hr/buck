@@ -1,0 +1,81 @@
+{
+  final ImmutableSet.Builder<String> pathsToDexBuilder=ImmutableSet.builder();
+  final ImmutableSet.Builder<String> pathsToThirdPartyJarsBuilder=ImmutableSet.builder();
+  final ImmutableSet.Builder<String> assetsDirectories=ImmutableSet.builder();
+  final ImmutableSet.Builder<String> nativeLibsDirectories=ImmutableSet.builder();
+  final ImmutableMultimap.Builder<BuildRuleType,BuildRule> uncachedBuildrules=ImmutableMultimap.builder();
+  final ImmutableSet.Builder<String> manifestFiles=ImmutableSet.builder();
+  final ImmutableSet.Builder<String> proguardConfigs=ImmutableSet.builder();
+  pathsToDexBuilder.addAll(buildRule.getClasspathEntriesForDeps());
+  AndroidResourceDetails details=new UberRDotJavaUtil.AndroidResourceDetails(androidResourceDeps);
+  new AbstractDependencyVisitor(buildRule){
+    @Override public boolean visit(    BuildRule rule){
+      if (rule instanceof PrebuiltJarRule) {
+        PrebuiltJarRule prebuiltJarRule=(PrebuiltJarRule)rule;
+        pathsToThirdPartyJarsBuilder.add(prebuiltJarRule.getBinaryJar());
+      }
+ else       if (rule instanceof NdkLibraryRule) {
+        NdkLibraryRule ndkRule=(NdkLibraryRule)rule;
+        nativeLibsDirectories.add(ndkRule.getLibraryPath());
+      }
+ else       if (rule instanceof AndroidResourceRule) {
+        AndroidResourceRule androidRule=(AndroidResourceRule)rule;
+        String assetsDirectory=androidRule.getAssets();
+        if (assetsDirectory != null) {
+          assetsDirectories.add(assetsDirectory);
+        }
+        String manifestFile=androidRule.getManifestFile();
+        if (manifestFile != null) {
+          manifestFiles.add(manifestFile);
+        }
+      }
+ else       if (rule instanceof PrebuiltNativeLibraryBuildRule) {
+        PrebuiltNativeLibraryBuildRule androidRule=(PrebuiltNativeLibraryBuildRule)rule;
+        String nativeLibsDirectory=androidRule.getNativeLibs();
+        if (nativeLibsDirectory != null) {
+          nativeLibsDirectories.add(nativeLibsDirectory);
+        }
+      }
+ else       if (rule instanceof AndroidLibraryRule) {
+        AndroidLibraryRule androidLibraryRule=(AndroidLibraryRule)rule;
+        String proguardConfig=androidLibraryRule.getProguardConfig();
+        if (proguardConfig != null) {
+          proguardConfigs.add(proguardConfig);
+        }
+        String manifestFile=androidLibraryRule.getManifestFile();
+        if (manifestFile != null) {
+          manifestFiles.add(manifestFile);
+        }
+      }
+ else       if (rule instanceof DefaultJavaLibraryRule) {
+        DefaultJavaLibraryRule androidRule=(DefaultJavaLibraryRule)rule;
+        String proguardConfig=androidRule.getProguardConfig();
+        if (proguardConfig != null) {
+          proguardConfigs.add(proguardConfig);
+        }
+      }
+      if (!ruleIsCachedQuiet(rule,context)) {
+        uncachedBuildrules.put(rule.getType(),rule);
+      }
+      return rule.isLibrary() || rule == buildRule;
+    }
+  }
+.start();
+  ImmutableSet<String> rDotJavaPackages=details.rDotJavaPackages;
+  if (!rDotJavaPackages.isEmpty()) {
+    pathsToDexBuilder.add(UberRDotJavaUtil.getPathToCompiledRDotJavaFiles(buildRule.getBuildTarget()));
+  }
+  Set<String> classpathEntries;
+  Set<String> pathsToThirdPartyJars;
+  if (classpathEntriesToExcludeFromDex.isEmpty()) {
+    classpathEntries=pathsToDexBuilder.build();
+    pathsToThirdPartyJars=pathsToThirdPartyJarsBuilder.build();
+  }
+ else {
+    classpathEntries=Sets.newHashSet(pathsToDexBuilder.build());
+    classpathEntries.removeAll(classpathEntriesToExcludeFromDex);
+    pathsToThirdPartyJars=Sets.newHashSet(pathsToThirdPartyJarsBuilder.build());
+    pathsToThirdPartyJars.removeAll(classpathEntriesToExcludeFromDex);
+  }
+  return new AndroidTransitiveDependencies(classpathEntries,pathsToThirdPartyJars,assetsDirectories.build(),nativeLibsDirectories.build(),manifestFiles.build(),details.resDirectories,rDotJavaPackages,uncachedBuildrules.build(),proguardConfigs.build());
+}

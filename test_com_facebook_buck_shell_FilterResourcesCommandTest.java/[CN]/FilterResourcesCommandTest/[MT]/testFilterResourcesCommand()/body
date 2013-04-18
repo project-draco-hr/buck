@@ -1,0 +1,42 @@
+{
+  ExecutionContext executionContext=EasyMock.createMock(ExecutionContext.class);
+  EasyMock.replay(executionContext);
+  FilterResourcesCommand.DrawableFinder finder=EasyMock.createMock(FilterResourcesCommand.DrawableFinder.class);
+  EasyMock.expect(finder.findDrawables(resDirectories)).andAnswer(new IAnswer<Set<String>>(){
+    @SuppressWarnings("unchecked") @Override public Set<String> answer() throws Throwable {
+      ImmutableSet.Builder<String> builder=ImmutableSet.builder();
+      for (      String dir : (Iterable<String>)EasyMock.getCurrentArguments()[0]) {
+        for (        String qualifier : qualifiers) {
+          builder.add(new File(dir,String.format("drawable-%s/some.png",qualifier)).getPath());
+        }
+      }
+      return builder.build();
+    }
+  }
+).times(2);
+  EasyMock.replay(finder);
+  FilteredDirectoryCopier copier=EasyMock.createMock(FilteredDirectoryCopier.class);
+  Capture<Map<String,String>> dirMapCapture=new Capture<Map<String,String>>();
+  Capture<Predicate<File>> predCapture=new Capture<Predicate<File>>();
+  copier.copyDirs(EasyMock.capture(dirMapCapture),EasyMock.capture(predCapture));
+  EasyMock.expectLastCall().once();
+  EasyMock.replay(copier);
+  FilterResourcesCommand command=new FilterResourcesCommand(resDirectories,baseDestination,targetDensity,copier,finder);
+  ImmutableMap.Builder<String,String> dirMapBuilder=ImmutableMap.builder();
+  Iterator<String> destIterator=command.getFilteredResourceDirectories().iterator();
+  for (  String dir : resDirectories) {
+    String nextDestination=destIterator.next();
+    dirMapBuilder.put(dir,nextDestination);
+    assertEquals(baseDestination,new File(nextDestination).getParentFile());
+  }
+  command.execute(executionContext);
+  assertEquals(dirMapBuilder.build(),dirMapCapture.getValue());
+  Set<String> drawables=finder.findDrawables(resDirectories);
+  Predicate<File> expectedPred=Filters.createImageDensityFilter(drawables,targetDensity);
+  Predicate<File> capturedPred=predCapture.getValue();
+  for (  String drawablePath : drawables) {
+    File drawableFile=new File(drawablePath);
+    assertEquals(expectedPred.apply(drawableFile),capturedPred.apply(drawableFile));
+  }
+  EasyMock.verify(copier,executionContext,finder);
+}

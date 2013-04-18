@@ -1,0 +1,32 @@
+{
+  String name;
+  if (device.isEmulator()) {
+    name=device.getSerialNumber() + " (" + device.getAvdName()+ ")";
+  }
+ else {
+    name=device.getSerialNumber();
+    String model=device.getProperty("ro.product.model");
+    if (model != null) {
+      name+=" (" + model + ")";
+    }
+  }
+  PrintStream stdOut=console.getStdOut();
+  stdOut.printf("Installing apk on %s.\n",name);
+  try {
+    long start=System.currentTimeMillis();
+    String reason=device.installPackage(apk.getAbsolutePath(),true);
+    long end=System.currentTimeMillis();
+    if (reason != null) {
+      console.printFailure(String.format("Failed to install apk on %s: %s.",name,reason));
+      return false;
+    }
+    long delta=end - start;
+    stdOut.printf("Installed apk on %s in %d.%03ds.\n",name,delta / 1000,delta % 1000);
+    return true;
+  }
+ catch (  InstallException ex) {
+    console.printFailure(String.format("Failed to install apk on %s.",name));
+    ex.printStackTrace(console.getStdErr());
+    return false;
+  }
+}

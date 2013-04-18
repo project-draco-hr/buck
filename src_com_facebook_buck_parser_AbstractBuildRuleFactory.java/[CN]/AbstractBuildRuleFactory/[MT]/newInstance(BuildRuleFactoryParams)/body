@@ -1,0 +1,30 @@
+{
+  AbstractBuildRuleBuilder builder=newBuilder();
+  BuildTarget target=params.target;
+  builder.setBuildTarget(target);
+  ParseContext buildFileParseContext=ParseContext.forBaseName(target.getBaseName());
+  for (  String dep : params.getOptionalListAttribute("deps")) {
+    BuildTarget buildTarget=params.buildTargetParser.parse(dep,buildFileParseContext);
+    builder.addDep(buildTarget.getFullyQualifiedName());
+  }
+  for (  BuildTargetPattern visiBuildTargetPattern : getVisibilityPatterns(params)) {
+    builder.addVisibilityPattern(visiBuildTargetPattern);
+  }
+  if (builder instanceof SrcsAttributeBuilder) {
+    for (    String src : params.getOptionalListAttribute("srcs")) {
+      if (src.startsWith("gen/")) {
+        continue;
+      }
+      String relativePath=params.resolveFilePathRelativeToBuildFileDirectory(src);
+      ((SrcsAttributeBuilder)builder).addSrc(relativePath);
+    }
+  }
+  if (builder instanceof ResourcesAttributeBuilder) {
+    for (    String resource : params.getOptionalListAttribute("resources")) {
+      String relativePath=params.resolveFilePathRelativeToBuildFileDirectory(resource);
+      ((ResourcesAttributeBuilder)builder).addResource(relativePath);
+    }
+  }
+  amendBuilder(builder,params);
+  return builder;
+}

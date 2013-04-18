@@ -1,0 +1,36 @@
+{
+  if (options.isResolveAlias()) {
+    return doResolveAlias(options);
+  }
+  ImmutableSet<String> types=options.getTypes();
+  ImmutableSet.Builder<BuildRuleType> buildRuleTypesBuilder=ImmutableSet.builder();
+  for (  String name : types) {
+    try {
+      buildRuleTypesBuilder.add(BuildRuleType.valueOf(name.toUpperCase()));
+    }
+ catch (    IllegalArgumentException e) {
+      console.printFailure("Invalid build rule type: " + name);
+      return 1;
+    }
+  }
+  ImmutableSet<BuildRuleType> buildRuleTypes=buildRuleTypesBuilder.build();
+  ImmutableSet<String> referencedFiles=options.getReferencedFiles(getProjectFilesystem().getProjectRoot());
+  PartialGraph graph;
+  try {
+    graph=PartialGraph.createFullGraph(getProjectFilesystem().getProjectRoot(),options.getDefaultIncludes(),ansi);
+  }
+ catch (  NoSuchBuildTargetException e) {
+    console.printFailureWithoutStacktrace(e);
+    return 1;
+  }
+  TreeMap<String,BuildTarget> matchingBuildTargets=getMachingBuildTargets(graph.getDependencyGraph(),new TargetsCommandPredicate(graph,buildRuleTypes,referencedFiles));
+  if (options.getPrintJson()) {
+    printJsonForTargets(matchingBuildTargets,options.getDefaultIncludes());
+  }
+ else {
+    for (    String target : matchingBuildTargets.keySet()) {
+      stdOut.println(target);
+    }
+  }
+  return 0;
+}

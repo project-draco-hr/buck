@@ -1,0 +1,22 @@
+{
+  final String testBuckFile=testDataPath("TargetsCommandTestBuckFile1.txt");
+  BuildTargetParser parser=EasyMock.createMock(BuildTargetParser.class);
+  EasyMock.expect(parser.parse("//:test-library",ParseContext.fullyQualified())).andReturn(new BuildTarget(new File(testBuckFile),"//","test-library")).anyTimes();
+  EasyMock.expect(parser.parse("//:",ParseContext.fullyQualified())).andThrow(new BuildTargetParseException(String.format("%s cannot end with a colon.","//:"))).anyTimes();
+  EasyMock.expect(parser.parse("//blah/foo:bar",ParseContext.fullyQualified())).andThrow(EasyMock.createMock(NoSuchBuildTargetException.class)).anyTimes();
+  EasyMock.expect(parser.parse("//:test-libarry",ParseContext.fullyQualified())).andReturn(new BuildTarget(new File(testBuckFile),"//","test-libarry")).anyTimes();
+  EasyMock.replay(parser);
+  Reader reader=new StringReader("");
+  BuckConfig config=BuckConfig.createFromReader(reader,parser);
+  TargetsCommandOptions options=new TargetsCommandOptions(config);
+  assertEquals("//:test-library",targetsCommand.validateBuildTargetForFullyQualifiedTarget("//:test-library",options));
+  try {
+    targetsCommand.validateBuildTargetForFullyQualifiedTarget("//:",options);
+    fail("Should have thrown BuildTargetParseException.");
+  }
+ catch (  BuildTargetParseException e) {
+    assertEquals("//: cannot end with a colon.",e.getHumanReadableErrorMessage());
+  }
+  assertNull(targetsCommand.validateBuildTargetForFullyQualifiedTarget("//blah/foo:bar",options));
+  assertNull(targetsCommand.validateBuildTargetForFullyQualifiedTarget("//:test-libarry",options));
+}

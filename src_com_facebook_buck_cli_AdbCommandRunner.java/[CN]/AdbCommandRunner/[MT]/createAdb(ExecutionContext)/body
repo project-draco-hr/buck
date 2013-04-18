@@ -1,0 +1,43 @@
+{
+  try {
+    AndroidDebugBridge.init(false);
+  }
+ catch (  IllegalStateException ex) {
+  }
+  final Object sync=new Object();
+  AndroidDebugBridge.addDebugBridgeChangeListener(new AndroidDebugBridge.IDebugBridgeChangeListener(){
+    @Override public void bridgeChanged(    AndroidDebugBridge bridge){
+synchronized (sync) {
+        sync.notifyAll();
+      }
+    }
+  }
+);
+  AndroidDebugBridge adb=null;
+  if (context != null) {
+    adb=AndroidDebugBridge.createBridge(context.getPathToAdbExecutable(),false);
+  }
+ else {
+    adb=AndroidDebugBridge.createBridge();
+  }
+  if (adb == null) {
+    console.printFailure("Failed to connect to adb. Make sure adb server is running.");
+    return null;
+  }
+  long start=System.currentTimeMillis();
+  while (!isAdbInitialized(adb)) {
+    long timeLeft=start + ADB_CONNECT_TIMEOUT_MS - System.currentTimeMillis();
+    if (timeLeft <= 0) {
+      break;
+    }
+    try {
+synchronized (sync) {
+        sync.wait(timeLeft);
+      }
+    }
+ catch (    InterruptedException ex) {
+      break;
+    }
+  }
+  return isAdbInitialized(adb) ? adb : null;
+}

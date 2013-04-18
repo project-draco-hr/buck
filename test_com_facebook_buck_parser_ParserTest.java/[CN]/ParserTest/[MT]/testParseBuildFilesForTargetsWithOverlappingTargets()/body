@@ -1,0 +1,18 @@
+{
+  File projectDirectoryRoot=tempDir.getRoot();
+  tempDir.newFolder("java","com","facebook");
+  File buildFile=tempDir.newFile("java/com/facebook/" + BuckConstant.BUILD_RULES_FILE_NAME);
+  Files.write("java_library(name = 'foo')\n" + "java_library(name = 'bar')\n",buildFile,Charsets.UTF_8);
+  Ansi ansi=new Ansi();
+  ProjectFilesystem filesystem=new ProjectFilesystem(projectDirectoryRoot);
+  Parser parser=new Parser(filesystem,new BuildFileTree(ImmutableSet.<BuildTarget>of()),ansi);
+  BuildTarget fooTarget=BuildTargetFactory.newInstance("//java/com/facebook","foo",buildFile);
+  BuildTarget barTarget=BuildTargetFactory.newInstance("//java/com/facebook","bar",buildFile);
+  Iterable<BuildTarget> buildTargets=ImmutableList.of(fooTarget,barTarget);
+  Iterable<String> defaultIncludes=ImmutableList.of();
+  DependencyGraph graph=parser.parseBuildFilesForTargets(buildTargets,defaultIncludes);
+  BuildRule fooRule=graph.findBuildRuleByTarget(fooTarget);
+  assertNotNull(fooRule);
+  BuildRule barRule=graph.findBuildRuleByTarget(barTarget);
+  assertNotNull(barRule);
+}

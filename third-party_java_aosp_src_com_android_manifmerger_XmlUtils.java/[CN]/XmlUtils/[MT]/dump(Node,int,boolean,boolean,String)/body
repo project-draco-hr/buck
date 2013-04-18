@@ -1,0 +1,75 @@
+{
+  StringBuilder sb=new StringBuilder();
+  String offset="";
+  for (int i=0; i < offsetIndex; i++) {
+    offset+="  ";
+  }
+  if (node == null) {
+    sb.append(offset).append("(end reached)\n");
+  }
+ else {
+    for (; node != null; node=node.getNextSibling()) {
+      String type=null;
+      short t=node.getNodeType();
+switch (t) {
+case Node.ELEMENT_NODE:
+        String attr="";
+      if (keyAttr != null) {
+        NamedNodeMap attrs=node.getAttributes();
+        if (attrs != null) {
+          for (int i=0; i < attrs.getLength(); i++) {
+            Node a=attrs.item(i);
+            if (a != null && keyAttr.equals(a.getLocalName())) {
+              attr=String.format(" %1$s=%2$s",a.getNodeName(),a.getNodeValue());
+              break;
+            }
+          }
+        }
+      }
+    sb.append(String.format("%1$s<%2$s%3$s>\n",offset,node.getNodeName(),attr));
+  break;
+case Node.COMMENT_NODE:
+sb.append(String.format("%1$s<!-- %2$s -->\n",offset,node.getNodeValue()));
+break;
+case Node.TEXT_NODE:
+String txt=node.getNodeValue().trim();
+if (txt.length() == 0) {
+break;
+}
+sb.append(String.format("%1$s%2$s\n",offset,txt));
+break;
+case Node.ATTRIBUTE_NODE:
+sb.append(String.format("%1$s    @%2$s = %3$s\n",offset,node.getNodeName(),node.getNodeValue()));
+break;
+case Node.CDATA_SECTION_NODE:
+type="cdata";
+break;
+case Node.DOCUMENT_NODE:
+type="document";
+break;
+case Node.PROCESSING_INSTRUCTION_NODE:
+type="PI";
+break;
+default :
+type=Integer.toString(t);
+}
+if (type != null) {
+sb.append(String.format("%1$s[%2$s] <%3$s> %4$s\n",offset,type,node.getNodeName(),node.getNodeValue()));
+}
+if (deep) {
+List<Attr> attrs=sortedAttributeList(node.getAttributes());
+for (Attr attr : attrs) {
+sb.append(String.format("%1$s    @%2$s = %3$s\n",offset,attr.getNodeName(),attr.getNodeValue()));
+}
+Node child=node.getFirstChild();
+if (child != null) {
+sb.append(dump(child,offsetIndex + 1,true,true,keyAttr));
+}
+}
+if (!nextSiblings) {
+break;
+}
+}
+}
+return sb.toString();
+}

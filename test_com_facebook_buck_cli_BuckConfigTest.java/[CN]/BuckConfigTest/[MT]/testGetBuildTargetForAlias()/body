@@ -1,0 +1,18 @@
+{
+  BuildTargetParser parser=EasyMock.createMock(BuildTargetParser.class);
+  EasyMock.expect(parser.parse("//java/com/example:foo",ParseContext.fullyQualified())).andReturn(BuildTargetFactory.newInstance("//java/com/example:foo"));
+  EasyMock.expect(parser.parse("//java/com/example:bar",ParseContext.fullyQualified())).andReturn(BuildTargetFactory.newInstance("//java/com/example:bar"));
+  EasyMock.replay(parser);
+  Reader reader=new StringReader(Joiner.on('\n').join("[alias]","foo = //java/com/example:foo","bar = //java/com/example:bar"));
+  BuckConfig config=BuckConfig.createFromReader(reader,parser);
+  assertEquals("//java/com/example:foo",config.getBuildTargetForAlias("foo"));
+  assertEquals("//java/com/example:bar",config.getBuildTargetForAlias("bar"));
+  assertNull("Invalid alias names, such as build targets, should be tolerated by this method.",config.getBuildTargetForAlias("//java/com/example:foo"));
+  assertNull(config.getBuildTargetForAlias("baz"));
+  Reader noAliasesReader=new StringReader("");
+  BuckConfig noAliasesConfig=BuckConfig.createFromReader(noAliasesReader,parser);
+  assertNull(noAliasesConfig.getBuildTargetForAlias("foo"));
+  assertNull(noAliasesConfig.getBuildTargetForAlias("bar"));
+  assertNull(noAliasesConfig.getBuildTargetForAlias("baz"));
+  EasyMock.verify(parser);
+}

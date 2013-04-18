@@ -1,0 +1,88 @@
+{
+  final Logger log=m_log;
+  if (log.atTRACE2())   log.trace2("handleFile","[" + pathDir + "] ["+ file+ "]");
+  final String name=file.getPath();
+  final String lcName=name.toLowerCase();
+  final boolean fullcopymode=(m_outMode == OutMode.OUT_MODE_FULLCOPY);
+  final boolean mkdir=(m_outMode == OutMode.OUT_MODE_COPY);
+  boolean copyFile=false;
+  if (lcName.endsWith(".class")) {
+    final String className=name.substring(0,name.length() - 6).replace(File.separatorChar,'.');
+    if ((m_coverageFilter == null) || m_coverageFilter.included(className)) {
+      InputStream clsin=null;
+      try {
+        final File inFile=Files.newFile(pathDir,file.getPath());
+        final File fullOutFile=getFullOutFile(pathDir,file,IN_CLASSES);
+        if (DO_DEPENDS_CHECKING) {
+          if (m_outMode == OutMode.OUT_MODE_COPY) {
+            if (m_mdata.hasDescriptor(Descriptors.javaNameToVMName(className)))             return;
+            final long outTimeStamp=fullOutFile.lastModified();
+            if (outTimeStamp > 0) {
+              final long inTimeStamp=inFile.lastModified();
+              if (inTimeStamp <= outTimeStamp) {
+                if (log.atVERBOSE())                 log.verbose("destination file [" + fullOutFile + "] skipped: more recent that the source file");
+                return;
+              }
+            }
+          }
+        }
+        readFile(inFile);
+        ClassDef clsDef=ClassDefParser.parseClass(m_readbuf,m_readpos);
+        m_visitor.process(clsDef,m_outMode == OutMode.OUT_MODE_OVERWRITE,true,true,m_instrResult);
+        if (m_instrResult.m_instrumented) {
+          if ($assert.ENABLED)           $assert.ASSERT(m_instrResult.m_descriptor != null,"no descriptor created for an instrumented class");
+          ++m_classInstrs;
+          m_mdata.add(m_instrResult.m_descriptor,false);
+          m_baos.reset();
+          ClassWriter.writeClassTable(clsDef,m_baos);
+          clsDef=null;
+          final byte[] outdata=m_baos.copyByteArray();
+          addJob(new FileWriteJob(fullOutFile,outdata,mkdir));
+        }
+ else         if (fullcopymode) {
+          clsDef=null;
+          final byte[] outdata=new byte[m_readpos];
+          System.arraycopy(m_readbuf,0,outdata,0,m_readpos);
+          ++m_classCopies;
+          addJob(new FileWriteJob(fullOutFile,outdata,mkdir));
+        }
+      }
+ catch (      FileNotFoundException fnfe) {
+        if ($assert.ENABLED) {
+          fnfe.printStackTrace(System.out);
+        }
+      }
+catch (      IOException ioe) {
+        throw new EMMARuntimeException(ioe);
+      }
+ finally {
+        if (clsin != null)         try {
+          clsin.close();
+        }
+ catch (        Exception e) {
+          throw new EMMARuntimeException(e);
+        }
+      }
+    }
+ else {
+      copyFile=fullcopymode;
+    }
+  }
+ else {
+    copyFile=fullcopymode;
+  }
+  if (copyFile) {
+    try {
+      final File inFile=Files.newFile(pathDir,file.getPath());
+      readFile(inFile);
+      final byte[] data=new byte[m_readpos];
+      System.arraycopy(m_readbuf,0,data,0,data.length);
+      ++m_classCopies;
+      final File outFile=getFullOutFile(pathDir,file,IN_CLASSES);
+      addJob(new FileWriteJob(outFile,data,mkdir));
+    }
+ catch (    IOException ioe) {
+      throw new EMMARuntimeException(ioe);
+    }
+  }
+}

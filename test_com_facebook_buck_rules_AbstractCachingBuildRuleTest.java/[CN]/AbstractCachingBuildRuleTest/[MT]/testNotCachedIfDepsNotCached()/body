@@ -1,0 +1,20 @@
+{
+  BuildContext context=BuildContext.builder().setProjectRoot(createMock(File.class)).setDependencyGraph(EasyMock.createMock(DependencyGraph.class)).setCommandRunner(createMock(CommandRunner.class)).setProjectFilesystem(createMock(ProjectFilesystem.class)).setJavaPackageFinder(createMock(JavaPackageFinder.class)).build();
+  BuildRule dep1=createMock(BuildRule.class);
+  expect(dep1.isVisibleTo(buildTarget)).andReturn(true);
+  expect(dep1.isCached(context)).andReturn(true);
+  BuildRule dep2=createMock(BuildRule.class);
+  expect(dep2.isVisibleTo(buildTarget)).andReturn(true);
+  expect(dep2.isCached(context)).andReturn(false);
+  expect(dep2.getFullyQualifiedName()).andReturn("//src/com/facebook/base:base");
+  BuildRule dep3=createMock(BuildRule.class);
+  expect(dep3.isVisibleTo(buildTarget)).andReturn(true);
+  Logger logger=createMock(Logger.class);
+  logger.info("//src/com/facebook/orca:orca not cached because" + " //src/com/facebook/base:base is not cached");
+  @SuppressWarnings("unchecked") ImmutableSet<BuildTargetPattern> visibilityPatterns=createMock(ImmutableSet.class);
+  replay(dep1,dep2,dep3,logger,visibilityPatterns);
+  AbstractCachingBuildRule cachingRule=createRule(ImmutableSet.of(dep1,dep2,dep3),visibilityPatterns);
+  boolean isCached=cachingRule.checkIsCached(context,logger);
+  assertFalse("The rule should not be cached",isCached);
+  verify(dep1,dep2,dep3,logger,visibilityPatterns);
+}

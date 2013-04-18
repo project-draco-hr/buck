@@ -1,0 +1,158 @@
+{
+  String errorMsg=null;
+  String verb=null;
+  String directObject=null;
+  try {
+    int n=args.length;
+    for (int i=0; i < n; i++) {
+      Arg arg=null;
+      String a=args[i];
+      if (a.startsWith("--")) {
+        arg=findLongArg(verb,directObject,a.substring(2));
+      }
+ else       if (a.startsWith("-")) {
+        arg=findShortArg(verb,directObject,a.substring(1));
+      }
+      if (arg == null) {
+        if (a.startsWith("-")) {
+          if (verb == null || directObject == null) {
+            errorMsg=String.format("Flag '%1$s' is not a valid global flag. Did you mean to specify it after the verb/object name?",a);
+            return;
+          }
+ else {
+            errorMsg=String.format("Flag '%1$s' is not valid for '%2$s %3$s'.",a,verb,directObject);
+            return;
+          }
+        }
+        if (verb == null) {
+          for (          String[] actionDesc : mActions) {
+            if (actionDesc[ACTION_VERB_INDEX].equals(a)) {
+              verb=a;
+              break;
+            }
+          }
+          if (verb == null) {
+            errorMsg=String.format("Expected verb after global parameters but found '%1$s' instead.",a);
+            return;
+          }
+        }
+ else         if (directObject == null) {
+          for (          String[] actionDesc : mActions) {
+            if (actionDesc[ACTION_VERB_INDEX].equals(verb)) {
+              if (actionDesc[ACTION_OBJECT_INDEX].equals(a)) {
+                directObject=a;
+                break;
+              }
+ else               if (actionDesc.length > ACTION_ALT_OBJECT_INDEX && actionDesc[ACTION_ALT_OBJECT_INDEX].equals(a)) {
+                directObject=actionDesc[ACTION_OBJECT_INDEX];
+                break;
+              }
+            }
+          }
+          if (directObject == null) {
+            errorMsg=String.format("Expected verb after global parameters but found '%1$s' instead.",a);
+            return;
+          }
+        }
+ else {
+          errorMsg=String.format("Argument '%1$s' is not recognized.",a);
+        }
+      }
+ else {
+        arg.setInCommandLine(true);
+        Object error=null;
+        if (arg.getMode().needsExtra()) {
+          if (i + 1 >= n) {
+            errorMsg=String.format("Missing argument for flag %1$s.",a);
+            return;
+          }
+          while (i + 1 < n) {
+            String b=args[i + 1];
+            if (arg.getMode() != Mode.STRING_ARRAY) {
+              Arg dummyArg=null;
+              if (b.startsWith("--")) {
+                dummyArg=findLongArg(verb,directObject,b.substring(2));
+              }
+ else               if (b.startsWith("-")) {
+                dummyArg=findShortArg(verb,directObject,b.substring(1));
+              }
+              if (dummyArg != null) {
+                errorMsg=String.format("Oops, it looks like you didn't provide an argument for '%1$s'.\n'%2$s' was found instead.",a,b);
+                return;
+              }
+            }
+            error=arg.getMode().process(arg,b);
+            if (error == Accept.CONTINUE) {
+              i++;
+            }
+ else             if (error == Accept.ACCEPT_AND_STOP) {
+              i++;
+              break;
+            }
+ else             if (error == Accept.REJECT_AND_STOP) {
+              break;
+            }
+ else             if (error instanceof String) {
+              break;
+            }
+          }
+        }
+ else {
+          error=arg.getMode().process(arg,null);
+          if (isHelpRequested()) {
+            errorMsg="";
+          }
+        }
+        if (error instanceof String) {
+          errorMsg=String.format("Invalid usage for flag %1$s: %2$s.",a,error);
+          return;
+        }
+      }
+    }
+    if (errorMsg == null) {
+      if (verb == null && !acceptLackOfVerb()) {
+        errorMsg="Missing verb name.";
+      }
+ else       if (verb != null) {
+        if (directObject == null) {
+          for (          String[] actionDesc : mActions) {
+            if (actionDesc[ACTION_VERB_INDEX].equals(verb) && actionDesc[ACTION_OBJECT_INDEX].equals(NO_VERB_OBJECT)) {
+              directObject=NO_VERB_OBJECT;
+              break;
+            }
+          }
+          if (directObject == null) {
+            errorMsg=String.format("Missing object name for verb '%1$s'.",verb);
+            return;
+          }
+        }
+        String missing=null;
+        boolean plural=false;
+        for (        Entry<String,Arg> entry : mArguments.entrySet()) {
+          Arg arg=entry.getValue();
+          if (arg.getVerb().equals(verb) && arg.getDirectObject().equals(directObject)) {
+            if (arg.isMandatory() && arg.getCurrentValue() == null) {
+              if (missing == null) {
+                missing="--" + arg.getLongArg();
+              }
+ else {
+                missing+=", --" + arg.getLongArg();
+                plural=true;
+              }
+            }
+          }
+        }
+        if (missing != null) {
+          errorMsg=String.format("The %1$s %2$s must be defined for action '%3$s %4$s'",plural ? "parameters" : "parameter",missing,verb,directObject);
+        }
+        mVerbRequested=verb;
+        mDirectObjectRequested=directObject;
+      }
+    }
+  }
+  finally {
+    if (errorMsg != null) {
+      printHelpAndExitForAction(verb,directObject,errorMsg);
+    }
+  }
+}

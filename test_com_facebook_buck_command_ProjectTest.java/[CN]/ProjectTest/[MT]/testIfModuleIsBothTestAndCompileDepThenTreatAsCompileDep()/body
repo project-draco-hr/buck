@@ -1,0 +1,16 @@
+{
+  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  PrebuiltJarRule guava=PrebuiltJarRule.newPrebuiltJarRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//third_party/java/guava:guava")).setBinaryJar("third_party/java/guava.jar").addVisibilityPattern(BuildTargetPattern.MATCH_ALL).build(buildRuleIndex);
+  buildRuleIndex.put(guava.getFullyQualifiedName(),guava);
+  JavaLibraryRule javaLib=DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/example/base:base")).addDep("//third_party/java/guava:guava").build(buildRuleIndex);
+  buildRuleIndex.put(javaLib.getFullyQualifiedName(),javaLib);
+  JavaTestRule javaTest=JavaTestRule.newJavaTestRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/example/base:tests")).addDep("//third_party/java/guava:guava").build(buildRuleIndex);
+  buildRuleIndex.put(javaTest.getFullyQualifiedName(),javaTest);
+  ProjectConfigRule projectConfig=ProjectConfigRule.newProjectConfigRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/example/base:project_config")).setSrcTarget("//java/com/example/base:base").setTestTarget("//java/com/example/base:tests").setTestRoots(ImmutableList.of("tests")).build(buildRuleIndex);
+  buildRuleIndex.put(projectConfig.getFullyQualifiedName(),projectConfig);
+  ProjectWithModules projectWithModules=getModulesForPartialGraph(buildRuleIndex,ImmutableList.of(projectConfig),null);
+  List<Module> modules=projectWithModules.modules;
+  assertEquals(1,modules.size());
+  Module comExampleBaseModule=Iterables.getOnlyElement(modules);
+  assertListEquals(ImmutableList.of(DependentModule.newSourceFolder(),DependentModule.newLibrary(guava.getBuildTarget(),"guava"),DependentModule.newStandardJdk()),comExampleBaseModule.dependencies);
+}

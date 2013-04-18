@@ -1,0 +1,30 @@
+{
+  boolean result=true;
+  Element destUsesSdk=findFirstElement(mMainDoc,"/manifest/uses-sdk");
+  Element srcUsesSdk=findFirstElement(libDoc,"/manifest/uses-sdk");
+  AtomicInteger destValue=new AtomicInteger(1);
+  AtomicInteger srcValue=new AtomicInteger(1);
+  AtomicBoolean destImplied=new AtomicBoolean(true);
+  AtomicBoolean srcImplied=new AtomicBoolean(true);
+  destMinSdk=1;
+  result=extractSdkVersionAttribute(libDoc,destUsesSdk,srcUsesSdk,"min",destValue,srcValue,destImplied,srcImplied);
+  if (result) {
+    destMinSdk=destValue.get();
+    if (destMinSdk < srcValue.get()) {
+      mLog.conflict(Severity.ERROR,xmlFileAndLine(destUsesSdk == null ? mMainDoc : destUsesSdk),xmlFileAndLine(srcUsesSdk == null ? libDoc : srcUsesSdk),"Main manifest has <uses-sdk android:minSdkVersion='%1$d'> but library uses minSdkVersion='%2$d'%3$s",destMinSdk,srcValue.get(),!destImplied.get() ? "" : "\nNote: main manifest lacks a <uses-sdk android:minSdkVersion> declaration, which defaults to value 1.");
+      result=false;
+    }
+  }
+  destImplied.set(true);
+  srcImplied.set(true);
+  boolean result2=extractSdkVersionAttribute(libDoc,destUsesSdk,srcUsesSdk,"target",destValue,srcValue,destImplied,srcImplied);
+  result&=result2;
+  if (result2) {
+    int destTargetSdk=destImplied.get() ? destMinSdk : destValue.get();
+    if (destTargetSdk < srcValue.get()) {
+      mLog.conflict(Severity.WARNING,xmlFileAndLine(destUsesSdk == null ? mMainDoc : destUsesSdk),xmlFileAndLine(srcUsesSdk == null ? libDoc : srcUsesSdk),"Main manifest has <uses-sdk android:targetSdkVersion='%1$d'> but library uses targetSdkVersion='%2$d'%3$s",destTargetSdk,srcValue.get(),!destImplied.get() ? "" : "\nNote: main manifest lacks a <uses-sdk android:targetSdkVersion> declaration, which defaults to value minSdkVersion or 1.");
+      result=false;
+    }
+  }
+  return result;
+}

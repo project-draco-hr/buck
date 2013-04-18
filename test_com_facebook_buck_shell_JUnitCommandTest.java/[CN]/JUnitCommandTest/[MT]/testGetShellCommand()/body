@@ -1,0 +1,21 @@
+{
+  Set<String> classpathEntries=ImmutableSet.of("foo","bar/baz");
+  String testClass1="com.facebook.buck.shell.JUnitCommandTest";
+  String testClass2="com.facebook.buck.shell.InstrumentCommandTest";
+  Set<String> testClassNames=ImmutableSet.of(testClass1,testClass2);
+  String vmArg1="-Dname1=value1";
+  String vmArg2="-Dname1=value2";
+  List<String> vmArgs=ImmutableList.of(vmArg1,vmArg2);
+  String directoryForTestResults="buck-gen/theresults/";
+  boolean isCodeCoverageEnabled=false;
+  boolean isDebugEnabled=false;
+  String testRunnerClassesDirectory="build/classes/junit";
+  JUnitCommand junit=new JUnitCommand(classpathEntries,testClassNames,vmArgs,directoryForTestResults,isCodeCoverageEnabled,isDebugEnabled,testRunnerClassesDirectory);
+  ExecutionContext executionContext=EasyMock.createMock(ExecutionContext.class);
+  EasyMock.expect(executionContext.getVerbosity()).andReturn(Verbosity.ALL);
+  EasyMock.expect(executionContext.getAndroidPlatformTarget()).andReturn(Optional.<AndroidPlatformTarget>absent());
+  EasyMock.replay(executionContext);
+  List<String> observedArgs=junit.getShellCommand(executionContext);
+  MoreAsserts.assertListEquals(ImmutableList.of("java",vmArg1,vmArg2,"-verbose","-classpath","foo:bar/baz:build/classes/junit",JUnitCommand.JUNIT_TEST_RUNNER_CLASS_NAME,directoryForTestResults,testClass1,testClass2),observedArgs);
+  EasyMock.verify(executionContext);
+}

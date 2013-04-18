@@ -1,0 +1,22 @@
+{
+  ZipFile zip=new ZipFile(file);
+  for (Enumeration<? extends ZipEntry> entries=zip.entries(); entries.hasMoreElements(); ) {
+    ZipEntry entry=entries.nextElement();
+    String entryName=entry.getName();
+    if (entryName.equals(JarFile.MANIFEST_NAME)) {
+      Manifest readManifest=readManifest(zip,entry);
+      merge(manifest,readManifest);
+      continue;
+    }
+    if (directoryEntriesInsertedIntoOutputJar.contains(entryName)) {
+      continue;
+    }
+    jar.putNextEntry(entry);
+    InputStream inputStream=zip.getInputStream(entry);
+    ByteStreams.copy(inputStream,jar);
+    jar.closeEntry();
+    if (entryName.endsWith("/")) {
+      directoryEntriesInsertedIntoOutputJar.add(entryName);
+    }
+  }
+}

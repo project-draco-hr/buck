@@ -1,0 +1,27 @@
+{
+  final ImmutableSet<String> fullyQualifiedBuildTargets=ImmutableSet.copyOf(options.getArgumentsFormattedAsBuildTargets());
+  if (fullyQualifiedBuildTargets.isEmpty()) {
+    console.printFailure("Please specify at least one build target.");
+    return 1;
+  }
+  RawRulePredicate predicate=new RawRulePredicate(){
+    @Override public boolean isMatch(    Map<String,Object> rawParseData,    BuildRuleType buildRuleType,    BuildTarget buildTarget){
+      return fullyQualifiedBuildTargets.contains(buildTarget.getFullyQualifiedName());
+    }
+  }
+;
+  PartialGraph partialGraph;
+  try {
+    partialGraph=PartialGraph.createPartialGraph(predicate,getProjectFilesystem().getProjectRoot(),options.getDefaultIncludes(),ansi);
+  }
+ catch (  NoSuchBuildTargetException e) {
+    console.printFailureWithoutStacktrace(e);
+    return 1;
+  }
+  if (options.shouldGenerateDotOutput()) {
+    return printDotOutput(partialGraph.getDependencyGraph());
+  }
+ else {
+    return printClasspath(partialGraph);
+  }
+}

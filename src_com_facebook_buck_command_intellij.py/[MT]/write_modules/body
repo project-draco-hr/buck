@@ -1,0 +1,83 @@
+def write_modules(modules):
+    'Writes one XML file for each module.'
+    for module in modules:
+        module_type = 'JAVA_MODULE'
+        if (('isIntelliJPlugin' in module) and module['isIntelliJPlugin']):
+            module_type = 'PLUGIN_MODULE'
+        xml = (MODULE_XML_START % {'type': module_type, })
+        if (module.get('hasAndroidFacet') == True):
+            if ('keystorePath' in module):
+                keystore = ('file://$MODULE_DIR$/%s' % module['keystorePath'])
+            else:
+                keystore = ''
+            if ('androidManifest' in module):
+                android_manifest = module['androidManifest']
+            else:
+                android_manifest = '/AndroidManifest.xml'
+            is_library_project = module['isAndroidLibraryProject']
+            android_params = {'android_manifest': android_manifest, 'res': '/res', 'is_android_library_project': str(is_library_project).lower(), 'run_proguard': 'false', 'module_gen_path': module['moduleGenPath'], 'proguard_config': '/proguard.cfg', 'keystore': keystore, 'libs_path': ('/%s' % module.get('nativeLibs', 'libs')), }
+            xml += (ANDROID_FACET % android_params)
+        xml += '\n  <component name="NewModuleRootManager" inherit-compiler-output="true">'
+        num_source_folders = len(module['sourceFolders'])
+        if (num_source_folders > 1):
+            xml = add_buck_android_source_folder(xml, module)
+        xml += '\n    <content url="file://$MODULE_DIR$">'
+        for source_folder in module['sourceFolders']:
+            if ('packagePrefix' in source_folder):
+                package_prefix = ('packagePrefix="%s" ' % source_folder['packagePrefix'])
+            else:
+                package_prefix = ''
+            xml += ('\n      <sourceFolder url="%(url)s" isTestSource="%(is_test_source)s" %(package_prefix)s/>' % {'url': source_folder['url'], 'is_test_source': str(source_folder['isTestSource']).lower(), 'package_prefix': package_prefix, })
+        for exclude_folder in module['excludeFolders']:
+            xml += ('\n      <excludeFolder url="%s" />' % exclude_folder['url'])
+        xml += '\n    </content>'
+        xml = add_annotation_generated_source_folder(xml, module)
+        if (num_source_folders <= 1):
+            xml = add_buck_android_source_folder(xml, module)
+        dependencies = module['dependencies']
+        module_name = module['name']
+        compile_dependencies = filter((lambda dep: ((dep['type'] == 'module') and ((not ('scope' in dep)) or (dep['scope'] != 'TEST')))), dependencies)
+        compile_dependencies = map((lambda dep: dep['moduleName']), compile_dependencies)
+        compile_dependencies = set(compile_dependencies)
+        filtered_dependencies = []
+        for dep in dependencies:
+            if (dep['type'] != 'module'):
+                filtered_dependencies.append(dep)
+            else:
+                dep_module_name = dep['moduleName']
+                if (dep_module_name == module_name):
+                    continue
+                elif (('scope' in dep) and (dep['scope'] == 'TEST')):
+                    if (not (dep_module_name in compile_dependencies)):
+                        filtered_dependencies.append(dep)
+                else:
+                    filtered_dependencies.append(dep)
+        excluded_deps_names = set()
+        if (module_type == 'PLUGIN_MODULE'):
+            excluded_deps_names = set(['annotations', 'extensions', 'idea', 'jdom', 'junit', 'light_psi_all', 'openapi', 'picocontainer', 'trove4j', 'util'])
+        for dep in filtered_dependencies:
+            if ('scope' in dep):
+                dep_scope = ('scope="%s" ' % dep['scope'])
+            else:
+                dep_scope = ''
+            dep_type = dep['type']
+            if (dep_type == 'library'):
+                if (dep['name'] in excluded_deps_names):
+                    continue
+                xml += ('\n    <orderEntry type="library" exported="" %sname="%s" level="project" />' % (dep_scope, dep['name']))
+            elif (dep_type == 'module'):
+                dep_module_name = dep['moduleName']
+                if (dep_module_name == 'module_first_party_orca_third_party_jackson'):
+                    exported = 'exported="" '
+                else:
+                    exported = ''
+                xml += ('\n    <orderEntry type="module" module-name="%s" %s%s/>' % (dep_module_name, exported, dep_scope))
+            elif (dep_type == 'inheritedJdk'):
+                xml += '\n    <orderEntry type="inheritedJdk" />'
+            elif (dep_type == 'jdk'):
+                xml += ('\n    <orderEntry type="jdk" jdkName="%s" jdkType="%s" />' % (dep['jdkName'], dep['jdkType']))
+            elif (dep_type == 'sourceFolder'):
+                xml += '\n    <orderEntry type="sourceFolder" forTests="false" />'
+        xml += '\n  </component>'
+        xml += MODULE_XML_END
+        write_file_if_changed(module['pathToImlFile'], xml)

@@ -1,0 +1,24 @@
+{
+  List<Module> modules=createModulesForProjectConfigs();
+  writeJsonConfig(jsonTempFile,modules);
+  List<String> modifiedFiles=Lists.newArrayList();
+  ExitCodeAndStdOut result=processJsonConfig(jsonTempFile);
+  if (result.exitCode != 0) {
+    return result.exitCode;
+  }
+ else {
+    Iterable<String> paths=Splitter.on('\n').trimResults().omitEmptyStrings().split(result.stdOut);
+    Iterables.addAll(modifiedFiles,paths);
+  }
+  List<String> modifiedPropertiesFiles=generateProjectDotPropertiesFiles(modules);
+  modifiedFiles.addAll(modifiedPropertiesFiles);
+  CompilerXml compilerXml=new CompilerXml(modules);
+  File compilerXmlFile=new File(".idea/compiler.xml");
+  if (compilerXml.write(compilerXmlFile)) {
+    modifiedFiles.add(compilerXmlFile.getPath());
+  }
+  if (!modifiedFiles.isEmpty()) {
+    stdOut.printf("MODIFIED FILES:\n%s\n",Joiner.on('\n').join(modifiedFiles));
+  }
+  return 0;
+}

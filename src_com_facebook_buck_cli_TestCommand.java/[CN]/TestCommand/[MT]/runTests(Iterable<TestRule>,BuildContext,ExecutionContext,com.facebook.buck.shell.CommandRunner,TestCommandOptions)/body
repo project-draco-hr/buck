@@ -1,0 +1,75 @@
+{
+  ImmutableSet<JavaLibraryRule> rulesUnderTest;
+  if (options.isCodeCoverageEnabled()) {
+    rulesUnderTest=getRulesUnderTest(tests);
+    if (!rulesUnderTest.isEmpty()) {
+      try {
+        commandRunner.runCommand(new MakeCleanDirectoryCommand(JUnitCommand.EMMA_OUTPUT_DIR));
+        commandRunner.runCommand(getInstrumentCommand(rulesUnderTest));
+      }
+ catch (      CommandFailedException e) {
+        console.printFailureWithoutStacktrace(e);
+        return 1;
+      }
+    }
+  }
+ else {
+    rulesUnderTest=ImmutableSet.of();
+  }
+  String targetsBeingTested;
+  if (options.isRunAllTests()) {
+    targetsBeingTested="ALL TESTS";
+  }
+ else {
+    targetsBeingTested=Joiner.on(' ').join(options.getArgumentsFormattedAsBuildTargets());
+  }
+  stdErr.printf("TESTING %s\n",targetsBeingTested);
+  List<ListenableFuture<TestResults>> results=Lists.newArrayList();
+  for (  TestRule test : tests) {
+    List<com.facebook.buck.shell.Command> commands=test.runTests(buildContext,executionContext);
+    ListenableFuture<TestResults> testResults=commandRunner.runCommandsAndYieldResult(commands,test.interpretTestResults());
+    results.add(testResults);
+  }
+  ListenableFuture<List<TestResults>> uberFuture=Futures.allAsList(results);
+  List<TestResults> completedResults;
+  try {
+    completedResults=uberFuture.get();
+  }
+ catch (  InterruptedException e) {
+    e.printStackTrace(stdErr);
+    return 1;
+  }
+catch (  ExecutionException e) {
+    e.printStackTrace(stdErr);
+    return 1;
+  }
+  if (options.getPathToXmlTestOutput() != null) {
+    writeXmlOutput(completedResults,options.getPathToXmlTestOutput());
+  }
+  boolean isAllTestsPassed=true;
+  int numFailures=0;
+  for (  TestResults summary : completedResults) {
+    if (!summary.isSuccess()) {
+      isAllTestsPassed=false;
+      numFailures+=summary.getFailureCount();
+    }
+    stdErr.print(summary.getSummaryWithFailureDetails(ansi));
+  }
+  if (isAllTestsPassed) {
+    ansi.printlnHighlightedSuccessText(stdErr,"TESTS PASSED");
+  }
+ else {
+    ansi.printlnHighlightedFailureText(stdErr,String.format("TESTS FAILED: %d Failures",numFailures));
+  }
+  if (options.isCodeCoverageEnabled() && !rulesUnderTest.isEmpty()) {
+    try {
+      Optional<DefaultJavaPackageFinder> defaultJavaPackageFinderOptional=options.getJavaPackageFinder();
+      commandRunner.runCommand(getReportCommand(rulesUnderTest,defaultJavaPackageFinderOptional,getProjectFilesystem()));
+    }
+ catch (    CommandFailedException e) {
+      console.printFailureWithoutStacktrace(e);
+      return 1;
+    }
+  }
+  return isAllTestsPassed ? 0 : 1;
+}

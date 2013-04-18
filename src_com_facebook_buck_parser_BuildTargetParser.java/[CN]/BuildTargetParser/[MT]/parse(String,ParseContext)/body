@@ -1,0 +1,42 @@
+{
+  Preconditions.checkNotNull(buildTargetName);
+  Preconditions.checkNotNull(parseContext);
+  for (  String invalidSubstring : INVALID_BUILD_RULE_SUBSTRINGS) {
+    if (buildTargetName.contains(invalidSubstring)) {
+      throw new BuildTargetParseException(String.format("%s cannot contain %s",buildTargetName,invalidSubstring));
+    }
+  }
+  if (buildTargetName.endsWith(BUILD_RULE_SEPARATOR) && parseContext.getType() != ParseContext.Type.VISIBILITY) {
+    throw new BuildTargetParseException(String.format("%s cannot end with a colon",buildTargetName));
+  }
+  List<String> parts=ImmutableList.copyOf(BUILD_RULE_SEPARATOR_SPLITTER.split(buildTargetName));
+  if (parts.size() != 2) {
+    throw new BuildTargetParseException(String.format("%s must contain exactly one colon (found %d)",buildTargetName,parts.size() - 1));
+  }
+  String baseName=parts.get(0).isEmpty() ? parseContext.getBaseName() : parts.get(0);
+  String shortName=parts.get(1);
+  String fullyQualifiedName=String.format("%s:%s",baseName,shortName);
+  if (!fullyQualifiedName.startsWith(BUILD_RULE_PREFIX)) {
+    throw new BuildTargetParseException(String.format("%s must start with %s",fullyQualifiedName,BUILD_RULE_PREFIX));
+  }
+  String buildFileDirectory=baseName.substring(BUILD_RULE_PREFIX.length());
+  String buildFilePath=(buildFileDirectory.isEmpty() ? "" : buildFileDirectory + "/") + BUILD_RULES_FILE_NAME;
+  if (!projectFilesystem.exists(buildFileDirectory)) {
+    if (parseContext.getType() == ParseContext.Type.BUILD_FILE && baseName.equals(parseContext.getBaseName())) {
+      throw new BuildTargetParseException(String.format("Internal error: Parsing in the context of %s, but %s does not exist",buildFilePath,buildFileDirectory));
+    }
+ else {
+      throw NoSuchBuildTargetException.createForMissingDirectory(buildFileDirectory,buildTargetName,parseContext);
+    }
+  }
+  if (!projectFilesystem.exists(buildFilePath)) {
+    if (parseContext.getType() == ParseContext.Type.BUILD_FILE && baseName.equals(parseContext.getBaseName())) {
+      throw new BuildTargetParseException(String.format("Internal error: Parsing in the context of %s, but %s does not exist",buildFilePath,buildFilePath));
+    }
+ else {
+      throw NoSuchBuildTargetException.createForMissingBuildFile(buildFilePath,buildTargetName,parseContext);
+    }
+  }
+  File buildFile=projectFilesystem.getFileForRelativePath(buildFilePath);
+  return new BuildTarget(buildFile,baseName,shortName);
+}

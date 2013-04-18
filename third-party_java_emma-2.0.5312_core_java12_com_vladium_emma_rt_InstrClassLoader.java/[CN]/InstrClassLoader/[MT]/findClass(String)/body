@@ -1,0 +1,84 @@
+{
+  final boolean trace1=m_log.atTRACE1();
+  if (trace1)   m_log.trace1("findClass","(" + name + "): nest level "+ m_nestLevel);
+  final boolean useClassCache=(m_cache != null);
+  final ClassPathCacheEntry entry=useClassCache ? (ClassPathCacheEntry)m_cache.remove(name) : null;
+  byte[] bytes;
+  int length;
+  URL classURL=null;
+  if (entry != null) {
+    ++m_cacheHits;
+    try {
+      classURL=new URL(entry.m_srcURL);
+    }
+ catch (    MalformedURLException murle) {
+      if ($assert.ENABLED) {
+        murle.printStackTrace(System.out);
+      }
+    }
+    PoolEntry buf=null;
+    try {
+      buf=acquirePoolEntry();
+      final ByteArrayOStream baos=buf.m_baos;
+      bytes=entry.m_bytes;
+      length=bytes.length;
+      if ((m_hook != null) && m_hook.processClassDef(name,bytes,length,baos)) {
+        bytes=baos.getByteArray();
+        length=baos.size();
+        if (trace1)         m_log.trace1("findClass","defining [cached] instrumented [" + name + "] {"+ length+ " bytes }");
+      }
+ else {
+        if (trace1)         m_log.trace1("findClass","defining [cached] [" + name + "] {"+ length+ " bytes }");
+      }
+      return defineClass(name,bytes,length,classURL);
+    }
+ catch (    IOException ioe) {
+      throw new ClassNotFoundException(name);
+    }
+ finally {
+      if (buf != null)       releasePoolEntry(buf);
+    }
+  }
+ else {
+    if (useClassCache)     ++m_cacheMisses;
+    final String classResource=name.replace('.','/') + ".class";
+    classURL=getResource(classResource);
+    if (trace1 && (classURL != null))     m_log.trace1("findClass","[" + name + "] found in "+ classURL);
+    if (classURL == null)     throw new ClassNotFoundException(name);
+ else {
+      InputStream in=null;
+      PoolEntry buf=null;
+      try {
+        in=classURL.openStream();
+        buf=acquirePoolEntry();
+        final ByteArrayOStream baos=buf.m_baos;
+        readFully(in,baos,buf.m_buf);
+        in.close();
+        in=null;
+        bytes=baos.getByteArray();
+        length=baos.size();
+        baos.reset();
+        if ((m_hook != null) && m_hook.processClassDef(name,bytes,length,baos)) {
+          bytes=baos.getByteArray();
+          length=baos.size();
+          if (trace1)           m_log.trace1("findClass","defining instrumented [" + name + "] {"+ length+ " bytes }");
+        }
+ else {
+          if (trace1)           m_log.trace1("findClass","defining [" + name + "] {"+ length+ " bytes }");
+        }
+        return defineClass(name,bytes,length,classURL);
+      }
+ catch (      IOException ioe) {
+        throw new ClassNotFoundException(name);
+      }
+ finally {
+        if (buf != null)         releasePoolEntry(buf);
+        if (in != null)         try {
+          in.close();
+        }
+ catch (        Exception ignore) {
+        }
+      }
+    }
+  }
+}

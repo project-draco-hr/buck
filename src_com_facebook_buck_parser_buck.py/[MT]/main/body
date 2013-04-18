@@ -1,0 +1,39 @@
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--project_root')
+    parser.add_argument('--include', action='append')
+    parser.add_argument('build_files', nargs='*')
+    args = parser.parse_args()
+    project_root = args.project_root
+    len_suffix = (- len(('/' + BUILD_RULES_FILE_NAME)))
+    build_files = None
+    if args.build_files:
+        build_files = args.build_files
+    else:
+        build_files = []
+        for (dirpath, dirnames, filenames) in os.walk(project_root, topdown=True, followlinks=False):
+            if (dirpath == project_root):
+                gitignore_dirs = []
+                try:
+                    with open('.gitignore') as f:
+                        gitignore_data = f.readlines()
+                        f.close()
+                        gitignore_dirs = parse_git_ignore(gitignore_data)
+                except:
+                    pass
+                excluded = (['.git'] + gitignore_dirs)
+                dirnames[:] = [d for d in dirnames if (not (d in excluded))]
+            if (BUILD_RULES_FILE_NAME in filenames):
+                build_file = os.path.join(dirpath, BUILD_RULES_FILE_NAME)
+                build_files.append(build_file)
+    for build_file in build_files:
+        build_env = {}
+        relative_path_to_build_file = os.path.relpath(build_file, project_root)
+        build_env['BASE'] = relative_path_to_build_file[:len_suffix]
+        build_env['BUILD_FILE_DIRECTORY'] = os.path.dirname(build_file)
+        build_env['PROJECT_ROOT'] = project_root
+        build_env['BUILD_FILE_SYMBOL_TABLE'] = make_build_file_symbol_table(build_env)
+        includes = (args.include or [])
+        for include in includes:
+            include_defs(include, build_env)
+        execfile(os.path.join(project_root, build_file), build_env['BUILD_FILE_SYMBOL_TABLE'])

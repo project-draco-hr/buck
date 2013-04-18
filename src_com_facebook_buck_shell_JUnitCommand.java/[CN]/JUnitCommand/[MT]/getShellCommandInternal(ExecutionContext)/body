@@ -1,0 +1,33 @@
+{
+  ImmutableList.Builder<String> args=ImmutableList.builder();
+  args.add("java");
+  if (isCodeCoverageEnabled) {
+    args.add(String.format("-D%s=%s/coverage.ec",EMMA_COVERAGE_OUT_FILE,EMMA_OUTPUT_DIR));
+  }
+  if (isDebugEnabled) {
+    args.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005");
+    warnUser(context,"Debugging. Suspending JVM. Connect a JDWP debugger to port 5005 to proceed.");
+  }
+  args.addAll(vmArgs);
+  if (context.getVerbosity().shouldUseVerbosityFlagIfAvailable()) {
+    args.add("-verbose");
+  }
+  List<String> classpath=Lists.newArrayList(classpathEntries);
+  if (isCodeCoverageEnabled) {
+    classpath.add(PATH_TO_EMMA_JAR);
+  }
+  if (context.getAndroidPlatformTarget().isPresent()) {
+    AndroidPlatformTarget androidPlatformTarget=context.getAndroidPlatformTarget().get();
+    for (    File bootclasspathEntry : androidPlatformTarget.getBootclasspathEntries()) {
+      classpath.add(bootclasspathEntry.getAbsolutePath());
+    }
+  }
+  classpath.add(testRunnerClassesDirectory);
+  args.add("-classpath").add(Joiner.on(':').join(classpath));
+  args.add(JUNIT_TEST_RUNNER_CLASS_NAME);
+  args.add(directoryForTestResults);
+  for (  String testClassName : testClassNames) {
+    args.add(testClassName);
+  }
+  return args.build();
+}

@@ -1,0 +1,51 @@
+{
+  final Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  final MutableDirectedGraph<BuildRule> graph=new MutableDirectedGraph<BuildRule>();
+  AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget>(){
+    @Override protected Iterator<BuildTarget> findChildren(    BuildTarget buildTarget){
+      BuildRuleBuilder buildRuleBuilder=knownBuildTargets.get(buildTarget.getFullyQualifiedName());
+      ParseContext parseContext=ParseContext.forBaseName(buildTarget.getBaseName());
+      Set<BuildTarget> deps=Sets.newHashSet();
+      for (      String dep : buildRuleBuilder.getDeps()) {
+        try {
+          BuildTarget buildTargetForDep=buildTargetParser.parse(dep,parseContext);
+          if (!knownBuildTargets.containsKey(buildTargetForDep.getFullyQualifiedName())) {
+            parseBuildFileContainingTarget(buildTargetForDep,defaultIncludes);
+          }
+          deps.add(buildTargetForDep);
+        }
+ catch (        NoSuchBuildTargetException e) {
+          throw new HumanReadableException(e);
+        }
+catch (        IOException e) {
+          Throwables.propagate(e);
+        }
+      }
+      return deps.iterator();
+    }
+    @Override protected void onNodeExplored(    BuildTarget buildTarget){
+      String fullyQualifiedName=buildTarget.getFullyQualifiedName();
+      BuildRuleBuilder builderForTarget=knownBuildTargets.get(fullyQualifiedName);
+      BuildRule buildRule=builderForTarget.build(buildRuleIndex);
+      if (buildRule.getDeps().isEmpty()) {
+        graph.addNode(buildRule);
+      }
+ else {
+        for (        BuildRule dep : buildRule.getDeps()) {
+          graph.addEdge(buildRule,dep);
+        }
+      }
+      buildRuleIndex.put(fullyQualifiedName,buildRule);
+    }
+    @Override protected void onTraversalComplete(    Iterable<BuildTarget> nodesInExplorationOrder){
+    }
+  }
+;
+  try {
+    traversal.traverse(toExplore);
+  }
+ catch (  AbstractAcyclicDepthFirstPostOrderTraversal.CycleException e) {
+    throw new HumanReadableException(e.getMessage());
+  }
+  return new DependencyGraph(graph);
+}

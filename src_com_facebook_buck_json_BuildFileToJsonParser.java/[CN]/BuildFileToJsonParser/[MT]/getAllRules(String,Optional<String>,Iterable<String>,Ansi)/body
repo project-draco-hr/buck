@@ -1,0 +1,36 @@
+{
+  List<Map<String,Object>> rules=Lists.newArrayList();
+  List<String> args=Lists.newArrayList("python",PATH_TO_BUCK_PY,"--project_root",rootPath);
+  for (  String include : includes) {
+    args.add("--include");
+    args.add(include);
+  }
+  if (buildFile.isPresent()) {
+    args.add(buildFile.get());
+  }
+  ProcessBuilder processBuilder=new ProcessBuilder(args);
+  Process process=processBuilder.start();
+  BuildFileToJsonParser parser=new BuildFileToJsonParser(process.getInputStream());
+  InputStreamConsumer stdErr=new InputStreamConsumer(process.getErrorStream(),System.err,true,ansi);
+  Thread stdErrConsumer=new Thread(stdErr);
+  stdErrConsumer.start();
+  Map<String,Object> value=null;
+  while ((value=parser.next()) != null) {
+    rules.add(value);
+  }
+  try {
+    int exitCode=process.waitFor();
+    if (exitCode != 0) {
+      if (buildFile.isPresent()) {
+        throw new RuntimeException("Parsing " + buildFile.get() + " did not exit cleanly");
+      }
+ else {
+        throw new RuntimeException("Error parsing build files");
+      }
+    }
+  }
+ catch (  InterruptedException e) {
+    throw Throwables.propagate(e);
+  }
+  return rules;
+}

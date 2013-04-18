@@ -1,0 +1,22 @@
+{
+  if (assetsDirectories.isEmpty() && extraAssets.isEmpty()) {
+    return Optional.absent();
+  }
+  String destination=getPathToAllAssetsDirectory();
+  commands.add(new MakeCleanDirectoryCommand(destination));
+  final ImmutableMap.Builder<String,File> allAssets=ImmutableMap.builder();
+  File destinationDirectory=new File(destination);
+  for (  String assetsDirectory : assetsDirectories) {
+    traverser.traverse(new DirectoryTraversal(new File(assetsDirectory)){
+      @Override public void visit(      File file,      String relativePath){
+        allAssets.put(relativePath,file);
+      }
+    }
+);
+  }
+  allAssets.putAll(extraAssets);
+  for (  Map.Entry<String,File> entry : allAssets.build().entrySet()) {
+    commands.add(new MkdirAndSymlinkFileCommand(entry.getValue(),destinationDirectory + "/" + entry.getKey()));
+  }
+  return Optional.of(destination);
+}

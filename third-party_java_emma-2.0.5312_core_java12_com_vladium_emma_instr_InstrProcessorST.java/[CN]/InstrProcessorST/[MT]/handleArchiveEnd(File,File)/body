@@ -1,0 +1,25 @@
+{
+  final Logger log=m_log;
+  if (log.atTRACE2())   log.trace2("handleArchiveEnd","[" + parentDir + "] ["+ archive+ "]");
+  m_currentArchiveTS=Long.MAX_VALUE;
+  if ((m_outMode == OutMode.OUT_MODE_FULLCOPY) || (m_outMode == OutMode.OUT_MODE_OVERWRITE)) {
+    try {
+      drainJobQueue();
+      m_archiveOut.flush();
+      m_archiveOut.close();
+      m_archiveOut=null;
+    }
+ catch (    IOException ioe) {
+      throw new EMMARuntimeException(ioe);
+    }
+    if (m_outMode == OutMode.OUT_MODE_OVERWRITE) {
+      if (!Files.renameFile(m_tempArchiveFile,m_origArchiveFile,true)) {
+        throw new EMMARuntimeException("could not rename temporary file [" + m_tempArchiveFile + "] to ["+ m_origArchiveFile+ "]: make sure the original file is not locked and can be deleted");
+      }
+ else {
+        if (log.atTRACE2())         log.trace2("handleArchiveEnd","renamed temp archive [" + m_tempArchiveFile.getAbsolutePath() + "] to ["+ m_origArchiveFile+ "]");
+        m_origArchiveFile=m_tempArchiveFile=null;
+      }
+    }
+  }
+}

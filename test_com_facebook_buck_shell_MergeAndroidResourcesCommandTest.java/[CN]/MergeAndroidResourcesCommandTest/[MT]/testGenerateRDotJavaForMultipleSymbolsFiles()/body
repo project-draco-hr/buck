@@ -1,0 +1,19 @@
+{
+  RDotTxtEntryBuilder entriesBuilder=new RDotTxtEntryBuilder();
+  String sharedPackageName="com.facebook.abc";
+  entriesBuilder.add(new RDotTxtEntry(sharedPackageName,"a-R.txt","int id a1 0x7f010001\n" + "int id a2 0x7f010002\n" + "int string a1 0x7f020001\n"));
+  entriesBuilder.add(new RDotTxtEntry(sharedPackageName,"b-R.txt","int id b1 0x7f010001\n" + "int id b2 0x7f010002\n"));
+  entriesBuilder.add(new RDotTxtEntry(sharedPackageName,"c-R.txt","int attr c1 0x7f010001\n" + "int[] styleable c1 { 0x7f010001 }\n"));
+  SortedSetMultimap<String,Resource> packageNameToResources=MergeAndroidResourcesCommand.sortSymbols(entriesBuilder.buildReadableMapper(),entriesBuilder.buildFilePathToPackageNameSet(),true);
+  assertEquals(1,packageNameToResources.keySet().size());
+  SortedSet<Resource> resources=packageNameToResources.get(sharedPackageName);
+  assertEquals(7,resources.size());
+  Set<String> uniqueEntries=Sets.newHashSet();
+  for (  Resource resource : resources) {
+    if (!resource.type.equals("styleable")) {
+      assertFalse("Duplicate ids should be fixed by renumerate=true; duplicate was: " + resource.idValueToWrite,uniqueEntries.contains(resource.idValueToWrite));
+      uniqueEntries.add(resource.idValueToWrite);
+    }
+  }
+  assertEquals(6,uniqueEntries.size());
+}

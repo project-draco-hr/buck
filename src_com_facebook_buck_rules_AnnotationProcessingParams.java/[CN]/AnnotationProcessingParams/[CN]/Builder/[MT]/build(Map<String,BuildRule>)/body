@@ -1,0 +1,26 @@
+{
+  Preconditions.checkNotNull(buildRuleIndex);
+  if (names.isEmpty() && targets.isEmpty() && parameters.isEmpty()) {
+    return EMPTY;
+  }
+  Set<String> searchPathElements=Sets.newHashSet();
+  for (  BuildTarget target : targets) {
+    BuildRule rule=buildRuleIndex.get(target.getFullyQualifiedName());
+    if (rule instanceof JavaBinaryRule) {
+      JavaBinaryRule javaBinaryRule=(JavaBinaryRule)rule;
+      searchPathElements.add(javaBinaryRule.getOutputFile());
+    }
+ else     if (rule instanceof PrebuiltJarRule) {
+      PrebuiltJarRule prebuiltJarRule=(PrebuiltJarRule)rule;
+      searchPathElements.add(prebuiltJarRule.getBinaryJar());
+    }
+ else     if (rule instanceof JavaLibraryRule) {
+      JavaLibraryRule javaLibraryRule=(JavaLibraryRule)rule;
+      searchPathElements.addAll(javaLibraryRule.getClasspathEntries());
+    }
+ else {
+      throw new HumanReadableException("%1$s: Error adding '%2$s' to annotation_processing_deps: " + "must refer only to prebuilt jar, java binary, or java library targets.",ownerTarget,target.getFullyQualifiedName());
+    }
+  }
+  return new AnnotationProcessingParams(ownerTarget,searchPathElements,names,parameters);
+}

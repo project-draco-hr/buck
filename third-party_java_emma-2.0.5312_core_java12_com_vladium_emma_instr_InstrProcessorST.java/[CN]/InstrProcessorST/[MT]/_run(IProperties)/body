@@ -1,0 +1,104 @@
+{
+  final Logger log=m_log;
+  final boolean verbose=log.atVERBOSE();
+  if (verbose) {
+    log.verbose(IAppConstants.APP_VERBOSE_BUILD_ID);
+    log.verbose("instrumentation path:");
+    log.verbose("{");
+    for (int p=0; p < m_instrPath.length; ++p) {
+      final File f=m_instrPath[p];
+      final String nonexistent=f.exists() ? "" : "{nonexistent} ";
+      log.verbose("  " + nonexistent + f.getAbsolutePath());
+    }
+    log.verbose("}");
+    log.verbose("instrumentation output mode: " + m_outMode);
+  }
+ else {
+    log.info("processing instrumentation path ...");
+  }
+  RuntimeException failure=null;
+  try {
+    long start=System.currentTimeMillis();
+    m_timeStamp=start;
+    final IPathEnumerator enumerator=IPathEnumerator.Factory.create(m_instrPath,m_canonical,this);
+{
+      if (m_outMode != OutMode.OUT_MODE_OVERWRITE)       createDir(m_outDir,true);
+      if ((m_outMode == OutMode.OUT_MODE_FULLCOPY)) {
+        final File classesDir=Files.newFile(m_outDir,CLASSES);
+        createDir(classesDir,false);
+        final File libDir=Files.newFile(m_outDir,LIB);
+        createDir(libDir,false);
+      }
+    }
+    File mdataOutFile=m_mdataOutFile;
+    Boolean mdataOutMerge=m_mdataOutMerge;
+{
+      if (mdataOutFile == null)       mdataOutFile=new File(toolProperties.getProperty(EMMAProperties.PROPERTY_META_DATA_OUT_FILE,EMMAProperties.DEFAULT_META_DATA_OUT_FILE));
+      if (mdataOutMerge == null) {
+        final String _dataOutMerge=toolProperties.getProperty(EMMAProperties.PROPERTY_META_DATA_OUT_MERGE,EMMAProperties.DEFAULT_META_DATA_OUT_MERGE.toString());
+        mdataOutMerge=Property.toBoolean(_dataOutMerge) ? Boolean.TRUE : Boolean.FALSE;
+      }
+    }
+    if (verbose) {
+      log.verbose("metadata output file: " + mdataOutFile.getAbsolutePath());
+      log.verbose("metadata output merge mode: " + mdataOutMerge);
+    }
+    m_readbuf=new byte[BUF_SIZE];
+    m_readpos=0;
+    m_baos=new ByteArrayOStream(BUF_SIZE);
+    m_jobPos=0;
+    m_currentArchiveTS=Long.MAX_VALUE;
+    final CoverageOptions options=CoverageOptionsFactory.create(toolProperties);
+    m_visitor=new InstrVisitor(options);
+    m_mdata=DataFactory.newMetaData(options);
+    try {
+      enumerator.enumerate();
+      drainJobQueue();
+    }
+ catch (    IOException ioe) {
+      throw new EMMARuntimeException(INSTR_IO_FAILURE,ioe);
+    }
+    if (log.atINFO()) {
+      final long end=System.currentTimeMillis();
+      log.info("instrumentation path processed in " + (end - start) + " ms");
+      log.info("[" + m_classInstrs + " class(es) instrumented, "+ m_classCopies+ " resource(s) copied]");
+    }
+    try {
+      if ($assert.ENABLED)       $assert.ASSERT(mdataOutFile != null,"m_metadataOutFile is null");
+      if (verbose) {
+        if (m_mdata != null) {
+          log.verbose("metadata contains " + m_mdata.size() + " entries");
+        }
+      }
+      if (m_mdata.isEmpty()) {
+        log.info("no output created: metadata is empty");
+      }
+ else {
+        start=System.currentTimeMillis();
+        DataFactory.persist(m_mdata,mdataOutFile,mdataOutMerge.booleanValue());
+        final long end=System.currentTimeMillis();
+        if (log.atINFO()) {
+          log.info("metadata " + (mdataOutMerge.booleanValue() ? "merged into" : "written to") + " ["+ mdataOutFile.getAbsolutePath()+ "] {in "+ (end - start)+ " ms}");
+        }
+      }
+    }
+ catch (    IOException ioe) {
+      throw new EMMARuntimeException(OUT_IO_FAILURE,new Object[]{mdataOutFile.getAbsolutePath()},ioe);
+    }
+  }
+ catch (  SecurityException se) {
+    failure=new EMMARuntimeException(SECURITY_RESTRICTION,new String[]{IAppConstants.APP_NAME},se);
+  }
+catch (  RuntimeException re) {
+    failure=re;
+  }
+ finally {
+    reset();
+  }
+  if (failure != null) {
+    if (Exceptions.unexpectedFailure(failure,EXPECTED_FAILURES)) {
+      throw new EMMARuntimeException(UNEXPECTED_FAILURE,new Object[]{failure.toString(),IAppConstants.APP_BUG_REPORT_LINK},failure);
+    }
+ else     throw failure;
+  }
+}

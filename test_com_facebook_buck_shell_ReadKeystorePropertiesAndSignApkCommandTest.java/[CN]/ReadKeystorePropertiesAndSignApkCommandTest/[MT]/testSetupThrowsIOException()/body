@@ -1,0 +1,20 @@
+{
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  String pathToPropertiesFile="src/com/facebook/orca/keystore.properties";
+  Properties properties=new Properties();
+  properties.put("key.store","debug.keystore");
+  properties.put("key.alias","androiddebugkey");
+  properties.put("key.store.password","android");
+  expect(projectFilesystem.readPropertiesFile(pathToPropertiesFile)).andReturn(properties);
+  ExecutionContext context=createMock(ExecutionContext.class);
+  replay(context,projectFilesystem);
+  ReadKeystorePropertiesAndSignApkCommand readKeystorePropertiesAndSignCommand=new ReadKeystorePropertiesAndSignApkCommand(pathToPropertiesFile,BIN_DIR + "/src/com/facebook/orca/orca_unsigned.apk",BIN_DIR + "/src/com/facebook/orca/orca_signed.apk",projectFilesystem);
+  try {
+    readKeystorePropertiesAndSignCommand.setup(context);
+    fail("setup() should throw IOException");
+  }
+ catch (  HumanReadableException e) {
+    assertEquals("Exception should have an error message that is useful to the user.","properties file src/com/facebook/orca/keystore.properties did not contain a value for " + "the property key.alias.password",e.getHumanReadableErrorMessage());
+  }
+  verify(context,projectFilesystem);
+}

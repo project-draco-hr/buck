@@ -1,0 +1,13 @@
+{
+  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  JavaBinaryRule javaBinary=createSampleJavaBinaryRule(buildRuleIndex);
+  String originalCmd="${:ManifestGenerator} $OUT";
+  Set<? extends BuildRule> deps=ImmutableSet.of(javaBinary);
+  String contextBasePath="java/com/facebook/util";
+  String transformedString=Genrule.replaceBinaryBuildRuleRefsInCmd(originalCmd,deps,contextBasePath);
+  String basePathWithTrailingDot=new File(".").getAbsolutePath();
+  String basePath=basePathWithTrailingDot.substring(0,basePathWithTrailingDot.length() - 1);
+  String expectedClasspath=basePath + GEN_DIR + "/java/com/facebook/util/lib__util__output/util.jar";
+  String expectedCmd=String.format("java -classpath %s com.facebook.util.ManifestGenerator $OUT",expectedClasspath);
+  assertEquals(expectedCmd,transformedString);
+}

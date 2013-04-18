@@ -1,0 +1,94 @@
+{
+  BuildRule projectRule=projectConfig.getProjectRule();
+  Preconditions.checkState(projectRule instanceof JavaLibraryRule || projectRule instanceof AndroidLibraryRule || projectRule instanceof AndroidResourceRule|| projectRule instanceof AndroidBinaryRule|| projectRule instanceof NdkLibraryRule,"project_config() does not know how to process a src_target of type %s.",projectRule.getType().getDisplayName());
+  LinkedHashSet<DependentModule> dependencies=Sets.newLinkedHashSet();
+  final BuildTarget target=projectConfig.getBuildTarget();
+  Module module=new Module(projectRule,target);
+  module.name=getIntellijNameForRule(projectRule);
+  module.isIntelliJPlugin=projectConfig.getIsIntelliJPlugin();
+  String relativePath=projectConfig.getBuildTarget().getBasePathWithSlash();
+  module.pathToImlFile=String.format("%s%s.iml",relativePath,module.name);
+  DependentModule sourceFolderModule=DependentModule.newSourceFolder();
+  dependencies.add(sourceFolderModule);
+  boolean hasSourceFoldersForTestRule=addSourceFolders(module,projectConfig.getTestRule(),projectConfig.getTestsSourceRoots(),true);
+  BuildRule testRule=projectConfig.getTestRule();
+  if (testRule != null) {
+    walkRuleAndAdd(testRule,true,dependencies);
+  }
+  boolean hasSourceFoldersForSrcRule=addSourceFolders(module,projectConfig.getSrcRule(),projectConfig.getSourceRoots(),false);
+  if (!hasSourceFoldersForTestRule && !hasSourceFoldersForSrcRule) {
+    dependencies.remove(sourceFolderModule);
+  }
+  boolean isAndroidRule=projectRule.isAndroidRule();
+  if (isAndroidRule) {
+    boolean hasSourceFolders=!module.sourceFolders.isEmpty();
+    module.sourceFolders.add(SourceFolder.GEN);
+    if (!hasSourceFolders) {
+      dependencies.add(DependentModule.newSourceFolder());
+    }
+  }
+  walkRuleAndAdd(projectRule,false,dependencies);
+  String basePathWithSlash=projectConfig.getBuildTarget().getBasePathWithSlash();
+  module.moduleGenPath=generateRelativeGenPath(basePathWithSlash);
+  if (isAndroidRule) {
+    if (projectRule instanceof NdkLibraryRule) {
+      NdkLibraryRule ndkLibraryRule=(NdkLibraryRule)projectRule;
+      module.isAndroidLibraryProject=true;
+      module.keystorePath=null;
+      module.nativeLibs=Paths.computeRelativePath(relativePath,ndkLibraryRule.getLibraryPath());
+    }
+ else     if (projectRule instanceof AndroidResourceRule) {
+      AndroidResourceRule androidResourceRule=(AndroidResourceRule)projectRule;
+      module.resFolder=createRelativePath(androidResourceRule.getRes(),target);
+      module.isAndroidLibraryProject=true;
+      module.keystorePath=null;
+    }
+ else     if (projectRule instanceof AndroidBinaryRule) {
+      AndroidBinaryRule androidBinaryRule=(AndroidBinaryRule)projectRule;
+      module.resFolder=null;
+      module.isAndroidLibraryProject=false;
+      KeystoreProperties keystoreProperties=KeystoreProperties.createFromPropertiesFile(androidBinaryRule.getPathToKeystoreProperties(),projectFilesystem);
+      String keystorePathRelativeToProjectRoot=keystoreProperties.getKeystore();
+      String keystorePath=keystorePathRelativeToProjectRoot.substring(relativePath.length());
+      module.keystorePath=keystorePath;
+    }
+ else {
+      module.isAndroidLibraryProject=true;
+      module.keystorePath=null;
+    }
+    module.hasAndroidFacet=true;
+    module.proguardConfigPath=null;
+    if (pathToDefaultAndroidManifest.isPresent()) {
+      String androidManifest=basePathWithSlash + "AndroidManifest.xml";
+      if (!projectFilesystem.exists(androidManifest)) {
+        String manifestPath=this.pathToDefaultAndroidManifest.get();
+        String rootPrefix="//";
+        Preconditions.checkState(manifestPath.startsWith(rootPrefix),"Currently, we expect this option to start with '%s', " + "indicating that it is relative to the root of the repository.",rootPrefix);
+        manifestPath=manifestPath.substring(rootPrefix.length());
+        String relativePathToManifest=Paths.computeRelativePath(basePathWithSlash,manifestPath);
+        module.androidManifest="/" + relativePathToManifest;
+      }
+    }
+    dependencies.add(DependentModule.newInheritedJdk());
+  }
+ else {
+    module.hasAndroidFacet=false;
+    if (module.isIntelliJPlugin()) {
+      dependencies.add(DependentModule.newIntelliJPluginJdk());
+    }
+ else {
+      dependencies.add(DependentModule.newStandardJdk());
+    }
+  }
+  module.dependencies=Lists.newArrayList(dependencies);
+  if (projectRule instanceof JavaLibraryRule) {
+    JavaLibraryRule javaLibraryRule=(JavaLibraryRule)projectRule;
+    AnnotationProcessingData processingData=javaLibraryRule.getAnnotationProcessingData();
+    String annotationGenSrc=processingData.getGeneratedSourceFolderName();
+    if (annotationGenSrc != null) {
+      module.annotationGenPath="/" + Paths.computeRelativePath(basePathWithSlash,annotationGenSrc);
+      module.annotationGenIsForTest=!hasSourceFoldersForSrcRule;
+    }
+  }
+  return module;
+}

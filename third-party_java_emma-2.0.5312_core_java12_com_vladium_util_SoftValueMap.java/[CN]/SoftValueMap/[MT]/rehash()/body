@@ -1,0 +1,33 @@
+{
+  final SoftEntry[] buckets=m_buckets;
+  final int newBucketCount=(m_buckets.length << 1) + 1;
+  final SoftEntry[] newBuckets=new SoftEntry[newBucketCount];
+  int newSize=0;
+  for (int b=0, bLimit=buckets.length; b < bLimit; ++b) {
+    for (SoftEntry entry=buckets[b]; entry != null; ) {
+      final SoftEntry next=entry.m_next;
+      IndexedSoftReference ref=entry.m_softValue;
+      Object entryValue=ref.get();
+      if (entryValue != null) {
+        final int entryKeyHashCode=entry.m_key.hashCode();
+        final int newBucketIndex=(entryKeyHashCode & 0x7FFFFFFF) % newBucketCount;
+        final SoftEntry bucketListHead=newBuckets[newBucketIndex];
+        entry.m_next=bucketListHead;
+        newBuckets[newBucketIndex]=entry;
+        ref.m_bucketIndex=newBucketIndex;
+        ++newSize;
+        entryValue=null;
+      }
+ else {
+        ref.m_bucketIndex=-1;
+      }
+      entry=next;
+    }
+  }
+  if (DEBUG) {
+    if (m_size > newSize)     System.out.println("DEBUG: rehash() cleared " + (m_size - newSize) + " values, new size = "+ newSize);
+  }
+  m_size=newSize;
+  m_sizeThreshold=(int)(newBucketCount * m_loadFactor);
+  m_buckets=newBuckets;
+}

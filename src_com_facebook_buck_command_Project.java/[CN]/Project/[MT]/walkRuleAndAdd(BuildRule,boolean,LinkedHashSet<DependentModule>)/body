@@ -1,0 +1,59 @@
+{
+  new AbstractDependencyVisitor(rule,true){
+    private final LinkedHashSet<DependentModule> librariesToAdd=Sets.newLinkedHashSet();
+    private final LinkedHashSet<DependentModule> modulesToAdd=Sets.newLinkedHashSet();
+    @Override public boolean visit(    BuildRule dep){
+      boolean shouldVisitDeps=dep.isLibrary() || (dep instanceof AndroidResourceRule) || dep == rule;
+      DependentModule dependentModule;
+      if (dep instanceof PrebuiltJarRule) {
+        libraryJars.add((PrebuiltJarRule)dep);
+        String libraryName=getIntellijNameForRule(dep);
+        dependentModule=DependentModule.newLibrary(dep.getBuildTarget(),libraryName);
+      }
+ else       if (dep instanceof NdkLibraryRule) {
+        String moduleName=getIntellijNameForRule(dep);
+        dependentModule=DependentModule.newModule(dep.getBuildTarget(),moduleName);
+      }
+ else       if (dep.getFullyQualifiedName().startsWith("//buck-android/")) {
+        return shouldVisitDeps;
+      }
+ else       if (dep instanceof JavaLibraryRule) {
+        String moduleName=getIntellijNameForRule(dep);
+        dependentModule=DependentModule.newModule(dep.getBuildTarget(),moduleName);
+      }
+ else       if (dep instanceof AndroidResourceRule) {
+        String moduleName=getIntellijNameForRule(dep);
+        dependentModule=DependentModule.newModule(dep.getBuildTarget(),moduleName);
+      }
+ else       if (dep instanceof GenAidlRule) {
+        return shouldVisitDeps;
+      }
+ else {
+        return shouldVisitDeps;
+      }
+      if (isForTests) {
+        dependentModule.scope="TEST";
+      }
+ else {
+        String currentScope=dependentModule.scope;
+        dependentModule.scope="TEST";
+        if (dependencies.contains(dependentModule)) {
+          dependencies.remove(dependentModule);
+        }
+        dependentModule.scope=currentScope;
+      }
+      if (dependentModule.isLibrary()) {
+        librariesToAdd.add(dependentModule);
+      }
+ else {
+        modulesToAdd.add(dependentModule);
+      }
+      return shouldVisitDeps;
+    }
+    @Override protected void onComplete(){
+      dependencies.addAll(librariesToAdd);
+      dependencies.addAll(modulesToAdd);
+    }
+  }
+.start();
+}

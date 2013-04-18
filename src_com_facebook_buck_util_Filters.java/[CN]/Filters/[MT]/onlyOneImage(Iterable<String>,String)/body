@@ -1,0 +1,35 @@
+{
+  ImmutableSet.Builder<File> removals=ImmutableSet.builder();
+  Table<String,String,String> imageValues=HashBasedTable.create();
+  for (  String candidate : candidates) {
+    File f=new File(candidate);
+    Qualifiers qualifiers=new Qualifiers(f);
+    String filename=f.getName();
+    String density=qualifiers.density;
+    String resDirectory=f.getParentFile().getParent();
+    String key=String.format("%s/%s/%s",resDirectory,filename,qualifiers.others);
+    imageValues.put(key,density,candidate);
+  }
+  for (  String key : imageValues.rowKeySet()) {
+    Map<String,String> options=imageValues.row(key);
+    Set<String> densitiesForKey=options.keySet();
+    ImmutableList<String> resOrder=ORDERING.get(targetDensity);
+    if (options.size() == 1 || !resOrder.containsAll(densitiesForKey)) {
+      continue;
+    }
+    String keep=resOrder.get(0);
+    for (    String res : resOrder) {
+      if (densitiesForKey.contains(res)) {
+        keep=res;
+        break;
+      }
+    }
+    for (    String density : densitiesForKey) {
+      if (keep.equals(density)) {
+        continue;
+      }
+      removals.add(new File(options.get(density)).getAbsoluteFile());
+    }
+  }
+  return removals.build();
+}

@@ -1,0 +1,30 @@
+{
+  long now=System.currentTimeMillis();
+  long silenceThreshold;
+  if (silenceThresholdParam == null) {
+    silenceThreshold=defaultThreshold;
+  }
+ else {
+    silenceThreshold=silenceThresholdParam;
+  }
+  TraceEvent startEvent=outstandingEvents.get(id);
+  if (startEvent == null) {
+    return -1;
+  }
+  outstandingEvents.remove(id);
+  long elapsed=now - startEvent.getEventTime();
+  if (elapsed < silenceThreshold) {
+    int count=events.size();
+    for (int i=count - 1; i >= 0; i--) {
+      TraceEvent nextEvent=this.events.get(i);
+      if (nextEvent == startEvent) {
+        events.remove(i);
+        break;
+      }
+    }
+  }
+ else {
+    getEventBus().post(TraceEvents.stopped(idGenerator.incrementAndGet(),startEvent.getComment(),startEvent.getType(),startEvent.getEventTime()));
+  }
+  return elapsed;
+}

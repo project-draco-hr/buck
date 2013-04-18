@@ -1,0 +1,23 @@
+{
+  final int _fields_count=m_bytes.readU2();
+  if (DEBUG)   System.out.println("fields_count = " + _fields_count);
+  final IConstantCollection constantPool=m_table.getConstants();
+  for (int i=0; i < _fields_count; i++) {
+    final Field_info field_info=new Field_info(constantPool,m_bytes);
+    if (DEBUG) {
+      System.out.println("[" + i + "] field: "+ field_info);
+      System.out.println();
+    }
+    m_table.getFields().add(field_info);
+    if (PARSE_SERIAL_VERSION_UID)     if (((field_info.getAccessFlags() & SERIAL_VERSION_UID_FIELD_MASK) == SERIAL_VERSION_UID_FIELD_MASK) && SERIAL_VERSION_UID_FIELD_NAME.equals(field_info.getName(m_table))) {
+      final IAttributeCollection attributes=field_info.getAttributes();
+      for (int a=0, aLimit=attributes.size(); a < aLimit; ++a) {
+        final Attribute_info attr_info=attributes.get(a);
+        if (attr_info instanceof ConstantValueAttribute_info) {
+          final CONSTANT_literal_info constant_value=((ConstantValueAttribute_info)attr_info).getValue(m_table);
+          if (constant_value instanceof CONSTANT_Long_info)           m_table.setDeclaredSUID(((CONSTANT_Long_info)constant_value).m_value);
+        }
+      }
+    }
+  }
+}

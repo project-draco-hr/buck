@@ -1,0 +1,36 @@
+{
+  if (buildRuleResult != null) {
+    return buildRuleResult;
+  }
+  context.getEventBus().post(BuildEvents.started(this));
+  boolean isCached;
+  try {
+    isCached=isCached(context);
+  }
+ catch (  IOException e) {
+    buildRuleResult=Futures.immediateFailedFuture(e);
+    context.getEventBus().post(BuildEvents.finished(this,BuildRuleStatus.FAIL,CacheResult.MISS));
+    return buildRuleResult;
+  }
+  if (isCached) {
+    logger.log(Level.INFO,String.format("[FROM CACHE %s]",getFullyQualifiedName()));
+    buildRuleResult=Futures.immediateFuture(new BuildRuleSuccess(this));
+    context.getEventBus().post(BuildEvents.finished(this,BuildRuleStatus.SUCCESS,CacheResult.HIT));
+    return buildRuleResult;
+  }
+  logger.log(Level.INFO,String.format("[BUILDING %s]",getFullyQualifiedName()));
+  buildRuleResult=SettableFuture.create();
+  ListenableFuture<List<BuildRuleSuccess>> builtDeps=Builder.getInstance().buildRules(getDeps(),context);
+  OnDepsBuiltCallback onDepsBuiltCallback=new OnDepsBuiltCallback(context);
+  Futures.addCallback(builtDeps,onDepsBuiltCallback,context.getExecutor());
+  Futures.addCallback(buildRuleResult,new FutureCallback<BuildRuleSuccess>(){
+    @Override public void onSuccess(    BuildRuleSuccess buildRuleSuccess){
+      context.getEventBus().post(BuildEvents.finished(AbstractCachingBuildRule.this,BuildRuleStatus.SUCCESS,CacheResult.MISS));
+    }
+    @Override public void onFailure(    Throwable throwable){
+      context.getEventBus().post(BuildEvents.finished(AbstractCachingBuildRule.this,BuildRuleStatus.FAIL,CacheResult.MISS));
+    }
+  }
+,context.getExecutor());
+  return buildRuleResult;
+}

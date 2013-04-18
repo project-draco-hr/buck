@@ -1,0 +1,34 @@
+{
+  Preconditions.checkState(isRuleBuilt(),"%s must be built before tests can be run.",this);
+  if (!isTestRunRequired(executionContext)) {
+    return ImmutableList.of();
+  }
+  Set<String> testClassNames=getClassNamesForSources();
+  if (testClassNames.isEmpty()) {
+    return ImmutableList.of();
+  }
+  if (androidResourceDeps == null) {
+    androidResourceDeps=AndroidResourceRule.getAndroidResourceDeps(this,buildContext.getDependencyGraph());
+  }
+  ImmutableList.Builder<Command> commands=ImmutableList.builder();
+  String pathToTestOutput=getPathToTestOutput();
+  MakeCleanDirectoryCommand mkdirClean=new MakeCleanDirectoryCommand(pathToTestOutput);
+  commands.add(mkdirClean);
+  ImmutableSet<String> classpathEntries;
+  if (isAndroidRule()) {
+    BuildTarget buildTarget=getBuildTarget();
+    String rDotJavaClasspathEntry;
+    UberRDotJavaUtil.createDummyRDotJavaFiles(androidResourceDeps,buildTarget,commands);
+    rDotJavaClasspathEntry=UberRDotJavaUtil.getRDotJavaBinFolder(buildTarget);
+    ImmutableSet.Builder<String> classpathEntriesBuilder=ImmutableSet.builder();
+    classpathEntriesBuilder.add(rDotJavaClasspathEntry);
+    classpathEntriesBuilder.addAll(getClasspathEntries());
+    classpathEntries=classpathEntriesBuilder.build();
+  }
+ else {
+    classpathEntries=getClasspathEntries();
+  }
+  Command junit=new JUnitCommand(classpathEntries,testClassNames,vmArgs,pathToTestOutput,executionContext.isCodeCoverageEnabled,executionContext.isDebugEnabled);
+  commands.add(junit);
+  return commands.build();
+}

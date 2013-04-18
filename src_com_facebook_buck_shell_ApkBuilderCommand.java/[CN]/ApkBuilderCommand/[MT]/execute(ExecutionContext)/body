@@ -1,0 +1,30 @@
+{
+  PrintStream output=null;
+  if (context.getVerbosity().shouldUseVerbosityFlagIfAvailable()) {
+    output=context.getStdOut();
+  }
+  try {
+    ApkBuilder builder=new ApkBuilder(new File(pathToOutputApkFile),new File(resourceApk),new File(dexFile),null,output);
+    builder.setDebugMode(debugMode);
+    for (    String nativeLibraryDirectory : nativeLibraryDirectories) {
+      builder.addNativeLibraries(new File(nativeLibraryDirectory));
+    }
+    for (    String assetDirectory : assetDirectories) {
+      builder.addSourceFolder(new File(assetDirectory));
+    }
+    for (    String zipFile : zipFiles) {
+      builder.addZipFile(new File(zipFile));
+    }
+    builder.sealApk();
+  }
+ catch (  ApkCreationException e) {
+    throw new HumanReadableException(e.getMessage());
+  }
+catch (  DuplicateFileException e) {
+    throw new HumanReadableException(String.format("Found duplicate file for APK: %1$s\nOrigin 1: %2$s\nOrigin 2: %3$s",e.getArchivePath(),e.getFile1(),e.getFile2()));
+  }
+catch (  SealedApkException e) {
+    throw new HumanReadableException(e.getMessage());
+  }
+  return 0;
+}

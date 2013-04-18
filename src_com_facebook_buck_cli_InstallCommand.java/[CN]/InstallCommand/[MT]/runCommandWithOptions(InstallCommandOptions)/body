@@ -1,0 +1,34 @@
+{
+  if (options.getArguments().size() != 1) {
+    stdErr.println("Must specify exactly one android_binary() or apk_genrule() rule.");
+    return 1;
+  }
+  BuildCommand buildCommand=new BuildCommand(stdOut,stdErr,console,getProjectFilesystem());
+  int exitCode=buildCommand.runCommandWithOptions(options);
+  if (exitCode != 0) {
+    return exitCode;
+  }
+  Build build=buildCommand.getBuild();
+  DependencyGraph graph=build.getDependencyGraph();
+  BuildRule buildRule=graph.findBuildRuleByTarget(buildCommand.getBuildTargets().get(0));
+  if (!(buildRule instanceof InstallableBuildRule)) {
+    console.printFailure(String.format("Specified rule %s must be of type android_binary() or apk_genrule() but was %s().\n",buildRule.getFullyQualifiedName(),buildRule.getType().getDisplayName()));
+    return 1;
+  }
+  InstallableBuildRule installableBuildRule=(InstallableBuildRule)buildRule;
+  if (options.shouldUninstallFirst()) {
+    String packageName=tryToExtractPackageNameFromManifest(installableBuildRule);
+    uninstallApk(packageName,options.adbOptions(),options.uninstallOptions(),build.getExecutionContext());
+  }
+  File apk=new File(installableBuildRule.getApkPath());
+  if (!installApk(apk,options,build.getExecutionContext())) {
+    return 1;
+  }
+  if (options.shouldStartActivity()) {
+    exitCode=startActivity(installableBuildRule,options.getActivityToStart(),options,build.getExecutionContext());
+    if (exitCode != 0) {
+      return exitCode;
+    }
+  }
+  return exitCode;
+}

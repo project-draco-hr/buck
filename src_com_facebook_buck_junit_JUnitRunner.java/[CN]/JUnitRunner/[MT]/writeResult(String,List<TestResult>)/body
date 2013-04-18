@@ -1,0 +1,45 @@
+{
+  DocumentBuilder docBuilder=DocumentBuilderFactory.newInstance().newDocumentBuilder();
+  Document doc=docBuilder.newDocument();
+  doc.setXmlVersion("1.1");
+  Element root=doc.createElement("testcase");
+  root.setAttribute("name",testClassName);
+  doc.appendChild(root);
+  for (  TestResult result : results) {
+    Element test=doc.createElement("test");
+    test.setAttribute("name",result.testMethodName);
+    boolean isSuccess=result.isSuccess();
+    test.setAttribute("success",Boolean.toString(isSuccess));
+    long runTime=result.runTime;
+    test.setAttribute("time",String.valueOf(runTime));
+    if (!isSuccess) {
+      Failure failure=result.failure;
+      String message=failure.getMessage();
+      test.setAttribute("message",message);
+      String stacktrace=failure.getTrace();
+      test.setAttribute("stacktrace",stacktrace);
+    }
+    if (result.stdOut != null) {
+      Element stdOutEl=doc.createElement("stdout");
+      stdOutEl.appendChild(doc.createTextNode(result.stdOut));
+      test.appendChild(stdOutEl);
+    }
+    if (result.stdErr != null) {
+      Element stdErrEl=doc.createElement("stderr");
+      stdErrEl.appendChild(doc.createTextNode(result.stdErr));
+      test.appendChild(stdErrEl);
+    }
+    root.appendChild(test);
+  }
+  TransformerFactory transformerFactory=TransformerFactory.newInstance();
+  Transformer trans=transformerFactory.newTransformer();
+  trans.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION,"no");
+  trans.setOutputProperty(OutputKeys.INDENT,"yes");
+  trans.setOutputProperty("{http://xml.apache.org/xslt}indent-amount","2");
+  File outputFile=new File(outputDirectory,testClassName + ".xml");
+  OutputStream output=new BufferedOutputStream(new FileOutputStream(outputFile));
+  StreamResult streamResult=new StreamResult(output);
+  DOMSource source=new DOMSource(doc);
+  trans.transform(source,streamResult);
+  output.close();
+}

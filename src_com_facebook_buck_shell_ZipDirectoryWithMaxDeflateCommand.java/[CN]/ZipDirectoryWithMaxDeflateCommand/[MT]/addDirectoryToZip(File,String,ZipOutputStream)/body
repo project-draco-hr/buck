@@ -1,0 +1,23 @@
+{
+  Preconditions.checkNotNull(currentPath);
+  for (  File inputFile : directory.listFiles()) {
+    String childPath=currentPath + (currentPath.isEmpty() ? "" : "/") + inputFile.getName();
+    if (inputFile.isDirectory()) {
+      addDirectoryToZip(inputFile,childPath,outputStream);
+    }
+ else {
+      ZipEntry nextEntry=new ZipEntry(childPath);
+      long fileLength=inputFile.length();
+      if (fileLength > maxDeflatedBytes) {
+        nextEntry.setMethod(ZipEntry.STORED);
+        nextEntry.setCompressedSize(inputFile.length());
+        nextEntry.setSize(inputFile.length());
+        HashCode crc=ByteStreams.hash(Files.newInputStreamSupplier(inputFile),Hashing.crc32());
+        nextEntry.setCrc(crc.padToLong());
+      }
+      outputStream.putNextEntry(nextEntry);
+      ByteStreams.copy(Files.newInputStreamSupplier(inputFile),outputStream);
+      outputStream.closeEntry();
+    }
+  }
+}

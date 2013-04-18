@@ -1,0 +1,115 @@
+{
+  ImmutableList.Builder<Command> commands=ImmutableList.builder();
+  ImmutableMap.Builder<String,File> extraAssetsBuilder=ImmutableMap.builder();
+  commands.add(new MkdirAndSymlinkFileCommand(getManifest(),getAndroidManifestXml()));
+  final AndroidTransitiveDependencies transitiveDependencies=findTransitiveDependencies(context.getDependencyGraph(),Optional.of(context));
+  boolean resourcesCached=!transitiveDependencies.uncachedBuildRules.containsKey(BuildRuleType.ANDROID_RESOURCE);
+  Set<String> resDirectories=transitiveDependencies.resDirectories;
+  Set<String> rDotJavaPackages=transitiveDependencies.rDotJavaPackages;
+  String resourceFilter=getResourceFilter();
+  if (resourceFilter != null) {
+    FilterResourcesCommand filterResourcesCommand=new FilterResourcesCommand(resDirectories,new File(getBinPath("__filtered__%s__")),resourceFilter,DefaultFilteredDirectoryCopier.getInstance(),FilterResourcesCommand.DefaultDrawableFinder.getInstance());
+    commands.add(filterResourcesCommand);
+    resDirectories=filterResourcesCommand.getFilteredResourceDirectories();
+  }
+  String extractedResourcesDir=getBinPath("__resources__%s__");
+  commands.add(new MakeCleanDirectoryCommand(extractedResourcesDir));
+  commands.add(new ExtractResourcesCommand(transitiveDependencies.pathsToThirdPartyJars,extractedResourcesDir));
+  if (!resDirectories.isEmpty()) {
+    UberRDotJavaUtil.generateRDotJavaFiles(resDirectories,rDotJavaPackages,getBuildTarget(),commands);
+  }
+  if (packageType.isBuildWithObfuscation()) {
+    Set<String> additionalLibraryJarsForProguard=classpathEntriesToExcludeFromDex;
+    addProguardCommands(transitiveDependencies,commands,resDirectories,additionalLibraryJarsForProguard);
+  }
+  String dexDir=getBinPath(".dex/%s");
+  commands.add(new MkdirCommand(dexDir));
+  String dexFile=String.format("%s/classes.dex",dexDir);
+  final ImmutableSet.Builder<String> secondaryDexDirectories=ImmutableSet.builder();
+  addDexingCommands(transitiveDependencies.classpathEntriesToDex,secondaryDexDirectories,commands,dexFile);
+  final ImmutableMap<String,File> extraAssets=extraAssetsBuilder.build();
+  Command collectAssets=new Command(){
+    @Override public int execute(    ExecutionContext context){
+      ImmutableList.Builder<Command> commands=ImmutableList.builder();
+      createAllAssetsDirectory(transitiveDependencies.assetsDirectories,extraAssets,commands,new DefaultDirectoryTraverser());
+      for (      Command command : commands.build()) {
+        int exitCode=command.execute(context);
+        if (exitCode != 0) {
+          throw new HumanReadableException("Error running " + command.getDescription(context));
+        }
+      }
+      return 0;
+    }
+    @Override public String getShortName(    ExecutionContext context){
+      return "symlink assets";
+    }
+    @Override public String getDescription(    ExecutionContext context){
+      return getShortName(context);
+    }
+  }
+;
+  commands.add(collectAssets);
+  ImmutableSet.Builder<String> nativeLibraryDirectories=ImmutableSet.builder();
+  if (!transitiveDependencies.nativeLibsDirectories.isEmpty()) {
+    String pathForNativeLibs=getPathForNativeLibs();
+    String libSubdirectory=pathForNativeLibs + "/lib";
+    nativeLibraryDirectories.add(libSubdirectory);
+    commands.add(new MakeCleanDirectoryCommand(libSubdirectory));
+    for (    String nativeLibDir : transitiveDependencies.nativeLibsDirectories) {
+      if (nativeLibDir.endsWith("/")) {
+        nativeLibDir=nativeLibDir.substring(0,nativeLibDir.length() - 1);
+      }
+      commands.add(new BashCommand(String.format("cp -r %s/* %s",nativeLibDir,libSubdirectory)));
+    }
+  }
+  String resourceApkPath=getResourceApkPath();
+  String unsignedApkPath=getUnsignedApkPath();
+  Optional<String> assetsDirectory;
+  if (transitiveDependencies.assetsDirectories.isEmpty() && extraAssets.isEmpty()) {
+    assetsDirectory=Optional.absent();
+  }
+ else {
+    assetsDirectory=Optional.of(getPathToAllAssetsDirectory());
+  }
+  commands.add(new MkdirCommand(outputGenDirectory));
+  boolean canSkipAapt=resourcesCached;
+  if (canSkipAapt) {
+    try {
+      canSkipAapt=ruleInputsCached(context,logger);
+    }
+ catch (    IOException e) {
+      canSkipAapt=false;
+    }
+  }
+  if (!canSkipAapt) {
+    AaptCommand aaptCommand=new AaptCommand(getAndroidManifestXml(),resDirectories,assetsDirectory,resourceApkPath,ImmutableSet.of(extractedResourcesDir),packageType.isCrunchPngFiles());
+    commands.add(aaptCommand);
+  }
+  ImmutableSet.Builder<String> secondaryDexZips=ImmutableSet.builder();
+  for (  String secondaryDexDirectory : secondaryDexDirectories.build()) {
+    String zipFile=secondaryDexDirectory.replaceAll("/$","") + ".zip";
+    secondaryDexZips.add(zipFile);
+    commands.add(new ZipDirectoryWithMaxDeflateCommand(secondaryDexDirectory,zipFile,FROYO_DEFLATE_LIMIT_BYTES));
+  }
+  ApkBuilderCommand apkBuilderCommand=new ApkBuilderCommand(resourceApkPath,unsignedApkPath,dexFile,ImmutableSet.<String>of(),nativeLibraryDirectories.build(),secondaryDexZips.build(),false);
+  commands.add(apkBuilderCommand);
+  String signedApkPath=getSignedApkPath();
+  ReadKeystorePropertiesAndSignApkCommand signApk=new ReadKeystorePropertiesAndSignApkCommand(keystorePropertiesPath,unsignedApkPath,signedApkPath,context.getProjectFilesystem());
+  commands.add(signApk);
+  String apkToAlign;
+  if (this.isCompressResources()) {
+    String compressedApkPath=getCompressedResourcesApkPath();
+    apkToAlign=compressedApkPath;
+    RepackZipEntriesCommand arscComp=new RepackZipEntriesCommand(signedApkPath,compressedApkPath,ImmutableSet.of("resources.arsc"));
+    commands.add(arscComp);
+  }
+ else {
+    apkToAlign=signedApkPath;
+  }
+  String apkPath=getApkPath();
+  ZipalignCommand zipalign=new ZipalignCommand(apkToAlign,apkPath);
+  commands.add(zipalign);
+  EchoCommand success=new EchoCommand(String.format("built APK for %s at %s",getFullyQualifiedName(),apkPath));
+  commands.add(success);
+  return commands.build();
+}

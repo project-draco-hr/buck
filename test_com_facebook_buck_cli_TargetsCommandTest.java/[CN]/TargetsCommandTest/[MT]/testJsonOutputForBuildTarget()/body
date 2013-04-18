@@ -1,0 +1,14 @@
+{
+  final String testBuckFile1=testDataPath("TargetsCommandTestBuckFile1.txt");
+  final String testBuckFileJson1=testDataPath("TargetsCommandTestBuckJson1.js");
+  JsonFactory jsonFactory=new JsonFactory();
+  ObjectMapper mapper=new ObjectMapper();
+  SortedMap<String,BuildTarget> buildTargets=buildBuildTargets(testBuckFile1,"test-library");
+  targetsCommand.printJsonForTargets(buildTargets,ImmutableList.<String>of());
+  String observedOutput=stdOutStream.getContentsAsString(Charsets.UTF_8);
+  JsonNode observed=mapper.readTree(jsonFactory.createJsonParser(observedOutput));
+  String expectedJson=Files.toString(new File(testBuckFileJson1),Charsets.UTF_8);
+  JsonNode expected=mapper.readTree(jsonFactory.createJsonParser(expectedJson).enable(Feature.ALLOW_COMMENTS));
+  assertEquals("Output from targets command should match expected JSON.",expected,observed);
+  assertEquals("Nothing should be printed to stderr.","",stdErrStream.getContentsAsString(Charsets.UTF_8));
+}

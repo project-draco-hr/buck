@@ -1,0 +1,100 @@
+{
+  final Logger log=m_log;
+  if (log.atTRACE2())   log.trace2("handleArchiveEntry","[" + entry.getName() + "]");
+  final String name=entry.getName();
+  final String lcName=name.toLowerCase();
+  final boolean notcopymode=(m_outMode == OutMode.OUT_MODE_FULLCOPY) || (m_outMode == OutMode.OUT_MODE_OVERWRITE);
+  boolean copyEntry=false;
+  if (lcName.endsWith(".class")) {
+    final String className=name.substring(0,name.length() - 6).replace('/','.');
+    if ((m_coverageFilter == null) || m_coverageFilter.included(className)) {
+      InputStream clsin=null;
+      try {
+        File outFile=null;
+        File fullOutFile=null;
+        if (DO_DEPENDS_CHECKING) {
+          if (m_outMode == OutMode.OUT_MODE_COPY) {
+            outFile=new File(className.replace('.',File.separatorChar).concat(".class"));
+            fullOutFile=getFullOutFile(null,outFile,IN_CLASSES);
+            if (m_mdata.hasDescriptor(Descriptors.javaNameToVMName(className)))             return;
+            final long outTimeStamp=fullOutFile.lastModified();
+            if (outTimeStamp > 0) {
+              long inTimeStamp=entry.getTime();
+              if (inTimeStamp < 0)               inTimeStamp=m_currentArchiveTS;
+              if ($assert.ENABLED)               $assert.ASSERT(inTimeStamp > 0);
+              if (inTimeStamp <= outTimeStamp) {
+                if (log.atVERBOSE())                 log.verbose("destination file [" + outFile + "] skipped: more recent than the source");
+                return;
+              }
+            }
+          }
+        }
+        readZipEntry(in,entry);
+        final ClassDef clsDef=ClassDefParser.parseClass(m_readbuf,m_readpos);
+        m_visitor.process(clsDef,m_outMode == OutMode.OUT_MODE_OVERWRITE,true,true,m_instrResult);
+        if (m_instrResult.m_instrumented) {
+          if ($assert.ENABLED)           $assert.ASSERT(m_instrResult.m_descriptor != null,"no descriptor created for an instrumented class");
+          ++m_classInstrs;
+          m_mdata.add(m_instrResult.m_descriptor,false);
+          m_baos.reset();
+          ClassWriter.writeClassTable(clsDef,m_baos);
+          if (notcopymode) {
+            entry.setTime(m_timeStamp);
+            addJob(new EntryWriteJob(m_archiveOut,m_baos.copyByteArray(),entry,false));
+          }
+ else {
+            if (!DO_DEPENDS_CHECKING) {
+              outFile=new File(className.replace('.',File.separatorChar).concat(".class"));
+              fullOutFile=getFullOutFile(null,outFile,IN_CLASSES);
+            }
+            addJob(new FileWriteJob(fullOutFile,m_baos.copyByteArray(),true));
+          }
+        }
+ else         if (notcopymode) {
+          final byte[] data=new byte[m_readpos];
+          System.arraycopy(m_readbuf,0,data,0,data.length);
+          ++m_classCopies;
+          entry.setTime(m_timeStamp);
+          addJob(new EntryWriteJob(m_archiveOut,data,entry,true));
+        }
+      }
+ catch (      FileNotFoundException fnfe) {
+        if ($assert.ENABLED) {
+          fnfe.printStackTrace(System.out);
+        }
+      }
+catch (      IOException ioe) {
+        throw new EMMARuntimeException(ioe);
+      }
+ finally {
+        if (clsin != null)         try {
+          clsin.close();
+        }
+ catch (        Exception e) {
+          throw new EMMARuntimeException(e);
+        }
+      }
+    }
+ else {
+      copyEntry=notcopymode;
+    }
+  }
+ else {
+    copyEntry=notcopymode;
+    if (copyEntry && name.equalsIgnoreCase("META-INF/"))     copyEntry=false;
+    if (copyEntry && name.equalsIgnoreCase(JarFile.MANIFEST_NAME))     copyEntry=false;
+  }
+  if (copyEntry) {
+    try {
+      readZipEntry(in,entry);
+      final byte[] data=new byte[m_readpos];
+      System.arraycopy(m_readbuf,0,data,0,data.length);
+      ++m_classCopies;
+      entry.setTime(m_timeStamp);
+      addJob(new EntryWriteJob(m_archiveOut,data,entry,true));
+    }
+ catch (    IOException ioe) {
+      throw new EMMARuntimeException(ioe);
+    }
+  }
+}

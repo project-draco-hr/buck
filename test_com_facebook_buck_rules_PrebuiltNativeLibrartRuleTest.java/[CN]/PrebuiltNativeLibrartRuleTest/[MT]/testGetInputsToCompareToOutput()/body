@@ -1,0 +1,21 @@
+{
+  DirectoryTraverser traverser=new DirectoryTraverser(){
+    @Override public void traverse(    DirectoryTraversal traversal){
+      String rootPath=traversal.getRoot().getPath();
+      if ("java/src/com/facebook/base/libs".equals(rootPath)) {
+        traversal.visit(null,"armeabi/foo.so");
+        traversal.visit(null,"armeabi/libilbc-codec.so");
+        traversal.visit(null,"armeabi/bar.so");
+      }
+ else {
+        throw new RuntimeException("Unexpected path: " + rootPath);
+      }
+    }
+  }
+;
+  BuildTarget buildTarget=BuildTargetFactory.newInstance("//java/src/com/facebook/base","base");
+  BuildRuleParams buildRuleParams=new BuildRuleParams(buildTarget,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.of(BuildTargetPattern.MATCH_ALL));
+  PrebuiltNativeLibraryBuildRule nativeLibraryRule=new PrebuiltNativeLibraryBuildRule(buildRuleParams,"java/src/com/facebook/base/libs",traverser);
+  BuildContext context=null;
+  MoreAsserts.assertListEquals("Each subgroup of input files should be sorted alphabetically so that the list order is " + "consistent even if the iteration order of the sets passed to the AndroidLibraryRule " + "changes.",ImmutableList.of("java/src/com/facebook/base/libs/armeabi/bar.so","java/src/com/facebook/base/libs/armeabi/foo.so","java/src/com/facebook/base/libs/armeabi/libilbc-codec.so"),nativeLibraryRule.getInputsToCompareToOutput(context));
+}

@@ -1,0 +1,31 @@
+{
+  Logging.setLoggingLevelForVerbosity(options.getVerbosity());
+  RawRulePredicate predicate=new RawRulePredicate(){
+    @Override public boolean isMatch(    Map<String,Object> rawParseData,    BuildRuleType buildRuleType,    BuildTarget buildTarget){
+      return buildRuleType.isTestRule();
+    }
+  }
+;
+  PartialGraph partialGraph=PartialGraph.createPartialGraph(predicate,getProjectFilesystem().getProjectRoot(),options.getDefaultIncludes(),ansi);
+  final DependencyGraph graph=partialGraph.getDependencyGraph();
+  Iterable<TestRule> testRules=Iterables.transform(partialGraph.getTargets(),new Function<BuildTarget,TestRule>(){
+    @Override public TestRule apply(    BuildTarget buildTarget){
+      return (TestRule)graph.findBuildRuleByTarget(buildTarget);
+    }
+  }
+);
+  testRules=filterTestRules(options,testRules);
+  Build build;
+  try {
+    build=options.createBuild(graph,getProjectFilesystem().getProjectRoot(),console);
+  }
+ catch (  NoAndroidSdkException e) {
+    console.printFailureWithoutStacktrace(e);
+    return 1;
+  }
+  int exitCode=BuildCommand.executeBuildAndPrintAnyFailuresToConsole(build,console);
+  if (exitCode != 0) {
+    return exitCode;
+  }
+  return runTests(testRules,build.getBuildContext(),build.getExecutionContext(),build.getCommandRunner(),options);
+}
