@@ -3,4 +3,19 @@
   this.binaryJar=Preconditions.checkNotNull(classesJar);
   this.sourceJar=sourceJar;
   this.javadocUrl=javadocUrl;
+  classpathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSet<String>>(){
+    @Override public ImmutableSet<String> get(){
+      return ImmutableSet.copyOf(getClasspathEntriesMap().values());
+    }
+  }
+);
+  classpathMapSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<BuildRule,String>>(){
+    @Override public ImmutableSetMultimap<BuildRule,String> get(){
+      ImmutableSetMultimap.Builder<BuildRule,String> classpathEntries=ImmutableSetMultimap.builder();
+      classpathEntries.put(PrebuiltJarRule.this,getBinaryJar());
+      classpathEntries.putAll(getClasspathEntriesForDeps());
+      return classpathEntries.build();
+    }
+  }
+);
 }

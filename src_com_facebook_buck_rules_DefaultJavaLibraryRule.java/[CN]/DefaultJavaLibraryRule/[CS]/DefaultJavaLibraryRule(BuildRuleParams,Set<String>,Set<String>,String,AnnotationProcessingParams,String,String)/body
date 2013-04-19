@@ -14,4 +14,21 @@
     this.outputJar=Optional.absent();
   }
   inputsToConsiderForCachingPurposes=ImmutableList.<String>builder().addAll(this.srcs).addAll(this.resources).add(this.sourceLevel).add(this.targetLevel).build();
+  classpathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSet<String>>(){
+    @Override public ImmutableSet<String> get(){
+      return ImmutableSet.copyOf(getClasspathEntriesMap().values());
+    }
+  }
+);
+  classpathEntriesMapSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<BuildRule,String>>(){
+    @Override public ImmutableSetMultimap<BuildRule,String> get(){
+      final ImmutableSetMultimap.Builder<BuildRule,String> classpathEntries=ImmutableSetMultimap.builder();
+      classpathEntries.putAll(getClasspathEntriesForDeps());
+      if (outputJar.isPresent()) {
+        classpathEntries.put(DefaultJavaLibraryRule.this,getOutput().getPath());
+      }
+      return classpathEntries.build();
+    }
+  }
+);
 }
