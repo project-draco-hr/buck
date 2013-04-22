@@ -3,8 +3,17 @@
   Preconditions.checkState(inputDirectory.exists() && inputDirectory.isDirectory());
   Closer closer=Closer.create();
   try {
-    ZipOutputStream outputStream=closer.register(new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(outputZipPath))));
-    addDirectoryToZip(inputDirectory,"",outputStream);
+    ImmutableMap.Builder<File,ZipEntry> zipEntriesBuilder=ImmutableMap.builder();
+    addDirectoryToZipEntryList(inputDirectory,"",zipEntriesBuilder);
+    ImmutableMap<File,ZipEntry> zipEntries=zipEntriesBuilder.build();
+    if (!zipEntries.isEmpty()) {
+      ZipOutputStream outputStream=closer.register(new ZipOutputStream(new BufferedOutputStream(new FileOutputStream(outputZipPath))));
+      for (      Map.Entry<File,ZipEntry> zipEntry : zipEntries.entrySet()) {
+        outputStream.putNextEntry(zipEntry.getValue());
+        ByteStreams.copy(Files.newInputStreamSupplier(zipEntry.getKey()),outputStream);
+        outputStream.closeEntry();
+      }
+    }
   }
  catch (  IOException e) {
     e.printStackTrace(context.getStdErr());
