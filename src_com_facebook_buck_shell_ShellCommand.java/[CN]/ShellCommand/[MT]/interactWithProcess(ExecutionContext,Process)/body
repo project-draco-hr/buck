@@ -1,31 +1,10 @@
 {
   boolean shouldRecordStdOut=shouldRecordStdout();
-  @SuppressWarnings("resource") PrintStream stdOutToWriteTo=shouldRecordStdOut ? new CapturingPrintStream() : context.getStdOut();
-  InputStreamConsumer stdOut=new InputStreamConsumer(process.getInputStream(),stdOutToWriteTo,shouldRecordStdOut,context.getAnsi());
   boolean shouldPrintStdErr=shouldPrintStdErr(context);
-  @SuppressWarnings("resource") PrintStream stdErrToWriteTo=shouldPrintStdErr ? context.getStdErr() : new CapturingPrintStream();
-  InputStreamConsumer stdErr=new InputStreamConsumer(process.getErrorStream(),stdErrToWriteTo,true,context.getAnsi());
-  Thread stdOutConsumer=new Thread(stdOut);
-  stdOutConsumer.start();
-  Thread stdErrConsumer=new Thread(stdErr);
-  stdErrConsumer.start();
-  try {
-    process.waitFor();
-    stdOutConsumer.join();
-    stdErrConsumer.join();
-  }
- catch (  InterruptedException e) {
-    e.printStackTrace(context.getStdErr());
-    return 1;
-  }
+  ProcessExecutor executor=context.getProcessExecutor();
+  ProcessExecutor.Result result=executor.execute(process,shouldRecordStdOut,shouldPrintStdErr,context.getVerbosity() == Verbosity.SILENT);
   if (shouldRecordStdOut) {
-    CapturingPrintStream capturingPrintStream=(CapturingPrintStream)stdOutToWriteTo;
-    this.stdOut=capturingPrintStream.getContentsAsString(Charsets.US_ASCII);
+    this.stdOut=result.getStdOut();
   }
-  int exitCode=process.exitValue();
-  if (exitCode != 0 && !shouldPrintStdErr && context.getVerbosity().shouldPrintStandardInformation()) {
-    CapturingPrintStream capturingPrintStream=(CapturingPrintStream)stdErrToWriteTo;
-    context.getStdErr().print(capturingPrintStream.getContentsAsString(Charsets.US_ASCII));
-  }
-  return exitCode;
+  return result.getExitCode();
 }
