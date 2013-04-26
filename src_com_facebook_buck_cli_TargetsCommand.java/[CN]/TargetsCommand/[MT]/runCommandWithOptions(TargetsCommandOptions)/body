@@ -15,6 +15,15 @@
   }
   ImmutableSet<BuildRuleType> buildRuleTypes=buildRuleTypesBuilder.build();
   ImmutableSet<String> referencedFiles=options.getReferencedFiles(getProjectFilesystem().getProjectRoot());
+  Parser parser=createParser();
+  ImmutableSet<BuildTarget> matchingBuildTargets;
+  try {
+    matchingBuildTargets=ImmutableSet.copyOf(getBuildTargets(parser,options.getArgumentsFormattedAsBuildTargets()));
+  }
+ catch (  NoSuchBuildTargetException e) {
+    console.printFailureWithoutStacktrace(e);
+    return 1;
+  }
   PartialGraph graph;
   try {
     graph=PartialGraph.createFullGraph(getProjectFilesystem().getProjectRoot(),options.getDefaultIncludes(),ansi);
@@ -23,14 +32,12 @@
     console.printFailureWithoutStacktrace(e);
     return 1;
   }
-  TreeMap<String,BuildTarget> matchingBuildTargets=getMachingBuildTargets(graph.getDependencyGraph(),new TargetsCommandPredicate(graph,buildRuleTypes,referencedFiles));
+  SortedMap<String,BuildRule> matchingBuildRules=getMatchingBuildRules(graph.getDependencyGraph(),new TargetsCommandPredicate(graph,buildRuleTypes,referencedFiles,matchingBuildTargets));
   if (options.getPrintJson()) {
-    printJsonForTargets(matchingBuildTargets,options.getDefaultIncludes());
+    printJsonForTargets(matchingBuildRules,options.getDefaultIncludes());
   }
  else {
-    for (    String target : matchingBuildTargets.keySet()) {
-      stdOut.println(target);
-    }
+    printTargetsList(matchingBuildRules,options.isShowOutput());
   }
   return 0;
 }

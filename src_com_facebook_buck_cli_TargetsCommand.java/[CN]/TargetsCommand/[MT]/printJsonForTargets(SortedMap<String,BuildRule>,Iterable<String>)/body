@@ -1,23 +1,28 @@
 {
   stdOut.println("[");
   ObjectMapper mapper=new ObjectMapper();
-  Iterator<String> keySetIterator=buildTargets.keySet().iterator();
+  Iterator<String> keySetIterator=buildIndex.keySet().iterator();
   while (keySetIterator.hasNext()) {
     String key=keySetIterator.next();
-    BuildTarget target=buildTargets.get(key);
-    File buildFile=target.getBuildFile();
+    BuildRule buildRule=buildIndex.get(key);
+    BuildTarget buildTarget=buildRule.getBuildTarget();
+    File buildFile=buildTarget.getBuildFile();
     List<Map<String,Object>> rules=BuildFileToJsonParser.getAllRules(getProjectFilesystem().getProjectRoot().getAbsolutePath(),Optional.of(buildFile.getPath()),defaultIncludes,console.getAnsi());
     Map<String,Object> targetRule=null;
     for (    Map<String,Object> rule : rules) {
       String name=(String)rule.get("name");
-      if (name.equals(target.getShortName())) {
+      if (name.equals(buildTarget.getShortName())) {
         targetRule=rule;
         break;
       }
     }
     if (targetRule == null) {
-      console.printFailure("unable to find rule for target " + target.getFullyQualifiedName());
+      console.printFailure("unable to find rule for target " + buildTarget.getFullyQualifiedName());
       continue;
+    }
+    File outputFile=buildRule.getOutput();
+    if (outputFile != null) {
+      targetRule.put("buck.output_file",outputFile.getPath());
     }
     SortedMap<String,Object> sortedTargetRule=Maps.newTreeMap();
     sortedTargetRule.putAll(targetRule);

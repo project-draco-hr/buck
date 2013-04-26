@@ -1,22 +1,17 @@
 {
   Verbosity verbosity=options.getVerbosity();
   Logging.setLoggingLevelForVerbosity(verbosity);
-  BuildFileTree buildFiles=BuildFileTree.constructBuildFileTree(getProjectFilesystem());
-  Parser parser=new Parser(getProjectFilesystem(),buildFiles,ansi);
-  BuildTargetParser buildTargetParser=parser.getBuildTargetParser();
-  List<String> buildTargetNames=options.getArgumentsFormattedAsBuildTargets();
-  if (buildTargetNames.isEmpty()) {
-    console.printFailure("Must specify at least one build target.");
+  Parser parser=createParser();
+  try {
+    buildTargets=getBuildTargets(parser,options.getArgumentsFormattedAsBuildTargets());
+  }
+ catch (  NoSuchBuildTargetException e) {
+    console.printFailureWithoutStacktrace(e);
     return 1;
   }
-  for (  String buildTargetName : buildTargetNames) {
-    try {
-      buildTargets.add(buildTargetParser.parse(buildTargetName,ParseContext.fullyQualified()));
-    }
- catch (    NoSuchBuildTargetException e) {
-      console.printFailureWithoutStacktrace(e);
-      return 1;
-    }
+  if (buildTargets.isEmpty()) {
+    console.printFailure("Must specify at least one build target.");
+    return 1;
   }
   DependencyGraph dependencyGraph;
   try {
