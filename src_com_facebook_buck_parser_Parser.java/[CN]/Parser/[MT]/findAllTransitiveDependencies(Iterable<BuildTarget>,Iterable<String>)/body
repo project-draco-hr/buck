@@ -3,8 +3,11 @@
   final MutableDirectedGraph<BuildRule> graph=new MutableDirectedGraph<BuildRule>();
   AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget>(){
     @Override protected Iterator<BuildTarget> findChildren(    BuildTarget buildTarget){
-      BuildRuleBuilder buildRuleBuilder=knownBuildTargets.get(buildTarget.getFullyQualifiedName());
       ParseContext parseContext=ParseContext.forBaseName(buildTarget.getBaseName());
+      if (!knownBuildTargets.containsKey(buildTarget.getFullyQualifiedName())) {
+        throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTarget,parseContext));
+      }
+      BuildRuleBuilder buildRuleBuilder=knownBuildTargets.get(buildTarget.getFullyQualifiedName());
       Set<BuildTarget> deps=Sets.newHashSet();
       for (      String dep : buildRuleBuilder.getDeps()) {
         try {

@@ -3,11 +3,6 @@
   for (  Map<String,Object> map : rules) {
     String type=(String)map.get("type");
     BuildRuleType buildRuleType=BuildRuleType.valueOf(type.toUpperCase());
-    BuildRuleFactory factory=ruleTypeToFactoryMap.get(buildRuleType);
-    if (factory == null) {
-      throw new RuntimeException("Unrecognized rule: " + type);
-    }
-    String name=(String)map.get("name");
     String basePath=(String)map.get("buck_base_path");
     File sourceOfBuildTarget;
     if (source == null) {
@@ -17,6 +12,11 @@
  else {
       sourceOfBuildTarget=source;
     }
+    BuildRuleFactory factory=ruleTypeToFactoryMap.get(buildRuleType);
+    if (factory == null) {
+      throw new HumanReadableException("Unrecognized rule %s while parsing %s.",type,sourceOfBuildTarget);
+    }
+    String name=(String)map.get("name");
     BuildTarget target=new BuildTarget(sourceOfBuildTarget,"//" + basePath,name);
     if (filter != null && filter.isMatch(map,buildRuleType,target)) {
       matchingTargets.add(target);
