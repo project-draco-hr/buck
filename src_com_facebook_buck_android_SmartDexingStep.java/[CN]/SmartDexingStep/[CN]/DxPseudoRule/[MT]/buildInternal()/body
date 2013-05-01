@@ -1,6 +1,16 @@
 {
   Preconditions.checkState(newInputsHash != null,"Must call checkIsCached first!");
-  final DxStep dxCommand=new DxStep(outputPath,srcs);
-  final WriteFileStep updateHashCommand=new WriteFileStep(newInputsHash,outputHashPath);
-  return ImmutableList.<Step>of(new CompositeStep(ImmutableList.of(dxCommand,updateHashCommand)));
+  List<Step> steps=Lists.newArrayList();
+  if (useXzCompression()) {
+    String tempDexJarOutput=outputPath.replaceAll("\\.jar\\.xz$",".tmp.jar");
+    steps.add(new DxStep(tempDexJarOutput,srcs));
+    String repackedJar=outputPath.replaceAll("\\.xz$","");
+    steps.add(new RepackZipEntriesStep(tempDexJarOutput,repackedJar,ImmutableSet.of("classes.dex"),ZipStep.MIN_COMPRESSION_LEVEL,null));
+    steps.add(new XzStep(repackedJar));
+  }
+ else {
+    steps.add(new DxStep(outputPath,srcs));
+  }
+  steps.add(new WriteFileStep(newInputsHash,outputHashPath));
+  return ImmutableList.<Step>of(new CompositeStep(steps));
 }

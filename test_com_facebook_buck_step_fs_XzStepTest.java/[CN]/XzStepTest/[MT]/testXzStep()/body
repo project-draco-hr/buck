@@ -1,0 +1,21 @@
+{
+  final File sourceFile=new File(TestDataHelper.getTestDataScenario(this,"xz_with_rm_and_check"),"xzstep.data");
+  final File destinationFile=File.createTempFile("XzStepTest","xzstep.data.xz");
+  destinationFile.deleteOnExit();
+  XzStep step=new XzStep(sourceFile.getPath(),destinationFile.getPath(),1,false,XZ.CHECK_CRC32);
+  ExecutionContext context=EasyMock.createMock(ExecutionContext.class);
+  ProjectFilesystem fs=EasyMock.createMock(ProjectFilesystem.class);
+  EasyMock.expect(context.getProjectFilesystem()).andReturn(fs);
+  EasyMock.expect(fs.deleteFileAtPath(sourceFile.getPath())).andReturn(true);
+  EasyMock.replay(fs,context);
+  assertEquals(0,step.execute(context));
+  InputSupplier<FileInputStream> original=Files.newInputStreamSupplier(sourceFile);
+  InputSupplier<InputStream> decompressed=new InputSupplier<InputStream>(){
+    @Override public InputStream getInput() throws IOException {
+      return new XZInputStream(new FileInputStream(destinationFile));
+    }
+  }
+;
+  assertTrue("Decompressed file must be identical to original.",ByteStreams.equal(decompressed,original));
+  EasyMock.verify(fs,context);
+}
