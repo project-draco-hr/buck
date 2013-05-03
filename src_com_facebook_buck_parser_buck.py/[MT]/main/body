@@ -1,14 +1,13 @@
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--project_root')
-    parser.add_argument('--include', action='append')
-    parser.add_argument('build_files', nargs='*')
-    args = parser.parse_args()
-    project_root = args.project_root
+    parser = optparse.OptionParser()
+    parser.add_option('--project_root', action='store', type='string', dest='project_root')
+    parser.add_option('--include', action='append', dest='include')
+    (options, args) = parser.parse_args()
+    project_root = options.project_root
     len_suffix = (- len(('/' + BUILD_RULES_FILE_NAME)))
     build_files = None
-    if args.build_files:
-        build_files = args.build_files
+    if args:
+        build_files = args
     else:
         build_files = []
         for (dirpath, dirnames, filenames) in os.walk(project_root, topdown=True, followlinks=False):
@@ -28,12 +27,12 @@ def main():
                 build_files.append(build_file)
     for build_file in build_files:
         build_env = {}
-        relative_path_to_build_file = os.path.relpath(build_file, project_root)
+        relative_path_to_build_file = relpath(build_file, project_root)
         build_env['BASE'] = relative_path_to_build_file[:len_suffix]
         build_env['BUILD_FILE_DIRECTORY'] = os.path.dirname(build_file)
         build_env['PROJECT_ROOT'] = project_root
         build_env['BUILD_FILE_SYMBOL_TABLE'] = make_build_file_symbol_table(build_env)
-        includes = (args.include or [])
+        includes = (options.include or [])
         for include in includes:
             include_defs(include, build_env)
         execfile(os.path.join(project_root, build_file), build_env['BUILD_FILE_SYMBOL_TABLE'])
