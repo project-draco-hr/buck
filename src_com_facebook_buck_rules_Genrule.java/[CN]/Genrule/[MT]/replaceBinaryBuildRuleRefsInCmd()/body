@@ -1,3 +1,30 @@
 {
-  return replaceBinaryBuildRuleRefsInCmd(cmd,getDeps(),this.getBuildTarget().getBasePath());
+  Matcher matcher=BUILD_TARGET_PATTERN.matcher(cmd);
+  StringBuffer buffer=new StringBuffer();
+  Map<String,BuildRule> fullyQualifiedNameToBuildRule=null;
+  while (matcher.find()) {
+    if (fullyQualifiedNameToBuildRule == null) {
+      fullyQualifiedNameToBuildRule=Maps.newHashMap();
+      for (      BuildRule dep : getDeps()) {
+        fullyQualifiedNameToBuildRule.put(dep.getFullyQualifiedName(),dep);
+      }
+    }
+    String buildTarget=matcher.group(3);
+    String prefix=matcher.group(4);
+    if (":".equals(prefix)) {
+      buildTarget=String.format("//%s%s",this.getBuildTarget().getBasePath(),buildTarget);
+    }
+    BuildRule matchingRule=fullyQualifiedNameToBuildRule.get(buildTarget);
+    if (matchingRule == null) {
+      throw new HumanReadableException("No dep named %s for %s %s, cmd was %s",buildTarget,getType().getDisplayName(),getFullyQualifiedName(),cmd);
+    }
+    if (!(matchingRule instanceof BinaryBuildRule)) {
+      throw new HumanReadableException("%s must correspond to a binary rule in %s for %s %s",buildTarget,cmd,getType().getDisplayName(),getFullyQualifiedName());
+    }
+    BinaryBuildRule binaryBuildRule=(BinaryBuildRule)matchingRule;
+    String replacement=matcher.group(1) + binaryBuildRule.getExecutableCommand();
+    matcher.appendReplacement(buffer,replacement);
+  }
+  matcher.appendTail(buffer);
+  return buffer.toString();
 }
