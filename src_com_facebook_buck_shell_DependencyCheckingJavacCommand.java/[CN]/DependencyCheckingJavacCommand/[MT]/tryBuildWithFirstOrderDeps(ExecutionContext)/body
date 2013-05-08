@@ -1,0 +1,29 @@
+{
+  CapturingPrintStream stdout=new CapturingPrintStream();
+  CapturingPrintStream stderr=new CapturingPrintStream();
+  ExecutionContext firstOrderContext=context.createSubContext(stdout,stderr);
+  int declaredDepsResult=buildWithClasspath(firstOrderContext,ImmutableSet.copyOf(declaredClasspathEntries));
+  String firstOrderStdout=stdout.getContentsAsString(Charsets.UTF_8);
+  String firstOrderStderr=stderr.getContentsAsString(Charsets.UTF_8);
+  if (declaredDepsResult != 0) {
+    int transitiveResult=buildWithClasspath(context,ImmutableSet.copyOf(classpathEntries));
+    if (transitiveResult == 0) {
+      ImmutableSet<String> failedImports=findFailedImports(firstOrderStderr);
+      context.getStdErr().println(String.format("Rule %s builds with it's transitive " + "dependencies but not with it's first order dependencies.",invokingRule.or("")));
+      context.getStdErr().println("The following packages were missing:");
+      context.getStdErr().println(Joiner.on(LINE_SEPARATOR).join(failedImports));
+      if (suggestBuildRules.isPresent()) {
+        context.getStdErr().println("Try adding the following deps:");
+        context.getStdErr().println(Joiner.on(LINE_SEPARATOR).join(suggestBuildRules.get().apply(failedImports)));
+      }
+      context.getStdErr().println();
+      context.getStdErr().println();
+    }
+    return transitiveResult;
+  }
+ else {
+    context.getStdOut().print(firstOrderStdout);
+    context.getStdErr().print(firstOrderStderr);
+  }
+  return declaredDepsResult;
+}

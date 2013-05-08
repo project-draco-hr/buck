@@ -1,0 +1,30 @@
+{
+  if (context.getBuildDependencies() != BuildDependencies.WARN_ON_TRANSITIVE) {
+    return Optional.absent();
+  }
+  final Set<BuildRule> transitiveNotDeclaredDeps=Sets.difference(transitiveClasspathEntries.keySet(),declaredClasspathEntries.keySet());
+  final ImmutableList<BuildRule> sortedTransitiveNotDeclaredDeps=ImmutableList.copyOf(TopologicalSort.sort(context.getDependencyGraph(),new Predicate<BuildRule>(){
+    @Override public boolean apply(    BuildRule input){
+      return transitiveNotDeclaredDeps.contains(input);
+    }
+  }
+)).reverse();
+  DependencyCheckingJavacCommand.SuggestBuildRules suggestBuildRuleFn=new DependencyCheckingJavacCommand.SuggestBuildRules(){
+    @Override public ImmutableSet<String> apply(    ImmutableSet<String> failedImports){
+      ImmutableSet.Builder<String> suggestedDeps=ImmutableSet.builder();
+      Set<String> remainingImports=Sets.newHashSet(failedImports);
+      for (      BuildRule transitiveNotDeclaredDep : sortedTransitiveNotDeclaredDeps) {
+        boolean ruleCanSeeDep=transitiveNotDeclaredDep.isVisibleTo(DefaultJavaLibraryRule.this.getBuildTarget());
+        if (ruleCanSeeDep && isMissingBuildRule(transitiveNotDeclaredDep,remainingImports,jarResolver)) {
+          suggestedDeps.add(transitiveNotDeclaredDep.getFullyQualifiedName());
+        }
+        if (remainingImports.isEmpty()) {
+          break;
+        }
+      }
+      return suggestedDeps.build();
+    }
+  }
+;
+  return Optional.of(suggestBuildRuleFn);
+}
