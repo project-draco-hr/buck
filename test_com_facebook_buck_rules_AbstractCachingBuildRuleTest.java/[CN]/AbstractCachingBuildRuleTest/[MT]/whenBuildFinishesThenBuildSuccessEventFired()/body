@@ -1,16 +1,16 @@
 {
   BuildTarget target=BuildTargetFactory.newInstance("//com/example:rule");
   BuildRuleParams params=new BuildRuleParams(target,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.of(BuildTargetPattern.MATCH_ALL));
-  CommandRunner commandRunner=createNiceMock(CommandRunner.class);
-  expect(commandRunner.getListeningExecutorService()).andStubReturn(MoreExecutors.sameThreadExecutor());
+  StepRunner stepRunner=createNiceMock(StepRunner.class);
+  expect(stepRunner.getListeningExecutorService()).andStubReturn(MoreExecutors.sameThreadExecutor());
   JavaPackageFinder packageFinder=createNiceMock(JavaPackageFinder.class);
-  replay(commandRunner,packageFinder);
+  replay(stepRunner,packageFinder);
   EventBus bus=new EventBus();
   Listener listener=new Listener();
   bus.register(listener);
   DummyRule rule=new DummyRule(params,false,false);
   File root=new File(".");
-  BuildContext context=BuildContext.builder().setEventBus(bus).setProjectRoot(root).setDependencyGraph(createMock(DependencyGraph.class)).setProjectFilesystem(new ProjectFilesystem(root)).setCommandRunner(commandRunner).setJavaPackageFinder(packageFinder).build();
+  BuildContext context=BuildContext.builder().setEventBus(bus).setProjectRoot(root).setDependencyGraph(createMock(DependencyGraph.class)).setProjectFilesystem(new ProjectFilesystem(root)).setCommandRunner(stepRunner).setJavaPackageFinder(packageFinder).build();
   ListenableFuture<BuildRuleSuccess> build=rule.build(context);
   build.get();
   assertSeenEventsContain(ImmutableList.<BuildEvent>of(BuildEvents.started(rule),BuildEvents.finished(rule,SUCCESS,MISS)),listener.getSeen());

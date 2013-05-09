@@ -1,0 +1,84 @@
+{
+  ImmutableSet<JavaLibraryRule> rulesUnderTest;
+  if (options.isCodeCoverageEnabled()) {
+    rulesUnderTest=getRulesUnderTest(tests);
+    if (!rulesUnderTest.isEmpty()) {
+      try {
+        stepRunner.runStep(new MakeCleanDirectoryStep(JUnitStep.EMMA_OUTPUT_DIR));
+        stepRunner.runStep(getInstrumentCommand(rulesUnderTest));
+      }
+ catch (      StepFailedException e) {
+        console.printFailureWithoutStacktrace(e);
+        return 1;
+      }
+    }
+  }
+ else {
+    rulesUnderTest=ImmutableSet.of();
+  }
+  String targetsBeingTested;
+  if (options.isRunAllTests()) {
+    targetsBeingTested="ALL TESTS";
+  }
+ else {
+    targetsBeingTested=Joiner.on(' ').join(options.getArgumentsFormattedAsBuildTargets());
+  }
+  stdErr.printf("TESTING %s\n",targetsBeingTested);
+  List<ListenableFuture<TestResults>> results=Lists.newArrayList();
+  for (  TestRule test : tests) {
+    List<Step> steps;
+    if (test.isTestRunRequired(buildContext,executionContext)) {
+      steps=test.runTests(buildContext,executionContext);
+    }
+ else {
+      steps=ImmutableList.of();
+    }
+    ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(steps,test.interpretTestResults());
+    results.add(testResults);
+  }
+  ListenableFuture<List<TestResults>> uberFuture=Futures.allAsList(results);
+  List<TestResults> completedResults;
+  try {
+    completedResults=uberFuture.get();
+  }
+ catch (  InterruptedException e) {
+    e.printStackTrace(stdErr);
+    return 1;
+  }
+catch (  ExecutionException e) {
+    e.printStackTrace(stdErr);
+    return 1;
+  }
+  if (options.getPathToXmlTestOutput() != null) {
+    writeXmlOutput(completedResults,options.getPathToXmlTestOutput());
+  }
+  boolean isAllTestsPassed=true;
+  int numFailures=0;
+  for (  TestResults summary : completedResults) {
+    if (!summary.isSuccess()) {
+      isAllTestsPassed=false;
+      numFailures+=summary.getFailureCount();
+    }
+    stdErr.print(summary.getSummaryWithFailureDetails(ansi));
+  }
+  if (completedResults.isEmpty()) {
+    ansi.printlnHighlightedFailureText(stdErr,"NO TESTS RAN");
+  }
+ else   if (isAllTestsPassed) {
+    ansi.printlnHighlightedSuccessText(stdErr,"TESTS PASSED");
+  }
+ else {
+    ansi.printlnHighlightedFailureText(stdErr,String.format("TESTS FAILED: %d Failures",numFailures));
+  }
+  if (options.isCodeCoverageEnabled() && !rulesUnderTest.isEmpty()) {
+    try {
+      Optional<DefaultJavaPackageFinder> defaultJavaPackageFinderOptional=options.getJavaPackageFinder();
+      stepRunner.runStep(getReportCommand(rulesUnderTest,defaultJavaPackageFinderOptional,getProjectFilesystem()));
+    }
+ catch (    StepFailedException e) {
+      console.printFailureWithoutStacktrace(e);
+      return 1;
+    }
+  }
+  return isAllTestsPassed ? 0 : 1;
+}

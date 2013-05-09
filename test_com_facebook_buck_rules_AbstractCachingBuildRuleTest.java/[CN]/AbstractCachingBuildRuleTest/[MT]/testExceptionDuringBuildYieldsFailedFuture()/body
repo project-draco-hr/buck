@@ -5,7 +5,7 @@
     @Override protected Iterable<String> getInputsToCompareToOutput(    BuildContext context){
       return ImmutableList.of();
     }
-    @Override protected List<Command> buildInternal(    BuildContext context) throws IOException {
+    @Override protected List<Step> buildInternal(    BuildContext context) throws IOException {
       throw exceptionThrownDuringBuildInternal;
     }
     @Override public BuildRuleType getType(){
@@ -20,11 +20,11 @@
   ExecutorService executor=MoreExecutors.sameThreadExecutor();
   expect(buildContext.getExecutor()).andReturn(executor).times(3);
   expect(buildContext.getEventBus()).andStubReturn(new EventBus());
-  CommandRunner commandRunner=createMock(CommandRunner.class);
+  StepRunner stepRunner=createMock(StepRunner.class);
   ListeningExecutorService executorService=MoreExecutors.listeningDecorator(executor);
-  expect(commandRunner.getListeningExecutorService()).andReturn(executorService);
-  expect(buildContext.getCommandRunner()).andReturn(commandRunner);
-  replay(buildContext,commandRunner);
+  expect(stepRunner.getListeningExecutorService()).andReturn(executorService);
+  expect(buildContext.getCommandRunner()).andReturn(stepRunner);
+  replay(buildContext,stepRunner);
   ListenableFuture<BuildRuleSuccess> buildRuleSuccess=buildRule.build(buildContext);
   try {
     buildRuleSuccess.get();
@@ -34,5 +34,5 @@
     assertSame("The build rule should have the IOException packaged in an ExecutionException.",exceptionThrownDuringBuildInternal,e.getCause());
   }
   assertFalse("The rule should not be considered to have built successfully.",buildRule.isRuleBuilt());
-  verify(buildContext,commandRunner);
+  verify(buildContext,stepRunner);
 }
