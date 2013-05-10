@@ -1,24 +1,24 @@
 {
   PartialGraph partialGraph;
   try {
-    partialGraph=PartialGraph.createPartialGraph(predicate,getProjectFilesystem().getProjectRoot(),options.getDefaultIncludes());
+    partialGraph=createPartialGraph(predicate,options);
   }
  catch (  NoSuchBuildTargetException e) {
-    console.printFailureWithoutStacktrace(e);
-    return 1;
+    throw new HumanReadableException(e);
   }
   ExecutionContext executionContext=new ExecutionContext(options.getVerbosity(),getProjectFilesystem().getProjectRoot(),options.findAndroidPlatformTarget(partialGraph.getDependencyGraph(),stdErr),options.findAndroidNdkDir(),ansi,false,false,stdOut,stdErr);
   Project project=new Project(partialGraph,options.getBasePathToAliasMap(),options.getJavaPackageFinder(),executionContext,getProjectFilesystem(),options.getPathToDefaultAndroidManifest());
   File tempFile=new File(Files.createTempDir(),"project.json");
   int exitCode;
   try {
-    exitCode=project.createIntellijProject(tempFile,console.getStdOut());
+    exitCode=createIntellijProject(project,tempFile,console.getStdOut());
     if (exitCode != 0) {
       return exitCode;
     }
-    if (options.hasInitialTargets()) {
+    List<String> additionalInitialTargets=ImmutableList.of();
+    if (options.hasInitialTargets() || !additionalInitialTargets.isEmpty()) {
       BuildCommand buildCommand=new BuildCommand(stdOut,stdErr,console,getProjectFilesystem());
-      exitCode=buildCommand.runCommandWithOptions(options.createBuildCommandOptionsWithInitialTargets());
+      exitCode=runBuildCommand(buildCommand,options.createBuildCommandOptionsWithInitialTargets(additionalInitialTargets));
       if (exitCode != 0) {
         return exitCode;
       }
