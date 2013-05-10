@@ -1,0 +1,21 @@
+{
+  BuildContext context=null;
+  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  String basePath="java/src/com/facebook/base";
+  NdkLibraryRule ndkLibraryRule=NdkLibraryRule.newNdkLibraryRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance(String.format("//%s:base",basePath))).addSrc(basePath + "/Application.mk").addSrc(basePath + "/main.cpp").addSrc(basePath + "/Android.mk").addFlag("flag1").addFlag("flag2").addVisibilityPattern(BuildTargetPattern.MATCH_ALL).build(buildRuleIndex);
+  buildRuleIndex.put(ndkLibraryRule.getFullyQualifiedName(),ndkLibraryRule);
+  Assert.assertEquals(BuildRuleType.NDK_LIBRARY,ndkLibraryRule.getType());
+  assertTrue(ndkLibraryRule.isAndroidRule());
+  MoreAsserts.assertListEquals(ImmutableList.of(basePath + "/Android.mk",basePath + "/Application.mk",basePath + "/main.cpp"),ImmutableList.copyOf(ndkLibraryRule.getInputsToCompareToOutput(context)));
+  List<Step> steps=ndkLibraryRule.buildInternal(context);
+  ExecutionContext executionContext=createMock(ExecutionContext.class);
+  File projectRoot=createMock(File.class);
+  expect(executionContext.getProjectDirectoryRoot()).andReturn(projectRoot);
+  expect(projectRoot.getAbsolutePath()).andReturn("/foo");
+  File ndkDir=createMock(File.class);
+  expect(executionContext.getNdkRoot()).andReturn(Optional.of(ndkDir));
+  expect(ndkDir.getAbsolutePath()).andReturn("/ndk-r8b");
+  replay(executionContext,projectRoot,ndkDir);
+  MoreAsserts.assertShellCommands("ndk_library() should invoke ndk-build on the given path with some -j value",ImmutableList.of(String.format("/ndk-r8b/ndk-build -j %d -C %s/ flag1 flag2 " + "APP_PROJECT_PATH=/foo/%s/%s/ APP_BUILD_SCRIPT=/foo/%s/Android.mk " + "NDK_OUT=/foo/%s/%s/",Runtime.getRuntime().availableProcessors(),basePath,BuckConstant.GEN_DIR,basePath,basePath,BuckConstant.GEN_DIR,basePath)),steps,executionContext);
+  verify(executionContext,projectRoot);
+}

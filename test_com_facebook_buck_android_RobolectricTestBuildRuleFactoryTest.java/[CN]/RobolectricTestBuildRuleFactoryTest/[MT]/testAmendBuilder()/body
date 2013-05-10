@@ -1,0 +1,23 @@
+{
+  ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
+  BuildTargetParser buildTargetParser=new BuildTargetParser(projectFilesystem){
+    @Override public BuildTarget parse(    String buildTargetName,    ParseContext parseContext) throws NoSuchBuildTargetException {
+      return BuildTargetFactory.newInstance(buildTargetName);
+    }
+  }
+;
+  Map<String,?> instance=ImmutableMap.of("vm_args",ImmutableList.of("-Dbuck.robolectric_dir=javatests/com/facebook/base"),"source_under_test",ImmutableList.of("//java/com/facebook/base:base"));
+  BuildTarget buildTarget=BuildTargetFactory.newInstance("//javatests/com/facebook/base:base");
+  BuildRuleFactoryParams params=new BuildRuleFactoryParams(instance,EasyMock.createMock(PrintStream.class),projectFilesystem,null,buildTargetParser,buildTarget);
+  EasyMock.replay(projectFilesystem);
+  RobolectricTestBuildRuleFactory factory=new RobolectricTestBuildRuleFactory();
+  RobolectricTestRule.Builder builder=factory.newBuilder();
+  builder.setBuildTarget(buildTarget);
+  factory.amendBuilder(builder,params);
+  BuildRule base=new FakeJavaLibraryRule(BuildRuleType.ANDROID_LIBRARY,buildTarget,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of());
+  Map<String,BuildRule> buildRuleIndex=ImmutableMap.of("//java/com/facebook/base:base",base);
+  RobolectricTestRule robolectricRule=builder.build(buildRuleIndex);
+  assertEquals(ImmutableList.of("-Dbuck.robolectric_dir=javatests/com/facebook/base"),robolectricRule.getVmArgs());
+  assertEquals(ImmutableSet.of(base),robolectricRule.getSourceUnderTest());
+  EasyMock.verify(projectFilesystem);
+}
