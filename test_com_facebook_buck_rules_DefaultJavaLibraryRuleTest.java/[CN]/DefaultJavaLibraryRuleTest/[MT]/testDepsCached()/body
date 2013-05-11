@@ -1,0 +1,19 @@
+{
+  BuildContext context=EasyMock.createMock(BuildContext.class);
+  EasyMock.expect(context.getBuildDependencies()).andReturn(BuildDependencies.FIRST_ORDER_ONLY);
+  EasyMock.replay(context);
+  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  BuildTarget grandChildTarget=BuildTargetFactory.newInstance("//:grandChild");
+  JavaLibraryRule grandChild=FakeDefaultJavaLibraryRule.newFakeJavaLibraryRuleBuilder().setHasUncachedDescendants(true).setIsCached(false).setRuleInputsAreCached(false).setBuildTarget(grandChildTarget).addSrc("java/src/com/grandchild/bar.java").build(buildRuleIndex);
+  buildRuleIndex.put(grandChild.getFullyQualifiedName(),grandChild);
+  BuildTarget childTarget=BuildTargetFactory.newInstance("//:child");
+  JavaLibraryRule child=FakeDefaultJavaLibraryRule.newFakeJavaLibraryRuleBuilder().setHasUncachedDescendants(true).setIsCached(true).setRuleInputsAreCached(true).setBuildTarget(childTarget).addSrc("java/src/com/child/foo.java").addDep("//:grandChild").build(buildRuleIndex);
+  buildRuleIndex.put(child.getFullyQualifiedName(),child);
+  BuildTarget parentTarget=BuildTargetFactory.newInstance("//:parent");
+  DefaultJavaLibraryRule parent=FakeDefaultJavaLibraryRule.newFakeJavaLibraryRuleBuilder().setHasUncachedDescendants(true).setIsCached(true).setRuleInputsAreCached(true).setBuildTarget(parentTarget).addSrc("java/src/com/parent/foo.java").addDep("//:child").build(buildRuleIndex);
+  buildRuleIndex.put(parent.getFullyQualifiedName(),parent);
+  Logger logger=EasyMock.createMock(Logger.class);
+  EasyMock.replay(logger);
+  assertTrue(parent.depsCached(context,logger));
+  EasyMock.verify(context,logger);
+}

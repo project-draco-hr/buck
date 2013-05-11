@@ -1,0 +1,25 @@
+{
+  if (context.getBuildDependencies() != BuildDependencies.FIRST_ORDER_ONLY) {
+    return super.depsCached(context,logger);
+  }
+  for (  BuildRule dep : getDeps()) {
+    if (dep instanceof DefaultJavaLibraryRule) {
+      DefaultJavaLibraryRule javaDep=(DefaultJavaLibraryRule)dep;
+      if (javaDep.getExportDeps()) {
+        if (javaDep.hasUncachedDescendants(context)) {
+          logger.info(String.format("%s not cached because java library %s exports its deps " + "and has uncached descendants",this,dep.getFullyQualifiedName()));
+          return false;
+        }
+      }
+ else       if (!javaDep.ruleInputsCached(context,logger)) {
+        logger.info(String.format("%s not cached because java library %s's inputs changed",this,dep.getFullyQualifiedName()));
+        return false;
+      }
+    }
+ else     if (!dep.isCached(context)) {
+      logger.info(String.format("%s not cached because %s is not cached",this,dep.getFullyQualifiedName()));
+      return false;
+    }
+  }
+  return true;
+}
