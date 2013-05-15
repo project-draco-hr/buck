@@ -1,6 +1,9 @@
 {
+  BuildTarget depTarget=BuildTargetFactory.newInstance("//com/example:dep");
+  CachingBuildRuleParams depParams=new CachingBuildRuleParams(depTarget,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.of(BuildTargetPattern.MATCH_ALL),artifactCache);
+  DummyRule depRule=new DummyRule(depParams,false,false,true);
   BuildTarget target=BuildTargetFactory.newInstance("//com/example:rule");
-  CachingBuildRuleParams params=new CachingBuildRuleParams(target,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.of(BuildTargetPattern.MATCH_ALL),artifactCache);
+  CachingBuildRuleParams params=new CachingBuildRuleParams(target,ImmutableSortedSet.<BuildRule>of(depRule),ImmutableSet.of(BuildTargetPattern.MATCH_ALL),artifactCache);
   StepRunner stepRunner=createNiceMock(StepRunner.class);
   expect(stepRunner.getListeningExecutorService()).andStubReturn(MoreExecutors.sameThreadExecutor());
   JavaPackageFinder packageFinder=createNiceMock(JavaPackageFinder.class);
@@ -8,10 +11,10 @@
   EventBus bus=new EventBus();
   Listener listener=new Listener();
   bus.register(listener);
-  DummyRule rule=new DummyRule(params,true,false,false);
+  DummyRule rule=new DummyRule(params,true,false,true);
   File root=new File(".");
   BuildContext context=BuildContext.builder().setEventBus(bus).setProjectRoot(root).setDependencyGraph(createMock(DependencyGraph.class)).setProjectFilesystem(new ProjectFilesystem(root)).setCommandRunner(stepRunner).setJavaPackageFinder(packageFinder).build();
   ListenableFuture<BuildRuleSuccess> build=rule.build(context);
   build.get();
-  assertSeenEventsContain(ImmutableList.<BuildEvent>of(BuildEvents.started(rule),BuildEvents.finished(rule,SUCCESS,HIT)),listener.getSeen());
+  assertSeenEventsContain(ImmutableList.<BuildEvent>of(BuildEvents.started(rule),BuildEvents.finished(rule,SUCCESS,HIT),BuildEvents.finished(depRule,SUCCESS,MISS)),listener.getSeen());
 }
