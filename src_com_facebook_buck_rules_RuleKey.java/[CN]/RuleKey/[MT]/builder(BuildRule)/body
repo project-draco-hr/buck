@@ -1,8 +1,18 @@
 {
-  return new Builder(rule.getFullyQualifiedName()).set("buck.type",rule.getType().getDisplayName()).setStrings("deps",Iterables.transform(rule.getDeps(),new Function<BuildRule,String>(){
-    @Override public String apply(    BuildRule input){
-      return String.format("%s:%s",input.getFullyQualifiedName(),input.getType().getDisplayName());
+  Builder result=new Builder(rule.getFullyQualifiedName()).set("buck.type",rule.getType().getDisplayName());
+  if (rule.isPackagingRule()) {
+    final ImmutableSortedSet.Builder<BuildRule> transitiveDeps=ImmutableSortedSet.naturalOrder();
+    (new AbstractDependencyVisitor(rule,true){
+      @Override public boolean visit(      BuildRule dep){
+        transitiveDeps.add(dep);
+        return true;
+      }
     }
+).start();
+    result.set("deps",transitiveDeps.build());
   }
-));
+ else {
+    result.setOnInputs("deps",rule.getDeps());
+  }
+  return result;
 }
