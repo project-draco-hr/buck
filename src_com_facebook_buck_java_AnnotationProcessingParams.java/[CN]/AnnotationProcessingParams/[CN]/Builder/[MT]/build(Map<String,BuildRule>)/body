@@ -6,16 +6,15 @@
   Set<String> searchPathElements=Sets.newHashSet();
   for (  BuildTarget target : targets) {
     BuildRule rule=buildRuleIndex.get(target.getFullyQualifiedName());
-    if (rule instanceof JavaBinaryRule) {
-      JavaBinaryRule javaBinaryRule=(JavaBinaryRule)rule;
-      searchPathElements.add(javaBinaryRule.getOutputFile());
+    String type=rule.getType().getDisplayName();
+    if ("java_binary".equals(type) || "prebuilt_jar".equals(type)) {
+      File output=rule.getOutput();
+      if (output != null) {
+        searchPathElements.add(output.getAbsolutePath());
+      }
     }
- else     if (rule instanceof PrebuiltJarRule) {
-      PrebuiltJarRule prebuiltJarRule=(PrebuiltJarRule)rule;
-      searchPathElements.add(prebuiltJarRule.getBinaryJar());
-    }
- else     if (rule instanceof JavaLibraryRule) {
-      JavaLibraryRule javaLibraryRule=(JavaLibraryRule)rule;
+ else     if (rule instanceof HasClasspathEntries) {
+      HasClasspathEntries javaLibraryRule=(HasClasspathEntries)rule;
       searchPathElements.addAll(javaLibraryRule.getTransitiveClasspathEntries().values());
     }
  else {
