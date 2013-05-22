@@ -1,0 +1,28 @@
+{
+  WatchKey key;
+  while ((key=watchService.poll()) != null) {
+    Path dir=keys.get(key);
+    if (dir == null) {
+      continue;
+    }
+    for (    WatchEvent<?> event : key.pollEvents()) {
+      if (isPathChangeEvent(event)) {
+        Path name=(Path)event.context();
+        Path child=dir.resolve(name);
+        if (shouldIgnore(child)) {
+          continue;
+        }
+        if (filesystem.isDirectory(child,LinkOption.NOFOLLOW_LINKS)) {
+          if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
+            registerAll(child);
+          }
+          continue;
+        }
+      }
+      eventBus.post(event);
+    }
+    if (!key.reset()) {
+      keys.remove(key);
+    }
+  }
+}

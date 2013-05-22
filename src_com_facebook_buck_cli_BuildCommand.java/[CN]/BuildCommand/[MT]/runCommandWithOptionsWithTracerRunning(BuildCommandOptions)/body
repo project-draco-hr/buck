@@ -1,7 +1,20 @@
 {
   Verbosity verbosity=options.getVerbosity();
   Logging.setLoggingLevelForVerbosity(verbosity);
-  Parser parser=createParser();
+  if (isDaemon) {
+    if (filesystemWatcher == null) {
+      fileChangeEventBus=new EventBus("file-change-events");
+      filesystemWatcher=new ProjectFilesystemWatcher(getProjectFilesystem(),fileChangeEventBus,options.getBuckConfig().getIgnoredDirectories(),FileSystems.getDefault().newWatchService());
+      fileChangeEventBus.register(this);
+    }
+ else {
+      filesystemWatcher.postEvents();
+    }
+  }
+  if (buildFiles == null) {
+    buildFiles=BuildFileTree.constructBuildFileTree(getProjectFilesystem());
+    parser=new Parser(getProjectFilesystem(),getArtifactCache(),buildFiles);
+  }
   try {
     buildTargets=getBuildTargets(parser,options.getArgumentsFormattedAsBuildTargets());
   }
