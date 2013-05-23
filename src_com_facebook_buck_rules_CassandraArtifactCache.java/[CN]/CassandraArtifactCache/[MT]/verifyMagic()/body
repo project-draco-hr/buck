@@ -1,5 +1,11 @@
 {
-  OperationResult<ColumnList<String>> result=keyspace.prepareQuery(CF_CONFIG).getKey(configurationMagicKey).execute();
+  OperationResult<ColumnList<String>> result;
+  try {
+    result=keyspace.prepareQuery(CF_CONFIG).getKey(configurationMagicKey).execute();
+  }
+ catch (  BadRequestException e) {
+    throw new HumanReadableException("Artifact cache error during schema verification: %s",e.getMessage());
+  }
   Column<String> column=result.getResult().getColumnByName(configurationColumnName);
   if (column == null || !column.getStringValue().equals(configurationMagicValue)) {
     throw new HumanReadableException("Artifact cache schema mismatch");
