@@ -2,14 +2,30 @@
   File platformDirectory=new File(androidSdkDir,platformDirectoryPath);
   File androidJar=new File(platformDirectory,"android.jar");
   LinkedList<File> bootclasspathEntries=resolvePaths(androidSdkDir,additionalJarPaths);
+  bootclasspathEntries.addFirst(androidJar);
+  File buildToolsDir=new File(androidSdkDir,"build-tools");
+  String buildToolsPath;
+  if (buildToolsDir.isDirectory()) {
+    File[] directories=buildToolsDir.listFiles(new FileFilter(){
+      @Override public boolean accept(      File pathname){
+        return pathname.isDirectory();
+      }
+    }
+);
+    if (directories.length == 0) {
+      throw new HumanReadableException("%s was empty, but should have contained a subdirectory with build tools",buildToolsDir.getAbsolutePath());
+    }
+ else {
+      File newestBuildToolsDir=pickNewestBuildToolsDir(ImmutableSet.copyOf(directories));
+      buildToolsPath="build-tools/" + newestBuildToolsDir.getName();
+    }
+  }
+ else {
+    buildToolsPath="platform-tools";
+  }
   File androidFrameworkIdlFile=new File(platformDirectory,"framework.aidl");
   File proguardJar=new File(androidSdkDir,"tools/proguard/lib/proguard.jar");
   File proguardConfig=new File(androidSdkDir,"tools/proguard/proguard-android.txt");
   File optimizedProguardConfig=new File(androidSdkDir,"tools/proguard/proguard-android-optimize.txt");
-  bootclasspathEntries.addFirst(androidJar);
-  String buildToolsDir="platform-tools";
-  if (new File(androidSdkDir,"build-tools").exists()) {
-    buildToolsDir=String.format("build-tools/%d.0.0",FIRST_API_WITH_BUILDTOOLS);
-  }
-  return new AndroidPlatformTarget(name,androidJar,bootclasspathEntries,new File(androidSdkDir,buildToolsDir + "/aapt"),new File(androidSdkDir,"platform-tools/adb"),new File(androidSdkDir,buildToolsDir + "/aidl"),new File(androidSdkDir,"tools/zipalign"),new File(androidSdkDir,buildToolsDir + "/dx"),androidFrameworkIdlFile,proguardJar,proguardConfig,optimizedProguardConfig);
+  return new AndroidPlatformTarget(name,androidJar,bootclasspathEntries,new File(androidSdkDir,buildToolsPath + "/aapt"),new File(androidSdkDir,"platform-tools/adb"),new File(androidSdkDir,buildToolsPath + "/aidl"),new File(androidSdkDir,"tools/zipalign"),new File(androidSdkDir,buildToolsPath + "/dx"),androidFrameworkIdlFile,proguardJar,proguardConfig,optimizedProguardConfig);
 }
