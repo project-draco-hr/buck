@@ -3,6 +3,7 @@
   ImmutableMap.Builder<String,File> extraAssetsBuilder=ImmutableMap.builder();
   commands.add(new MkdirAndSymlinkFileStep(getManifest(),getAndroidManifestXml()));
   final AndroidTransitiveDependencies transitiveDependencies=findTransitiveDependencies(context.getDependencyGraph());
+  final AndroidDexTransitiveDependencies dexTransitiveDependencies=findDexTransitiveDependencies(context.getDependencyGraph());
   Set<String> resDirectories=transitiveDependencies.resDirectories;
   Set<String> rDotJavaPackages=transitiveDependencies.rDotJavaPackages;
   Optional<String> resourceFilter=getResourceFilter();
@@ -13,18 +14,18 @@
   }
   String extractedResourcesDir=getBinPath("__resources__%s__");
   commands.add(new MakeCleanDirectoryStep(extractedResourcesDir));
-  commands.add(new ExtractResourcesStep(transitiveDependencies.pathsToThirdPartyJars,extractedResourcesDir));
+  commands.add(new ExtractResourcesStep(dexTransitiveDependencies.pathsToThirdPartyJars,extractedResourcesDir));
   if (!resDirectories.isEmpty()) {
     UberRDotJavaUtil.generateRDotJavaFiles(resDirectories,rDotJavaPackages,getBuildTarget(),commands);
   }
   if (packageType.isBuildWithObfuscation()) {
-    addProguardCommands(transitiveDependencies,commands,resDirectories);
+    addProguardCommands(dexTransitiveDependencies,transitiveDependencies.proguardConfigs,commands,resDirectories);
   }
   String dexDir=getBinPath(".dex/%s");
   commands.add(new MkdirStep(dexDir));
   String dexFile=String.format("%s/classes.dex",dexDir);
   final ImmutableSet.Builder<String> secondaryDexDirectories=ImmutableSet.builder();
-  addDexingCommands(transitiveDependencies.classpathEntriesToDex,secondaryDexDirectories,commands,dexFile);
+  addDexingCommands(dexTransitiveDependencies.classpathEntriesToDex,secondaryDexDirectories,commands,dexFile);
   final ImmutableMap<String,File> extraAssets=extraAssetsBuilder.build();
   Step collectAssets=new Step(){
     @Override public int execute(    ExecutionContext context){
