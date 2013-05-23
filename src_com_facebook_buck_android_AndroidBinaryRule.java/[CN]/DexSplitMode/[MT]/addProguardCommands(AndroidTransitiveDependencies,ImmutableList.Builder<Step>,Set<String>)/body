@@ -1,8 +1,8 @@
 {
   final ImmutableSetMultimap<BuildRule,String> classpathEntriesMap=getTransitiveClasspathEntries();
-  Set<String> additionalLibraryJarsForProguard=Sets.newHashSet();
+  ImmutableSet.Builder<String> additionalLibraryJarsForProguardBuilder=ImmutableSet.builder();
   for (  BuildRule buildRule : buildRulesToExcludeFromDex) {
-    additionalLibraryJarsForProguard.addAll(classpathEntriesMap.get(buildRule));
+    additionalLibraryJarsForProguardBuilder.addAll(classpathEntriesMap.get(buildRule));
   }
   Set<String> classpathEntries=deps.classpathEntriesToDex;
   String proguardDirectory=getPathForProGuardDirectory();
@@ -10,17 +10,15 @@
   String generatedProGuardConfig=proguardDirectory + "/proguard.txt";
   GenProGuardConfigStep genProGuardConfig=new GenProGuardConfigStep(getAndroidManifestXml(),resDirectories,generatedProGuardConfig);
   commands.add(genProGuardConfig);
-  Set<String> proguardConfigs=Sets.newHashSet();
-  proguardConfigs.addAll(deps.proguardConfigs);
-  if (proguardConfig != null) {
-    proguardConfigs.add(proguardConfig);
-  }
+  ImmutableSet.Builder<String> proguardConfigsBuilder=ImmutableSet.builder();
+  proguardConfigsBuilder.addAll(deps.proguardConfigs);
+  Optionals.addIfPresent(proguardConfig,proguardConfigsBuilder);
   ImmutableMap.Builder<String,String> inputOutputEntriesBuilder=ImmutableMap.builder();
   for (  String classpathEntry : classpathEntries) {
     inputOutputEntriesBuilder.put(classpathEntry,getProguardOutputFromInputClasspath(classpathEntry));
   }
-  final Map<String,String> inputOutputEntries=inputOutputEntriesBuilder.build();
-  ProGuardObfuscateStep obfuscateCommand=new ProGuardObfuscateStep(generatedProGuardConfig,proguardConfigs,useAndroidProguardConfigWithOptimizations,inputOutputEntries,additionalLibraryJarsForProguard,proguardDirectory);
+  final ImmutableMap<String,String> inputOutputEntries=inputOutputEntriesBuilder.build();
+  ProGuardObfuscateStep obfuscateCommand=new ProGuardObfuscateStep(generatedProGuardConfig,proguardConfigsBuilder.build(),useAndroidProguardConfigWithOptimizations,inputOutputEntriesBuilder.build(),additionalLibraryJarsForProguardBuilder.build(),proguardDirectory);
   commands.add(obfuscateCommand);
   deps.applyClasspathTransformation(new AndroidTransitiveDependencies.InputTransformation(){
     @Override public String apply(    String originalClasspath){
