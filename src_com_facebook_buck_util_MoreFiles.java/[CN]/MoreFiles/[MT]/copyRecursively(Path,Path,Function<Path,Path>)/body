@@ -1,0 +1,21 @@
+{
+  SimpleFileVisitor<Path> copyDirVisitor=new SimpleFileVisitor<Path>(){
+    @Override public FileVisitResult preVisitDirectory(    Path dir,    BasicFileAttributes attrs) throws IOException {
+      Path targetPath=toPath.resolve(fromPath.relativize(dir));
+      if (!java.nio.file.Files.exists(targetPath)) {
+        java.nio.file.Files.createDirectory(targetPath);
+      }
+      return FileVisitResult.CONTINUE;
+    }
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs) throws IOException {
+      Path destPath=toPath.resolve(fromPath.relativize(file));
+      Path transformedDestPath=transform.apply(destPath);
+      if (transformedDestPath != null) {
+        java.nio.file.Files.copy(file,transformedDestPath,StandardCopyOption.REPLACE_EXISTING);
+      }
+      return FileVisitResult.CONTINUE;
+    }
+  }
+;
+  java.nio.file.Files.walkFileTree(fromPath,copyDirVisitor);
+}

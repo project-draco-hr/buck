@@ -1,0 +1,21 @@
+{
+  SimpleFileVisitor<Path> copyDirVisitor=new SimpleFileVisitor<Path>(){
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs) throws IOException {
+      String fileName=file.getFileName().toString();
+      if (fileName.endsWith(EXPECTED_SUFFIX)) {
+        Path generatedFileWithSuffix=destPath.resolve(templatePath.relativize(file));
+        File directory=generatedFileWithSuffix.getParent().toFile();
+        File observedFile=new File(directory,Files.getNameWithoutExtension(fileName));
+        if (!observedFile.isFile()) {
+          fail("Expected file " + observedFile + " could not be found.");
+        }
+        String expectedFileContent=Files.toString(file.toFile(),Charsets.UTF_8);
+        String observedFileContent=Files.toString(observedFile,Charsets.UTF_8);
+        assertEquals(String.format("Expected content of %s to match that of %s.",expectedFileContent,observedFileContent),expectedFileContent,observedFileContent);
+      }
+      return FileVisitResult.CONTINUE;
+    }
+  }
+;
+  java.nio.file.Files.walkFileTree(templatePath,copyDirVisitor);
+}
