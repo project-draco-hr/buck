@@ -1,0 +1,58 @@
+{
+  super(cachingBuildRuleParams);
+  this.srcs=ImmutableSortedSet.copyOf(srcs);
+  this.resources=ImmutableSortedSet.copyOf(resources);
+  this.proguardConfig=Preconditions.checkNotNull(proguardConfig);
+  this.exportDeps=exportDeps;
+  this.javacOptions=Preconditions.checkNotNull(javacOptions);
+  if (!srcs.isEmpty() || !resources.isEmpty()) {
+    File file=new File(getOutputJarPath(getBuildTarget()));
+    this.outputJar=Optional.of(file);
+  }
+ else {
+    this.outputJar=Optional.absent();
+  }
+  inputsToConsiderForCachingPurposes=ImmutableList.<String>builder().addAll(this.srcs).addAll(this.resources).build();
+  outputClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSet<String>>(){
+    @Override public ImmutableSet<String> get(){
+      ImmutableSet<String> outputClasspathEntries;
+      if (DefaultJavaLibraryRule.this.exportDeps) {
+        outputClasspathEntries=ImmutableSet.copyOf(getTransitiveClasspathEntries().values());
+      }
+ else       if (outputJar.isPresent()) {
+        outputClasspathEntries=ImmutableSet.of(getOutput().getPath());
+      }
+ else {
+        outputClasspathEntries=ImmutableSet.of();
+      }
+      return outputClasspathEntries;
+    }
+  }
+);
+  transitiveClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<BuildRule,String>>(){
+    @Override public ImmutableSetMultimap<BuildRule,String> get(){
+      final ImmutableSetMultimap.Builder<BuildRule,String> classpathEntries=ImmutableSetMultimap.builder();
+      ImmutableSetMultimap<BuildRule,String> classpathEntriesForDeps=Classpaths.getClasspathEntries(getDeps());
+      classpathEntries.putAll(classpathEntriesForDeps);
+      if (DefaultJavaLibraryRule.this.exportDeps) {
+        classpathEntries.putAll(DefaultJavaLibraryRule.this,classpathEntriesForDeps.values());
+      }
+      if (outputJar.isPresent()) {
+        classpathEntries.putAll(DefaultJavaLibraryRule.this,getOutput().getPath());
+      }
+      return classpathEntries.build();
+    }
+  }
+);
+  declaredClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<BuildRule,String>>(){
+    @Override public ImmutableSetMultimap<BuildRule,String> get(){
+      final ImmutableSetMultimap.Builder<BuildRule,String> classpathEntries=ImmutableSetMultimap.builder();
+      Iterable<JavaLibraryRule> javaLibraryDeps=Iterables.filter(Sets.union(getDeps(),ImmutableSet.of(DefaultJavaLibraryRule.this)),JavaLibraryRule.class);
+      for (      JavaLibraryRule rule : javaLibraryDeps) {
+        classpathEntries.putAll(rule,rule.getOutputClasspathEntries());
+      }
+      return classpathEntries.build();
+    }
+  }
+);
+}

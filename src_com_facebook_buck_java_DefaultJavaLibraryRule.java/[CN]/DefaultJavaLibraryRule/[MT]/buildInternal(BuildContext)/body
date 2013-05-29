@@ -1,6 +1,10 @@
 {
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
   BuildTarget buildTarget=getBuildTarget();
+  JavacOptions javacOptions=this.javacOptions;
+  if (isAndroidRule()) {
+    javacOptions=JavacOptions.builder(this.javacOptions).setBootclasspath(context.getAndroidBootclasspathSupplier().get()).build();
+  }
   androidResourceDeps=UberRDotJavaUtil.getAndroidResourceDeps(this,context.getDependencyGraph());
   boolean dependsOnAndroidResourceRules=!androidResourceDeps.isEmpty();
   if (dependsOnAndroidResourceRules) {
@@ -19,14 +23,7 @@
     declaredClasspathEntries=declaredClasspathEntriesWithRDotJava.build();
     transitiveClasspathEntries=transitiveClasspathEntriesWithRDotJava.build();
   }
-  Supplier<String> bootclasspathSupplier;
-  if (isAndroidRule()) {
-    bootclasspathSupplier=context.getAndroidBootclasspathSupplier();
-  }
- else {
-    bootclasspathSupplier=Suppliers.ofInstance(null);
-  }
-  String annotationGenFolder=annotationProcessingParams.getGeneratedSourceFolderName();
+  String annotationGenFolder=javacOptions.getAnnotationProcessingData().getGeneratedSourceFolderName();
   if (annotationGenFolder != null) {
     MakeCleanDirectoryStep mkdirGeneratedSources=new MakeCleanDirectoryStep(annotationGenFolder);
     commands.add(mkdirGeneratedSources);
@@ -34,7 +31,7 @@
   String outputDirectory=getClassesDir(getBuildTarget());
   commands.add(new MakeCleanDirectoryStep(outputDirectory));
   Optional<DependencyCheckingJavacStep.SuggestBuildRules> suggestBuildRule=createSuggestBuildFunction(context,transitiveClasspathEntries,declaredClasspathEntries,JAR_RESOLVER);
-  List<Step> javac=createCommandsForJavac(outputDirectory,srcs,ImmutableSet.copyOf(transitiveClasspathEntries.values()),ImmutableSet.copyOf(declaredClasspathEntries.values()),bootclasspathSupplier,annotationProcessingParams,Optional.of(getFullyQualifiedName()),context.getBuildDependencies(),suggestBuildRule,sourceLevel,targetLevel);
+  List<Step> javac=createCommandsForJavac(outputDirectory,srcs,ImmutableSet.copyOf(transitiveClasspathEntries.values()),ImmutableSet.copyOf(declaredClasspathEntries.values()),javacOptions,Optional.of(getFullyQualifiedName()),context.getBuildDependencies(),suggestBuildRule);
   commands.addAll(javac);
   addResourceCommands(commands,outputDirectory,context.getJavaPackageFinder());
   if (outputJar.isPresent()) {
