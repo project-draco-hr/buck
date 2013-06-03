@@ -1,18 +1,9 @@
 {
-  Builder result=new Builder(rule.getFullyQualifiedName()).set("buck.type",rule.getType().getName());
-  if (rule.isPackagingRule()) {
-    final ImmutableSortedSet.Builder<BuildRule> transitiveDeps=ImmutableSortedSet.naturalOrder();
-    (new AbstractDependencyVisitor(rule,true){
-      @Override public boolean visit(      BuildRule dep){
-        transitiveDeps.add(dep);
-        return true;
-      }
-    }
-).start();
-    result.set("deps",transitiveDeps.build());
+  Builder builder=new Builder().set("name",rule.getFullyQualifiedName()).set("buck.type",rule.getType().getName());
+  builder.setKey("deps");
+  for (  BuildRule buildRule : rule.getDeps()) {
+    builder.setVal(buildRule.getRuleKey());
   }
- else {
-    result.setOnInputs("deps",rule.getDeps());
-  }
-  return result;
+  builder.separate();
+  return builder;
 }
