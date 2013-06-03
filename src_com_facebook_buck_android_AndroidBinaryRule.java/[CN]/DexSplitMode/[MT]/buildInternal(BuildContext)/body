@@ -3,7 +3,6 @@
   ImmutableMap.Builder<String,File> extraAssetsBuilder=ImmutableMap.builder();
   commands.add(new MkdirAndSymlinkFileStep(getManifest(),getAndroidManifestXml()));
   final AndroidTransitiveDependencies transitiveDependencies=findTransitiveDependencies(context.getDependencyGraph());
-  boolean resourcesCached=false;
   Set<String> resDirectories=transitiveDependencies.resDirectories;
   Set<String> rDotJavaPackages=transitiveDependencies.rDotJavaPackages;
   Optional<String> resourceFilter=getResourceFilter();
@@ -71,16 +70,7 @@
     assetsDirectory=Optional.of(getPathToAllAssetsDirectory());
   }
   commands.add(new MkdirStep(outputGenDirectory));
-  boolean canSkipAapt=resourcesCached;
-  if (canSkipAapt) {
-    try {
-      canSkipAapt=ruleInputsCached(context,logger);
-    }
- catch (    IOException e) {
-      canSkipAapt=false;
-    }
-  }
-  if (!canSkipAapt) {
+  if (!canSkipAaptResourcePackaging()) {
     AaptStep aaptCommand=new AaptStep(getAndroidManifestXml(),resDirectories,assetsDirectory,resourceApkPath,ImmutableSet.of(extractedResourcesDir),packageType.isCrunchPngFiles());
     commands.add(aaptCommand);
   }
