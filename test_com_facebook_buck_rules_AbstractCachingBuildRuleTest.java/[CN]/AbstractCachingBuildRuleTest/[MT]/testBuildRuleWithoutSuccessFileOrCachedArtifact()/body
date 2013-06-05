@@ -1,0 +1,46 @@
+{
+  BuildRule dep=createMock(BuildRule.class);
+  expect(dep.isVisibleTo(buildTarget)).andReturn(true);
+  @SuppressWarnings("unchecked") ImmutableSet<BuildTargetPattern> visibilityPatterns=createMock(ImmutableSet.class);
+  ArtifactCache artifactCache=createMock(ArtifactCache.class);
+  replayAll();
+  File output=new File("some_file");
+  List<Step> buildSteps=Lists.newArrayList();
+  AbstractCachingBuildRule cachingRule=createRule(ImmutableSet.of(dep),visibilityPatterns,ImmutableList.<InputRule>of(new InputRule("/dev/null"){
+    @Override public RuleKey getRuleKey(){
+      return new RuleKey("ae8c0f860a0ecad94ecede79b69460434eddbfbc");
+    }
+  }
+),buildSteps,Optional.<RuleKey>absent(),output,artifactCache);
+  verifyAll();
+  resetAll();
+  String expectedRuleKeyHash=Hashing.sha1().newHasher().putBytes(RuleKey.Builder.buckVersionUID.getBytes()).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).putBytes("name".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putBytes(cachingRule.getFullyQualifiedName().getBytes()).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).putBytes("buck.type".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putBytes("java_library".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).putBytes("deps".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putBytes("19d2558a6bd3a34fb3f95412de9da27ed32fe208".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).putBytes("buck.inputs".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putBytes("ae8c0f860a0ecad94ecede79b69460434eddbfbc".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).hash().toString();
+  EventBus eventBus=createMock(EventBus.class);
+  eventBus.post(BuildEvents.started(cachingRule));
+  eventBus.post(BuildEvents.finished(cachingRule,BuildRuleStatus.SUCCESS,CacheResult.MISS));
+  BuildContext context=createMock(BuildContext.class);
+  expect(context.getExecutor()).andReturn(MoreExecutors.sameThreadExecutor());
+  expect(context.getEventBus()).andReturn(eventBus).times(2);
+  StepRunner stepRunner=createMock(StepRunner.class);
+  expect(context.getCommandRunner()).andReturn(stepRunner);
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  expect(context.getProjectFilesystem()).andReturn(projectFilesystem).times(2);
+  String pathToSuccessFile=cachingRule.getPathToSuccessFile();
+  projectFilesystem.createParentDirs(new File(pathToSuccessFile));
+  Capture<Iterable<String>> linesCapture=new Capture<Iterable<String>>();
+  projectFilesystem.writeLinesToPath(capture(linesCapture),eq(pathToSuccessFile));
+  RuleKey expectedRuleKey=new RuleKey(expectedRuleKeyHash);
+  expect(artifactCache.fetch(expectedRuleKey,output)).andReturn(false);
+  artifactCache.store(expectedRuleKey,output);
+  expect(dep.build(context)).andReturn(Futures.immediateFuture(new BuildRuleSuccess(dep,false)));
+  expect(dep.getRuleKey()).andReturn(new RuleKey("19d2558a6bd3a34fb3f95412de9da27ed32fe208"));
+  Step buildStep=createMock(Step.class);
+  buildSteps.add(buildStep);
+  stepRunner.runStepForBuildTarget(buildStep,buildTarget);
+  replayAll();
+  BuildRuleSuccess result=cachingRule.build(context).get();
+  assertFalse(result.isFromBuildCache());
+  verifyAll();
+  String firstLineInSuccessFile=Iterables.getFirst(linesCapture.getValue(),null);
+  assertEquals(expectedRuleKeyHash,firstLineInSuccessFile);
+}

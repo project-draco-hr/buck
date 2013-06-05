@@ -1,0 +1,41 @@
+{
+  RuleKey ruleKey;
+  if (canSkipRebuildIfInterfacesOfDepsAreUnchanged()) {
+    ruleKey=null;
+  }
+ else {
+    ruleKey=getRuleKey();
+    Optional<RuleKey> cachedRuleKey=getRuleKeyOnDisk(context.getProjectFilesystem());
+    if (cachedRuleKey.isPresent() && ruleKey.equals(cachedRuleKey.get())) {
+      logger.info(String.format("[UNCHANGED %s]",getFullyQualifiedName()));
+      buildRuleResult.set(new BuildRuleSuccess(this,false));
+      return;
+    }
+  }
+  Preconditions.checkNotNull(ruleKey,"ruleKey must be set by the preceding codepath.");
+  context.getEventBus().post(BuildEvents.started(this));
+  File output=getOutput();
+  boolean fromCache=(output != null && artifactCache.fetch(getRuleKey(),output));
+  CacheResult cacheResult=fromCache ? CacheResult.HIT : CacheResult.MISS;
+  if (!fromCache) {
+    try {
+      executeCommandsNowThatDepsAreBuilt(context);
+    }
+ catch (    IOException|StepFailedException e) {
+      buildRuleResult.setException(e);
+      BuildEvents.finished(this,BuildRuleStatus.FAIL,cacheResult);
+      return;
+    }
+  }
+  try {
+    recordBuildRuleCompleted(context.getProjectFilesystem(),fromCache);
+  }
+ catch (  IOException e) {
+    buildRuleResult.setException(e);
+    BuildEvents.finished(this,BuildRuleStatus.FAIL,cacheResult);
+    return;
+  }
+  buildRuleResult.set(new BuildRuleSuccess(this,fromCache));
+  context.getEventBus().post(BuildEvents.finished(this,BuildRuleStatus.SUCCESS,cacheResult));
+  return;
+}
