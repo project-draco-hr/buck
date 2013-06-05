@@ -8,8 +8,7 @@
   module.isIntelliJPlugin=projectConfig.getIsIntelliJPlugin();
   String relativePath=projectConfig.getBuildTarget().getBasePathWithSlash();
   module.pathToImlFile=String.format("%s%s.iml",relativePath,module.name);
-  DependentModule sourceFolderModule=DependentModule.newSourceFolder();
-  dependencies.add(sourceFolderModule);
+  boolean includeSourceFolder=true;
   boolean hasSourceFoldersForTestRule=addSourceFolders(module,projectConfig.getTestRule(),projectConfig.getTestsSourceRoots(),true);
   BuildRule testRule=projectConfig.getTestRule();
   if (testRule != null) {
@@ -17,19 +16,20 @@
   }
   boolean hasSourceFoldersForSrcRule=addSourceFolders(module,projectConfig.getSrcRule(),projectConfig.getSourceRoots(),false);
   if (!hasSourceFoldersForTestRule && !hasSourceFoldersForSrcRule) {
-    dependencies.remove(sourceFolderModule);
+    includeSourceFolder=false;
   }
   boolean isAndroidRule=projectRule.isAndroidRule();
   if (isAndroidRule) {
     boolean hasSourceFolders=!module.sourceFolders.isEmpty();
     module.sourceFolders.add(SourceFolder.GEN);
     if (!hasSourceFolders) {
-      dependencies.add(DependentModule.newSourceFolder());
+      includeSourceFolder=true;
     }
   }
   walkRuleAndAdd(projectRule,false,dependencies,projectConfig.getSrcRule());
   String basePathWithSlash=projectConfig.getBuildTarget().getBasePathWithSlash();
   module.moduleGenPath=generateRelativeGenPath(basePathWithSlash);
+  DependentModule jdkDependency;
   if (isAndroidRule) {
     if (projectRule instanceof NdkLibraryRule) {
       NdkLibraryRule ndkLibraryRule=(NdkLibraryRule)projectRule;
@@ -69,18 +69,18 @@
         module.androidManifest="/" + relativePathToManifest;
       }
     }
-    dependencies.add(DependentModule.newInheritedJdk());
+    jdkDependency=DependentModule.newInheritedJdk();
   }
  else {
     module.hasAndroidFacet=false;
     if (module.isIntelliJPlugin()) {
-      dependencies.add(DependentModule.newIntelliJPluginJdk());
+      jdkDependency=DependentModule.newIntelliJPluginJdk();
     }
  else {
-      dependencies.add(DependentModule.newStandardJdk());
+      jdkDependency=DependentModule.newStandardJdk();
     }
   }
-  module.dependencies=Lists.newArrayList(dependencies);
+  module.dependencies=createDependenciesInOrder(includeSourceFolder,dependencies,jdkDependency);
   if (projectRule instanceof JavaLibraryRule) {
     JavaLibraryRule javaLibraryRule=(JavaLibraryRule)projectRule;
     AnnotationProcessingData processingData=javaLibraryRule.getAnnotationProcessingData();
