@@ -2,11 +2,9 @@
   String nonExistentBuildTarget="//testdata/com/facebook/feed:util";
   Map<String,Object> rawRule=ImmutableMap.<String,Object>of("type","java_library","name","feed","deps",ImmutableList.of(nonExistentBuildTarget),"buck_base_path","testdata/com/facebook/feed/model");
   List<Map<String,Object>> ruleObjects=ImmutableList.of(rawRule);
-  File projectDirectoryRoot=new File(".");
-  ProjectFilesystem filesystem=new ProjectFilesystem(projectDirectoryRoot);
-  Parser parser=new Parser(filesystem,buildRuleTypes,new BuildFileTree(ImmutableSet.<BuildTarget>of()));
-  RawRulePredicate predicate=RawRulePredicates.alwaysTrue();
-  List<BuildTarget> targets=parser.parseRawRules(ruleObjects,predicate);
+  Parser parser=new Parser(new ProjectFilesystem(new File(".")),new KnownBuildRuleTypes());
+  RawRulePredicate predicate=alwaysTrue();
+  List<BuildTarget> targets=parser.parseRawRulesInternal(ruleObjects,predicate,null);
   BuildTarget expectedBuildTarget=new BuildTarget(new File("./testdata/com/facebook/feed/model/" + BuckConstant.BUILD_RULES_FILE_NAME),"//testdata/com/facebook/feed/model","feed");
   assertEquals(ImmutableList.of(expectedBuildTarget),targets);
   try {
@@ -14,6 +12,6 @@
     fail("Should have thrown a HumanReadableException.");
   }
  catch (  HumanReadableException e) {
-    assertEquals(String.format("No such build target: %s.",nonExistentBuildTarget),e.getHumanReadableErrorMessage());
+    assertEquals(String.format("No rule found when resolving target %s in build file " + "//testdata/com/facebook/feed/BUCK",nonExistentBuildTarget),e.getHumanReadableErrorMessage());
   }
 }

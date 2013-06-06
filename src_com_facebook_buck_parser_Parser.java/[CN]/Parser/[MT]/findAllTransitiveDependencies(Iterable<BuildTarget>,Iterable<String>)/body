@@ -4,15 +4,15 @@
   AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget>(){
     @Override protected Iterator<BuildTarget> findChildren(    BuildTarget buildTarget){
       ParseContext parseContext=ParseContext.forBaseName(buildTarget.getBaseName());
-      if (!knownBuildTargets.containsKey(buildTarget.getFullyQualifiedName())) {
+      if (!knownBuildTargets.containsKey(buildTarget)) {
         throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTarget,parseContext));
       }
-      BuildRuleBuilder buildRuleBuilder=knownBuildTargets.get(buildTarget.getFullyQualifiedName());
+      BuildRuleBuilder buildRuleBuilder=knownBuildTargets.get(buildTarget);
       Set<BuildTarget> deps=Sets.newHashSet();
       for (      String dep : buildRuleBuilder.getDeps()) {
         try {
           BuildTarget buildTargetForDep=buildTargetParser.parse(dep,parseContext);
-          if (!knownBuildTargets.containsKey(buildTargetForDep.getFullyQualifiedName())) {
+          if (!knownBuildTargets.containsKey(buildTargetForDep)) {
             parseBuildFileContainingTarget(buildTargetForDep,defaultIncludes);
           }
           deps.add(buildTargetForDep);
@@ -27,8 +27,7 @@ catch (        IOException e) {
       return deps.iterator();
     }
     @Override protected void onNodeExplored(    BuildTarget buildTarget){
-      String fullyQualifiedName=buildTarget.getFullyQualifiedName();
-      BuildRuleBuilder builderForTarget=knownBuildTargets.get(fullyQualifiedName);
+      BuildRuleBuilder builderForTarget=knownBuildTargets.get(buildTarget);
       BuildRule buildRule=builderForTarget.build(buildRuleIndex);
       if (buildRule.getDeps().isEmpty()) {
         graph.addNode(buildRule);
@@ -38,7 +37,7 @@ catch (        IOException e) {
           graph.addEdge(buildRule,dep);
         }
       }
-      buildRuleIndex.put(fullyQualifiedName,buildRule);
+      buildRuleIndex.put(buildTarget.getFullyQualifiedName(),buildRule);
     }
     @Override protected void onTraversalComplete(    Iterable<BuildTarget> nodesInExplorationOrder){
     }

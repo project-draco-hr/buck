@@ -1,22 +1,8 @@
 {
   Verbosity verbosity=options.getVerbosity();
   Logging.setLoggingLevelForVerbosity(verbosity);
-  if (isDaemon) {
-    if (filesystemWatcher == null) {
-      fileChangeEventBus=new EventBus("file-change-events");
-      filesystemWatcher=new ProjectFilesystemWatcher(getProjectFilesystem(),fileChangeEventBus,options.getBuckConfig().getIgnoredDirectories(),FileSystems.getDefault().newWatchService());
-      fileChangeEventBus.register(this);
-    }
- else {
-      filesystemWatcher.postEvents();
-    }
-  }
-  if (buildFiles == null) {
-    buildFiles=BuildFileTree.constructBuildFileTree(getProjectFilesystem());
-    parser=new Parser(getProjectFilesystem(),getBuildRuleTypes(),buildFiles);
-  }
   try {
-    buildTargets=getBuildTargets(parser,options.getArgumentsFormattedAsBuildTargets());
+    buildTargets=getBuildTargets(options.getArgumentsFormattedAsBuildTargets());
   }
  catch (  NoSuchBuildTargetException e) {
     console.printFailureWithoutStacktrace(e);
@@ -28,7 +14,7 @@
   }
   DependencyGraph dependencyGraph;
   try {
-    dependencyGraph=parser.parseBuildFilesForTargets(buildTargets,options.getDefaultIncludes());
+    dependencyGraph=getParser().parseBuildFilesForTargets(buildTargets,options.getDefaultIncludes());
   }
  catch (  NoSuchBuildTargetException e) {
     console.printFailureWithoutStacktrace(e);

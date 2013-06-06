@@ -3,14 +3,23 @@
     return usage();
   }
   ProjectFilesystem projectFilesystem=new ProjectFilesystem(projectRoot);
-  BuckConfig buckConfig=createBuckConfig(projectFilesystem);
+  BuckConfig config=createBuckConfig(projectFilesystem);
+  Console console=new Console(stdOut,stdErr,config.getAnsi());
+  KnownBuildRuleTypes knownBuildRuleTypes=new KnownBuildRuleTypes();
+  Parser parser;
+  if (isDaemon()) {
+    Daemon daemon=getDaemon(projectFilesystem,config);
+    daemon.watchFileSystem();
+    parser=daemon.getParser();
+  }
+ else {
+    parser=new Parser(projectFilesystem,knownBuildRuleTypes);
+  }
   Optional<Command> command=Command.getCommandForName(args[0]);
   if (command.isPresent()) {
     String[] remainingArgs=new String[args.length - 1];
     System.arraycopy(args,1,remainingArgs,0,remainingArgs.length);
-    Console console=new Console(stdOut,stdErr,buckConfig.getAnsi());
-    CommandRunnerParams params=new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),buckConfig.getArtifactCache());
-    return command.get().execute(remainingArgs,buckConfig,params);
+    return command.get().execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),config.getArtifactCache(),parser));
   }
  else {
     int exitCode=new GenericBuckOptions(stdOut,stdErr).execute(args);

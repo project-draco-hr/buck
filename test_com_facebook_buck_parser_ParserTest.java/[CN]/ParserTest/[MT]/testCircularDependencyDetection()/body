@@ -1,16 +1,15 @@
 {
-  ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
-  EasyMock.expect(projectFilesystem.getProjectRoot()).andReturn(new File("."));
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  expect(projectFilesystem.getProjectRoot()).andReturn(new File("."));
   BuildTargetParser buildTargetParser=new BuildTargetParser(projectFilesystem){
     @Override public BuildTarget parse(    String buildTargetName,    ParseContext parseContext) throws NoSuchBuildTargetException {
       return BuildTargetFactory.newInstance(buildTargetName);
     }
   }
 ;
-  BuildFileTree buildFiles=EasyMock.createMock(BuildFileTree.class);
-  EasyMock.replay(projectFilesystem,buildFiles);
-  Map<String,BuildRuleBuilder> knownBuildTargets=createKnownBuildTargets();
-  Parser parser=new Parser(projectFilesystem,buildRuleTypes,buildFiles,buildTargetParser,knownBuildTargets);
+  BuildFileTree buildFiles=createMock(BuildFileTree.class);
+  replay(projectFilesystem,buildFiles);
+  Parser parser=new Parser(projectFilesystem,buildRuleTypes,buildFiles,buildTargetParser,circularBuildTargets(),buildFileParser);
   BuildTarget rootNode=BuildTargetFactory.newInstance("//:A");
   Iterable<BuildTarget> buildTargets=ImmutableSet.of(rootNode);
   Iterable<String> defaultIncludes=ImmutableList.of();
@@ -21,5 +20,5 @@
  catch (  HumanReadableException e) {
     assertEquals("Cycle found: //:C -> //:E -> //:F -> //:C",e.getMessage());
   }
-  EasyMock.verify(projectFilesystem,buildFiles);
+  verify(projectFilesystem,buildFiles);
 }
