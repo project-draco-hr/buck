@@ -2,16 +2,17 @@
   Preconditions.checkNotNull(readers);
   Ini ini=new Ini();
   for (  Reader reader : readers) {
-    ini.load(reader);
-  }
+    try (Reader r=reader){
+      String iniString=CharStreams.toString(r);
+      validateReader(new StringReader(iniString));
+      ini.load(new StringReader(iniString));
+    }
+   }
   Map<String,Map<String,String>> sectionsToEntries=Maps.newHashMap();
   for (  String sectionName : ini.keySet()) {
     ImmutableMap.Builder<String,String> builder=ImmutableMap.builder();
     Section section=ini.get(sectionName);
     for (    String propertyName : section.keySet()) {
-      if (section.getAll(propertyName).size() > 1) {
-        throw new HumanReadableException("Duplicate definition for %s in [%s].",propertyName,sectionName);
-      }
       String propertyValue=section.get(propertyName);
       builder.put(propertyName,propertyValue);
     }

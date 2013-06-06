@@ -1,0 +1,33 @@
+{
+  String cacheMode=getValue("cache","mode").or("");
+  if (cacheMode.isEmpty()) {
+    return new NoopArtifactCache();
+  }
+  ImmutableList.Builder<ArtifactCache> builder=ImmutableList.builder();
+  Iterable<String> modes=Splitter.on(',').trimResults().split(cacheMode);
+  try {
+    for (    String mode : modes) {
+switch (ArtifactCacheNames.valueOf(mode)) {
+case dir:
+        builder.add(createDirArtifactCache());
+      break;
+case cassandra:
+    ArtifactCache cassandraArtifactCache=createCassandraArtifactCache(console);
+  if (cassandraArtifactCache != null) {
+    builder.add(cassandraArtifactCache);
+  }
+break;
+}
+}
+}
+ catch (IllegalArgumentException e) {
+throw new HumanReadableException("Unusable cache.mode: '%s'",cacheMode);
+}
+ImmutableList<ArtifactCache> artifactCaches=builder.build();
+if (artifactCaches.size() == 1) {
+return artifactCaches.get(0);
+}
+ else {
+return new MultiArtifactCache(artifactCaches);
+}
+}
