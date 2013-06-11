@@ -1,7 +1,8 @@
 {
-  JUnitCore testRunner=new JUnitCore();
+  RunnerBuilder runnerBuilder=createRunnerBuilder();
+  final JUnitCore jUnit3TestRunner=new JUnitCore();
   for (  String className : testClassNames) {
-    Class<?> testClass=Class.forName(className);
+    final Class<?> testClass=Class.forName(className);
     Ignore ignore=testClass.getAnnotation(Ignore.class);
     boolean isTestClassIgnored=ignore != null;
     List<TestResult> results;
@@ -11,19 +12,40 @@
  else {
       results=new ArrayList<TestResult>();
       Method[] publicInstanceMethods=testClass.getMethods();
-      for (      Method method : publicInstanceMethods) {
-        if (isTestMethod(method)) {
-          PrintStream stderr=System.err;
-          if (shouldPrintOutWhenTestsStartAndStop) {
-            stderr.printf("START TEST %s#%s\n",testClass.getName(),method.getName());
-            stderr.flush();
+      for (      final Method method : publicInstanceMethods) {
+        if (!isTestMethod(method)) {
+          continue;
+        }
+        PrintStream stderr=System.err;
+        if (shouldPrintOutWhenTestsStartAndStop) {
+          stderr.printf("START TEST %s#%s\n",method.getDeclaringClass(),method.getName());
+          stderr.flush();
+        }
+        Runner runner=runnerBuilder.runnerForClass(testClass);
+        Callable<Result> runTestAndProduceJUnitResult;
+        if (runner instanceof BuckBlockJUnit4ClassRunner) {
+          final BuckBlockJUnit4ClassRunner jUnit4Runner=(BuckBlockJUnit4ClassRunner)runner;
+          runTestAndProduceJUnitResult=new Callable<Result>(){
+            @Override public Result call() throws NoTestsRemainException {
+              return jUnit4Runner.runTest(method);
+            }
           }
-          TestResult result=TestResult.runTestMethod(testClass,method.getName(),testRunner);
-          results.add(result);
-          if (shouldPrintOutWhenTestsStartAndStop) {
-            stderr.printf("STOP TEST %s#%s\n",testClass.getName(),method.getName());
-            stderr.flush();
+;
+        }
+ else {
+          runTestAndProduceJUnitResult=new Callable<Result>(){
+            @Override public Result call(){
+              Request request=Request.method(testClass,method.getName());
+              return jUnit3TestRunner.run(request);
+            }
           }
+;
+        }
+        TestResult testResult=TestResult.runTestMethod(runTestAndProduceJUnitResult,method);
+        results.add(testResult);
+        if (shouldPrintOutWhenTestsStartAndStop) {
+          stderr.printf("STOP TEST %s#%s\n",method.getDeclaringClass(),method.getName());
+          stderr.flush();
         }
       }
     }
