@@ -1,0 +1,26 @@
+{
+  ProjectFilesystem filesystem=context.getProjectFilesystem();
+  for (  String drawable : drawableFinder.findDrawables(getFilteredResourceDirectories())) {
+    File drawableFile=filesystem.getFileForRelativePath(drawable);
+    if (drawable.endsWith(".9.png")) {
+      continue;
+    }
+    Filters.Qualifiers qualifiers=new Filters.Qualifiers(drawableFile);
+    if (!qualifiers.density.equals(this.resourceFilter) && !qualifiers.density.isEmpty()) {
+      String destination=drawable.replaceFirst("((?:^|/)drawable[^/]*-)" + Pattern.quote(qualifiers.density) + "(-|$|/)","$1" + resourceFilter + "$2");
+      double factor=DPI_VALUES.get(resourceFilter) / (DPI_VALUES.get(qualifiers.density));
+      if (factor > 1.0) {
+        continue;
+      }
+      filesystem.createParentDirs(destination);
+      imageScaler.scale(factor,drawable,destination,context);
+      if (!filesystem.deleteFileAtPath(drawable)) {
+        throw new HumanReadableException("Cannot delete file: " + drawable);
+      }
+      String parent=drawableFile.getParent();
+      if (filesystem.listFiles(parent).length == 0 && !filesystem.deleteFileAtPath(parent)) {
+        throw new HumanReadableException("Cannot delete directory: " + parent);
+      }
+    }
+  }
+}
