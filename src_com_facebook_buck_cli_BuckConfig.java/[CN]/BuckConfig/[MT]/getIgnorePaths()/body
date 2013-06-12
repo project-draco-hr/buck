@@ -1,0 +1,23 @@
+{
+  final ImmutableMap<String,String> projectConfig=getEntriesForSection("project");
+  final String IGNORE_KEY="ignore";
+  ImmutableSet.Builder<String> builder=ImmutableSet.builder();
+  builder.add(BuckConstant.BUCK_OUTPUT_DIRECTORY);
+  builder.add(".idea");
+  String buckdDir=System.getProperty(BUCK_BUCKD_DIR_KEY,".buckd");
+  String cacheDir=getCacheDir();
+  for (  String path : ImmutableList.of(buckdDir,cacheDir)) {
+    if (!path.isEmpty() && path.charAt(0) != '/') {
+      builder.add(path);
+    }
+  }
+  if (projectConfig.containsKey(IGNORE_KEY)) {
+    builder.addAll(Splitter.on(',').omitEmptyStrings().trimResults().split(projectConfig.get(IGNORE_KEY)));
+  }
+  return ImmutableSet.<String>builder().addAll(Iterables.transform(builder.build(),new Function<String,String>(){
+    @Override public String apply(    String path){
+      return new File(path).getPath();
+    }
+  }
+)).build();
+}
