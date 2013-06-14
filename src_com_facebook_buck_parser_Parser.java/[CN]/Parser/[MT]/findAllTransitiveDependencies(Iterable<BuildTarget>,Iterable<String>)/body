@@ -1,5 +1,5 @@
 {
-  final Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  final BuildRuleBuilderParams buildRuleBuilderParams=new BuildRuleBuilderParams();
   final MutableDirectedGraph<BuildRule> graph=new MutableDirectedGraph<BuildRule>();
   AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget>(){
     @Override protected Iterator<BuildTarget> findChildren(    BuildTarget buildTarget){
@@ -7,7 +7,7 @@
       if (!knownBuildTargets.containsKey(buildTarget)) {
         throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTarget,parseContext));
       }
-      BuildRuleBuilder buildRuleBuilder=knownBuildTargets.get(buildTarget);
+      BuildRuleBuilder<?> buildRuleBuilder=knownBuildTargets.get(buildTarget);
       Set<BuildTarget> deps=Sets.newHashSet();
       for (      String dep : buildRuleBuilder.getDeps()) {
         try {
@@ -27,8 +27,8 @@ catch (        IOException e) {
       return deps.iterator();
     }
     @Override protected void onNodeExplored(    BuildTarget buildTarget){
-      BuildRuleBuilder builderForTarget=knownBuildTargets.get(buildTarget);
-      BuildRule buildRule=builderForTarget.build(buildRuleIndex);
+      BuildRuleBuilder<?> builderForTarget=knownBuildTargets.get(buildTarget);
+      BuildRule buildRule=buildRuleBuilderParams.buildAndAddToIndex(builderForTarget);
       if (buildRule.getDeps().isEmpty()) {
         graph.addNode(buildRule);
       }
@@ -37,7 +37,6 @@ catch (        IOException e) {
           graph.addEdge(buildRule,dep);
         }
       }
-      buildRuleIndex.put(buildTarget.getFullyQualifiedName(),buildRule);
     }
     @Override protected void onTraversalComplete(    Iterable<BuildTarget> nodesInExplorationOrder){
     }

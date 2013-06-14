@@ -1,6 +1,6 @@
 {
-  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
-  createSampleAndroidBinaryRule(buildRuleIndex);
+  BuildRuleBuilderParams buildRuleBuilderParams=new BuildRuleBuilderParams();
+  createSampleAndroidBinaryRule(buildRuleBuilderParams);
   Map<String,?> instance=new ImmutableMap.Builder<String,Object>().put("name","fb4a_signed").put("srcs",ImmutableList.<String>of("signer.py","key.properties")).put("cmd","python signer.py $APK key.properties > $OUT").put("apk",":fb4a").put("out","signed_fb4a.apk").put("deps",ImmutableList.<Object>of()).build();
   BuildTargetParser parser=EasyMock.createNiceMock(BuildTargetParser.class);
   EasyMock.expect(parser.parse(EasyMock.eq(":fb4a"),EasyMock.anyObject(ParseContext.class))).andStubReturn(BuildTargetFactory.newInstance("//:fb4a"));
@@ -8,9 +8,9 @@
   BuildTarget buildTarget=BuildTargetFactory.newInstance("//src/com/facebook","sign_fb4a");
   BuildRuleFactoryParams params=NonCheckingBuildRuleFactoryParams.createNonCheckingBuildRuleFactoryParams(instance,parser,buildTarget);
   ApkGenruleBuildRuleFactory factory=new ApkGenruleBuildRuleFactory();
-  ApkGenrule.Builder builder=(ApkGenrule.Builder)factory.newInstance(params);
+  ApkGenrule.Builder builder=factory.newInstance(params);
   builder.setRelativeToAbsolutePathFunction(relativeToAbsolutePathFunction);
-  ApkGenrule apk_genrule=builder.build(buildRuleIndex);
+  ApkGenrule apk_genrule=(ApkGenrule)buildRuleBuilderParams.buildAndAddToIndex(builder);
   String expectedApkOutput="/opt/local/fbandroid/" + GEN_DIR + "/src/com/facebook/sign_fb4a.apk";
   assertEquals(BuildRuleType.APK_GENRULE,apk_genrule.getType());
   assertEquals(expectedApkOutput,apk_genrule.getOutputFilePath());

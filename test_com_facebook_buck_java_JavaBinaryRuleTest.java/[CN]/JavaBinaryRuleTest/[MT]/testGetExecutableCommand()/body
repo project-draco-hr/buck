@@ -1,13 +1,9 @@
 {
-  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
-  PrebuiltJarRule prebuiltGeneratorJarRule=PrebuiltJarRule.newPrebuiltJarRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//third_party/generator:generator")).setBinaryJar(PATH_TO_GENERATOR_JAR).addVisibilityPattern(BuildTargetPattern.MATCH_ALL).build(buildRuleIndex);
-  buildRuleIndex.put(prebuiltGeneratorJarRule.getFullyQualifiedName(),prebuiltGeneratorJarRule);
-  PrebuiltJarRule prebuiltJarRule=PrebuiltJarRule.newPrebuiltJarRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//third_party/guava:guava")).setBinaryJar(PATH_TO_GUAVA_JAR).addVisibilityPattern(BuildTargetPattern.MATCH_ALL).build(buildRuleIndex);
-  buildRuleIndex.put(prebuiltJarRule.getFullyQualifiedName(),prebuiltJarRule);
-  JavaLibraryRule javaLibraryRule=DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/facebook/base:base")).addSrc("java/com/facebook/base/Base.java").addDep("//third_party/guava:guava").build(buildRuleIndex);
-  buildRuleIndex.put(javaLibraryRule.getFullyQualifiedName(),javaLibraryRule);
-  JavaBinaryRule javaBinaryRule=JavaBinaryRule.newJavaBinaryRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/facebook/base:Main")).addDep("//java/com/facebook/base:base").setMainClass("com.facebook.base.Main").build(buildRuleIndex);
-  buildRuleIndex.put(javaBinaryRule.getFullyQualifiedName(),javaBinaryRule);
+  BuildRuleBuilderParams buildRuleBuilderParams=new BuildRuleBuilderParams();
+  buildRuleBuilderParams.buildAndAddToIndex(PrebuiltJarRule.newPrebuiltJarRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//third_party/generator:generator")).setBinaryJar(PATH_TO_GENERATOR_JAR).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
+  buildRuleBuilderParams.buildAndAddToIndex(PrebuiltJarRule.newPrebuiltJarRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//third_party/guava:guava")).setBinaryJar(PATH_TO_GUAVA_JAR).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
+  JavaLibraryRule javaLibraryRule=buildRuleBuilderParams.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/facebook/base:base")).addSrc("java/com/facebook/base/Base.java").addDep("//third_party/guava:guava"));
+  JavaBinaryRule javaBinaryRule=buildRuleBuilderParams.buildAndAddToIndex(JavaBinaryRule.newJavaBinaryRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/com/facebook/base:Main")).addDep("//java/com/facebook/base:base").setMainClass("com.facebook.base.Main"));
   String basePath=new File(".").getAbsolutePath().replaceFirst("\\.$","");
   String expectedClasspath=basePath + PATH_TO_GUAVA_JAR + ":"+ basePath+ javaLibraryRule.getPathToOutputFile();
   String expectedCommand=String.format("java -classpath %s com.facebook.base.Main",expectedClasspath);

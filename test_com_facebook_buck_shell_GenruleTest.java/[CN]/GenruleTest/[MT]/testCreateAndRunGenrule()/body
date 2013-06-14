@@ -1,6 +1,6 @@
 {
-  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
-  createSampleJavaBinaryRule(buildRuleIndex);
+  BuildRuleBuilderParams buildRuleBuilderParams=new BuildRuleBuilderParams();
+  createSampleJavaBinaryRule(buildRuleBuilderParams);
   Map<String,?> instance=ImmutableMap.of("name","katana_manifest","srcs",ImmutableList.<String>of("convert_to_katana.py","AndroidManifest.xml"),"cmd","python convert_to_katana.py AndroidManifest.xml > $OUT","out","AndroidManifest.xml","deps",ImmutableList.<String>of("//java/com/facebook/util:util"));
   BuildTargetParser parser=EasyMock.createNiceMock(BuildTargetParser.class);
   EasyMock.expect(parser.parse(EasyMock.eq("//java/com/facebook/util:util"),EasyMock.anyObject(ParseContext.class))).andStubReturn(BuildTargetFactory.newInstance("//java/com/facebook/util:util"));
@@ -8,9 +8,9 @@
   BuildTarget buildTarget=BuildTargetFactory.newInstance("//src/com/facebook/katana","katana_manifest");
   BuildRuleFactoryParams params=NonCheckingBuildRuleFactoryParams.createNonCheckingBuildRuleFactoryParams(instance,parser,buildTarget);
   GenruleBuildRuleFactory factory=new GenruleBuildRuleFactory();
-  Builder builder=(Builder)factory.newInstance(params);
+  Builder builder=factory.newInstance(params);
   builder.setRelativeToAbsolutePathFunction(relativeToAbsolutePathFunction);
-  Genrule genrule=builder.build(buildRuleIndex);
+  Genrule genrule=buildRuleBuilderParams.buildAndAddToIndex(builder);
   assertEquals(BuildRuleType.GENRULE,genrule.getType());
   assertEquals("/opt/local/fbandroid/" + GEN_DIR + "/src/com/facebook/katana/AndroidManifest.xml",genrule.getOutputFilePath());
   BuildContext buildContext=null;

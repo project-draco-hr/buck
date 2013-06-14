@@ -1,14 +1,11 @@
 {
-  Map<String,BuildRule> buildRuleIndex=Maps.newHashMap();
+  BuildRuleBuilderParams buildRuleBuilderParams=new BuildRuleBuilderParams();
   BuildTarget libraryOneTarget=BuildTargetFactory.newInstance("//:libone");
-  JavaLibraryRule libraryOne=DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(libraryOneTarget).addSrc("java/src/com/libone/Bar.java").build(buildRuleIndex);
-  buildRuleIndex.put(libraryOne.getFullyQualifiedName(),libraryOne);
+  JavaLibraryRule libraryOne=buildRuleBuilderParams.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(libraryOneTarget).addSrc("java/src/com/libone/Bar.java"));
   BuildTarget libraryTwoTarget=BuildTargetFactory.newInstance("//:libtwo");
-  JavaLibraryRule libraryTwo=DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(libraryTwoTarget).addSrc("java/src/com/libtwo/Foo.java").addDep("//:libone").setExportDeps(true).build(buildRuleIndex);
-  buildRuleIndex.put(libraryTwo.getFullyQualifiedName(),libraryTwo);
+  JavaLibraryRule libraryTwo=buildRuleBuilderParams.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(libraryTwoTarget).addSrc("java/src/com/libtwo/Foo.java").addDep("//:libone").setExportDeps(true));
   BuildTarget parentTarget=BuildTargetFactory.newInstance("//:parent");
-  JavaLibraryRule parent=DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(parentTarget).addSrc("java/src/com/parent/Meh.java").addDep("//:libtwo").build(buildRuleIndex);
-  buildRuleIndex.put(parent.getFullyQualifiedName(),parent);
+  JavaLibraryRule parent=buildRuleBuilderParams.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(parentTarget).addSrc("java/src/com/parent/Meh.java").addDep("//:libtwo"));
   assertEquals(ImmutableSet.of("buck-out/gen/lib__libone__output/libone.jar"),libraryOne.getOutputClasspathEntries());
   assertEquals(ImmutableSet.of("buck-out/gen/lib__libone__output/libone.jar","buck-out/gen/lib__libtwo__output/libtwo.jar"),libraryTwo.getOutputClasspathEntries());
   ImmutableSetMultimap.Builder<BuildRule,String> expected=ImmutableSetMultimap.builder();
