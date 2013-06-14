@@ -1,18 +1,24 @@
 {
-  RuleKey ruleKey;
-  if (canSkipRebuildIfInterfacesOfDepsAreUnchanged()) {
-    ruleKey=null;
-  }
- else {
-    ruleKey=getRuleKey();
-    Optional<RuleKey> cachedRuleKey=getRuleKeyOnDisk(context.getProjectFilesystem());
-    if (cachedRuleKey.isPresent() && ruleKey.equals(cachedRuleKey.get())) {
-      logger.info(String.format("[UNCHANGED %s]",getFullyQualifiedName()));
-      buildRuleResult.set(new BuildRuleSuccess(this,BuildRuleSuccess.Type.MATCHING_RULE_KEY));
-      return;
+  if (this instanceof AbiRule) {
+    AbiRule abiRule=(AbiRule)this;
+    RuleKey ruleKeyNoDeps=abiRule.getRuleKeyWithoutDeps();
+    RuleKey cachedRuleKeyNoDeps=abiRule.getRuleKeyWithoutDepsOnDisk();
+    if (ruleKeyNoDeps != null && ruleKeyNoDeps.equals(cachedRuleKeyNoDeps)) {
+      String abiKeyForDeps=abiRule.getAbiKeyForDeps();
+      String cachedAbiKeyForDeps=abiRule.getAbiKeyForDepsOnDisk();
+      if (abiKeyForDeps != null && abiKeyForDeps.equals(cachedAbiKeyForDeps)) {
+        buildRuleResult.set(new BuildRuleSuccess(this,BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS));
+        return;
+      }
     }
   }
-  Preconditions.checkNotNull(ruleKey,"ruleKey must be set by the preceding codepath.");
+  RuleKey ruleKey=getRuleKey();
+  Optional<RuleKey> cachedRuleKey=getRuleKeyOnDisk(context.getProjectFilesystem());
+  if (cachedRuleKey.isPresent() && ruleKey.equals(cachedRuleKey.get())) {
+    logger.info(String.format("[UNCHANGED %s]",getFullyQualifiedName()));
+    buildRuleResult.set(new BuildRuleSuccess(this,BuildRuleSuccess.Type.MATCHING_RULE_KEY));
+    return;
+  }
   context.getEventBus().post(BuildEvents.started(this));
   File output=getOutput();
   boolean fromCache=(output != null && context.getArtifactCache().fetch(getRuleKey(),output));
