@@ -1,0 +1,16 @@
+{
+  for (  Map<String,Object> map : rules) {
+    BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(map);
+    BuildTarget target=parseBuildTargetFromRawRule(map,source);
+    BuildRuleFactory<?> factory=buildRuleTypes.getFactory(buildRuleType);
+    if (factory == null) {
+      throw new HumanReadableException("Unrecognized rule %s while parsing %s.",buildRuleType,target.getBuildFile());
+    }
+    BuildRuleBuilder<?> buildRuleBuilder=factory.newInstance(new BuildRuleFactoryParams(map,System.err,projectFilesystem,buildFiles,buildTargetParser,target));
+    Object existingRule=knownBuildTargets.put(target,buildRuleBuilder);
+    if (existingRule != null) {
+      throw new RuntimeException("Duplicate definition for " + target.getFullyQualifiedName());
+    }
+    parsedBuildFiles.put(target.getBuildFile(),map);
+  }
+}
