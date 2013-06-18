@@ -1,14 +1,14 @@
 {
-  BuildRuleBuilderParams buildRuleBuilderParams=new BuildRuleBuilderParams();
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
   BuildTarget libraryOneTarget=BuildTargetFactory.newInstance("//:libone");
-  DefaultJavaLibraryRule libraryOne=buildRuleBuilderParams.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(libraryOneTarget).addSrc("java/src/com/libone/Bar.java").addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
+  DefaultJavaLibraryRule libraryOne=ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(libraryOneTarget).addSrc("java/src/com/libone/Bar.java").addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
   BuildTarget libraryTwoTarget=BuildTargetFactory.newInstance("//:libtwo");
-  DefaultJavaLibraryRule libraryTwo=buildRuleBuilderParams.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(libraryTwoTarget).addSrc("java/src/com/libtwo/Foo.java").addDep(BuildTargetFactory.newInstance("//:libone")));
+  DefaultJavaLibraryRule libraryTwo=ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(libraryTwoTarget).addSrc("java/src/com/libtwo/Foo.java").addDep(BuildTargetFactory.newInstance("//:libone")));
   BuildTarget parentTarget=BuildTargetFactory.newInstance("//:parent");
-  DefaultJavaLibraryRule parent=buildRuleBuilderParams.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(parentTarget).addSrc("java/src/com/parent/Meh.java").addDep(BuildTargetFactory.newInstance("//:libtwo")).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
+  DefaultJavaLibraryRule parent=ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(parentTarget).addSrc("java/src/com/parent/Meh.java").addDep(BuildTargetFactory.newInstance("//:libtwo")).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
   BuildTarget grandparentTarget=BuildTargetFactory.newInstance("//:grandparent");
-  DefaultJavaLibraryRule grandparent=buildRuleBuilderParams.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(grandparentTarget).addSrc("java/src/com/parent/OldManRiver.java").addDep(BuildTargetFactory.newInstance("//:parent")));
-  BuildContext context=createSuggestContext(buildRuleBuilderParams,BuildDependencies.WARN_ON_TRANSITIVE);
+  DefaultJavaLibraryRule grandparent=ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder().setBuildTarget(grandparentTarget).addSrc("java/src/com/parent/OldManRiver.java").addDep(BuildTargetFactory.newInstance("//:parent")));
+  BuildContext context=createSuggestContext(ruleResolver,BuildDependencies.WARN_ON_TRANSITIVE);
   ImmutableSetMultimap<BuildRule,String> transitive=parent.getTransitiveClasspathEntries();
   ImmutableMap<String,String> classToSymbols=ImmutableMap.of(Iterables.getFirst(transitive.get(parent),null),"com.facebook.Foo",Iterables.getFirst(transitive.get(libraryOne),null),"com.facebook.Bar",Iterables.getFirst(transitive.get(libraryTwo),null),"com.facebook.Foo");
   Optional<DependencyCheckingJavacStep.SuggestBuildRules> suggestFn=grandparent.createSuggestBuildFunction(context,transitive,ImmutableSetMultimap.<BuildRule,String>of(),createJarResolver(classToSymbols));
