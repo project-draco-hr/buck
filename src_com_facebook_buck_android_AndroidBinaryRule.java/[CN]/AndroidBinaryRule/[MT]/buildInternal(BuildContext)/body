@@ -58,25 +58,24 @@
       if (nativeLibDir.endsWith("/")) {
         nativeLibDir=nativeLibDir.substring(0,nativeLibDir.length() - 1);
       }
-      String copyCommand;
-      if (cpuFilter.isPresent() && getAbiDirectory() != null) {
-        nativeLibDir+="/" + getAbiDirectory();
-        copyCommand=String.format("[ -d %s ] && cp -R %s %s || exit 0",nativeLibDir,nativeLibDir,libSubdirectory);
-      }
- else {
-        copyCommand=String.format("cp -R %s/* %s",nativeLibDir,libSubdirectory);
-      }
-      commands.add(new BashStep(copyCommand));
+      commands.add(copyNativeLibrary(nativeLibDir,libSubdirectory));
     }
   }
   String resourceApkPath=getResourceApkPath();
   String unsignedApkPath=getUnsignedApkPath();
   Optional<String> assetsDirectory;
-  if (transitiveDependencies.assetsDirectories.isEmpty() && extraAssets.isEmpty()) {
+  if (transitiveDependencies.assetsDirectories.isEmpty() && extraAssets.isEmpty() && transitiveDependencies.nativeLibAssetsDirectories.isEmpty()) {
     assetsDirectory=Optional.absent();
   }
  else {
     assetsDirectory=Optional.of(getPathToAllAssetsDirectory());
+  }
+  if (!transitiveDependencies.nativeLibAssetsDirectories.isEmpty()) {
+    String nativeLibAssetsDir=assetsDirectory.get() + "/lib";
+    commands.add(new MakeCleanDirectoryStep(nativeLibAssetsDir));
+    for (    String nativeLibDir : transitiveDependencies.nativeLibAssetsDirectories) {
+      commands.add(copyNativeLibrary(nativeLibDir,nativeLibAssetsDir));
+    }
   }
   commands.add(new MkdirStep(outputGenDirectory));
   if (!canSkipAaptResourcePackaging()) {

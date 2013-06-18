@@ -1,14 +1,20 @@
 {
   final ImmutableSet.Builder<String> assetsDirectories=ImmutableSet.builder();
   final ImmutableSet.Builder<String> nativeLibsDirectories=ImmutableSet.builder();
+  final ImmutableSet.Builder<String> nativeLibAssetsDirectories=ImmutableSet.builder();
   final ImmutableSet.Builder<String> manifestFiles=ImmutableSet.builder();
   final ImmutableSet.Builder<String> proguardConfigs=ImmutableSet.builder();
   UberRDotJavaUtil.AndroidResourceDetails details=createAndroidResourceDetails(androidResourceDeps);
   new AbstractDependencyVisitor(buildRule){
     @Override public boolean visit(    BuildRule rule){
-      if (rule instanceof NdkLibraryRule) {
-        NdkLibraryRule ndkRule=(NdkLibraryRule)rule;
-        nativeLibsDirectories.add(ndkRule.getLibraryPath());
+      if (rule instanceof NativeLibraryRule) {
+        NativeLibraryRule nativeLibraryRule=(NativeLibraryRule)rule;
+        if (nativeLibraryRule.isAsset()) {
+          nativeLibAssetsDirectories.add(nativeLibraryRule.getLibraryPath());
+        }
+ else {
+          nativeLibsDirectories.add(nativeLibraryRule.getLibraryPath());
+        }
       }
  else       if (rule instanceof AndroidResourceRule) {
         AndroidResourceRule androidRule=(AndroidResourceRule)rule;
@@ -19,13 +25,6 @@
         String manifestFile=androidRule.getManifestFile();
         if (manifestFile != null) {
           manifestFiles.add(manifestFile);
-        }
-      }
- else       if (rule instanceof PrebuiltNativeLibraryBuildRule) {
-        PrebuiltNativeLibraryBuildRule androidRule=(PrebuiltNativeLibraryBuildRule)rule;
-        String nativeLibsDirectory=androidRule.getNativeLibs();
-        if (nativeLibsDirectory != null) {
-          nativeLibsDirectories.add(nativeLibsDirectory);
         }
       }
  else       if (rule instanceof DefaultJavaLibraryRule) {
@@ -40,5 +39,5 @@
     }
   }
 .start();
-  return new AndroidTransitiveDependencies(assetsDirectories.build(),nativeLibsDirectories.build(),manifestFiles.build(),details.resDirectories,details.rDotJavaPackages,proguardConfigs.build());
+  return new AndroidTransitiveDependencies(assetsDirectories.build(),nativeLibsDirectories.build(),nativeLibAssetsDirectories.build(),manifestFiles.build(),details.resDirectories,details.rDotJavaPackages,proguardConfigs.build());
 }
