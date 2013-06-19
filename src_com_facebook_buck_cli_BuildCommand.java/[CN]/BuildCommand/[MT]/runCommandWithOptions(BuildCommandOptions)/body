@@ -1,12 +1,31 @@
 {
-  Tracer tracer=Tracer.startTracer("buck");
+  Verbosity verbosity=console.getVerbosity();
+  Logging.setLoggingLevelForVerbosity(verbosity);
   try {
-    return runCommandWithOptionsWithTracerRunning(options);
+    buildTargets=getBuildTargets(options.getArgumentsFormattedAsBuildTargets());
   }
-  finally {
-    tracer.stop(TRACER_THRESHOLD);
-    if (console.getVerbosity().shouldPrintCommand()) {
-      Tracer.clearAndPrintCurrentTrace(getStdErr());
-    }
+ catch (  NoSuchBuildTargetException e) {
+    console.printBuildFailureWithoutStacktrace(e);
+    return 1;
   }
+  if (buildTargets.isEmpty()) {
+    console.printBuildFailure("Must specify at least one build target.");
+    return 1;
+  }
+  DependencyGraph dependencyGraph;
+  try {
+    dependencyGraph=getParser().parseBuildFilesForTargets(buildTargets,options.getDefaultIncludes());
+  }
+ catch (  NoSuchBuildTargetException e) {
+    console.printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  build=options.createBuild(options.getBuckConfig(),dependencyGraph,getProjectFilesystem(),getArtifactCache(),console);
+  getStdErr().printf("BUILDING %s\n",Joiner.on(' ').join(buildTargets));
+  int exitCode=executeBuildAndPrintAnyFailuresToConsole(build,console);
+  if (exitCode != 0) {
+    return exitCode;
+  }
+  console.getAnsi().printlnHighlightedSuccessText(getStdErr(),"BUILD SUCCESSFUL");
+  return 0;
 }
