@@ -1,0 +1,24 @@
+{
+  if (!resources.isEmpty()) {
+    String targetPackageDir=javaPackageFinder.findJavaPackageForPath(getBuildTarget().getBasePathWithSlash()).replace('.',File.separatorChar);
+    for (    SourcePath rawResource : resources) {
+      String resource=rawResource.resolve(context).toString();
+      String javaPackageAsPath=javaPackageFinder.findJavaPackageFolderForPath(resource);
+      String relativeSymlinkPath;
+      if (resource.startsWith(BuckConstant.BUCK_OUTPUT_DIRECTORY) || resource.startsWith(BuckConstant.GEN_DIR) || resource.startsWith(BuckConstant.BIN_DIR)|| resource.startsWith(BuckConstant.ANNOTATION_DIR)) {
+        relativeSymlinkPath=String.format("%s/%s",targetPackageDir,rawResource.resolve(context).getFileName());
+      }
+ else       if ("".equals(javaPackageAsPath)) {
+        relativeSymlinkPath=resource;
+      }
+ else {
+        int lastIndex=resource.lastIndexOf(javaPackageAsPath);
+        Preconditions.checkState(lastIndex >= 0,"Resource path %s must contain %s",resource,javaPackageAsPath);
+        relativeSymlinkPath=resource.substring(lastIndex);
+      }
+      String target=outputDirectory + '/' + relativeSymlinkPath;
+      MkdirAndSymlinkFileStep link=new MkdirAndSymlinkFileStep(resource,target);
+      commands.add(link);
+    }
+  }
+}
