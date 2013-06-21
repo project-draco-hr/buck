@@ -7,7 +7,7 @@
       String abiKeyForDeps=abiRule.getAbiKeyForDeps();
       String cachedAbiKeyForDeps=abiRule.getAbiKeyForDepsOnDisk();
       if (abiKeyForDeps != null && abiKeyForDeps.equals(cachedAbiKeyForDeps)) {
-        buildRuleResult.set(new BuildRuleSuccess(this,BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS));
+        recordBuildRuleSuccess(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS);
         return;
       }
     }
@@ -16,6 +16,7 @@
   Optional<RuleKey> cachedRuleKey=getRuleKeyOnDisk(context.getProjectFilesystem());
   if (cachedRuleKey.isPresent() && ruleKey.equals(cachedRuleKey.get())) {
     context.logBuildInfo("[UNCHANGED %s]",getFullyQualifiedName());
+    recordBuildRuleSuccess(BuildRuleSuccess.Type.MATCHING_RULE_KEY);
     buildRuleResult.set(new BuildRuleSuccess(this,BuildRuleSuccess.Type.MATCHING_RULE_KEY));
     return;
   }
@@ -29,7 +30,7 @@
       executeCommandsNowThatDepsAreBuilt(context);
     }
  catch (    IOException|StepFailedException e) {
-      buildRuleResult.setException(e);
+      recordBuildRuleFailure(e);
       context.getEventBus().post(BuildEvents.buildRuleFinished(this,BuildRuleStatus.FAIL,cacheResult));
       return;
     }
@@ -38,12 +39,12 @@
     recordBuildRuleCompleted(projectFilesystem,context.getArtifactCache(),fromCache);
   }
  catch (  IOException e) {
-    buildRuleResult.setException(e);
+    recordBuildRuleFailure(e);
     context.getEventBus().post(BuildEvents.buildRuleFinished(this,BuildRuleStatus.FAIL,cacheResult));
     return;
   }
   BuildRuleSuccess.Type successType=fromCache ? BuildRuleSuccess.Type.FETCHED_FROM_CACHE : BuildRuleSuccess.Type.BUILT_LOCALLY;
-  buildRuleResult.set(new BuildRuleSuccess(this,successType));
+  recordBuildRuleSuccess(successType);
   context.getEventBus().post(BuildEvents.buildRuleFinished(this,BuildRuleStatus.SUCCESS,cacheResult));
   return;
 }
