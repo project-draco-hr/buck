@@ -1,4 +1,6 @@
 {
+  EventBus eventBus=context.getEventBus();
+  eventBus.post(BuildEvents.buildRuleStarted(AbstractCachingBuildRule.this));
   if (this instanceof AbiRule) {
     AbiRule abiRule=(AbiRule)this;
     RuleKey ruleKeyNoDeps=abiRule.getRuleKeyWithoutDeps();
@@ -7,7 +9,7 @@
       String abiKeyForDeps=abiRule.getAbiKeyForDeps();
       String cachedAbiKeyForDeps=abiRule.getAbiKeyForDepsOnDisk();
       if (abiKeyForDeps != null && abiKeyForDeps.equals(cachedAbiKeyForDeps)) {
-        recordBuildRuleSuccess(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS);
+        recordBuildRuleSuccess(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,BuildRuleStatus.SUCCESS,CacheResult.HIT,eventBus);
         return;
       }
     }
@@ -16,11 +18,9 @@
   Optional<RuleKey> cachedRuleKey=getRuleKeyOnDisk(context.getProjectFilesystem());
   if (cachedRuleKey.isPresent() && ruleKey.equals(cachedRuleKey.get())) {
     context.logBuildInfo("[UNCHANGED %s]",getFullyQualifiedName());
-    recordBuildRuleSuccess(BuildRuleSuccess.Type.MATCHING_RULE_KEY);
-    buildRuleResult.set(new BuildRuleSuccess(this,BuildRuleSuccess.Type.MATCHING_RULE_KEY));
+    recordBuildRuleSuccess(BuildRuleSuccess.Type.MATCHING_RULE_KEY,BuildRuleStatus.SUCCESS,CacheResult.HIT,eventBus);
     return;
   }
-  context.getEventBus().post(BuildEvents.buildRuleStarted(this));
   ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
   String pathToOutputFile=getPathToOutputFile();
   boolean fromCache=pathToOutputFile != null && context.getArtifactCache().fetch(getRuleKey(),projectFilesystem.getFileForRelativePath(pathToOutputFile));
@@ -30,8 +30,7 @@
       executeCommandsNowThatDepsAreBuilt(context);
     }
  catch (    IOException|StepFailedException e) {
-      recordBuildRuleFailure(e);
-      context.getEventBus().post(BuildEvents.buildRuleFinished(this,BuildRuleStatus.FAIL,cacheResult));
+      recordBuildRuleFailure(e,BuildRuleStatus.FAIL,cacheResult,eventBus);
       return;
     }
   }
@@ -39,12 +38,10 @@
     recordBuildRuleCompleted(projectFilesystem,context.getArtifactCache(),fromCache);
   }
  catch (  IOException e) {
-    recordBuildRuleFailure(e);
-    context.getEventBus().post(BuildEvents.buildRuleFinished(this,BuildRuleStatus.FAIL,cacheResult));
+    recordBuildRuleFailure(e,BuildRuleStatus.FAIL,cacheResult,eventBus);
     return;
   }
   BuildRuleSuccess.Type successType=fromCache ? BuildRuleSuccess.Type.FETCHED_FROM_CACHE : BuildRuleSuccess.Type.BUILT_LOCALLY;
-  recordBuildRuleSuccess(successType);
-  context.getEventBus().post(BuildEvents.buildRuleFinished(this,BuildRuleStatus.SUCCESS,cacheResult));
+  recordBuildRuleSuccess(successType,BuildRuleStatus.SUCCESS,cacheResult,eventBus);
   return;
 }

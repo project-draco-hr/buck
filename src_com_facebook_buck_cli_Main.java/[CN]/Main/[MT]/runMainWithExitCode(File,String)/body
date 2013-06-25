@@ -16,11 +16,22 @@
  else {
     parser=new Parser(projectFilesystem,knownBuildRuleTypes,console);
   }
+  ExecutorService busExecutor=Executors.newCachedThreadPool();
+  EventBus buildEvents=new AsyncEventBus("buck-build-events",busExecutor);
+  addEventListeners(buildEvents);
   Optional<Command> command=Command.getCommandForName(args[0]);
   if (command.isPresent()) {
     String[] remainingArgs=new String[args.length - 1];
     System.arraycopy(args,1,remainingArgs,0,remainingArgs.length);
-    return command.get().execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),config.createArtifactCache(projectFilesystem,console),parser));
+    int exitCode=command.get().execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),config.createArtifactCache(projectFilesystem,console),buildEvents,parser));
+    busExecutor.shutdown();
+    try {
+      busExecutor.awaitTermination(15,TimeUnit.SECONDS);
+    }
+ catch (    InterruptedException e) {
+      e.printStackTrace(stdErr);
+    }
+    return exitCode;
   }
  else {
     int exitCode=new GenericBuckOptions(stdOut,stdErr).execute(args);

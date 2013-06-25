@@ -1,12 +1,9 @@
 {
-  ExecutorService busExecutor=Executors.newCachedThreadPool();
-  EventBus events=new AsyncEventBus("buck-events",busExecutor);
-  addEventListeners(events);
   Set<BuildRule> rulesToBuild=build.getDependencyGraph().getNodesWithNoIncomingEdges();
-  events.post(BuildEvents.buildStarted(rulesToBuild));
+  build.getExecutionContext().getEventBus().post(BuildEvents.buildStarted(rulesToBuild));
   int exitCode;
   try {
-    build.executeBuild(events,rulesToBuild).get();
+    build.executeBuild(rulesToBuild).get();
     exitCode=0;
   }
  catch (  IOException e) {
@@ -39,6 +36,6 @@ catch (  InterruptedException e) {
     console.printBuildFailureWithoutStacktrace(e);
     exitCode=1;
   }
-  events.post(BuildEvents.buildFinished(exitCode));
+  build.getExecutionContext().getEventBus().post(BuildEvents.buildFinished(exitCode));
   return exitCode;
 }
