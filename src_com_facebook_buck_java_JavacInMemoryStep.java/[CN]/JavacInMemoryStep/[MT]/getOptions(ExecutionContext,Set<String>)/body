@@ -1,10 +1,19 @@
 {
   ImmutableList.Builder<String> builder=ImmutableList.builder();
-  javacOptions.appendOptionsToList(builder,context.getProjectFilesystem().getPathRelativizer());
+  ProjectFilesystem filesystem=context.getProjectFilesystem();
+  AnnotationProcessingDataDecorator decorator;
+  if (pathToOutputAbiFile.isPresent()) {
+    abiKeyFile=filesystem.getFileForRelativePath(pathToOutputAbiFile.get());
+    decorator=new AbiWritingAnnotationProcessingDataDecorator(abiKeyFile);
+  }
+ else {
+    decorator=AnnotationProcessingDataDecorators.identity();
+  }
+  javacOptions.appendOptionsToList(builder,context.getProjectFilesystem().getPathRelativizer(),decorator);
   if (context.getVerbosity().shouldUseVerbosityFlagIfAvailable()) {
     builder.add("-verbose");
   }
-  Function<String,String> pathRelativizer=context.getProjectFilesystem().getPathRelativizer();
+  Function<String,String> pathRelativizer=filesystem.getPathRelativizer();
   builder.add("-d").add(pathRelativizer.apply(pathToOutputDirectory));
   if (!buildClasspathEntries.isEmpty()) {
     String classpath=Joiner.on(File.pathSeparator).join(Iterables.transform(buildClasspathEntries,pathRelativizer));
