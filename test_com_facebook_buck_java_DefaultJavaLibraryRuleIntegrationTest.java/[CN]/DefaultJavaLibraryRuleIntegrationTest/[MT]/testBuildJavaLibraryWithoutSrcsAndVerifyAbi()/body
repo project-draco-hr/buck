@@ -1,0 +1,23 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"abi",tmp);
+  workspace.setUp();
+  ProcessResult buildResult=workspace.runBuckCommand("build","//:no_srcs");
+  assertEquals("Successful build should exit with 0.",0,buildResult.getExitCode());
+  workspace.verify();
+  File buildCache=workspace.getFile("cache_dir");
+  assertTrue(buildCache.isDirectory());
+  assertEquals("There should be two entries in the build cache.",2,buildCache.listFiles().length);
+  File[] cacheEntries=buildCache.listFiles();
+  File abiKeyEntry=cacheEntries[0].length() == 41 ? cacheEntries[0] : cacheEntries[1];
+  assertEquals(AbiWriterProtocol.EMPTY_ABI_KEY,Files.readFirstLine(abiKeyEntry,Charsets.UTF_8));
+  ProcessResult cleanResult=workspace.runBuckCommand("clean");
+  assertEquals("Successful clean should exit with 0.",0,cleanResult.getExitCode());
+  assertEquals("The build cache should still exist.",2,buildCache.listFiles().length);
+  File outputFileEntry=cacheEntries[0].length() == 41 ? cacheEntries[1] : cacheEntries[0];
+  Files.write("Hello world!\n",outputFileEntry,Charsets.UTF_8);
+  ProcessResult buildResult2=workspace.runBuckCommand("build","//:no_srcs");
+  assertEquals("Successful build should exit with 0.",0,buildResult2.getExitCode());
+  File outputFile=workspace.getFile("buck-out/gen/lib__no_srcs__output/no_srcs.jar");
+  assertTrue(outputFile.isFile());
+  assertEquals("The content of the output file will be 'Hello World!' if it is read from the build cache.","Hello world!\n",Files.toString(outputFile,Charsets.UTF_8));
+}
