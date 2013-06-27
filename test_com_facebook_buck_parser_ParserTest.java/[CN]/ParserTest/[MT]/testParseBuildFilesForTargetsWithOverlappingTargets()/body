@@ -3,9 +3,15 @@
   BuildTarget barTarget=BuildTargetFactory.newInstance("//java/com/facebook","bar",testBuildFile);
   Iterable<BuildTarget> buildTargets=ImmutableList.of(fooTarget,barTarget);
   Iterable<String> defaultIncludes=ImmutableList.of();
-  DependencyGraph graph=testParser.parseBuildFilesForTargets(buildTargets,defaultIncludes,new EventBus());
+  EventBus eventBus=new EventBus();
+  BuckEventListener listener=new BuckEventListener();
+  eventBus.register(listener);
+  DependencyGraph graph=testParser.parseBuildFilesForTargets(buildTargets,defaultIncludes,eventBus);
   BuildRule fooRule=graph.findBuildRuleByTarget(fooTarget);
   assertNotNull(fooRule);
   BuildRule barRule=graph.findBuildRuleByTarget(barTarget);
   assertNotNull(barRule);
+  ImmutableList<ParseEvent> expected=ImmutableList.of(ParseEvent.started(buildTargets),ParseEvent.finished(buildTargets));
+  Iterable<ParseEvent> events=Iterables.filter(listener.getEvents(),ParseEvent.class);
+  assertEquals(expected,ImmutableList.copyOf(events));
 }
