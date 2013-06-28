@@ -1,17 +1,19 @@
 {
   ProjectFilesystem projectFilesystem=new ProjectFilesystem(tmpDir.getRoot());
   ChromeTraceBuildListener listener=new ChromeTraceBuildListener(projectFilesystem);
-  BuildRule rule=new FakeBuildRule(new BuildRuleType("fakeRule"),BuildTargetFactory.newInstance("//fake:rule"),ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of());
+  BuildTarget target=BuildTargetFactory.newInstance("//fake:rule");
+  BuildRule rule=new FakeBuildRule(new BuildRuleType("fakeRule"),target,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of());
   FakeStep step=new FakeStep("fakeStep","I'm a Fake Step!",0);
   ExecutionContext context=createMock(ExecutionContext.class);
   replay(context);
-  ImmutableSet<BuildRule> buildRules=ImmutableSet.of(rule);
-  listener.buildStarted(BuildEvent.started(buildRules));
+  ImmutableList<BuildTarget> buildTargets=ImmutableList.of(target);
+  listener.buildStarted(BuildEvent.started(buildTargets));
   listener.ruleStarted(BuildRuleEvent.started(rule));
   listener.stepStarted(StepEvent.started(step,"fakeStep","I'm a Fake Step!"));
   listener.stepFinished(StepEvent.finished(step,"fakeStep","I'm a Fake Step!",0));
   listener.ruleFinished(BuildRuleEvent.finished(rule,BuildRuleStatus.SUCCESS,CacheResult.MISS));
-  listener.buildFinished(BuildEvent.finished(buildRules,0));
+  listener.buildFinished(BuildEvent.finished(buildTargets,0));
+  listener.outputTrace();
   File resultFile=new File(tmpDir.getRoot(),BuckConstant.BIN_DIR + "/build.trace");
   ObjectMapper mapper=new ObjectMapper();
   List<ChromeTraceEvent> resultMap=mapper.readValue(resultFile,new TypeReference<List<ChromeTraceEvent>>(){

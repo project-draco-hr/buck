@@ -12,15 +12,16 @@
     console.printBuildFailure("Must specify at least one build target.");
     return 1;
   }
+  getBuckEventBus().getEventBus().post(BuildEvent.started(buildTargets));
   DependencyGraph dependencyGraph;
   try {
-    dependencyGraph=getParser().parseBuildFilesForTargets(buildTargets,options.getDefaultIncludes(),getEventBus());
+    dependencyGraph=getParser().parseBuildFilesForTargets(buildTargets,options.getDefaultIncludes(),getBuckEventBus());
   }
  catch (  NoSuchBuildTargetException e) {
     console.printBuildFailureWithoutStacktrace(e);
     return 1;
   }
-  build=options.createBuild(options.getBuckConfig(),dependencyGraph,getProjectFilesystem(),getArtifactCache(),console,getEventBus());
+  build=options.createBuild(options.getBuckConfig(),dependencyGraph,getProjectFilesystem(),getArtifactCache(),console,getBuckEventBus());
   getStdErr().printf("BUILDING %s\n",Joiner.on(' ').join(buildTargets));
   int exitCode=0;
   try {
@@ -29,6 +30,7 @@
   finally {
     build.getStepRunner().getListeningExecutorService().shutdownNow();
   }
+  getBuckEventBus().getEventBus().post(BuildEvent.finished(buildTargets,exitCode));
   if (exitCode != 0) {
     return exitCode;
   }
