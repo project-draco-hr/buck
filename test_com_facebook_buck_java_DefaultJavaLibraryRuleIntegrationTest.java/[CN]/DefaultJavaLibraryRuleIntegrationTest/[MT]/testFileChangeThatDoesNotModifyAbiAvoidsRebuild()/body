@@ -1,0 +1,33 @@
+{
+  workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"rulekey_changed_while_abi_stable",tmp);
+  workspace.setUp();
+  ProcessResult buildResult=workspace.runBuckCommand("build","//:biz");
+  assertEquals("Successful build should exit with 0.",0,buildResult.getExitCode());
+  String utilRuleKey=getContents("buck-out/bin/.success/util");
+  String utilRuleKeyNoDeps=getContents("buck-out/gen/lib__util__abi/rule_key_no_deps");
+  String utilAbi=getContents("buck-out/gen/lib__util__abi/abi");
+  String utilAbiForDeps=getContents("buck-out/gen/lib__util__abi/abi_deps");
+  String bizRuleKey=getContents("buck-out/bin/.success/biz");
+  String bizRuleKeyNoDeps=getContents("buck-out/gen/lib__biz__abi/rule_key_no_deps");
+  String bizAbi=getContents("buck-out/gen/lib__biz__abi/abi");
+  String bizAbiForDeps=getContents("buck-out/gen/lib__biz__abi/abi_deps");
+  long utilJarSize=workspace.getFile("buck-out/gen/lib__util__output/util.jar").length();
+  long bizJarLastModified=workspace.getFile("buck-out/gen/lib__biz__output/biz.jar").lastModified();
+  String originalUtilJava=getContents("Util.java");
+  String replacementContents=originalUtilJava.replace("Hello World","Hola Mundo");
+  Files.write(replacementContents,workspace.getFile("Util.java"),Charsets.UTF_8);
+  ProcessResult buildResult2=workspace.runBuckCommand("build","//:biz");
+  assertEquals("Successful build should exit with 0.",0,buildResult2.getExitCode());
+  assertThat(utilRuleKey,not(equalTo(getContents("buck-out/bin/.success/util"))));
+  assertThat(utilRuleKeyNoDeps,not(equalTo(getContents("buck-out/gen/lib__util__abi/rule_key_no_deps"))));
+  assertEquals(utilAbi,getContents("buck-out/gen/lib__util__abi/abi"));
+  assertEquals(utilAbiForDeps,getContents("buck-out/gen/lib__util__abi/abi_deps"));
+  assertThat(bizRuleKey,not(equalTo(getContents("buck-out/bin/.success/biz"))));
+  assertEquals(bizRuleKeyNoDeps,getContents("buck-out/gen/lib__biz__abi/rule_key_no_deps"));
+  assertEquals(bizAbi,getContents("buck-out/gen/lib__biz__abi/abi"));
+  assertEquals(bizAbiForDeps,getContents("buck-out/gen/lib__biz__abi/abi_deps"));
+  assertThat("util.jar should have been rewritten, so its file size should have changed.",utilJarSize,not(equalTo(workspace.getFile("buck-out/gen/lib__util__output/util.jar").length())));
+  assertEquals("biz.jar should not have been rewritten, so its last-modified time should be the same.",bizJarLastModified,workspace.getFile("buck-out/gen/lib__biz__output/biz.jar").lastModified());
+  ProcessResult buildResult3=workspace.runBuckCommand("build","//:biz");
+  assertEquals("Successful build should exit with 0.",0,buildResult3.getExitCode());
+}

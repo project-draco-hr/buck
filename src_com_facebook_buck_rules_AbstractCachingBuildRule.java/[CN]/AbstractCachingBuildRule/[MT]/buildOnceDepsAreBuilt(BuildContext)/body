@@ -1,14 +1,22 @@
 {
   BuckEventBus eventBus=context.getEventBus();
+  ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
   eventBus.getEventBus().post(BuildRuleEvent.started(AbstractCachingBuildRule.this));
   if (this instanceof AbiRule) {
     AbiRule abiRule=(AbiRule)this;
-    RuleKey ruleKeyNoDeps=abiRule.getRuleKeyWithoutDeps();
-    RuleKey cachedRuleKeyNoDeps=abiRule.getRuleKeyWithoutDepsOnDisk();
-    if (ruleKeyNoDeps != null && ruleKeyNoDeps.equals(cachedRuleKeyNoDeps)) {
-      String abiKeyForDeps=abiRule.getAbiKeyForDeps();
-      String cachedAbiKeyForDeps=abiRule.getAbiKeyForDepsOnDisk();
-      if (abiKeyForDeps != null && abiKeyForDeps.equals(cachedAbiKeyForDeps)) {
+    Optional<RuleKey> ruleKeyNoDeps=abiRule.getRuleKeyWithoutDeps();
+    Optional<RuleKey> cachedRuleKeyNoDeps=abiRule.getRuleKeyWithoutDepsOnDisk(projectFilesystem);
+    if (ruleKeyNoDeps.isPresent() && ruleKeyNoDeps.equals(cachedRuleKeyNoDeps)) {
+      Optional<Sha1HashCode> abiKeyForDeps=abiRule.getAbiKeyForDeps();
+      Optional<Sha1HashCode> cachedAbiKeyForDeps=abiRule.getAbiKeyForDepsOnDisk(projectFilesystem);
+      if (abiKeyForDeps.isPresent() && abiKeyForDeps.equals(cachedAbiKeyForDeps) && abiRule.loadAbiFromDisk(projectFilesystem)) {
+        try {
+          writeSuccessFile(projectFilesystem);
+        }
+ catch (        IOException e) {
+          recordBuildRuleFailure(e,BuildRuleStatus.FAIL,CacheResult.HIT,eventBus);
+          return;
+        }
         recordBuildRuleSuccess(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,BuildRuleStatus.SUCCESS,CacheResult.HIT,eventBus);
         return;
       }
@@ -21,7 +29,6 @@
     recordBuildRuleSuccess(BuildRuleSuccess.Type.MATCHING_RULE_KEY,BuildRuleStatus.SUCCESS,CacheResult.HIT,eventBus);
     return;
   }
-  ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
   String pathToOutputFile=getPathToOutputFile();
   boolean fromCache=pathToOutputFile != null && context.getArtifactCache().fetch(getRuleKey(),projectFilesystem.getFileForRelativePath(pathToOutputFile));
   CacheResult cacheResult=fromCache ? CacheResult.HIT : CacheResult.MISS;

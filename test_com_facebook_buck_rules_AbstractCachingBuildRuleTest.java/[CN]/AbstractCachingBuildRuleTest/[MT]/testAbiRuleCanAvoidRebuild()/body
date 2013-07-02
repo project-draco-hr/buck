@@ -8,10 +8,16 @@
   BuildContext buildContext=createMock(BuildContext.class);
   expect(buildContext.getExecutor()).andReturn(MoreExecutors.sameThreadExecutor());
   expect(buildContext.getEventBus()).andReturn(buckEventBus).anyTimes();
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  String pathToSuccessFile=buildRule.getPathToSuccessFile();
+  projectFilesystem.createParentDirs(pathToSuccessFile);
+  projectFilesystem.writeLinesToPath(ImmutableList.of("bfcd53a794e7c732019e04e08b30b32e26e19d50"),pathToSuccessFile);
+  expect(buildContext.getProjectFilesystem()).andReturn(projectFilesystem).anyTimes();
   replayAll();
   ListenableFuture<BuildRuleSuccess> result=buildRule.build(buildContext);
   assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(result));
   BuildRuleSuccess success=result.get();
   assertEquals(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,success.getType());
+  assertTrue(buildRule.isAbiLoadedFromDisk());
   verifyAll();
 }

@@ -31,33 +31,20 @@
   String outputDirectory=getClassesDir(getBuildTarget());
   commands.add(new MakeCleanDirectoryStep(outputDirectory));
   Optional<DependencyCheckingJavacStep.SuggestBuildRules> suggestBuildRule=createSuggestBuildFunction(context,transitiveClasspathEntries,declaredClasspathEntries,JAR_RESOLVER);
-  List<Step> javac=createCommandsForJavac(outputDirectory,ImmutableSet.copyOf(transitiveClasspathEntries.values()),ImmutableSet.copyOf(declaredClasspathEntries.values()),javacOptions,context.getBuildDependencies(),suggestBuildRule);
-  commands.addAll(javac);
+  createCommandsForJavac(outputDirectory,ImmutableSet.copyOf(transitiveClasspathEntries.values()),ImmutableSet.copyOf(declaredClasspathEntries.values()),javacOptions,context.getBuildDependencies(),suggestBuildRule,commands);
   addResourceCommands(context,commands,outputDirectory,context.getJavaPackageFinder());
   if (outputJar.isPresent()) {
     commands.add(new MakeCleanDirectoryStep(getOutputJarDirPath(getBuildTarget())));
     commands.add(new JarDirectoryStep(outputJar.get(),Collections.singleton(outputDirectory),null,null));
   }
   Preconditions.checkNotNull(abiKeySupplier,"abiKeySupplier must be set so that getAbiKey() will " + "return a non-null value if this rule builds successfully.");
+  addStepsToRecordAbiToDisk(commands);
   final ArtifactCache artifactCache=context.getArtifactCache();
   Step recordAbiKey=new AbstractExecutionStep("record ABI key"){
     @Override public int execute(    ExecutionContext context){
-      Sha1HashCode abiKey=abiKeySupplier.get();
-      if (abiKey == null) {
-        return 0;
-      }
-      File abiKeyFile;
-      try {
-        String pathToAbiKeyFile=getPathToAbiOutputFile();
-        context.getProjectFilesystem().createParentDirs(pathToAbiKeyFile);
-        abiKeyFile=context.getProjectFilesystem().getFileForRelativePath(pathToAbiKeyFile);
-        Files.write(abiKey.getHash() + '\n',abiKeyFile,Charsets.UTF_8);
-      }
- catch (      IOException e) {
-        e.printStackTrace(context.getStdErr());
-        return 1;
-      }
       RuleKey ruleKey=createRuleKeyForAbiKeyProjection();
+      ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
+      File abiKeyFile=projectFilesystem.getFileForRelativePath(getPathToAbiOutputFile());
       artifactCache.store(ruleKey,abiKeyFile);
       return 0;
     }
