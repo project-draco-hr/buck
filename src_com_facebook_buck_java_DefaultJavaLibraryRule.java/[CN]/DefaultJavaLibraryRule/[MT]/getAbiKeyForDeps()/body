@@ -1,17 +1,21 @@
 {
-  Hasher hasher=Hashing.sha1().newHasher();
-  for (  BuildRule dep : getDeclaredClasspathEntries().keys()) {
-    if (dep == this) {
-      continue;
-    }
+  SortedSet<JavaLibraryRule> rulesWithAbiToConsider=Sets.newTreeSet();
+  for (  BuildRule dep : getDeps()) {
     if (dep instanceof JavaLibraryRule) {
       JavaLibraryRule javaRule=(JavaLibraryRule)dep;
-      Optional<Sha1HashCode> abiKey=javaRule.getAbiKey();
-      if (!abiKey.isPresent()) {
-        return Optional.absent();
-      }
-      hasher.putString(abiKey.get().getHash());
+      rulesWithAbiToConsider.addAll(javaRule.getOutputClasspathEntries().keys());
     }
+  }
+  Hasher hasher=Hashing.sha1().newHasher();
+  for (  JavaLibraryRule ruleWithAbiToConsider : rulesWithAbiToConsider) {
+    if (ruleWithAbiToConsider == this) {
+      continue;
+    }
+    Optional<Sha1HashCode> abiKey=ruleWithAbiToConsider.getAbiKey();
+    if (!abiKey.isPresent()) {
+      return Optional.absent();
+    }
+    hasher.putString(abiKey.get().getHash());
   }
   return Optional.of(new Sha1HashCode(hasher.hash().toString()));
 }
