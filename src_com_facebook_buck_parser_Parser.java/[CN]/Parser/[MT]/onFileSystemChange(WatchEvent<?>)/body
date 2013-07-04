@@ -1,10 +1,23 @@
 {
+  boolean reconstructBuildFileTree=false;
   if (projectFilesystem.isPathChangeEvent(event)) {
-    final String SRC_EXTENSION=".java";
-    Path path=(Path)event.context();
-    if (path.toString().endsWith(SRC_EXTENSION) && event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
-      return;
+    String path=event.context().toString();
+    if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
+      if (path.endsWith(".java")) {
+        return;
+      }
     }
+ else {
+      if (path.endsWith(BuckConstant.BUILD_RULES_FILE_NAME)) {
+        reconstructBuildFileTree=true;
+      }
+    }
+  }
+ else {
+    reconstructBuildFileTree=true;
+  }
+  if (reconstructBuildFileTree) {
+    buildFiles=buildFileTreeSupplier.get();
   }
   invalidateCache();
 }
