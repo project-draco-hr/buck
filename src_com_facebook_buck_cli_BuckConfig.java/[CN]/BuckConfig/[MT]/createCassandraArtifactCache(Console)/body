@@ -1,8 +1,16 @@
 {
+  String cacheCassandraMode=getValue("cache","cassandra_mode").or(DEFAULT_CASSANDRA_MODE);
+  final boolean doStore;
+  try {
+    doStore=CassandraMode.valueOf(cacheCassandraMode).doStore;
+  }
+ catch (  IllegalArgumentException e) {
+    throw new HumanReadableException("Unusable cache.cassandra_mode: '%s'",cacheCassandraMode);
+  }
   String cacheHosts=getValue("cache","hosts").or("");
   int port=Integer.parseInt(getValue("cache","port").or(DEFAULT_CASSANDRA_PORT));
   try {
-    return new CassandraArtifactCache(cacheHosts,port);
+    return new CassandraArtifactCache(cacheHosts,port,doStore);
   }
  catch (  ConnectionException e) {
     console.getStdErr().println(String.format("Cassandra cache connection failure: %s",e.getMessage()));
