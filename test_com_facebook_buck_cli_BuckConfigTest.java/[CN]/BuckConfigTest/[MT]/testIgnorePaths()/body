@@ -1,10 +1,11 @@
 {
-  Reader reader=new StringReader(Joiner.on('\n').join("[project]","ignore = .git, foo, bar/, baz//, a/b/c"));
-  BuckConfig config=BuckConfig.createFromReader(reader,null);
   ProjectFilesystem filesystem=EasyMock.createMock(ProjectFilesystem.class);
   EasyMock.expect(filesystem.getPathRelativizer()).andReturn(Functions.<String>identity()).times(2);
-  EasyMock.replay(filesystem);
-  ImmutableSet<String> ignorePaths=config.getIgnorePaths(filesystem);
-  assertEquals("Should ignore paths, sans trailing slashes",ignorePaths,ImmutableSet.of(BuckConstant.BUCK_OUTPUT_DIRECTORY,".idea",System.getProperty(BuckConfig.BUCK_BUCKD_DIR_KEY,".buckd"),config.getCacheDir(filesystem),".git","foo","bar","baz","a/b/c"));
-  EasyMock.verify(filesystem);
+  BuildTargetParser parser=EasyMock.createMock(BuildTargetParser.class);
+  EasyMock.replay(filesystem,parser);
+  Reader reader=new StringReader(Joiner.on('\n').join("[project]","ignore = .git, foo, bar/, baz//, a/b/c"));
+  BuckConfig config=BuckConfig.createFromReader(reader,filesystem,parser);
+  ImmutableSet<String> ignorePaths=config.getIgnorePaths();
+  assertEquals("Should ignore paths, sans trailing slashes",ignorePaths,ImmutableSet.of(BuckConstant.BUCK_OUTPUT_DIRECTORY,".idea",System.getProperty(BuckConfig.BUCK_BUCKD_DIR_KEY,".buckd"),config.getCacheDir(),".git","foo","bar","baz","a/b/c"));
+  EasyMock.verify(filesystem,parser);
 }

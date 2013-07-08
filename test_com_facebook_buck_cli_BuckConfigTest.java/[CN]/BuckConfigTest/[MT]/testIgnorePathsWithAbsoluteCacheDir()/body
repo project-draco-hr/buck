@@ -1,10 +1,11 @@
 {
-  Reader reader=new StringReader(Joiner.on('\n').join("[cache]","dir = /cache_dir"));
-  BuckConfig config=BuckConfig.createFromReader(reader,null);
   ProjectFilesystem filesystem=EasyMock.createMock(ProjectFilesystem.class);
   EasyMock.expect(filesystem.getPathRelativizer()).andReturn(Functions.<String>identity());
-  EasyMock.replay(filesystem);
-  ImmutableSet<String> ignorePaths=config.getIgnorePaths(filesystem);
+  BuildTargetParser parser=EasyMock.createMock(BuildTargetParser.class);
+  EasyMock.replay(filesystem,parser);
+  Reader reader=new StringReader(Joiner.on('\n').join("[cache]","dir = /cache_dir"));
+  BuckConfig config=BuckConfig.createFromReader(reader,filesystem,parser);
+  ImmutableSet<String> ignorePaths=config.getIgnorePaths();
   assertFalse("Absolute cache directory should not be in set of ignored paths",ignorePaths.contains("/cache_dir"));
-  EasyMock.verify(filesystem);
+  EasyMock.verify(filesystem,parser);
 }
