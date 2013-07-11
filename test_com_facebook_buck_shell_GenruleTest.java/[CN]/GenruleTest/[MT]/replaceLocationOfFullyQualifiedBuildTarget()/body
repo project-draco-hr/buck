@@ -1,0 +1,16 @@
+{
+  ProjectFilesystem filesystem=EasyMock.createNiceMock(ProjectFilesystem.class);
+  EasyMock.expect(filesystem.getPathRelativizer()).andStubReturn(relativeToAbsolutePathFunction);
+  EasyMock.replay(filesystem);
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  JavaBinaryRule javaBinary=createSampleJavaBinaryRule(ruleResolver);
+  String originalCmd=String.format("$(location :%s) $(location %s) $OUT",javaBinary.getBuildTarget().getShortName(),javaBinary.getBuildTarget().getFullyQualifiedName());
+  String contextBasePath=javaBinary.getBuildTarget().getBasePath();
+  Set<? extends BuildRule> deps=ImmutableSet.of(javaBinary);
+  Genrule rule=createGenrule(ruleResolver,originalCmd,contextBasePath,deps);
+  String transformedString=rule.replaceMatches(filesystem,originalCmd);
+  String pathToOutput=String.format("/opt/local/fbandroid/%s/java/com/facebook/util/ManifestGenerator.jar " + "/opt/local/fbandroid/%s/java/com/facebook/util/ManifestGenerator.jar",GEN_DIR,GEN_DIR);
+  String expectedCmd=String.format("%s $OUT",pathToOutput);
+  assertEquals(expectedCmd,transformedString);
+  EasyMock.verify(filesystem);
+}
