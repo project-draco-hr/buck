@@ -1,10 +1,9 @@
 {
   BuildRuleParams buildRuleParams=new BuildRuleParams(buildTarget,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of(),Functions.<String>identity());
   TestAbstractCachingBuildRule buildRule=new TestAbstractCachingBuildRule(buildRuleParams);
-  EventBus eventBus=createMock(EventBus.class);
-  eventBus.post(BuildRuleEvent.started(buildRule));
-  eventBus.post(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.HIT));
-  BuckEventBus buckEventBus=new BuckEventBus(eventBus);
+  BuckEventBus buckEventBus=new BuckEventBus();
+  FakeBuckEventListener listener=new FakeBuckEventListener();
+  buckEventBus.register(listener);
   BuildContext buildContext=createMock(BuildContext.class);
   expect(buildContext.getExecutor()).andReturn(MoreExecutors.sameThreadExecutor());
   expect(buildContext.getEventBus()).andReturn(buckEventBus).anyTimes();
@@ -19,5 +18,8 @@
   BuildRuleSuccess success=result.get();
   assertEquals(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,success.getType());
   assertTrue(buildRule.isAbiLoadedFromDisk());
+  List<BuckEvent> events=listener.getEvents();
+  assertEquals(events.get(0),TestEventConfigerator.configureTestEvent(BuildRuleEvent.started(buildRule),buckEventBus));
+  assertEquals(events.get(1),TestEventConfigerator.configureTestEvent(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.HIT),buckEventBus));
   verifyAll();
 }

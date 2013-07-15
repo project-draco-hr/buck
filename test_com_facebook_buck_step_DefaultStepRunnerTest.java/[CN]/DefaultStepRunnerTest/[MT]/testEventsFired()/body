@@ -1,11 +1,10 @@
 {
   Step passingStep=new FakeStep("step1","fake step 1",0);
   Step failingStep=new FakeStep("step1","fake step 1",1);
-  EventBus eventBus=new EventBus();
+  BuckEventBus eventBus=new BuckEventBus();
   FakeBuckEventListener listener=new FakeBuckEventListener();
   eventBus.register(listener);
-  BuckEventBus buckEventBus=new BuckEventBus(eventBus);
-  ExecutionContext context=ExecutionContext.builder().setProjectFilesystem(createMock(ProjectFilesystem.class)).setConsole(new TestConsole()).setEventBus(buckEventBus).build();
+  ExecutionContext context=ExecutionContext.builder().setProjectFilesystem(createMock(ProjectFilesystem.class)).setConsole(new TestConsole()).setEventBus(eventBus).build();
   ThreadFactory threadFactory=new ThreadFactoryBuilder().setDaemon(true).setNameFormat(getClass().getSimpleName() + "-%d").build();
   ListeningExecutorService executorService=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(3,threadFactory));
   DefaultStepRunner runner=new DefaultStepRunner(context,executorService);
@@ -17,7 +16,7 @@
  catch (  StepFailedException e) {
     assertEquals(e.getStep(),failingStep);
   }
-  ImmutableList<StepEvent> expected=ImmutableList.of(StepEvent.started(passingStep,"step1","fake step 1"),StepEvent.finished(passingStep,"step1","fake step 1",0),StepEvent.started(failingStep,"step1","fake step 1"),StepEvent.finished(failingStep,"step1","fake step 1",1));
+  ImmutableList<StepEvent> expected=ImmutableList.of(TestEventConfigerator.configureTestEvent(StepEvent.started(passingStep,"step1","fake step 1"),eventBus),TestEventConfigerator.configureTestEvent(StepEvent.finished(passingStep,"step1","fake step 1",0),eventBus),TestEventConfigerator.configureTestEvent(StepEvent.started(failingStep,"step1","fake step 1"),eventBus),TestEventConfigerator.configureTestEvent(StepEvent.finished(failingStep,"step1","fake step 1",1),eventBus));
   Iterable<StepEvent> events=Iterables.filter(listener.getEvents(),StepEvent.class);
   assertEquals(expected,ImmutableList.copyOf(events));
 }

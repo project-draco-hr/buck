@@ -17,7 +17,7 @@
     parser=new Parser(projectFilesystem,knownBuildRuleTypes,console);
   }
   ExecutorService busExecutor=MoreBuckExecutors.newCachedThreadPool(new ThreadPoolExecutor.DiscardPolicy());
-  BuckEventBus buildEvents=new BuckEventBus(new AsyncEventBus("buck-build-events",busExecutor));
+  BuckEventBus buildEvents=new BuckEventBus(new AsyncEventBus("buck-build-events",busExecutor),new DefaultClock(),BuckEventBus.getDefaultThreadIdSupplier());
   Optional<Command> command=Command.getCommandForName(args[0]);
   if (command.isPresent()) {
     ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEvents,projectFilesystem);
@@ -25,9 +25,9 @@
     System.arraycopy(args,1,remainingArgs,0,remainingArgs.length);
     Command executingCommand=command.get();
     String commandName=executingCommand.name().toLowerCase();
-    buildEvents.getEventBus().post(CommandEvent.started(commandName,isDaemon()));
+    buildEvents.post(CommandEvent.started(commandName,isDaemon()));
     int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),config.createArtifactCache(console),buildEvents,parser));
-    buildEvents.getEventBus().post(CommandEvent.finished(commandName,isDaemon(),exitCode));
+    buildEvents.post(CommandEvent.finished(commandName,isDaemon(),exitCode));
     busExecutor.shutdown();
     try {
       busExecutor.awaitTermination(15,TimeUnit.SECONDS);
