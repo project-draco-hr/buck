@@ -1,16 +1,19 @@
 {
   eventBus.post(ParseEvent.started(buildTargets));
-  if (!isCacheComplete(defaultIncludes)) {
-    Set<File> buildTargetFiles=Sets.newHashSet();
-    for (    BuildTarget buildTarget : buildTargets) {
-      File buildFile=buildTarget.getBuildFile();
-      boolean isNewElement=buildTargetFiles.add(buildFile);
-      if (isNewElement) {
-        parseBuildFile(buildFile,defaultIncludes);
+  try (ProjectBuildFileParser buildFileParser=buildFileParserFactory.createParser(defaultIncludes)){
+    if (!isCacheComplete(defaultIncludes)) {
+      Set<File> buildTargetFiles=Sets.newHashSet();
+      for (      BuildTarget buildTarget : buildTargets) {
+        File buildFile=buildTarget.getBuildFile();
+        boolean isNewElement=buildTargetFiles.add(buildFile);
+        if (isNewElement) {
+          parseBuildFile(buildFile,defaultIncludes,buildFileParser);
+        }
       }
     }
+    return findAllTransitiveDependencies(buildTargets,defaultIncludes,buildFileParser);
   }
-  DependencyGraph graph=findAllTransitiveDependencies(buildTargets,defaultIncludes);
-  eventBus.post(ParseEvent.finished(buildTargets));
-  return graph;
+  finally {
+    eventBus.post(ParseEvent.finished(buildTargets));
+  }
 }
