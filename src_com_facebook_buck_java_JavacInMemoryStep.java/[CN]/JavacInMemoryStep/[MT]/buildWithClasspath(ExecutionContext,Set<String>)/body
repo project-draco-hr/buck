@@ -2,10 +2,17 @@
   JavaCompiler compiler=ToolProvider.getSystemJavaCompiler();
   Preconditions.checkNotNull(compiler,"If using JRE instead of JDK, ToolProvider.getSystemJavaCompiler() may be null.");
   StandardJavaFileManager fileManager=compiler.getStandardFileManager(null,null,null);
+  Iterable<? extends JavaFileObject> compilationUnits;
+  try {
+    compilationUnits=createCompilationUnits(fileManager,context.getProjectFilesystem().getPathRelativizer());
+  }
+ catch (  IOException e) {
+    e.printStackTrace(context.getStdErr());
+    return 1;
+  }
   DiagnosticCollector<JavaFileObject> diagnostics=new DiagnosticCollector<JavaFileObject>();
   List<String> options=getOptions(context,buildClasspathEntries);
   List<String> classNamesForAnnotationProcessing=ImmutableList.of();
-  Iterable<? extends JavaFileObject> compilationUnits=fileManager.getJavaFileObjectsFromStrings(Iterables.transform(javaSourceFilePaths,context.getProjectFilesystem().getPathRelativizer()));
   Writer compilerOutputWriter=new PrintWriter(context.getStdErr());
   JavaCompiler.CompilationTask compilationTask=compiler.getTask(compilerOutputWriter,fileManager,diagnostics,options,classNamesForAnnotationProcessing,compilationUnits);
   boolean isSuccess=compilationTask.call();
