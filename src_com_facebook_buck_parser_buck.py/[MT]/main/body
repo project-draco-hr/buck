@@ -3,13 +3,13 @@ def main():
     parser.add_option('--project_root', action='store', type='string', dest='project_root')
     parser.add_option('--include', action='append', dest='include')
     parser.add_option('--ignore_path', action='append', dest='ignore_paths')
+    parser.add_option('--server', action='store_true', dest='server', help='Invoke as a server to parse individual BUCK files on demand.')
     (options, args) = parser.parse_args()
     project_root = options.project_root
-    len_suffix = (- len(('/' + BUILD_RULES_FILE_NAME)))
-    build_files = None
+    build_files = []
     if args:
         build_files = args
-    else:
+    elif (not options.server):
         ignore_paths = [posixpath.join(project_root, d) for d in (options.ignore_paths or [])]
         build_files = []
         for (dirpath, dirnames, filenames) in os.walk(project_root, topdown=True, followlinks=False):
@@ -17,17 +17,9 @@ def main():
             if (BUILD_RULES_FILE_NAME in filenames):
                 build_file = os.path.join(dirpath, BUILD_RULES_FILE_NAME)
                 build_files.append(build_file)
+    buildFileProcessor = BuildFileProcessor(project_root, (options.include or []), options.server)
     for build_file in build_files:
-        build_env = {}
-        relative_path_to_build_file = relpath(build_file, project_root)
-        build_env['BASE'] = relative_path_to_build_file[:len_suffix]
-        build_env['BUILD_FILE_DIRECTORY'] = os.path.dirname(build_file)
-        build_env['PROJECT_ROOT'] = project_root
-        build_env['RULES'] = {}
-        build_env['BUILD_FILE_SYMBOL_TABLE'] = make_build_file_symbol_table(build_env)
-        includes = (options.include or [])
-        for include in includes:
-            include_defs(include, build_env)
-        execfile(os.path.join(project_root, build_file), build_env['BUILD_FILE_SYMBOL_TABLE'])
-        for (_, value) in build_env['RULES'].items():
-            print json.dumps(value)
+        buildFileProcessor.process(build_file)
+    if options.server:
+        for build_file in iter(sys.stdin.readline, ''):
+            buildFileProcessor.process(build_file.rstrip())
