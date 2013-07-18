@@ -1,7 +1,11 @@
 {
   BuildRule dep=createMock(BuildRule.class);
   expect(dep.isVisibleTo(buildTarget)).andReturn(true);
-  ArtifactCache artifactCache=createMock(ArtifactCache.class);
+  BuckEventBus buckEventBus=new BuckEventBus();
+  FakeBuckEventListener listener=new FakeBuckEventListener();
+  buckEventBus.register(listener);
+  ArtifactCache mockArtifactCache=createMock(ArtifactCache.class);
+  ArtifactCache artifactCache=new LoggingArtifactCacheDecorator(buckEventBus).decorate(mockArtifactCache);
   replayAll();
   String pathToOutputFile="some_file";
   File outputFile=new File(pathToOutputFile);
@@ -10,12 +14,9 @@
   verifyAll();
   resetAll();
   String expectedRuleKeyHash=Hashing.sha1().newHasher().putBytes(RuleKey.Builder.buckVersionUID.getBytes()).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).putBytes("name".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putBytes(cachingRule.getFullyQualifiedName().getBytes()).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).putBytes("buck.type".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putBytes("java_library".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).putBytes("deps".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putBytes("19d2558a6bd3a34fb3f95412de9da27ed32fe208".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).putBytes("buck.inputs".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putBytes("ae8c0f860a0ecad94ecede79b69460434eddbfbc".getBytes()).putByte(RuleKey.Builder.SEPARATOR).putByte(RuleKey.Builder.SEPARATOR).hash().toString();
-  BuckEventBus buckEventBus=new BuckEventBus();
-  FakeBuckEventListener listener=new FakeBuckEventListener();
-  buckEventBus.register(listener);
   BuildContext context=createMock(BuildContext.class);
   expect(context.getExecutor()).andReturn(MoreExecutors.sameThreadExecutor());
-  expect(context.getEventBus()).andReturn(buckEventBus).times(1);
+  expect(context.getEventBus()).andReturn(buckEventBus).anyTimes();
   context.logBuildInfo("[BUILDING %s]","//src/com/facebook/orca:orca");
   StepRunner stepRunner=createMock(StepRunner.class);
   expect(context.getStepRunner()).andReturn(stepRunner);
@@ -27,8 +28,8 @@
   projectFilesystem.writeLinesToPath(capture(linesCapture),eq(pathToSuccessFile));
   expect(projectFilesystem.getFileForRelativePath(pathToOutputFile)).andReturn(outputFile).times(2);
   RuleKey expectedRuleKey=new RuleKey(expectedRuleKeyHash);
-  expect(artifactCache.fetch(expectedRuleKey,outputFile)).andReturn(false);
-  artifactCache.store(expectedRuleKey,outputFile);
+  expect(mockArtifactCache.fetch(expectedRuleKey,outputFile)).andReturn(false);
+  mockArtifactCache.store(expectedRuleKey,outputFile);
   expect(context.getArtifactCache()).andReturn(artifactCache).times(2);
   expect(dep.build(context)).andReturn(Futures.immediateFuture(new BuildRuleSuccess(dep,BuildRuleSuccess.Type.BUILT_LOCALLY)));
   expect(dep.getRuleKey()).andReturn(new RuleKey("19d2558a6bd3a34fb3f95412de9da27ed32fe208"));
@@ -42,6 +43,10 @@
   String firstLineInSuccessFile=Iterables.getFirst(linesCapture.getValue(),null);
   assertEquals(expectedRuleKeyHash,firstLineInSuccessFile);
   List<BuckEvent> events=listener.getEvents();
-  assertEquals(events.get(0),TestEventConfigerator.configureTestEvent(BuildRuleEvent.started(cachingRule),buckEventBus));
-  assertEquals(events.get(1),TestEventConfigerator.configureTestEvent(BuildRuleEvent.finished(cachingRule,BuildRuleStatus.SUCCESS,CacheResult.MISS,Optional.of(BuildRuleSuccess.Type.BUILT_LOCALLY)),buckEventBus));
+  assertEquals(events.get(0),configureTestEvent(BuildRuleEvent.started(cachingRule),buckEventBus));
+  assertEquals(events.get(1),configureTestEvent(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.FETCH),buckEventBus));
+  assertEquals(events.get(2),configureTestEvent(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.FETCH,false),buckEventBus));
+  assertEquals(events.get(3),configureTestEvent(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.STORE),buckEventBus));
+  assertEquals(events.get(4),configureTestEvent(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.STORE,true),buckEventBus));
+  assertEquals(events.get(5),configureTestEvent(BuildRuleEvent.finished(cachingRule,BuildRuleStatus.SUCCESS,CacheResult.MISS,Optional.of(BuildRuleSuccess.Type.BUILT_LOCALLY)),buckEventBus));
 }

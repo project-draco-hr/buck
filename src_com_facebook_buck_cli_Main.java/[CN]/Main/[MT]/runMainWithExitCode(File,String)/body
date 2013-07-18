@@ -18,17 +18,18 @@
   }
   ExecutorService busExecutor=MoreBuckExecutors.newCachedThreadPool(new ThreadPoolExecutor.DiscardPolicy());
   Clock clock=new DefaultClock();
-  BuckEventBus buildEvents=new BuckEventBus(new AsyncEventBus("buck-build-events",busExecutor),clock,BuckEventBus.getDefaultThreadIdSupplier());
+  BuckEventBus buildEventBus=new BuckEventBus(new AsyncEventBus("buck-build-events",busExecutor),clock,BuckEventBus.getDefaultThreadIdSupplier());
   Optional<Command> command=Command.getCommandForName(args[0]);
   if (command.isPresent()) {
-    ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEvents,projectFilesystem);
+    ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,projectFilesystem);
     String[] remainingArgs=new String[args.length - 1];
     System.arraycopy(args,1,remainingArgs,0,remainingArgs.length);
     Command executingCommand=command.get();
     String commandName=executingCommand.name().toLowerCase();
-    buildEvents.post(CommandEvent.started(commandName,isDaemon()));
-    int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),config.createArtifactCache(console),buildEvents,parser));
-    buildEvents.post(CommandEvent.finished(commandName,isDaemon(),exitCode));
+    buildEventBus.post(CommandEvent.started(commandName,isDaemon()));
+    ArtifactCache artifactCache=new LoggingArtifactCacheDecorator(buildEventBus).decorate(config.createArtifactCache(console));
+    int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),artifactCache,buildEventBus,parser));
+    buildEventBus.post(CommandEvent.finished(commandName,isDaemon(),exitCode));
     busExecutor.shutdown();
     try {
       busExecutor.awaitTermination(15,TimeUnit.SECONDS);
