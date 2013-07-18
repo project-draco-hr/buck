@@ -1,0 +1,33 @@
+{
+  Properties properties=new Properties();
+  properties.put("key.alias","my_alias");
+  properties.put("key.store.password","store_password");
+  properties.put("key.alias.password","alias_password");
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  expect(projectFilesystem.readPropertiesFile("keystores/debug.keystore.properties")).andReturn(properties);
+  String pathToSuccessFile=BuckConstant.BIN_DIR + "/keystores/.success/debug";
+  expect(projectFilesystem.getFileIfExists(pathToSuccessFile)).andReturn(Optional.<File>absent());
+  projectFilesystem.createParentDirs(pathToSuccessFile);
+  projectFilesystem.writeLinesToPath(ImmutableList.of(Strings.repeat("x",40)),pathToSuccessFile);
+  ExecutionContext executionContext=createMock(ExecutionContext.class);
+  expect(executionContext.getVerbosity()).andReturn(Verbosity.SILENT);
+  BuckEventBus eventBus=new BuckEventBus();
+  expect(executionContext.getBuckEventBus()).andReturn(eventBus).anyTimes();
+  expect(executionContext.getProjectFilesystem()).andReturn(projectFilesystem);
+  BuildContext buildContext=createMock(BuildContext.class);
+  expect(buildContext.getEventBus()).andReturn(eventBus).anyTimes();
+  expect(buildContext.getExecutor()).andReturn(MoreExecutors.sameThreadExecutor());
+  expect(buildContext.getProjectFilesystem()).andReturn(projectFilesystem);
+  expect(buildContext.getArtifactCache()).andReturn(new NoopArtifactCache());
+  buildContext.logBuildInfo("[BUILDING %s]","//keystores:debug");
+  expect(buildContext.getStepRunner()).andReturn(new DefaultStepRunner(executionContext));
+  replay(projectFilesystem,executionContext,buildContext);
+  KeystoreRule keystore=createKeystoreRuleForTest();
+  keystore.build(buildContext);
+  KeystoreProperties keystoreProperties=keystore.getKeystoreProperties();
+  assertEquals("keystores/debug.keystore",keystoreProperties.getKeystore());
+  assertEquals("my_alias",keystoreProperties.getAlias());
+  assertEquals("store_password",keystoreProperties.getStorepass());
+  assertEquals("alias_password",keystoreProperties.getKeypass());
+  verify(projectFilesystem,executionContext,buildContext);
+}
