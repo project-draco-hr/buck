@@ -1,13 +1,9 @@
 {
-  executor=Executors.newFixedThreadPool(2);
-  engine=new ScriptEngineManager().getEngineByName("python");
-  final ImmutableList<String> args=buildArgs();
-  final PipedWriter inputWriter=new PipedWriter();
-  final PipedReader outputReader=new PipedReader();
-  final PipedReader stderrReader=new PipedReader();
-  BuildFileRunner runner=new BuildFileRunner(args,inputWriter,outputReader,stderrReader);
-  executor.execute(runner);
-  executor.execute(new InputStreamConsumer(stderrReader,System.err,true,new Ansi()));
-  buckPyStdinWriter=new BufferedWriter(inputWriter);
-  buckPyStdoutParser=new BuildFileToJsonParser(outputReader);
+  ProcessBuilder processBuilder=new ProcessBuilder(buildArgs());
+  buckPyProcess=processBuilder.start();
+  OutputStream stdin=buckPyProcess.getOutputStream();
+  InputStream stderr=buckPyProcess.getErrorStream();
+  Thread stderrConsumer=new Thread(new InputStreamConsumer(stderr,System.err,true,new Ansi()));
+  stderrConsumer.start();
+  buckPyStdinWriter=new BufferedWriter(new OutputStreamWriter(stdin));
 }
