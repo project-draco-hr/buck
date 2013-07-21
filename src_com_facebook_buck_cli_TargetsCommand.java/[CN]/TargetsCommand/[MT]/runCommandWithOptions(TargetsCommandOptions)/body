@@ -25,13 +25,19 @@
   try {
     graph=PartialGraph.createFullGraph(getProjectFilesystem(),options.getDefaultIncludes(),getParser(),getBuckEventBus());
   }
- catch (  NoSuchBuildTargetException e) {
+ catch (  NoSuchBuildTargetException|BuildFileParseException e) {
     console.printBuildFailureWithoutStacktrace(e);
     return 1;
   }
   SortedMap<String,BuildRule> matchingBuildRules=getMatchingBuildRules(graph.getDependencyGraph(),new TargetsCommandPredicate(graph,getProjectFilesystem().getPathRelativizer(),buildRuleTypesBuilder.build(),options.getReferencedFiles(getProjectFilesystem().getProjectRoot()),matchingBuildTargets));
   if (options.getPrintJson()) {
-    printJsonForTargets(matchingBuildRules,options.getDefaultIncludes());
+    try {
+      printJsonForTargets(matchingBuildRules,options.getDefaultIncludes());
+    }
+ catch (    BuildFileParseException e) {
+      console.printBuildFailureWithoutStacktrace(e);
+      return 1;
+    }
   }
  else {
     printTargetsList(matchingBuildRules,options.isShowOutput());
