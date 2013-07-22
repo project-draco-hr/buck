@@ -1,0 +1,37 @@
+{
+  final CapturingPrintStream stdOut=new CapturingPrintStream();
+  final CapturingPrintStream firstThreadStdErr=new CapturingPrintStream();
+  final CapturingPrintStream secondThreadStdErr=new CapturingPrintStream();
+  final ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"exclusive_execution",tmp);
+  workspace.setUp();
+  Future<?> firstThread=executorService.schedule(new Runnable(){
+    @Override public void run(){
+      try {
+        Main main=new Main(stdOut,firstThreadStdErr);
+        int exitCode=main.tryRunMainWithExitCode(tmp.getRoot(),"build","//:sleep");
+        assertEquals("Should return 0 when no command running.",0,exitCode);
+      }
+ catch (      IOException e) {
+        fail("Should not throw IOException");
+        throw Throwables.propagate(e);
+      }
+    }
+  }
+,0,TimeUnit.MILLISECONDS);
+  Future<?> secondThread=executorService.schedule(new Runnable(){
+    @Override public void run(){
+      try {
+        Main main=new Main(stdOut,secondThreadStdErr);
+        int exitCode=main.tryRunMainWithExitCode(tmp.getRoot(),"targets");
+        assertEquals("Should return 1 when command running.",Main.BUSY_EXIT_CODE,exitCode);
+      }
+ catch (      IOException e) {
+        fail("Should not throw IOException.");
+        throw Throwables.propagate(e);
+      }
+    }
+  }
+,500L,TimeUnit.MILLISECONDS);
+  firstThread.get();
+  secondThread.get();
+}
