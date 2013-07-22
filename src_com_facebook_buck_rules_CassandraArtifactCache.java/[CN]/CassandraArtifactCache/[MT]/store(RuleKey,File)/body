@@ -2,8 +2,14 @@
   if (!doStore || !ruleKey.isIdempotent()) {
     return;
   }
-  MutationBatch m=keyspace.prepareMutationBatch();
+  Optional<KeyspaceAndTtl> keyspaceAndTtl=getKeyspaceAndTtl();
+  if (!keyspaceAndTtl.isPresent()) {
+    return;
+  }
   try {
+    Keyspace keyspace=keyspaceAndTtl.get().getKeyspace();
+    int ttl=keyspaceAndTtl.get().getTtl();
+    MutationBatch m=keyspace.prepareMutationBatch();
     m.withRow(CF_ARTIFACT,ruleKey.toString()).setDefaultTtl(ttl).putColumn(artifactColumnName,Files.toByteArray(output));
     m.executeAsync();
   }
