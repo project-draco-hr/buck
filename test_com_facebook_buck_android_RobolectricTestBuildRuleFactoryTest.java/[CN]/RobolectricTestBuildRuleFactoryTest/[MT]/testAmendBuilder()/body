@@ -11,8 +11,9 @@
 ;
   Map<String,?> instance=ImmutableMap.of("vm_args",ImmutableList.of("-Dbuck.robolectric_dir=javatests/com/facebook/base"),"source_under_test",ImmutableList.of("//java/com/facebook/base:base"));
   BuildTarget buildTarget=BuildTargetFactory.newInstance("//javatests/com/facebook/base:base");
-  EasyMock.replay(projectFilesystem);
-  BuildRuleFactoryParams params=new BuildRuleFactoryParams(instance,new TestConsole(),projectFilesystem,null,buildTargetParser,buildTarget);
+  BuildFileTree buildFileTree=EasyMock.createMock(BuildFileTree.class);
+  EasyMock.replay(projectFilesystem,buildFileTree);
+  BuildRuleFactoryParams params=new BuildRuleFactoryParams(instance,projectFilesystem,buildFileTree,buildTargetParser,buildTarget);
   RobolectricTestBuildRuleFactory factory=new RobolectricTestBuildRuleFactory();
   RobolectricTestRule.Builder builder=factory.newBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(buildTarget);
   factory.amendBuilder(builder,params);
@@ -21,5 +22,5 @@
   RobolectricTestRule robolectricRule=(RobolectricTestRule)ruleResolver.buildAndAddToIndex(builder);
   assertEquals(ImmutableList.of("-Dbuck.robolectric_dir=javatests/com/facebook/base"),robolectricRule.getVmArgs());
   assertEquals(ImmutableSet.of(base),robolectricRule.getSourceUnderTest());
-  EasyMock.verify(projectFilesystem);
+  EasyMock.verify(projectFilesystem,buildFileTree);
 }
