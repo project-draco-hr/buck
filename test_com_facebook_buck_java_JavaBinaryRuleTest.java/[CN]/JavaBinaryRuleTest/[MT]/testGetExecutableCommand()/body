@@ -4,9 +4,19 @@
   ruleResolver.buildAndAddToIndex(PrebuiltJarRule.newPrebuiltJarRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//third_party/guava:guava")).setBinaryJar(PATH_TO_GUAVA_JAR).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
   JavaLibraryRule javaLibraryRule=ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//java/com/facebook/base:base")).addSrc("java/com/facebook/base/Base.java").addDep(BuildTargetFactory.newInstance("//third_party/guava:guava")));
   JavaBinaryRule javaBinaryRule=ruleResolver.buildAndAddToIndex(JavaBinaryRule.newJavaBinaryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//java/com/facebook/base:Main")).addDep(BuildTargetFactory.newInstance("//java/com/facebook/base:base")).setMainClass("com.facebook.base.Main"));
-  String basePath=new File(".").getAbsolutePath().replaceFirst("\\.$","");
+  final String basePath=new File(".").getAbsolutePath().replaceFirst("\\.$","");
   String expectedClasspath=basePath + PATH_TO_GUAVA_JAR + ":"+ basePath+ javaLibraryRule.getPathToOutputFile();
   String expectedCommand=String.format("java -classpath %s com.facebook.base.Main",expectedClasspath);
-  assertEquals(expectedCommand,javaBinaryRule.getExecutableCommand());
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  Function<String,String> pathRelativizer=new Function<String,String>(){
+    @Override public String apply(    String path){
+      return basePath + path;
+    }
+  }
+;
+  expect(projectFilesystem.getPathRelativizer()).andReturn(pathRelativizer);
+  replay(projectFilesystem);
+  assertEquals(expectedCommand,javaBinaryRule.getExecutableCommand(projectFilesystem));
+  verify(projectFilesystem);
   assertFalse("Library rules that are used exclusively by genrules should not be part of the classpath.",expectedClasspath.contains(PATH_TO_GENERATOR_JAR));
 }
