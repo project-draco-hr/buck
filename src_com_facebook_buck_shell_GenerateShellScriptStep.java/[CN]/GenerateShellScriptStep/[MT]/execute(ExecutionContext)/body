@@ -1,0 +1,28 @@
+{
+  List<String> lines=Lists.newArrayList();
+  lines.add("#!/bin/sh");
+  lines.add("set -e");
+  lines.add("BUCK_PROJECT_ROOT=`mktemp -d -t sh_binary.XXXXXXXXXX`");
+  lines.add("trap \"chmod -R 755 $BUCK_PROJECT_ROOT " + "&& rm -rf $BUCK_PROJECT_ROOT\" EXIT HUP INT TERM");
+  lines.add("cd $BUCK_PROJECT_ROOT");
+  Function<String,String> pathRelativizer=context.getProjectFilesystem().getPathRelativizer();
+  createSymlinkCommands(resources,pathRelativizer,lines);
+  lines.add("find $BUCK_PROJECT_ROOT -type d -exec chmod 555 {} \\;");
+  lines.add("find $BUCK_PROJECT_ROOT -type f -exec chmod 444 {} \\;");
+  lines.add(String.format("BUCK_PROJECT_ROOT=$BUCK_PROJECT_ROOT %s \"$@\"",pathRelativizer.apply(scriptToRun.toString())));
+  File output=context.getProjectFilesystem().getFileForRelativePath(outputFile.toString());
+  try {
+    Files.write(Joiner.on('\n').join(lines) + '\n',output,Charsets.UTF_8);
+  }
+ catch (  IOException e) {
+    e.printStackTrace(context.getStdErr());
+    return 1;
+  }
+  if (output.setExecutable(true,false)) {
+    return 0;
+  }
+ else {
+    context.getConsole().printErrorText("Failed to set file as executable: " + output);
+    return 1;
+  }
+}
