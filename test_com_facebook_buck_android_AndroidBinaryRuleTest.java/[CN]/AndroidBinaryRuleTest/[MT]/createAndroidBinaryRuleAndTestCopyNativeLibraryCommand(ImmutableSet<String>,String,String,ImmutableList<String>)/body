@@ -1,0 +1,19 @@
+{
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  AndroidBinaryRule.Builder builder=AndroidBinaryRule.newAndroidBinaryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//:fbandroid_with_dash_debug_fbsign")).setManifest("AndroidManifest.xml").setKeystore(addKeystoreRule(ruleResolver)).setTarget("Google Inc:Google APIs:16");
+  for (  String filter : cpuFilters) {
+    builder.addCpuFilter(filter);
+  }
+  ImmutableList.Builder<Step> commands=ImmutableList.builder();
+  AndroidBinaryRule buildRule=ruleResolver.buildAndAddToIndex(builder);
+  buildRule.unzipNativeLibrary(sourceZip,destinationDir,commands);
+  ImmutableList<Step> steps=commands.build();
+  assertEquals(steps.size(),expectedShellCommands.size() + 1);
+  assertEquals(MakeCleanDirectoryStep.class,steps.get(0).getClass());
+  ImmutableList<ShellStep> shellSteps=ImmutableList.copyOf(Iterables.filter(steps,ShellStep.class));
+  assertEquals(shellSteps.size(),expectedShellCommands.size());
+  ExecutionContext context=ExecutionContext.builder().setConsole(new TestConsole()).setProjectFilesystem(new ProjectFilesystem(new File("."))).setEventBus(new BuckEventBus()).build();
+  for (int i=0; i < shellSteps.size(); ++i) {
+    assertEquals(expectedShellCommands.get(i),Joiner.on(" ").join((shellSteps.get(i)).getShellCommand(context)));
+  }
+}
