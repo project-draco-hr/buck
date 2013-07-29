@@ -1,0 +1,38 @@
+{
+  Clock fakeClock=new IncrementingFakeClock(TimeUnit.SECONDS.toNanos(1));
+  Supplier<Long> threadIdSupplier=BuckEventBus.getDefaultThreadIdSupplier();
+  EventBus rawEventBus=new EventBus();
+  BuckEventBus eventBus=new BuckEventBus(rawEventBus,fakeClock,threadIdSupplier);
+  TestConsole console=new TestConsole();
+  BuildTarget fakeTarget=BuildTargetFactory.newInstance("//banana:stand");
+  ImmutableList<BuildTarget> buildTargets=ImmutableList.of(fakeTarget);
+  FakeBuildRule fakeRule=new FakeBuildRule(BuildRuleType.GENRULE,fakeTarget,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of());
+  SimpleConsoleEventBusListener listener=new SimpleConsoleEventBusListener(console,fakeClock);
+  eventBus.register(listener);
+  final long threadId=0;
+  rawEventBus.post(configureTestEventAtTime(BuildEvent.started(buildTargets),0L,TimeUnit.MILLISECONDS,threadId));
+  rawEventBus.post(configureTestEventAtTime(ParseEvent.started(buildTargets),0L,TimeUnit.MILLISECONDS,threadId));
+  assertEquals("",console.getTextWrittenToStdOut());
+  assertEquals("",console.getTextWrittenToStdErr());
+  rawEventBus.post(configureTestEventAtTime(ParseEvent.finished(buildTargets),400L,TimeUnit.MILLISECONDS,threadId));
+  final String parsingLine="[-] PARSING BUILD FILES...FINISHED 0.40s\n";
+  assertEquals("",console.getTextWrittenToStdOut());
+  assertEquals(parsingLine,console.getTextWrittenToStdErr());
+  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.started(fakeRule),600L,TimeUnit.MILLISECONDS,threadId));
+  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.finished(fakeRule,BuildRuleStatus.SUCCESS,CacheResult.MISS,Optional.of(BuildRuleSuccess.Type.BUILT_LOCALLY)),1000L,TimeUnit.MILLISECONDS,threadId));
+  rawEventBus.post(configureTestEventAtTime(BuildEvent.finished(buildTargets,0),1234L,TimeUnit.MILLISECONDS,threadId));
+  final String buildingLine="[-] BUILDING...FINISHED 0.83s\n";
+  assertEquals("",console.getTextWrittenToStdOut());
+  assertEquals(parsingLine + buildingLine,console.getTextWrittenToStdErr());
+  rawEventBus.post(configureTestEventAtTime(LogEvent.severe("I've made a huge mistake."),1500L,TimeUnit.MILLISECONDS,threadId));
+  final String logLine="I've made a huge mistake.\n";
+  assertEquals("",console.getTextWrittenToStdOut());
+  assertEquals(parsingLine + buildingLine + logLine,console.getTextWrittenToStdErr());
+  rawEventBus.post(configureTestEventAtTime(InstallEvent.started(fakeTarget),2500L,TimeUnit.MILLISECONDS,threadId));
+  assertEquals("",console.getTextWrittenToStdOut());
+  assertEquals(parsingLine + buildingLine + logLine,console.getTextWrittenToStdErr());
+  rawEventBus.post(configureTestEventAtTime(InstallEvent.finished(fakeTarget,true),4000L,TimeUnit.MILLISECONDS,threadId));
+  final String installLine="[-] INSTALLING...FINISHED 1.50s\n";
+  assertEquals("",console.getTextWrittenToStdOut());
+  assertEquals(parsingLine + buildingLine + logLine+ installLine,console.getTextWrittenToStdErr());
+}
