@@ -16,9 +16,8 @@
  else {
     parser=new Parser(projectFilesystem,knownBuildRuleTypes,console);
   }
-  ExecutorService busExecutor=MoreBuckExecutors.newCachedThreadPool(new ThreadPoolExecutor.DiscardPolicy());
   Clock clock=new DefaultClock();
-  BuckEventBus buildEventBus=new BuckEventBus(new AsyncEventBus("buck-build-events",busExecutor),clock,BuckEventBus.getDefaultThreadIdSupplier());
+  BuckEventBus buildEventBus=new BuckEventBus(clock,BuckEventBus.getDefaultThreadIdSupplier());
   Optional<Command> command=Command.getCommandForName(args[0]);
   if (command.isPresent()) {
     ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,projectFilesystem);
@@ -32,9 +31,10 @@
     buildEventBus.post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.CONNECT,true));
     int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),artifactCache,buildEventBus,parser));
     buildEventBus.post(CommandEvent.finished(commandName,isDaemon(),exitCode));
-    busExecutor.shutdown();
+    ExecutorService buildEventBusExecutor=buildEventBus.getExecutorService();
+    buildEventBusExecutor.shutdown();
     try {
-      busExecutor.awaitTermination(15,TimeUnit.SECONDS);
+      buildEventBusExecutor.awaitTermination(15,TimeUnit.SECONDS);
     }
  catch (    InterruptedException e) {
     }
