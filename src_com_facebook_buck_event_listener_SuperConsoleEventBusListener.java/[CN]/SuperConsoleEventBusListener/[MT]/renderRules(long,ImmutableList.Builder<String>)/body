@@ -1,0 +1,37 @@
+{
+  ImmutableList<Map.Entry<Long,Optional<? extends BuildRuleEvent>>> eventsByThread=FluentIterable.from(threadsToRunningEvent.entrySet()).toSortedList(new Comparator<Map.Entry<Long,Optional<? extends BuildRuleEvent>>>(){
+    @Override public int compare(    Map.Entry<Long,Optional<? extends BuildRuleEvent>> a,    Map.Entry<Long,Optional<? extends BuildRuleEvent>> b){
+      return Long.signum(a.getKey() - b.getKey());
+    }
+  }
+);
+  for (  Map.Entry<Long,Optional<? extends BuildRuleEvent>> entry : eventsByThread) {
+    String threadLine=" |=> ";
+    Optional<? extends BuildRuleEvent> startedEvent=entry.getValue();
+    if (!startedEvent.isPresent()) {
+      threadLine+="IDLE";
+      threadLine=ansi.asSubtleText(threadLine);
+    }
+ else {
+      long elapsedTimeMs=currentMillis - startedEvent.get().getTimestamp();
+      Optional<? extends LeafEvent> leafEvent=threadsToRunningStep.get(entry.getKey());
+      threadLine+=String.format("%s...  %s",startedEvent.get().getBuildRule().getFullyQualifiedName(),formatElapsedTime(elapsedTimeMs));
+      if (leafEvent != null && leafEvent.isPresent()) {
+        threadLine+=String.format(" (running %s[%s])",leafEvent.get().getCategory(),formatElapsedTime(currentMillis - leafEvent.get().getTimestamp()));
+        if (elapsedTimeMs > WARNING_THRESHOLD_MS) {
+          if (elapsedTimeMs > ERROR_THRESHOLD_MS) {
+            threadLine=ansi.asErrorText(threadLine);
+          }
+ else {
+            threadLine=ansi.asWarningText(threadLine);
+          }
+        }
+      }
+ else {
+        threadLine+=" (checking local cache)";
+        threadLine=ansi.asSubtleText(threadLine);
+      }
+    }
+    lines.add(threadLine);
+  }
+}

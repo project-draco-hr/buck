@@ -1,0 +1,18 @@
+{
+  ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment();
+  ImmutableList.Builder<BuckEventListener> eventListenersBuilder=ImmutableList.<BuckEventListener>builder().add(new JavaUtilsLoggingBuildListener()).add(new ChromeTraceBuildListener(projectFilesystem));
+  if (console.getAnsi().isAnsiTerminal()) {
+    SuperConsoleEventBusListener superConsole=new SuperConsoleEventBusListener(console,clock,executionEnvironment);
+    superConsole.startRenderScheduler(100,TimeUnit.MILLISECONDS);
+    eventListenersBuilder.add(superConsole);
+  }
+ else {
+    eventListenersBuilder.add(new SimpleConsoleEventBusListener(console,clock));
+  }
+  ImmutableList<BuckEventListener> eventListeners=eventListenersBuilder.build();
+  for (  BuckEventListener eventListener : eventListeners) {
+    buckEvents.register(eventListener);
+  }
+  JavaUtilsLoggingBuildListener.ensureLogFileIsWritten();
+  return eventListeners;
+}
