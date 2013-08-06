@@ -1,44 +1,19 @@
 {
-  RunnerBuilder runnerBuilder=createRunnerBuilder();
-  final JUnitCore jUnit3TestRunner=new JUnitCore();
   for (  String className : testClassNames) {
     final Class<?> testClass=Class.forName(className);
     Ignore ignore=testClass.getAnnotation(Ignore.class);
-    boolean isTestClassIgnored=ignore != null;
+    boolean isTestClassIgnored=(ignore != null || !isTestClass(testClass));
     List<TestResult> results;
     if (isTestClassIgnored) {
       results=Collections.emptyList();
     }
  else {
-      results=new ArrayList<TestResult>();
-      Method[] publicInstanceMethods=testClass.getMethods();
-      for (      final Method method : publicInstanceMethods) {
-        if (!isTestMethod(method)) {
-          continue;
-        }
-        Runner runner=runnerBuilder.runnerForClass(testClass);
-        Callable<Result> runTestAndProduceJUnitResult;
-        if (runner instanceof BuckBlockJUnit4ClassRunner) {
-          final BuckBlockJUnit4ClassRunner jUnit4Runner=(BuckBlockJUnit4ClassRunner)runner;
-          runTestAndProduceJUnitResult=new Callable<Result>(){
-            @Override public Result call() throws NoTestsRemainException {
-              return jUnit4Runner.runTest(method);
-            }
-          }
-;
-        }
- else {
-          runTestAndProduceJUnitResult=new Callable<Result>(){
-            @Override public Result call(){
-              Request request=Request.method(testClass,method.getName());
-              return jUnit3TestRunner.run(request);
-            }
-          }
-;
-        }
-        TestResult testResult=TestResult.runTestMethod(runTestAndProduceJUnitResult,method);
-        results.add(testResult);
-      }
+      results=new ArrayList<>();
+      JUnitCore jUnitCore=new JUnitCore();
+      Runner suite=new Computer().getSuite(createRunnerBuilder(),new Class<?>[]{testClass});
+      Request request=Request.runner(suite);
+      jUnitCore.addListener(TestResult.createSingleTestResultRunListener(results));
+      jUnitCore.run(request);
     }
     writeResult(className,results);
   }

@@ -1,0 +1,57 @@
+{
+  return new RunListener(){
+    private PrintStream originalOut, originalErr, stdOutStream, stdErrStream;
+    private ByteArrayOutputStream rawStdOutBytes, rawStdErrBytes;
+    private Result result;
+    private RunListener resultListener;
+    @Override public void testStarted(    Description description) throws Exception {
+      originalOut=System.out;
+      originalErr=System.err;
+      rawStdOutBytes=new ByteArrayOutputStream();
+      rawStdErrBytes=new ByteArrayOutputStream();
+      stdOutStream=new PrintStream(rawStdOutBytes,true,ENCODING);
+      stdErrStream=new PrintStream(rawStdErrBytes,true,ENCODING);
+      System.setOut(stdOutStream);
+      System.setErr(stdErrStream);
+      result=new Result();
+      resultListener=result.createListener();
+      resultListener.testRunStarted(description);
+      resultListener.testStarted(description);
+    }
+    @Override public void testFinished(    Description description) throws Exception {
+      resultListener.testFinished(description);
+      resultListener.testRunFinished(result);
+      resultListener=null;
+      System.setOut(originalOut);
+      System.setErr(originalErr);
+      stdOutStream.flush();
+      stdErrStream.flush();
+      int numFailures=result.getFailureCount();
+      String className=description.getClassName();
+      String methodName=description.getMethodName();
+      if (numFailures < 0) {
+        throw new IllegalStateException(String.format("Unexpected number of failures while testing %s#%s(): %d (%s)",className,methodName,numFailures,result.getFailures()));
+      }
+      Failure failure=numFailures == 0 ? null : result.getFailures().get(0);
+      String stdOut=rawStdOutBytes.size() == 0 ? null : rawStdOutBytes.toString(ENCODING);
+      String stdErr=rawStdErrBytes.size() == 0 ? null : rawStdErrBytes.toString(ENCODING);
+      results.add(new TestResult(className,methodName,result.getRunTime(),failure,stdOut,stdErr));
+    }
+    @Override public void testAssumptionFailure(    Failure failure){
+      if (resultListener != null) {
+        resultListener.testAssumptionFailure(failure);
+      }
+    }
+    @Override public void testFailure(    Failure failure) throws Exception {
+      if (resultListener != null) {
+        resultListener.testFailure(failure);
+      }
+    }
+    @Override public void testIgnored(    Description description) throws Exception {
+      if (resultListener != null) {
+        resultListener.testIgnored(description);
+      }
+    }
+  }
+;
+}
