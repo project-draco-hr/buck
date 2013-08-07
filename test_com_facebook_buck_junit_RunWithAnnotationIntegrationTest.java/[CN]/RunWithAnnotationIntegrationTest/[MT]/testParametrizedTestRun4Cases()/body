@@ -1,0 +1,17 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"runwith",temporaryFolder);
+  workspace.setUp();
+  ProcessResult suiteTestResult=workspace.runBuckCommand("test","//:ParametrizedTest");
+  suiteTestResult.assertExitCode("Test should pass",0);
+  assertThat(suiteTestResult.getStderr(),containsString("4 Passed"));
+  Document doc=XmlDomParser.parse(new InputSource(new FileReader(workspace.getFile("buck-out/gen/__java_test_ParametrizedTest_output__/com.example.ParametrizedTest.xml"))),false);
+  NodeList testNodes=doc.getElementsByTagName("test");
+  assertEquals(4,testNodes.getLength());
+  for (int i=0; i < testNodes.getLength(); i++) {
+    Node testNode=testNodes.item(i);
+    String expectedName=String.format("parametrizedTest[%d]",i);
+    assertEquals(expectedName,testNode.getAttributes().getNamedItem("name").getTextContent());
+    String expectedStdout=String.format("Parameter: %d\n",i);
+    assertEquals(expectedStdout,((Element)testNode).getElementsByTagName("stdout").item(0).getTextContent());
+  }
+}
