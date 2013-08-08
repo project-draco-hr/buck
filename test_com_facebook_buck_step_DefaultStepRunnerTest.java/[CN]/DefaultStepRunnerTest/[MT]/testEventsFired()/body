@@ -1,7 +1,7 @@
 {
   Step passingStep=new FakeStep("step1","fake step 1",0);
   Step failingStep=new FakeStep("step1","fake step 1",1);
-  BuckEventBus eventBus=new BuckEventBus();
+  BuckEventBus eventBus=BuckEventBusFactory.newInstance();
   FakeBuckEventListener listener=new FakeBuckEventListener();
   eventBus.register(listener);
   ExecutionContext context=ExecutionContext.builder().setProjectFilesystem(createMock(ProjectFilesystem.class)).setConsole(new TestConsole()).setEventBus(eventBus).build();
@@ -16,7 +16,6 @@
  catch (  StepFailedException e) {
     assertEquals(e.getStep(),failingStep);
   }
-  eventBus.flushForTesting();
   ImmutableList<StepEvent> expected=ImmutableList.of(TestEventConfigerator.configureTestEvent(StepEvent.started(passingStep,"fake step 1"),eventBus),TestEventConfigerator.configureTestEvent(StepEvent.finished(passingStep,"fake step 1",0),eventBus),TestEventConfigerator.configureTestEvent(StepEvent.started(failingStep,"fake step 1"),eventBus),TestEventConfigerator.configureTestEvent(StepEvent.finished(failingStep,"fake step 1",1),eventBus));
   Iterable<StepEvent> events=Iterables.filter(listener.getEvents(),StepEvent.class);
   assertEquals(expected,ImmutableList.copyOf(events));
