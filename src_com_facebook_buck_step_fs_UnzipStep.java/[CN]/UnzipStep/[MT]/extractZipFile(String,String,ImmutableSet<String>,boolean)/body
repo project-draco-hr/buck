@@ -1,0 +1,32 @@
+{
+  File folder=new File(destination);
+  if (!folder.exists() && !folder.mkdirs()) {
+    throw new IOException(String.format("Folder %s could not be created.",folder.toString()));
+  }
+  try (ZipInputStream zip=new ZipInputStream(new FileInputStream(zipFile))){
+    for (ZipEntry entry=zip.getNextEntry(); entry != null; entry=zip.getNextEntry()) {
+      String fileName=entry.getName();
+      if (!filesToExtract.isEmpty() && !filesToExtract.contains(fileName)) {
+        continue;
+      }
+      File target=new File(folder,fileName);
+      if (target.exists() && !overwriteExistingFiles) {
+        continue;
+      }
+      if (entry.isDirectory()) {
+        if (!target.mkdirs()) {
+          throw new IOException(String.format("Folder %s could not be created.",target.toString()));
+        }
+      }
+ else {
+        File parentFolder=target.getParentFile();
+        if (!parentFolder.exists() && !parentFolder.mkdirs()) {
+          throw new IOException(String.format("Folder %s could not be created.",parentFolder.toString()));
+        }
+        try (FileOutputStream out=new FileOutputStream(target)){
+          ByteStreams.copy(zip,out);
+        }
+       }
+    }
+  }
+ }
