@@ -8,16 +8,17 @@
   expect(context.getVerbosity()).andReturn(Verbosity.ALL).times(2);
   replay(context);
   String unzipExpected=Joiner.on(" ").join(new ImmutableList.Builder<String>().add("unzip").add("-o").add("-d").add(dir.getPath()).add(inApk).addAll(entries).build());
-  List<String> copyExpected=ImmutableList.of("cp",inApk,outApk);
-  List<String> zipExpected=new ImmutableList.Builder<String>().add("zip").add("-X").add("-r").add("-" + compressionLevel).add(new File(outApk).getAbsolutePath()).addAll(entries).build();
+  ImmutableList<String> zipExpected=new ImmutableList.Builder<String>().add("zip").add("-X").add("-r").add("-" + compressionLevel).add(new File(outApk).getAbsolutePath()).addAll(entries).build();
   RepackZipEntriesStep command=new RepackZipEntriesStep(inApk,outApk,entries,compressionLevel,dir);
   Iterator<Step> iter=Iterators.filter(command.iterator(),Step.class);
   UnzipStep unzipStep=(UnzipStep)iter.next();
   assertEquals(unzipExpected,unzipStep.getDescription(context));
   CopyStep copyStep=(CopyStep)iter.next();
-  MoreAsserts.assertListEquals(copyExpected,copyStep.getShellCommand(context));
-  ZipStep zipCommand=(ZipStep)iter.next();
-  MoreAsserts.assertListEquals(zipExpected,zipCommand.getShellCommand(context));
-  assertEquals(zipCommand.getWorkingDirectory(),dir);
+  assertEquals(inApk,copyStep.getSource());
+  assertEquals(outApk,copyStep.getDestination());
+  assertFalse(copyStep.isRecursive());
+  ZipStep zipStep=(ZipStep)iter.next();
+  assertEquals(zipExpected,zipStep.getShellCommand(context));
+  assertEquals(zipStep.getWorkingDirectory(),dir);
   verify(context);
 }
