@@ -1,0 +1,30 @@
+{
+  Class<?> testClass=ThreadGuardedTest.class;
+  RunnerBuilder builder=new RunnerBuilder(){
+    @Override public Runner runnerForClass(    Class<?> clazz) throws Throwable {
+      return new BuckBlockJUnit4ClassRunner(clazz,100);
+    }
+  }
+;
+  Runner suite=new Computer().getSuite(builder,new Class<?>[]{testClass});
+  Request request=Request.runner(suite);
+  final Set<Result> results=Sets.newHashSet();
+  JUnitCore core=new JUnitCore();
+  core.addListener(new RunListener(){
+    @Override public void testRunFinished(    Result result) throws Exception {
+      results.add(result);
+    }
+  }
+);
+  core.run(request);
+  Result result=Iterables.getOnlyElement(results);
+  assertEquals(3,result.getRunCount());
+  assertEquals(2,result.getFailureCount());
+  Set<String> messages=FluentIterable.from(result.getFailures()).transform(new Function<Failure,String>(){
+    @Override public String apply(    Failure failure){
+      return failure.getMessage();
+    }
+  }
+).toSet();
+  assertEquals("Should contain explicit call to fail() from failingTestsAreReported() and " + "the timeout message from testsMayTimeOut().",ImmutableSet.of("This is expected","test testsMayTimeOut timed out after 100 milliseconds"),messages);
+}
