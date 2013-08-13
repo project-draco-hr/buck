@@ -5,7 +5,7 @@
   ProjectFilesystem projectFilesystem=new ProjectFilesystem(projectRoot,createBuckConfig(new ProjectFilesystem(projectRoot)).getIgnorePaths());
   BuckConfig config=createBuckConfig(projectFilesystem);
   Verbosity verbosity=VerbosityParser.parse(args);
-  Console console=new Console(verbosity,stdOut,stdErr,config.createAnsi());
+  final Console console=new Console(verbosity,stdOut,stdErr,config.createAnsi());
   KnownBuildRuleTypes knownBuildRuleTypes=new KnownBuildRuleTypes();
   Parser parser;
   if (isDaemon()) {
@@ -17,7 +17,7 @@
     parser=new Parser(projectFilesystem,knownBuildRuleTypes,console,config.getPythonInterpreter());
   }
   Clock clock=new DefaultClock();
-  BuckEventBus buildEventBus=new BuckEventBus(clock);
+  final BuckEventBus buildEventBus=new BuckEventBus(clock);
   Optional<Command> command=Command.getCommandForName(args[0],console);
   if (command.isPresent()) {
     ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,clock,projectFilesystem,console);
@@ -26,10 +26,21 @@
     Command executingCommand=command.get();
     String commandName=executingCommand.name().toLowerCase();
     buildEventBus.post(CommandEvent.started(commandName,isDaemon()));
-    buildEventBus.post(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.CONNECT));
-    ArtifactCache artifactCache=new LoggingArtifactCacheDecorator(buildEventBus).decorate(config.createArtifactCache(console));
-    buildEventBus.post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.CONNECT,true));
-    int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),artifactCache,buildEventBus,parser));
+    ArtifactCacheFactory artifactCacheFactory=new ArtifactCacheFactory(){
+      @Override public ArtifactCache newInstance(      AbstractCommandOptions options){
+        if (options.isNoCache()) {
+          return new NoopArtifactCache();
+        }
+ else {
+          buildEventBus.post(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.CONNECT));
+          ArtifactCache artifactCache=new LoggingArtifactCacheDecorator(buildEventBus).decorate(options.getBuckConfig().createArtifactCache(console));
+          buildEventBus.post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.CONNECT,true));
+          return artifactCache;
+        }
+      }
+    }
+;
+    int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),artifactCacheFactory,buildEventBus,parser));
     buildEventBus.post(CommandEvent.finished(commandName,isDaemon(),exitCode));
     ExecutorService buildEventBusExecutor=buildEventBus.getExecutorService();
     buildEventBusExecutor.shutdown();
