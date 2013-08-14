@@ -1,0 +1,41 @@
+{
+  final ImmutableSet<String> paths=config.getListenerJars();
+  if (paths.isEmpty()) {
+    return;
+  }
+  URL[] urlsArray=new URL[paths.size()];
+  try {
+    int i=0;
+    for (    String path : paths) {
+      String urlString="file://" + projectFilesystem.getPathRelativizer().apply(path);
+      urlsArray[i]=new URL(urlString);
+      i++;
+    }
+  }
+ catch (  MalformedURLException e) {
+    throw new HumanReadableException(e.getMessage());
+  }
+  ClassLoader isolatedClassLoader=URLClassLoader.newInstance(urlsArray,null);
+  ImmutableSet<ClassPath.ClassInfo> classInfos;
+  try {
+    ClassPath classPath=ClassPath.from(isolatedClassLoader);
+    classInfos=classPath.getTopLevelClasses();
+  }
+ catch (  IOException e) {
+    throw new HumanReadableException(e.getMessage());
+  }
+  URLClassLoader workingClassLoader=URLClassLoader.newInstance(urlsArray);
+  for (  ClassPath.ClassInfo classInfo : classInfos) {
+    String className=classInfo.getName();
+    try {
+      Class<?> aClass=Class.forName(className,true,workingClassLoader);
+      if (BuckEventListener.class.isAssignableFrom(aClass)) {
+        BuckEventListener listener=aClass.asSubclass(BuckEventListener.class).newInstance();
+        eventListeners.add(listener);
+      }
+    }
+ catch (    ReflectiveOperationException e) {
+      throw new HumanReadableException("Error loading event listener class '%s': %s: %s",className,e.getClass(),e.getMessage());
+    }
+  }
+}
