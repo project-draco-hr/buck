@@ -16,21 +16,14 @@
  else {
     rulesUnderTest=ImmutableSet.of();
   }
-  String targetsBeingTested;
-  if (options.isRunAllTests()) {
-    targetsBeingTested="ALL TESTS";
-  }
- else {
-    targetsBeingTested=Joiner.on(' ').join(options.getArgumentsFormattedAsBuildTargets());
-  }
-  getBuckEventBus().post(LogEvent.info("TESTING %s",targetsBeingTested));
+  getBuckEventBus().post(TestRunEvent.started(options.isRunAllTests(),options.getArgumentsFormattedAsBuildTargets()));
   List<ListenableFuture<TestResults>> results=Lists.newArrayList();
   Verbosity verbosity=console.getVerbosity();
   final boolean printTestResults=(verbosity != Verbosity.SILENT);
   FutureCallback<TestResults> onTestFinishedCallback=new FutureCallback<TestResults>(){
     @Override public void onSuccess(    TestResults testResults){
       if (printTestResults) {
-        getStdErr().print(testResults.getSummaryWithFailureDetails(console.getAnsi()));
+        getBuckEventBus().post(IndividualTestEvent.finished(options.getArgumentsFormattedAsBuildTargets(),testResults));
       }
     }
     @Override public void onFailure(    Throwable throwable){
@@ -42,6 +35,7 @@
     List<Step> steps;
     boolean isTestRunRequired=isTestRunRequiredForTest(test,executionContext);
     if (isTestRunRequired) {
+      getBuckEventBus().post(IndividualTestEvent.started(options.getArgumentsFormattedAsBuildTargets()));
       steps=test.runTests(buildContext,executionContext);
     }
  else {
@@ -64,29 +58,12 @@ catch (  ExecutionException e) {
     e.printStackTrace(getStdErr());
     return 1;
   }
+  getBuckEventBus().post(TestRunEvent.finished(options.getArgumentsFormattedAsBuildTargets(),completedResults));
   if (options.getPathToXmlTestOutput() != null) {
     try (Writer writer=Files.newWriter(new File(options.getPathToXmlTestOutput()),Charsets.UTF_8)){
       writeXmlOutput(completedResults,writer);
     }
    }
-  boolean isAllTestsPassed=true;
-  int numFailures=0;
-  Ansi ansi=console.getAnsi();
-  for (  TestResults summary : completedResults) {
-    if (!summary.isSuccess()) {
-      isAllTestsPassed=false;
-      numFailures+=summary.getFailureCount();
-    }
-  }
-  if (completedResults.isEmpty()) {
-    ansi.printlnHighlightedFailureText(getStdErr(),"NO TESTS RAN");
-  }
- else   if (isAllTestsPassed) {
-    ansi.printlnHighlightedSuccessText(getStdErr(),"TESTS PASSED");
-  }
- else {
-    ansi.printlnHighlightedFailureText(getStdErr(),String.format("TESTS FAILED: %d Failures",numFailures));
-  }
   if (options.isCodeCoverageEnabled() && !rulesUnderTest.isEmpty()) {
     try {
       Optional<DefaultJavaPackageFinder> defaultJavaPackageFinderOptional=options.getJavaPackageFinder();
@@ -97,5 +74,11 @@ catch (  ExecutionException e) {
       return 1;
     }
   }
-  return isAllTestsPassed ? 0 : 1;
+  boolean failures=Iterables.any(completedResults,new Predicate<TestResults>(){
+    @Override public boolean apply(    TestResults results){
+      return !results.isSuccess();
+    }
+  }
+);
+  return failures ? 1 : 0;
 }
