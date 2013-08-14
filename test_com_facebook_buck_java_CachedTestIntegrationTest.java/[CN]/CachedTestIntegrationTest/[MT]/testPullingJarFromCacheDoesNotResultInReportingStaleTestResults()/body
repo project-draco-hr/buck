@@ -1,0 +1,21 @@
+{
+  final Charset charsetForTest=Charsets.UTF_8;
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"cached_test",tmp);
+  workspace.setUp();
+  ProcessResult result=workspace.runBuckCommand("test","//:test");
+  result.assertExitCode(0);
+  File testFile=workspace.getFile("LameTest.java");
+  String originalJavaCode=Files.toString(testFile,charsetForTest);
+  String failingJavaCode=originalJavaCode.replace("String str = \"I am not null.\";","String str = null;");
+  Files.write(failingJavaCode,testFile,charsetForTest);
+  ProcessResult result2=workspace.runBuckCommand("test","//:test");
+  result2.assertExitCode(1);
+  assertThat("`buck test` should fail because testBasicAssertion() failed.",result2.getStderr(),containsString("FAILURE testBasicAssertion"));
+  Files.write(originalJavaCode,testFile,charsetForTest);
+  ProcessResult result3=workspace.runBuckCommand("test","//:test");
+  result3.assertExitCode(0);
+  Files.write(failingJavaCode,testFile,charsetForTest);
+  ProcessResult result4=workspace.runBuckCommand("test","//:test");
+  result4.assertExitCode(1);
+  assertThat("`buck test` should fail because testBasicAssertion() failed.",result4.getStderr(),containsString("FAILURE testBasicAssertion"));
+}
