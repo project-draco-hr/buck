@@ -8,12 +8,15 @@
   AndroidBinaryRule buildRule=ruleResolver.buildAndAddToIndex(builder);
   buildRule.unzipNativeLibrary(sourceZip,destinationDir,commands);
   ImmutableList<Step> steps=commands.build();
-  assertEquals(steps.size(),expectedShellCommands.size() + 1);
+  assertEquals(steps.size() - 2,expectedShellCommands.size());
   assertEquals(MakeCleanDirectoryStep.class,steps.get(0).getClass());
-  ImmutableList<ShellStep> shellSteps=ImmutableList.copyOf(Iterables.filter(steps,ShellStep.class));
-  assertEquals(shellSteps.size(),expectedShellCommands.size() - 1);
   ExecutionContext context=ExecutionContext.builder().setConsole(new TestConsole()).setProjectFilesystem(new ProjectFilesystem(new File("."))).setEventBus(BuckEventBusFactory.newInstance()).build();
+  assertEquals(UnzipStep.class,steps.get(1).getClass());
+  UnzipStep unzip=(UnzipStep)steps.get(1);
+  assertEquals("unzip -q -d " + nativeOutDir + "path/to/source path/to/source/libs.zip",Paths.normalizePathSeparator(unzip.getDescription(context)));
+  ImmutableList<ShellStep> shellSteps=ImmutableList.copyOf(Iterables.filter(steps,ShellStep.class));
+  assertEquals(shellSteps.size(),expectedShellCommands.size());
   for (int i=0; i < shellSteps.size(); ++i) {
-    assertEquals(expectedShellCommands.get(i + 1),Joiner.on(" ").join((shellSteps.get(i)).getShellCommand(context)));
+    assertEquals(expectedShellCommands.get(i),Paths.normalizePathSeparator(Joiner.on(" ").join((shellSteps.get(i)).getShellCommand(context))));
   }
 }
