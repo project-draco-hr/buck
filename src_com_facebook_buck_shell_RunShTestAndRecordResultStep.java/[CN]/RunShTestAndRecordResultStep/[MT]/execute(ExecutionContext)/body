@@ -1,18 +1,24 @@
 {
-  ShellStep test=new ShellStep(){
-    @Override public String getShortName(){
-      return pathToShellScript;
-    }
-    @Override protected ImmutableList<String> getShellCommandInternal(    ExecutionContext context){
-      return ImmutableList.of(pathToShellScript);
-    }
-    @Override protected boolean shouldRecordStdout(){
-      return true;
-    }
+  TestResultSummary summary;
+  if (Platform.detect() == Platform.WINDOWS) {
+    summary=new TestResultSummary(pathToShellScript,"sh_test",true,0,"sh_test ignored on Windows",null,null,null);
   }
+ else {
+    ShellStep test=new ShellStep(){
+      @Override public String getShortName(){
+        return pathToShellScript;
+      }
+      @Override protected ImmutableList<String> getShellCommandInternal(      ExecutionContext context){
+        return ImmutableList.of(pathToShellScript);
+      }
+      @Override protected boolean shouldRecordStdout(){
+        return true;
+      }
+    }
 ;
-  int exitCode=test.execute(context);
-  TestResultSummary summary=new TestResultSummary(pathToShellScript,"sh_test",exitCode == 0,test.getDuration(),null,null,test.getStdOut(),null);
+    int exitCode=test.execute(context);
+    summary=new TestResultSummary(pathToShellScript,"sh_test",exitCode == 0,test.getDuration(),null,null,test.getStdOut(),null);
+  }
   ObjectMapper mapper=new ObjectMapper();
   try {
     mapper.writeValue(Files.newWriter(new File(pathToTestResultFile),Charsets.UTF_8),summary);
