@@ -1,4 +1,27 @@
 {
   MoreFiles.copyRecursively(templatePath,destPath,BUILD_FILE_RENAME);
+  if (Platform.detect() == Platform.WINDOWS) {
+    SimpleFileVisitor<Path> copyDirVisitor=new SimpleFileVisitor<Path>(){
+      @Override public FileVisitResult visitFile(      Path path,      BasicFileAttributes attrs) throws IOException {
+        if (attrs.size() <= 4096) {
+          File file=path.toFile();
+          String linkTo=Files.toString(file,Charsets.UTF_8);
+          File linkToFile=new File(templatePath.toFile(),linkTo);
+          if (linkToFile.isFile()) {
+            java.nio.file.Files.copy(linkToFile.toPath(),path,StandardCopyOption.REPLACE_EXISTING);
+          }
+ else           if (linkToFile.isDirectory()) {
+            if (!file.delete()) {
+              throw new IOException();
+            }
+            MoreFiles.copyRecursively(linkToFile.toPath(),path);
+          }
+        }
+        return FileVisitResult.CONTINUE;
+      }
+    }
+;
+    java.nio.file.Files.walkFileTree(destPath,copyDirVisitor);
+  }
   isSetUp=true;
 }
