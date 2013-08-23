@@ -1,0 +1,23 @@
+{
+  BuildContext context=null;
+  String basePath="java/src/com/facebook/base";
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  BuildRule rule=ruleResolver.buildAndAddToIndex(NdkLibrary.newNdkLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance(String.format("//%s:base",basePath))).addSrc(basePath + "/Application.mk").addSrc(basePath + "/main.cpp").addSrc(basePath + "/Android.mk").addFlag("flag1").addFlag("flag2").setIsAsset(true).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
+  Assert.assertEquals(BuildRuleType.NDK_LIBRARY,rule.getType());
+  NdkLibrary ndkLibrary=(NdkLibrary)rule.getBuildable();
+  assertTrue(ndkLibrary.getProperties().is(ANDROID));
+  assertTrue(ndkLibrary.isAsset());
+  Assert.assertEquals(BuckConstant.GEN_DIR + "/" + basePath+ "/__libbase/libs",ndkLibrary.getLibraryPath());
+  MoreAsserts.assertListEquals(ImmutableList.of(basePath + "/Android.mk",basePath + "/Application.mk",basePath + "/main.cpp"),ImmutableList.copyOf(ndkLibrary.getInputsToCompareToOutput()));
+  List<Step> steps=ndkLibrary.buildArchive(context);
+  ExecutionContext executionContext=createMock(ExecutionContext.class);
+  File projectRoot=createMock(File.class);
+  expect(executionContext.getProjectDirectoryRoot()).andReturn(projectRoot);
+  expect(projectRoot.getAbsolutePath()).andReturn("/foo");
+  File ndkDir=createMock(File.class);
+  expect(executionContext.getNdkRoot()).andReturn(Optional.of(ndkDir));
+  expect(ndkDir.getAbsolutePath()).andReturn("/ndk-r8b");
+  replay(executionContext,projectRoot,ndkDir);
+  MoreAsserts.assertShellCommands("ndk_library() should invoke ndk-build on the given path with some -j value",ImmutableList.of(String.format("/ndk-r8b/ndk-build -j %d -C %s/ flag1 flag2 " + "APP_PROJECT_PATH=/foo/%s/%s/%s/ APP_BUILD_SCRIPT=/foo/%s/Android.mk " + "NDK_OUT=/foo/%s/%s/%s/",Runtime.getRuntime().availableProcessors(),basePath,BuckConstant.GEN_DIR,basePath,"__libbase",basePath,BuckConstant.GEN_DIR,basePath,"__libbase")),steps,executionContext);
+  verify(executionContext,projectRoot);
+}
