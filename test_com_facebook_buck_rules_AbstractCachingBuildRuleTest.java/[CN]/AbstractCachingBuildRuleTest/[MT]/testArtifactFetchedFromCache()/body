@@ -1,12 +1,26 @@
 {
-  ArtifactFetchedFromCacheScenario scenario=createArtifactFetchedFromCacheScenario(true);
-  BuildableAbstractCachingBuildRule cachingRule=scenario.cachingRule;
-  ListenableFuture<BuildRuleSuccess> result=cachingRule.build(scenario.buildContext);
-  assertEquals("recordOutputFileDetailsAfterFetchedFromArtifactCache() should be invoked once.",1,cachingRule.numCallsToRecordOutputFileDetailsAfterFetchedFromArtifactCache);
-  ImmutableList<String> linesWrittenToSuccessFile=ImmutableList.copyOf(scenario.lines.getValue());
-  assertEquals("The RuleKey should have been written to the .success file.",ImmutableList.of(cachingRule.getRuleKey().toString()),linesWrittenToSuccessFile);
+  Step step=new AbstractExecutionStep("exploding step"){
+    @Override public int execute(    ExecutionContext context){
+      throw new UnsupportedOperationException("build step should not be executed");
+    }
+  }
+;
+  BuildableAbstractCachingBuildRule cachingRule=createRule(ImmutableSet.<BuildRule>of(),ImmutableList.<InputRule>of(),ImmutableList.of(step),null);
+  StepRunner stepRunner=createMock(StepRunner.class);
+  expect(stepRunner.getListeningExecutorService()).andReturn(MoreExecutors.sameThreadExecutor());
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  expect(projectFilesystem.readFileIfItExists(Paths.get("buck-out/bin/src/com/facebook/orca/.orca/metadata/RULE_KEY"))).andReturn(Optional.<String>absent());
+  expect(projectFilesystem.getProjectRoot()).andReturn(tmp.getRoot());
+  ArtifactCache artifactCache=createMock(ArtifactCache.class);
+  Map<String,String> desiredZipEntries=ImmutableMap.of("buck-out/gen/src/com/facebook/orca/orca.jar","Imagine this is the contents of a valid JAR file.");
+  expect(artifactCache.fetch(eq(cachingRule.getRuleKey()),capture(new CaptureThatWritesAZipFile(desiredZipEntries)))).andReturn(true);
+  BuildContext buildContext=BuildContext.builder().setDependencyGraph(RuleMap.createGraphFromSingleRule(cachingRule)).setStepRunner(stepRunner).setProjectFilesystem(projectFilesystem).setArtifactCache(artifactCache).setJavaPackageFinder(createMock(JavaPackageFinder.class)).setEventBus(BuckEventBusFactory.newInstance()).build();
+  replayAll();
+  ListenableFuture<BuildRuleSuccess> result=cachingRule.build(buildContext);
+  verifyAll();
   assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(result));
   BuildRuleSuccess success=result.get();
   assertEquals(BuildRuleSuccess.Type.FETCHED_FROM_CACHE,success.getType());
-  verifyAll();
+  assertTrue(cachingRule.isInitializedFromDisk());
+  assertTrue("The entries in the zip should be extracted as a result of building the rule.",new File(tmp.getRoot(),"buck-out/gen/src/com/facebook/orca/orca.jar").isFile());
 }

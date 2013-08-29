@@ -1,0 +1,20 @@
+{
+  ImmutableSet<Path> pathsToIncludeInZip=ImmutableSet.<Path>builder().addAll(Iterables.transform(metadataToWrite.keySet(),new Function<String,Path>(){
+    @Override public Path apply(    String key){
+      return pathToMetadataDirectory.resolve(key);
+    }
+  }
+)).addAll(pathsToOutputFiles).build();
+  File zip;
+  try {
+    zip=File.createTempFile(buildTarget.getFullyQualifiedName().replace('/','_'),".zip");
+    projectFilesystem.createZip(pathsToIncludeInZip,zip);
+  }
+ catch (  IOException e) {
+    eventBus.post(LogEvent.info("Failed to create zip for %s containing:\n%s",buildTarget,Joiner.on('\n').join(ImmutableSortedSet.copyOf(pathsToIncludeInZip))));
+    e.printStackTrace();
+    return;
+  }
+  artifactCache.store(ruleKey,zip);
+  zip.delete();
+}

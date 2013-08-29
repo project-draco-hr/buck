@@ -1,0 +1,27 @@
+{
+  File zipFile;
+  try {
+    zipFile=File.createTempFile(getFullyQualifiedName().replace('/','_'),".zip");
+  }
+ catch (  IOException e) {
+    throw new RuntimeException(e);
+  }
+  boolean isSuccessfulFetch=buildInfoRecorder.fetchArtifactForBuildable(zipFile,artifactCache);
+  if (!isSuccessfulFetch) {
+    return false;
+  }
+  ProcessBuilder processBuilder=new ProcessBuilder("unzip","-o","-qq",zipFile.getAbsolutePath());
+  processBuilder.directory(projectRoot.toFile());
+  try {
+    Process process=processBuilder.start();
+    int exitCode=process.waitFor();
+    if (exitCode != 0) {
+      throw new RuntimeException("Failed to unzip " + zipFile);
+    }
+  }
+ catch (  IOException|InterruptedException e) {
+    return false;
+  }
+  zipFile.delete();
+  return true;
+}

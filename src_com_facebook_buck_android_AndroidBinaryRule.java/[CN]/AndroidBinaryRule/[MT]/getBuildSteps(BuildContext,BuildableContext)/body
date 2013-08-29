@@ -49,29 +49,32 @@
 ;
   commands.add(collectAssets);
   ImmutableSet.Builder<String> nativeLibraryDirectories=ImmutableSet.builder();
-  if (!transitiveDependencies.nativeLibsZips.isEmpty()) {
+  if (!transitiveDependencies.nativeLibsDirectories.isEmpty()) {
     String pathForNativeLibs=getPathForNativeLibs();
     String libSubdirectory=pathForNativeLibs + "/lib";
     nativeLibraryDirectories.add(libSubdirectory);
     commands.add(new MakeCleanDirectoryStep(libSubdirectory));
-    for (    String nativeLibZip : transitiveDependencies.nativeLibsZips) {
-      unzipNativeLibrary(nativeLibZip,libSubdirectory,commands);
+    for (    String nativeLibDir : transitiveDependencies.nativeLibsDirectories) {
+      if (nativeLibDir.endsWith("/")) {
+        nativeLibDir=nativeLibDir.substring(0,nativeLibDir.length() - 1);
+      }
+      copyNativeLibrary(nativeLibDir,libSubdirectory,commands);
     }
   }
   String resourceApkPath=getResourceApkPath();
   String unsignedApkPath=getUnsignedApkPath();
   Optional<String> assetsDirectory;
-  if (transitiveDependencies.assetsDirectories.isEmpty() && extraAssets.isEmpty() && transitiveDependencies.nativeLibAssetsZips.isEmpty()) {
+  if (transitiveDependencies.assetsDirectories.isEmpty() && extraAssets.isEmpty() && transitiveDependencies.nativeLibAssetsDirectories.isEmpty()) {
     assetsDirectory=Optional.absent();
   }
  else {
     assetsDirectory=Optional.of(getPathToAllAssetsDirectory());
   }
-  if (!transitiveDependencies.nativeLibAssetsZips.isEmpty()) {
+  if (!transitiveDependencies.nativeLibAssetsDirectories.isEmpty()) {
     String nativeLibAssetsDir=assetsDirectory.get() + "/lib";
     commands.add(new MakeCleanDirectoryStep(nativeLibAssetsDir));
-    for (    String nativeLibZip : transitiveDependencies.nativeLibAssetsZips) {
-      unzipNativeLibrary(nativeLibZip,nativeLibAssetsDir,commands);
+    for (    String nativeLibDir : transitiveDependencies.nativeLibAssetsDirectories) {
+      copyNativeLibrary(nativeLibDir,nativeLibAssetsDir,commands);
     }
   }
   commands.add(new MkdirStep(outputGenDirectory));

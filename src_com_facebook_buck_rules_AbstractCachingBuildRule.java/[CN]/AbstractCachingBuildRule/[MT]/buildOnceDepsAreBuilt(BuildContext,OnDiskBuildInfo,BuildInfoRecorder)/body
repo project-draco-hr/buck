@@ -1,0 +1,38 @@
+{
+  RuleKey ruleKey=getRuleKey();
+  Optional<RuleKey> cachedRuleKey=onDiskBuildInfo.getRuleKey();
+  if (ruleKey.equals(cachedRuleKey.orNull())) {
+    context.logBuildInfo("[UNCHANGED %s]",getFullyQualifiedName());
+    return new BuildResult(BuildRuleSuccess.Type.MATCHING_RULE_KEY,CacheResult.HIT);
+  }
+  if (this instanceof AbiRule) {
+    AbiRule abiRule=(AbiRule)this;
+    RuleKey ruleKeyNoDeps=getRuleKeyWithoutDeps();
+    Optional<RuleKey> cachedRuleKeyNoDeps=onDiskBuildInfo.getRuleKeyWithoutDeps();
+    if (ruleKeyNoDeps.equals(cachedRuleKeyNoDeps.orNull())) {
+      Optional<Sha1HashCode> abiKeyForDeps=abiRule.getAbiKeyForDeps();
+      Optional<Sha1HashCode> cachedAbiKeyForDeps=onDiskBuildInfo.getHash(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA);
+      if (abiKeyForDeps.isPresent() && abiKeyForDeps.equals(cachedAbiKeyForDeps)) {
+        buildInfoRecorder.addMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,onDiskBuildInfo.getValue(AbiRule.ABI_KEY_ON_DISK_METADATA).get());
+        buildInfoRecorder.addMetadata(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,cachedAbiKeyForDeps.get().getHash());
+        return new BuildResult(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,CacheResult.HIT);
+      }
+    }
+  }
+  boolean fromCache=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(buildInfoRecorder,context.getArtifactCache(),context.getProjectRoot());
+  if (fromCache) {
+    return new BuildResult(BuildRuleSuccess.Type.FETCHED_FROM_CACHE,CacheResult.HIT);
+  }
+  try {
+    executeCommandsNowThatDepsAreBuilt(context,onDiskBuildInfo,buildInfoRecorder);
+  }
+ catch (  IOException|StepFailedException e) {
+    return new BuildResult(e);
+  }
+  String pathToOutputFile=buildable.getPathToOutputFile();
+  if (pathToOutputFile != null && pathToOutputFile.startsWith(BuckConstant.GEN_DIR)) {
+    String prefix=BuckConstant.GEN_DIR + '/' + getBuildTarget().getBasePathWithSlash();
+    buildInfoRecorder.recordArtifact(pathToOutputFile.substring(prefix.length()));
+  }
+  return new BuildResult(BuildRuleSuccess.Type.BUILT_LOCALLY,CacheResult.MISS);
+}

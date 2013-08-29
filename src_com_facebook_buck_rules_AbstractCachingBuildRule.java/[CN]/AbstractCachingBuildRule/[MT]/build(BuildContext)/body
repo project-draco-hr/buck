@@ -14,22 +14,89 @@ synchronized (hasBuildStarted) {
     }
     ListenableFuture<List<BuildRuleSuccess>> allBuiltDeps=Futures.allAsList(builtDeps);
     Futures.addCallback(allBuiltDeps,new FutureCallback<List<BuildRuleSuccess>>(){
+      private final BuckEventBus eventBus=context.getEventBus();
+      private final OnDiskBuildInfo onDiskBuildInfo=context.createOnDiskBuildInfoFor(getBuildTarget());
+      /** 
+ * It is imperative that:
+ * <ol>
+ * <li>The {@link BuildInfoRecorder} is not constructed until all of the{@link Buildable}'s {@code deps} are guaranteed to be built. This ensures that
+ * the {@link RuleKey} will be available before the {@link BuildInfoRecorder} is
+ * constructed.
+ * <p>
+ * This is why a {@link Supplier} is used.
+ * <li>Only one {@link BuildInfoRecorder} is created per {@link Buildable}. This
+ * ensures that all build-related information for a {@link Buildable} goes though
+ * a single recorder, whose data will be persisted in {@link #onSuccess(List)}.
+ * <p>
+ * This is why {@link Suppliers#memoize(Supplier)} is used.
+ * </ol>
+ */
+      private final Supplier<BuildInfoRecorder> buildInfoRecorder=Suppliers.memoize(new Supplier<BuildInfoRecorder>(){
+        @Override public BuildInfoRecorder get(){
+          AbstractBuildRule buildRule=AbstractCachingBuildRule.this;
+          RuleKey ruleKey;
+          RuleKey ruleKeyWithoutDeps;
+          try {
+            ruleKey=buildRule.getRuleKey();
+            ruleKeyWithoutDeps=buildRule.getRuleKeyWithoutDeps();
+          }
+ catch (          IOException e) {
+            throw new RuntimeException(e);
+          }
+          return context.createBuildInfoRecorder(buildRule.getBuildTarget(),ruleKey,ruleKeyWithoutDeps);
+        }
+      }
+);
+      private boolean startOfBuildWasRecordedOnTheEventBus=false;
       @Override public void onSuccess(      List<BuildRuleSuccess> deps){
+        eventBus.post(BuildRuleEvent.started(AbstractCachingBuildRule.this));
+        startOfBuildWasRecordedOnTheEventBus=true;
         try {
-          buildOnceDepsAreBuilt(context);
+          BuildResult result=buildOnceDepsAreBuilt(context,onDiskBuildInfo,buildInfoRecorder.get());
+          if (result.isSuccess()) {
+            recordBuildRuleSuccess(result);
+          }
+ else {
+            recordBuildRuleFailure(result);
+          }
         }
  catch (        IOException e) {
           onFailure(e);
         }
       }
+      private void recordBuildRuleSuccess(      BuildResult result){
+        if (result.success.shouldWriteRecordedMetadataToDiskAfterBuilding()) {
+          try {
+            buildInfoRecorder.get().writeMetadataToDisk();
+          }
+ catch (          IOException e) {
+            onFailure(e);
+          }
+        }
+        if (result.success.shouldInitializeFromDiskAfterBuilding()) {
+          initializeFromDisk(onDiskBuildInfo);
+        }
+        BuildRuleSuccess buildRuleSuccess=new BuildRuleSuccess(AbstractCachingBuildRule.this,result.success);
+        buildRuleResult.set(buildRuleSuccess);
+        eventBus.post(BuildRuleEvent.finished(AbstractCachingBuildRule.this,result.status,result.cacheResult,Optional.of(result.success)));
+        if (result.success.shouldUploadResultingArtifact()) {
+          buildInfoRecorder.get().performUploadToArtifactCache(context.getArtifactCache(),eventBus);
+        }
+      }
       @Override public void onFailure(      Throwable failure){
-        recordBuildRuleFailure(failure,BuildRuleStatus.FAIL,CacheResult.MISS,context.getEventBus());
+        recordBuildRuleFailure(new BuildResult(failure));
+      }
+      private void recordBuildRuleFailure(      BuildResult result){
+        if (startOfBuildWasRecordedOnTheEventBus) {
+          eventBus.post(BuildRuleEvent.finished(AbstractCachingBuildRule.this,result.status,result.cacheResult,Optional.<BuildRuleSuccess.Type>absent()));
+        }
+        buildRuleResult.setException(result.failure);
       }
     }
 ,context.getExecutor());
   }
- catch (  Throwable throwable) {
-    recordBuildRuleFailure(throwable,BuildRuleStatus.FAIL,CacheResult.MISS,context.getEventBus());
+ catch (  Throwable failure) {
+    buildRuleResult.setException(failure);
   }
   return buildRuleResult;
 }
