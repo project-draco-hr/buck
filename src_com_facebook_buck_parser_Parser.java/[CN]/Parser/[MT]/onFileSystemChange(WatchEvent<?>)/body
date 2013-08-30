@@ -2,25 +2,19 @@
   if (console.getVerbosity() == Verbosity.ALL) {
     console.getStdErr().printf("Parser watched event %s %s\n",event.kind(),createContextString(event));
   }
-  boolean reconstructBuildFileTree=false;
   if (projectFilesystem.isPathChangeEvent(event)) {
-    String path=event.context().toString();
-    if (event.kind() == StandardWatchEventKinds.ENTRY_MODIFY) {
-      if (path.endsWith(".java")) {
-        return;
-      }
-    }
- else {
+    Path path=(Path)event.context();
+    if (isPathCreateOrDeleteEvent(event)) {
       if (path.endsWith(BuckConstant.BUILD_RULES_FILE_NAME)) {
-        reconstructBuildFileTree=true;
+        buildFileTreeCache.invalidate();
       }
+      String packageBuildFilePath=buildFileTreeCache.get().getBasePathOfAncestorTarget(projectFilesystem.getProjectRoot().toPath().relativize(path).toString());
+      invalidateDependents(projectFilesystem.getFileForRelativePath(packageBuildFilePath + '/' + BuckConstant.BUILD_RULES_FILE_NAME).toPath());
     }
+    invalidateDependents(path);
   }
  else {
-    reconstructBuildFileTree=true;
-  }
-  if (reconstructBuildFileTree) {
     buildFileTreeCache.invalidate();
+    invalidateCache();
   }
-  invalidateCache();
 }

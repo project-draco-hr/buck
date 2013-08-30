@@ -1,0 +1,20 @@
+{
+  path=normalize(path);
+  if (parsedBuildFiles.containsKey(path)) {
+    if (console.getVerbosity() == Verbosity.ALL) {
+      console.getStdErr().printf("Parser invalidating %s cache\n",path.toAbsolutePath());
+    }
+    for (    Map<String,Object> rawRule : parsedBuildFiles.get(path)) {
+      BuildTarget target=parseBuildTargetFromRawRule(rawRule,null);
+      knownBuildTargets.remove(target);
+    }
+    parsedBuildFiles.removeAll(path);
+    allBuildFilesParsed=false;
+  }
+  for (  Path dependent : buildFileDependents.get(path)) {
+    if (!dependent.equals(path)) {
+      invalidateDependents(dependent);
+    }
+  }
+  buildFileDependents.removeAll(path);
+}
