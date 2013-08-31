@@ -1,29 +1,33 @@
 {
   ProjectFilesystem projectFilesystem=getProjectFilesystem();
-  ProjectBuildFileParser parser=new ProjectBuildFileParser(projectFilesystem,options.getBuckConfig().getDefaultIncludes(),options.getBuckConfig().getPythonInterpreter());
-  PrintStream out=console.getStdOut();
-  for (  String pathToBuildFile : options.getArguments()) {
-    out.printf("# %s\n\n",pathToBuildFile);
-    Path path=Paths.get(pathToBuildFile);
-    if (!path.isAbsolute()) {
-      Path root=projectFilesystem.getRootPath();
-      path=root.resolve(path);
-    }
-    List<Map<String,Object>> rawRules;
-    try {
-      rawRules=parser.getAllRules(path.toString());
-    }
- catch (    BuildFileParseException e) {
-      throw new HumanReadableException(e);
-    }
-    final ImmutableSet<String> types=options.getTypes();
-    Predicate<String> includeType=new Predicate<String>(){
-      @Override public boolean apply(      String type){
-        return types.isEmpty() || types.contains(type);
+  try (ProjectBuildFileParser parser=new ProjectBuildFileParser(projectFilesystem,options.getBuckConfig().getDefaultIncludes(),options.getBuckConfig().getPythonInterpreter())){
+    PrintStream out=console.getStdOut();
+    for (    String pathToBuildFile : options.getArguments()) {
+      out.printf("# %s\n\n",pathToBuildFile);
+      Path path=Paths.get(pathToBuildFile);
+      if (!path.isAbsolute()) {
+        Path root=projectFilesystem.getProjectRoot().toPath();
+        path=root.resolve(path);
       }
-    }
+      List<Map<String,Object>> rawRules;
+      try {
+        rawRules=parser.getAllRules(path.toString());
+      }
+ catch (      BuildFileParseException e) {
+        throw new HumanReadableException(e);
+      }
+      final ImmutableSet<String> types=options.getTypes();
+      Predicate<String> includeType=new Predicate<String>(){
+        @Override public boolean apply(        String type){
+          return types.isEmpty() || types.contains(type);
+        }
+      }
 ;
-    printRulesToStdout(rawRules,includeType);
+      printRulesToStdout(rawRules,includeType);
+    }
+  }
+ catch (  BuildFileParseException e) {
+    throw new HumanReadableException("Unable to create parser");
   }
   return 0;
 }
