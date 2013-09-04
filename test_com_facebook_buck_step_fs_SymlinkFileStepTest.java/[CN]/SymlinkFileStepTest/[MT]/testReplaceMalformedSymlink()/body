@@ -1,0 +1,23 @@
+{
+  Assume.assumeTrue(Platform.detect() != Platform.WINDOWS);
+  ProcessBuilder builder=new ProcessBuilder();
+  builder.command("ln","-s","/path/that/does/not/exist","my_symlink");
+  File tmp=tmpDir.getRoot();
+  builder.directory(tmp);
+  Process process=builder.start();
+  process.waitFor();
+  Path symlink=Paths.get(tmp.getAbsolutePath(),"my_symlink");
+  assertFalse("exists() should reflect the existence of what the symlink points to",symlink.toFile().exists());
+  assertTrue("even though exists() is false, isSymbolicLink should be true",java.nio.file.Files.isSymbolicLink(symlink));
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(tmpDir.getRoot());
+  ExecutionContext executionContext=createMock(ExecutionContext.class);
+  expect(executionContext.getProjectFilesystem()).andReturn(projectFilesystem).anyTimes();
+  replay(executionContext);
+  tmpDir.newFile("dummy");
+  SymlinkFileStep symlinkStep=new SymlinkFileStep("dummy","my_symlink");
+  int exitCode=symlinkStep.execute(executionContext);
+  assertEquals(0,exitCode);
+  assertTrue(java.nio.file.Files.isSymbolicLink(symlink));
+  assertTrue(symlink.toFile().exists());
+  verify(executionContext);
+}
