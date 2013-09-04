@@ -1,20 +1,31 @@
 {
   Preconditions.checkState(root.isDirectory(),"Must be a directory: %s",root);
-  Deque<DirectoryWithRelativePath> directoriesToVisit=new ArrayDeque<DirectoryWithRelativePath>();
-  directoriesToVisit.add(new DirectoryWithRelativePath(root,""));
-  while (!directoriesToVisit.isEmpty()) {
-    DirectoryWithRelativePath directoryWithRelativePath=directoriesToVisit.pop();
-    String relativePath=directoryWithRelativePath.relativePath;
-    for (    File entry : directoryWithRelativePath.directory.listFiles()) {
-      if (entry.isDirectory()) {
-        String directoryPath=relativePath + (relativePath.isEmpty() ? "" : "/") + entry.getName();
-        if (!ignorePaths.contains(directoryPath)) {
-          directoriesToVisit.push(new DirectoryWithRelativePath(entry,directoryPath));
-        }
+  final Path rootPath=root.toPath();
+  FileVisitor<Path> visitor=new FileVisitor<Path>(){
+    @Override public FileVisitResult preVisitDirectory(    Path dir,    BasicFileAttributes attrs) throws IOException {
+      if (ignorePaths.contains(rootPath.relativize(dir).toString())) {
+        return FileVisitResult.SKIP_SUBTREE;
       }
  else {
-        visit(entry,relativePath + (relativePath.isEmpty() ? "" : "/") + entry.getName());
+        return FileVisitResult.CONTINUE;
       }
     }
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs) throws IOException {
+      visit(file.toFile(),rootPath.relativize(file).toString());
+      return FileVisitResult.CONTINUE;
+    }
+    @Override public FileVisitResult visitFileFailed(    Path file,    IOException exc) throws IOException {
+      return FileVisitResult.CONTINUE;
+    }
+    @Override public FileVisitResult postVisitDirectory(    Path dir,    IOException exc) throws IOException {
+      return FileVisitResult.CONTINUE;
+    }
+  }
+;
+  try {
+    Files.walkFileTree(rootPath,EnumSet.of(FileVisitOption.FOLLOW_LINKS),Integer.MAX_VALUE,visitor);
+  }
+ catch (  IOException e) {
+    throw new RuntimeException(e);
   }
 }
