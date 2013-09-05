@@ -11,13 +11,19 @@
   MoreAsserts.assertListEquals(ImmutableList.of(basePath + "/Android.mk",basePath + "/Application.mk",basePath + "/main.cpp"),ImmutableList.copyOf(ndkLibrary.getInputsToCompareToOutput()));
   List<Step> steps=ndkLibrary.getBuildSteps(context,new FakeBuildableContext());
   ExecutionContext executionContext=createMock(ExecutionContext.class);
-  File projectRoot=createMock(File.class);
-  expect(executionContext.getProjectDirectoryRoot()).andReturn(projectRoot);
-  expect(projectRoot.getAbsolutePath()).andReturn("/foo");
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  Function<String,String> pathTransform=new Function<String,String>(){
+    @Override public String apply(    String pathRelativeTo){
+      return "/foo/" + pathRelativeTo;
+    }
+  }
+;
+  expect(executionContext.getProjectFilesystem()).andReturn(projectFilesystem);
+  expect(projectFilesystem.getPathRelativizer()).andReturn(pathTransform);
   File ndkDir=createMock(File.class);
   expect(executionContext.getNdkRoot()).andReturn(Optional.of(ndkDir));
   expect(ndkDir.getAbsolutePath()).andReturn("/ndk-r8b");
-  replay(executionContext,projectRoot,ndkDir);
-  MoreAsserts.assertShellCommands("ndk_library() should invoke ndk-build on the given path with some -j value",ImmutableList.of(String.format("/ndk-r8b/ndk-build -j %d -C %s/ flag1 flag2 " + "APP_PROJECT_PATH=/foo/%s/%s/%s/ APP_BUILD_SCRIPT=/foo/%s/Android.mk " + "NDK_OUT=/foo/%s/%s/%s/",Runtime.getRuntime().availableProcessors(),basePath,BuckConstant.BIN_DIR,basePath,"__libbase",basePath,BuckConstant.BIN_DIR,basePath,"__libbase")),steps.subList(0,1),executionContext);
-  verify(executionContext,projectRoot);
+  replay(executionContext,projectFilesystem,ndkDir);
+  MoreAsserts.assertShellCommands("ndk_library() should invoke ndk-build on the given path with some -j value",ImmutableList.of(String.format("/ndk-r8b/ndk-build -j %d -C %s/ flag1 flag2 " + "APP_PROJECT_PATH=/foo/%s/%s/%s/ APP_BUILD_SCRIPT=/foo/%s/Android.mk " + "NDK_OUT=/foo/%s/%s/%s/ "+ "NDK_LIBS_OUT=/foo/%s/%s/%s/libs/",Runtime.getRuntime().availableProcessors(),basePath,BuckConstant.BIN_DIR,basePath,"__libbase",basePath,BuckConstant.BIN_DIR,basePath,"__libbase",BuckConstant.BIN_DIR,basePath,"__libbase")),steps.subList(0,1),executionContext);
+  verify(executionContext,projectFilesystem);
 }
