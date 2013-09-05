@@ -2,26 +2,23 @@
   final ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
   final File binDir=projectFilesystem.getFileForRelativePath(binDirectory);
   ImmutableSet<String> ignorePaths=ImmutableSet.of();
-  final AtomicBoolean isSuccess=new AtomicBoolean(true);
-  new DirectoryTraversal(binDir,ignorePaths){
-    @Override public void visit(    File file,    String relativePath){
-      if (!isSuccess.get()) {
-        return;
-      }
+  DirectoryTraversal traversal=new DirectoryTraversal(binDir,ignorePaths){
+    @Override public void visit(    File file,    String relativePath) throws IOException {
       String source=new File(binDir,relativePath).getPath();
       String target=genDirectory + "/" + relativePath;
-      try {
-        projectFilesystem.createParentDirs(target);
-        projectFilesystem.copyFile(source,target);
-      }
- catch (      IOException e) {
-        isSuccess.set(false);
-        e.printStackTrace(context.getStdErr());
-      }
+      projectFilesystem.createParentDirs(target);
+      projectFilesystem.copyFile(source,target);
       String artifactPath=artifactPathTransform.apply(relativePath);
       buildableContext.recordArtifact(artifactPath);
     }
   }
-.traverse();
-  return isSuccess.get() ? 0 : 1;
+;
+  try {
+    traversal.traverse();
+  }
+ catch (  IOException e) {
+    e.printStackTrace(context.getStdErr());
+    return 1;
+  }
+  return 0;
 }
