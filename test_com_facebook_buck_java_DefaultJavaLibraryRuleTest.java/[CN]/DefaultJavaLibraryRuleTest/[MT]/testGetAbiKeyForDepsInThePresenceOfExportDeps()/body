@@ -5,7 +5,7 @@
   DefaultJavaLibraryRule commonWithExport=createDefaultJavaLibaryRuleWithAbiKey(commonWithExportAbiKeyHash,BuildTargetFactory.newInstance("//:common_with_export"),ImmutableSet.<String>of(),ImmutableSet.<BuildRule>of(tinyLibrary),true);
   DefaultJavaLibraryRule commonNoExport=createDefaultJavaLibaryRuleWithAbiKey(null,BuildTargetFactory.newInstance("//:common_no_export"),ImmutableSet.<String>of(),ImmutableSet.<BuildRule>of(tinyLibrary),false);
   assertEquals("getAbiKeyForDeps() should be the same for both rules because they have the same deps.",commonNoExport.getAbiKeyForDeps(),commonWithExport.getAbiKeyForDeps());
-  String expectedAbiKeyForDepsHash=Hashing.sha1().newHasher().putString(tinyLibAbiKeyHash).hash().toString();
+  String expectedAbiKeyForDepsHash=Hashing.sha1().newHasher().putUnencodedChars(tinyLibAbiKeyHash).hash().toString();
   String observedAbiKeyForDepsHash=commonNoExport.getAbiKeyForDeps().get().getHash();
   assertEquals(expectedAbiKeyForDepsHash,observedAbiKeyForDepsHash);
   Map<BuildTarget,BuildRule> buildRuleIndex=Maps.newHashMap();
@@ -17,7 +17,7 @@
   DefaultJavaLibraryRule consumerWithExport=ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//:consumer_with_export")).addDep(BuildTargetFactory.newInstance("//:common_with_export")));
   assertEquals("The ABI of the deps of //:consumer_no_export should be the empty ABI.",consumerNoExport.getAbiKeyForDeps(),Optional.of(new Sha1HashCode(AbiWriterProtocol.EMPTY_ABI_KEY)));
   assertThat("Although //:consumer_no_export and //:consumer_with_export have the same deps, " + "the ABIs of their deps will differ because of the use of export_deps=True.",consumerNoExport.getAbiKeyForDeps(),not(equalTo(consumerWithExport.getAbiKeyForDeps())));
-  String expectedAbiKeyNoDepsHashForConsumerWithExport=Hashing.sha1().newHasher().putString(commonWithExportAbiKeyHash).putString(tinyLibAbiKeyHash).hash().toString();
+  String expectedAbiKeyNoDepsHashForConsumerWithExport=Hashing.sha1().newHasher().putUnencodedChars(commonWithExportAbiKeyHash).putUnencodedChars(tinyLibAbiKeyHash).hash().toString();
   String observedAbiKeyNoDepsHashForConsumerWithExport=consumerWithExport.getAbiKeyForDeps().get().getHash();
   assertEquals("By hardcoding the ABI keys for the deps, we made getAbiKeyForDeps() a predictable value.",expectedAbiKeyNoDepsHashForConsumerWithExport,observedAbiKeyNoDepsHashForConsumerWithExport);
 }
