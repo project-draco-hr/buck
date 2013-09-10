@@ -1,0 +1,22 @@
+{
+  long entrySize=entry.getSize();
+  if (entrySize <= 0) {
+    return;
+  }
+  if (entrySize > zipSizeHardLimit) {
+    throw new IllegalArgumentException("Single entry larger than limit: " + entry);
+  }
+  ZipOutputStreamHelper targetOut;
+  boolean canFitAllRemaining=remainingSize + primaryOut.getCurrentSize() <= zipSizeHardLimit;
+  if ((canFitAllRemaining && dexSplitStrategy == ZipSplitter.DexSplitStrategy.MAXIMIZE_PRIMARY_DEX_SIZE) || requiredInPrimaryZip.apply(entry.getRelativePath())) {
+    if (!primaryOut.canPutEntry(entry)) {
+      throw new IllegalArgumentException("Unable to fit all required files in primary zip.");
+    }
+    targetOut=primaryOut;
+  }
+ else {
+    targetOut=getSecondaryZipToWriteTo(entry);
+  }
+  targetOut.putEntry(entry);
+  remainingSize-=entrySize;
+}

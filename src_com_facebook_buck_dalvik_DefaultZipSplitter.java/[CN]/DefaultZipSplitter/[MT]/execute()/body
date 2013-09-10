@@ -1,0 +1,35 @@
+{
+  ClasspathTraverser classpathTraverser=new DefaultClasspathTraverser();
+  classpathTraverser.traverse(new ClasspathTraversal(inFiles){
+    @Override public void visit(    FileLike entry){
+      long entrySize=entry.getSize();
+      if (entrySize > 0) {
+        remainingSize+=entrySize;
+      }
+    }
+  }
+);
+  currentSecondaryIndex=0;
+  primaryOut=newZipOutput(outPrimary);
+  currentSecondaryOut=null;
+  try {
+    for (    File inFile : inFiles) {
+      classpathTraverser.traverse(new ClasspathTraversal(ImmutableSet.of(inFile)){
+        @Override public void visit(        FileLike entry) throws IOException {
+          processEntry(entry);
+        }
+      }
+);
+      if (currentSecondaryOut != null && currentSecondaryOut.getCurrentSize() >= zipSizeSoftLimit) {
+        newSecondaryOutOnNextEntry=true;
+      }
+    }
+  }
+  finally {
+    primaryOut.close();
+    if (currentSecondaryOut != null) {
+      currentSecondaryOut.close();
+    }
+  }
+  return secondaryFiles.build();
+}
