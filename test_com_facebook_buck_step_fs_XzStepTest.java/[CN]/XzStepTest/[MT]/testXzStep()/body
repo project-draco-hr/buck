@@ -3,11 +3,10 @@
   final File destinationFile=File.createTempFile("XzStepTest","xzstep.data.xz");
   destinationFile.deleteOnExit();
   XzStep step=new XzStep(sourceFile.getPath(),destinationFile.getPath(),1,false,XZ.CHECK_CRC32);
-  ExecutionContext context=EasyMock.createMock(ExecutionContext.class);
   ProjectFilesystem fs=EasyMock.createMock(ProjectFilesystem.class);
-  EasyMock.expect(context.getProjectFilesystem()).andReturn(fs);
   EasyMock.expect(fs.deleteFileAtPath(sourceFile.getPath())).andReturn(true);
-  EasyMock.replay(fs,context);
+  EasyMock.replay(fs);
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(fs).build();
   assertEquals(0,step.execute(context));
   InputSupplier<FileInputStream> original=Files.newInputStreamSupplier(sourceFile);
   InputSupplier<InputStream> decompressed=new InputSupplier<InputStream>(){
@@ -17,5 +16,5 @@
   }
 ;
   assertTrue("Decompressed file must be identical to original.",ByteStreams.equal(decompressed,original));
-  EasyMock.verify(fs,context);
+  EasyMock.verify(fs);
 }
