@@ -1,0 +1,37 @@
+{
+  final ImmutableSet<String> classNames;
+  if (primaryDexClassesFile.isPresent()) {
+    Path manifest=primaryDexClassesFile.get();
+    classNames=FluentIterable.from(context.getProjectFilesystem().readLines(manifest)).transform(new Function<String,String>(){
+      @Override public String apply(      String line){
+        return line.trim();
+      }
+    }
+).filter(new Predicate<String>(){
+      @Override public boolean apply(      String line){
+        return !line.isEmpty() && !(line.charAt(0) == '#');
+      }
+    }
+).toSet();
+  }
+ else {
+    classNames=ImmutableSet.of();
+  }
+  return new Predicate<String>(){
+    @Override public boolean apply(    String name){
+      if (!name.endsWith(".class")) {
+        return true;
+      }
+      if (classNames.contains(name)) {
+        return true;
+      }
+      for (      String substr : SplitZipStep.this.primaryDexSubstrings) {
+        if (name.contains(substr)) {
+          return true;
+        }
+      }
+      return false;
+    }
+  }
+;
+}
