@@ -1,14 +1,9 @@
 {
-  if (isKeyspaceAndTtlFutureAKnownFailure.get()) {
-    return Optional.absent();
-  }
   try {
     return Optional.of(keyspaceAndTtlFuture.get());
   }
- catch (  InterruptedException|ExecutionException e) {
-    if (!isKeyspaceAndTtlFutureAKnownFailure.getAndSet(true)) {
-      buckEventBus.post(ThrowableLogEvent.create(e,"Connecting to cassandra failed."));
-    }
-    return Optional.absent();
+ catch (  ExecutionException|InterruptedException e) {
+    buckEventBus.post(ThrowableLogEvent.create(e,"Unexpected error when fetching keyspace and ttl: %s.",e.getMessage()));
   }
+  return Optional.absent();
 }
