@@ -1,0 +1,22 @@
+{
+  for (  Map<String,Object> map : rules) {
+    if (isMetaRule(map)) {
+      parseMetaRule(map);
+      continue;
+    }
+    BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(map);
+    BuildTarget target=parseBuildTargetFromRawRule(map);
+    BuildRuleFactory<?> factory=buildRuleTypes.getFactory(buildRuleType);
+    if (factory == null) {
+      throw new HumanReadableException("Unrecognized rule %s while parsing %s.",buildRuleType,target.getBuildFile(projectFilesystem));
+    }
+    BuildFileTree buildFileTree;
+    buildFileTree=buildFileTreeCache.getInput();
+    BuildRuleBuilder<?> buildRuleBuilder=factory.newInstance(new BuildRuleFactoryParams(map,projectFilesystem,buildFileTree,buildTargetParser,target));
+    Object existingRule=knownBuildTargets.put(target,buildRuleBuilder);
+    if (existingRule != null) {
+      throw new RuntimeException("Duplicate definition for " + target.getFullyQualifiedName());
+    }
+    parsedBuildFiles.put(normalize(target.getBuildFile(projectFilesystem).toPath()),map);
+  }
+}
