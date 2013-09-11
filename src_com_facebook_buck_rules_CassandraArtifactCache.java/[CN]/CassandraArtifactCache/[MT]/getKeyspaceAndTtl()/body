@@ -1,9 +1,14 @@
 {
+  if (isKeyspaceAndTtlFutureAKnownFailure.get()) {
+    return Optional.absent();
+  }
   try {
     return Optional.of(keyspaceAndTtlFuture.get());
   }
  catch (  InterruptedException|ExecutionException e) {
-    logger.warning(String.format("Connecting to cassandra failed"));
+    if (!isKeyspaceAndTtlFutureAKnownFailure.getAndSet(true)) {
+      buckEventBus.post(ThrowableLogEvent.create(e,"Connecting to cassandra failed."));
+    }
+    return Optional.absent();
   }
-  return Optional.absent();
 }
