@@ -4,9 +4,11 @@
     return EMPTY;
   }
   Set<String> searchPathElements=Sets.newHashSet();
+  ImmutableSortedSet.Builder<BuildRule> rules=ImmutableSortedSet.naturalOrder();
   for (  BuildTarget target : targets) {
     BuildRule rule=ruleResolver.get(target);
     String type=rule.getType().getName();
+    rules.add(rule);
     if ("java_binary".equals(type) || "prebuilt_jar".equals(type)) {
       String pathToOutput=((Buildable)rule).getPathToOutputFile();
       if (pathToOutput != null) {
@@ -21,5 +23,5 @@
       throw new HumanReadableException("%1$s: Error adding '%2$s' to annotation_processing_deps: " + "must refer only to prebuilt jar, java binary, or java library targets.",ownerTarget,target.getFullyQualifiedName());
     }
   }
-  return new AnnotationProcessingParams(ownerTarget,searchPathElements,names,parameters,processOnly);
+  return new AnnotationProcessingParams(ownerTarget,searchPathElements,names,parameters,rules.build(),processOnly);
 }
