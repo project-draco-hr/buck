@@ -1,8 +1,8 @@
 {
-  @SuppressWarnings("resource") PrintStream stdOutToWriteTo=shouldRecordStdOut ? new CapturingPrintStream() : stdOutStream;
-  InputStreamConsumer stdOut=new InputStreamConsumer(process.getInputStream(),stdOutToWriteTo,shouldRecordStdOut,ansi);
+  @SuppressWarnings("resource") PrintStream stdOutToWriteTo=shouldPrintStdOut ? stdOutStream : new CapturingPrintStream();
+  InputStreamConsumer stdOut=new InputStreamConsumer(process.getInputStream(),stdOutToWriteTo,ansi);
   @SuppressWarnings("resource") PrintStream stdErrToWriteTo=shouldPrintStdErr ? stdErrStream : new CapturingPrintStream();
-  InputStreamConsumer stdErr=new InputStreamConsumer(process.getErrorStream(),stdErrToWriteTo,true,ansi);
+  InputStreamConsumer stdErr=new InputStreamConsumer(process.getErrorStream(),stdErrToWriteTo,ansi);
   Thread stdOutConsumer=new Thread(stdOut);
   stdOutConsumer.start();
   Thread stdErrConsumer=new Thread(stdErr);
@@ -13,20 +13,18 @@
     stdErrConsumer.join();
   }
  catch (  InterruptedException e) {
-    return new Result(1,"");
+    return new Result(1,null,null);
   }
-  String stdOutText;
-  if (shouldRecordStdOut) {
-    CapturingPrintStream capturingPrintStream=(CapturingPrintStream)stdOutToWriteTo;
-    stdOutText=capturingPrintStream.getContentsAsString(Charsets.US_ASCII);
-  }
- else {
-    stdOutText=null;
-  }
+  String stdoutText=getDataIfNotPrinted(stdOutToWriteTo,shouldPrintStdOut);
+  String stderrText=getDataIfNotPrinted(stdErrToWriteTo,shouldPrintStdErr);
   int exitCode=process.exitValue();
-  if (exitCode != 0 && !shouldPrintStdErr && !isSilent) {
-    CapturingPrintStream capturingPrintStream=(CapturingPrintStream)stdErrToWriteTo;
-    stdErrStream.print(capturingPrintStream.getContentsAsString(Charsets.US_ASCII));
+  if (exitCode != 0 && !isSilent) {
+    if (!shouldPrintStdOut) {
+      stdOutStream.print(stdoutText);
+    }
+    if (!shouldPrintStdErr) {
+      stdErrStream.print(stderrText);
+    }
   }
-  return new Result(exitCode,stdOutText);
+  return new Result(exitCode,stdoutText,stderrText);
 }
