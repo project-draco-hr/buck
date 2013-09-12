@@ -1,0 +1,18 @@
+{
+  final String ruleKeyHash="b64009ae3762a42a1651c139ec452f0d18f48e21";
+  Console console=createMock(Console.class);
+  console.printErrorText("Failed to retrieve an artifact with id " + ruleKeyHash + ".");
+  CommandRunnerParamsForTesting commandRunnerParams=CommandRunnerParamsForTesting.builder().setConsole(console).build();
+  CacheCommand cacheCommand=new CacheCommand(commandRunnerParams);
+  BuckConfig buckConfig=createMock(BuckConfig.class);
+  CassandraArtifactCache cassandra=createMock(CassandraArtifactCache.class);
+  expect(cassandra.fetch(eq(new RuleKey(ruleKeyHash)),capture(new Capture<File>()))).andReturn(false);
+  Capture<BuckEventBus> buckEventBus=new Capture<>();
+  expect(buckConfig.createCassandraArtifactCache(capture(buckEventBus))).andReturn(cassandra);
+  replayAll();
+  CacheCommandOptions options=new CacheCommandOptions(buckConfig);
+  options.setArguments(ImmutableList.of(ruleKeyHash));
+  int exitCode=cacheCommand.runCommandWithOptionsInternal(options);
+  assertEquals(1,exitCode);
+  verifyAll();
+}

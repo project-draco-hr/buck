@@ -1,0 +1,28 @@
+{
+  List<String> arguments=options.getArguments();
+  if (arguments.isEmpty()) {
+    console.printErrorText("No cache keys specified.");
+    return 1;
+  }
+  BuckConfig buckConfig=options.getBuckConfig();
+  CassandraArtifactCache cassandra=buckConfig.createCassandraArtifactCache(getBuckEventBus());
+  if (cassandra == null) {
+    console.printErrorText("No cassandra cache defined.");
+    return 1;
+  }
+  File tmpDir=Files.createTempDir();
+  int exitCode=0;
+  for (  String arg : arguments) {
+    RuleKey ruleKey=new RuleKey(arg);
+    File artifact=new File(tmpDir,arg);
+    boolean success=cassandra.fetch(ruleKey,artifact);
+    if (success) {
+      console.printSuccess(String.format("Successfully downloaded artifact with id %s at %s.",ruleKey,artifact));
+    }
+ else {
+      console.printErrorText(String.format("Failed to retrieve an artifact with id %s.",ruleKey));
+      exitCode=1;
+    }
+  }
+  return exitCode;
+}
