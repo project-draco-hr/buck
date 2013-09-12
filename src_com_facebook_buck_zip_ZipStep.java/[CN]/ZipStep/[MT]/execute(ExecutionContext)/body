@@ -1,0 +1,33 @@
+{
+  File original=new File(absolutePathToZipFile);
+  if (original.exists()) {
+    context.getBuckEventBus().post(LogEvent.create(SEVERE,"Attempting to overwrite an existing zip: %s",original));
+    return 1;
+  }
+  try (BufferedOutputStream baseOut=new BufferedOutputStream(new FileOutputStream(absolutePathToZipFile));CustomZipOutputStream out=ZipOutputStreams.newOutputStream(baseOut,OVERWRITE_EXISTING)){
+    DirectoryTraversal traversal=new DirectoryTraversal(baseDir){
+      @Override public void visit(      File file,      String relativePath) throws IOException {
+        if (!paths.isEmpty() && !paths.contains(relativePath)) {
+          return;
+        }
+        String name=junkPaths ? file.getName() : relativePath;
+        if (file.isDirectory()) {
+          name+="/";
+        }
+        CustomZipEntry entry=new CustomZipEntry(name);
+        entry.setTime(file.lastModified());
+        entry.setSize(file.length());
+        entry.setCompressionLevel(compressionLevel);
+        out.putNextEntry(entry);
+        Files.copy(file.toPath(),out);
+        out.closeEntry();
+      }
+    }
+;
+    traversal.traverse();
+    return 0;
+  }
+ catch (  IOException e) {
+    return 1;
+  }
+}

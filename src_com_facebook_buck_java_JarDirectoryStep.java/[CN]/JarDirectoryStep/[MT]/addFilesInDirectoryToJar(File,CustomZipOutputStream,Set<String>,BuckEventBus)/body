@@ -1,0 +1,22 @@
+{
+  new DirectoryTraversal(directory){
+    @Override public void visit(    File file,    String relativePath){
+      JarEntry entry=new JarEntry(relativePath);
+      String entryName=entry.getName();
+      entry.setTime(file.lastModified());
+      try {
+        if (!isDuplicateAllowed(entryName) && !alreadyAddedEntries.add(entryName)) {
+          eventBus.post(LogEvent.create(Level.INFO,"Duplicate found when adding directory to jar: %s",relativePath));
+          return;
+        }
+        jar.putNextEntry(entry);
+        Files.copy(file,jar);
+        jar.closeEntry();
+      }
+ catch (      IOException e) {
+        Throwables.propagate(e);
+      }
+    }
+  }
+.traverse();
+}

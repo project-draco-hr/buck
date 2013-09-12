@@ -1,0 +1,27 @@
+{
+  long currentOffset=0;
+  for (  Map.Entry<File,EntryAccounting> mapEntry : entries.entrySet()) {
+    EntryAccounting entry=mapEntry.getValue();
+    entry.setOffset(currentOffset);
+    currentOffset+=entry.writeLocalFileHeader(delegate);
+    currentOffset+=Files.copy(mapEntry.getKey().toPath(),delegate);
+    currentOffset+=entry.close(delegate);
+  }
+  new CentralDirectory().writeCentralDirectory(delegate,currentOffset,entries.values());
+  delegate.close();
+  SimpleFileVisitor<Path> visitor=new SimpleFileVisitor<Path>(){
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs) throws IOException {
+      Files.delete(file);
+      return FileVisitResult.CONTINUE;
+    }
+    @Override public FileVisitResult postVisitDirectory(    Path dir,    IOException exc) throws IOException {
+      if (exc == null) {
+        Files.delete(dir);
+        return FileVisitResult.CONTINUE;
+      }
+      throw exc;
+    }
+  }
+;
+  Files.walkFileTree(scratchDir.toPath(),visitor);
+}

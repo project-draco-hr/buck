@@ -2,20 +2,12 @@
   Manifest manifest=new Manifest();
   ProjectFilesystem filesystem=context.getProjectFilesystem();
   if (manifestFile != null) {
-    FileInputStream manifestStream=new FileInputStream(filesystem.getFileForRelativePath(manifestFile));
-    boolean readSuccessfully=false;
-    try {
+    try (FileInputStream manifestStream=new FileInputStream(filesystem.getFileForRelativePath(manifestFile))){
       manifest.read(manifestStream);
-      readSuccessfully=true;
     }
-  finally {
-      Closeables.close(manifestStream,!readSuccessfully);
-    }
-  }
- else {
-    manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION,"1.0");
-  }
-  try (JarOutputStream outputFile=new JarOutputStream(new BufferedOutputStream(new FileOutputStream(filesystem.getFileForRelativePath(pathToOutputFile))))){
+   }
+  manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION,"1.0");
+  try (CustomZipOutputStream outputFile=ZipOutputStreams.newOutputStream(filesystem.getFileForRelativePath(pathToOutputFile),APPEND_TO_ZIP)){
     Set<String> alreadyAddedEntries=Sets.newHashSet();
     ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
     for (    String entry : entriesToJar) {

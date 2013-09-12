@@ -1,0 +1,17 @@
+{
+  Assume.assumeTrue(Platform.detect() != Platform.WINDOWS);
+  File parent=tmp.newFolder("zipstep");
+  File out=new File(parent,"output.zip");
+  File target=new File(parent,"target");
+  Files.write("example content",target,UTF_8);
+  File toZip=tmp.newFolder("zipdir");
+  Path path=toZip.toPath().resolve("file.txt");
+  java.nio.file.Files.createSymbolicLink(path,target.toPath());
+  ZipStep step=new ZipStep(out.getAbsolutePath(),ImmutableSet.<String>of(),false,ZipStep.DEFAULT_COMPRESSION_LEVEL,toZip);
+  step.execute(TestExecutionContext.newInstance());
+  try (Zip zip=new Zip(out,false)){
+    assertEquals(ImmutableSet.of("file.txt"),zip.getFileNames());
+    byte[] contents=zip.readFully("file.txt");
+    assertArrayEquals("example content".getBytes(),contents);
+  }
+ }
