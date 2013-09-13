@@ -1,7 +1,7 @@
 {
   Optional<KeyspaceAndTtl> keyspaceAndTtl=getKeyspaceAndTtl();
   if (!keyspaceAndTtl.isPresent()) {
-    return false;
+    return CacheResult.MISS;
   }
   OperationResult<ColumnList<String>> result;
   int ttl;
@@ -12,9 +12,9 @@
   }
  catch (  ConnectionException e) {
     reportConnectionFailure("Attempting to fetch " + ruleKey + ".",e);
-    return false;
+    return CacheResult.MISS;
   }
-  boolean success=false;
+  CacheResult success=CacheResult.MISS;
   try {
     Column<String> column=result.getResult().getColumnByName(artifactColumnName);
     if (column != null) {
@@ -24,12 +24,12 @@
       if (System.currentTimeMillis() * 1000L - column.getTimestamp() > ttl * 1000000L / 2L) {
         store(ruleKey,output);
       }
-      success=true;
+      success=CacheResult.CASSANDRA_HIT;
     }
   }
  catch (  IOException e) {
     buckEventBus.post(ThrowableLogEvent.create(e,"Artifact was fetched but could not be written: %s at %s.",ruleKey,output.getPath()));
   }
-  buckEventBus.post(LogEvent.fine("Artifact fetch(%s, %s) cache %s",ruleKey,output.getPath(),(success ? "hit" : "miss")));
+  buckEventBus.post(LogEvent.fine("Artifact fetch(%s, %s) cache %s",ruleKey,output.getPath(),(success.isSuccess() ? "hit" : "miss")));
   return success;
 }

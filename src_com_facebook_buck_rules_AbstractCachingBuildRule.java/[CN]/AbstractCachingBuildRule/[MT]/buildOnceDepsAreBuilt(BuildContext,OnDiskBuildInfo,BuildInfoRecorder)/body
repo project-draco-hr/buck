@@ -3,7 +3,7 @@
   Optional<RuleKey> cachedRuleKey=onDiskBuildInfo.getRuleKey();
   if (ruleKey.equals(cachedRuleKey.orNull())) {
     context.logBuildInfo("[UNCHANGED %s]",getFullyQualifiedName());
-    return new BuildResult(BuildRuleSuccess.Type.MATCHING_RULE_KEY,CacheResult.HIT);
+    return new BuildResult(BuildRuleSuccess.Type.MATCHING_RULE_KEY,CacheResult.LOCAL_KEY_UNCHANGED_HIT);
   }
   if (this instanceof AbiRule) {
     AbiRule abiRule=(AbiRule)this;
@@ -15,13 +15,13 @@
       if (abiKeyForDeps.isPresent() && abiKeyForDeps.equals(cachedAbiKeyForDeps)) {
         buildInfoRecorder.addMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,onDiskBuildInfo.getValue(AbiRule.ABI_KEY_ON_DISK_METADATA).get());
         buildInfoRecorder.addMetadata(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,cachedAbiKeyForDeps.get().getHash());
-        return new BuildResult(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,CacheResult.HIT);
+        return new BuildResult(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,CacheResult.LOCAL_KEY_UNCHANGED_HIT);
       }
     }
   }
-  boolean fromCache=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(buildInfoRecorder,context.getArtifactCache(),context.getProjectRoot(),context);
-  if (fromCache) {
-    return new BuildResult(BuildRuleSuccess.Type.FETCHED_FROM_CACHE,CacheResult.HIT);
+  CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(buildInfoRecorder,context.getArtifactCache(),context.getProjectRoot(),context);
+  if (cacheResult.isSuccess()) {
+    return new BuildResult(BuildRuleSuccess.Type.FETCHED_FROM_CACHE,cacheResult);
   }
   try {
     executeCommandsNowThatDepsAreBuilt(context,onDiskBuildInfo,buildInfoRecorder);
