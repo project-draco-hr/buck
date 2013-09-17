@@ -1,0 +1,19 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"symlink_files_into_directory",tmp);
+  workspace.setUp();
+  File outputFolder=tmp.newFolder("output");
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(tmp.getRoot());
+  ExecutionContext executionContext=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
+  SymlinkFilesIntoDirectoryStep symlinkStep=new SymlinkFilesIntoDirectoryStep(tmp.getRoot().toPath(),ImmutableSet.of("a.txt","foo/b.txt","foo/bar/c.txt"),outputFolder.toPath());
+  int exitCode=symlinkStep.execute(executionContext);
+  assertEquals(0,exitCode);
+  Path symlinkToADotTxt=new File(tmp.getRoot(),"output/a.txt").toPath();
+  assertTrue(Files.isSymbolicLink(symlinkToADotTxt));
+  assertEquals(projectFilesystem.resolve(Paths.get("a.txt")),Files.readSymbolicLink(symlinkToADotTxt));
+  Path symlinkToBDotTxt=new File(tmp.getRoot(),"output/foo/b.txt").toPath();
+  assertTrue(Files.isSymbolicLink(symlinkToBDotTxt));
+  assertEquals(projectFilesystem.resolve(Paths.get("foo/b.txt")),Files.readSymbolicLink(symlinkToBDotTxt));
+  Path symlinkToCDotTxt=new File(tmp.getRoot(),"output/foo/bar/c.txt").toPath();
+  assertTrue(Files.isSymbolicLink(symlinkToCDotTxt));
+  assertEquals(projectFilesystem.resolve(Paths.get("foo/bar/c.txt")),Files.readSymbolicLink(symlinkToCDotTxt));
+}
