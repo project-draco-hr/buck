@@ -5,18 +5,19 @@
   while (matcher.find()) {
     if (fullyQualifiedNameToBuildRule == null) {
       fullyQualifiedNameToBuildRule=Maps.newHashMap();
-      for (      BuildRule dep : getDeps()) {
+      for (      BuildRule dep : depsToSubstituteInCommandString) {
         fullyQualifiedNameToBuildRule.put(dep.getFullyQualifiedName(),dep);
       }
     }
     String buildTarget=matcher.group(3);
     String base=matcher.group(4);
     if (base == null) {
-      buildTarget=String.format("//%s%s",getBuildTarget().getBasePath(),buildTarget);
+      BuildTarget myBuildTarget=buildRule.getBuildTarget();
+      buildTarget=String.format("//%s%s",myBuildTarget.getBasePath(),buildTarget);
     }
     BuildRule matchingRule=fullyQualifiedNameToBuildRule.get(buildTarget);
     if (matchingRule == null) {
-      throw new HumanReadableException("No dep named %s for %s %s, cmd was %s",buildTarget,getType().getName(),getFullyQualifiedName(),command);
+      throw new HumanReadableException("No dep named %s for %s %s, cmd was %s",buildTarget,buildRule.getType().getName(),getFullyQualifiedName(),command);
     }
     String replacement;
     Buildable matchingBuildable=matchingRule.getBuildable();
