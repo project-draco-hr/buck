@@ -20,21 +20,21 @@
   EasyMock.replay(context);
   FilterResourcesStep.DrawableFinder finder=EasyMock.createMock(FilterResourcesStep.DrawableFinder.class);
   FilteredDirectoryCopier copier=EasyMock.createMock(FilteredDirectoryCopier.class);
-  Capture<Map<String,String>> dirMapCapture=new Capture<Map<String,String>>();
-  Capture<Predicate<File>> predCapture=new Capture<Predicate<File>>();
+  Capture<Map<String,String>> dirMapCapture=new Capture<>();
+  Capture<Predicate<File>> predCapture=new Capture<>();
   copier.copyDirs(EasyMock.capture(dirMapCapture),EasyMock.capture(predCapture));
   EasyMock.replay(copier);
   ImageScaler scaler=EasyMock.createMock(FilterResourcesStep.ImageScaler.class);
   scaler.scale(0.5,scaleSource,scaleDest,context);
   EasyMock.expect(scaler.isAvailable(context)).andReturn(true);
   EasyMock.replay(scaler);
-  FilterResourcesStep command=new FilterResourcesStep(resDirectories,baseDestination,targetDensity,copier,finder,scaler);
-  EasyMock.expect(finder.findDrawables(resDirectories)).andAnswer(new IAnswer<Set<String>>(){
+  FilterResourcesStep command=new FilterResourcesStep(inResDirToOutResDirMap,true,true,copier,targetDensity,finder,scaler);
+  EasyMock.expect(finder.findDrawables(inResDirToOutResDirMap.keySet())).andAnswer(new IAnswer<Set<String>>(){
     @SuppressWarnings("unchecked") @Override public Set<String> answer() throws Throwable {
       ImmutableSet.Builder<String> builder=ImmutableSet.builder();
       for (      String dir : (Iterable<String>)EasyMock.getCurrentArguments()[0]) {
         for (        String qualifier : qualifiers) {
-          builder.add(getFile(dir,qualifier,"some.png"));
+          builder.add(getDrawableFile(dir,qualifier,"some.png"));
         }
       }
       builder.add(scaleSource);
@@ -42,11 +42,11 @@
     }
   }
 ).times(2);
-  EasyMock.expect(finder.findDrawables(command.getFilteredResourceDirectories())).andAnswer(new IAnswer<Set<String>>(){
+  EasyMock.expect(finder.findDrawables(inResDirToOutResDirMap.values())).andAnswer(new IAnswer<Set<String>>(){
     @SuppressWarnings("unchecked") @Override public Set<String> answer() throws Throwable {
       ImmutableSet.Builder<String> builder=ImmutableSet.builder();
       for (      String dir : (Iterable<String>)EasyMock.getCurrentArguments()[0]) {
-        builder.add(getFile(dir,targetDensity,"some.png"));
+        builder.add(getDrawableFile(dir,targetDensity,"some.png"));
       }
       builder.add(scaleSource);
       return builder.build();
@@ -55,15 +55,15 @@
 ).once();
   EasyMock.replay(finder);
   ImmutableMap.Builder<String,String> dirMapBuilder=ImmutableMap.builder();
-  Iterator<String> destIterator=command.getFilteredResourceDirectories().iterator();
-  for (  String dir : resDirectories) {
+  Iterator<String> destIterator=inResDirToOutResDirMap.values().iterator();
+  for (  String dir : inResDirToOutResDirMap.keySet()) {
     String nextDestination=destIterator.next();
     dirMapBuilder.put(dir,nextDestination);
     assertEquals(baseDestination,new File(nextDestination).getParentFile());
   }
   command.execute(context);
   assertEquals(dirMapBuilder.build(),dirMapCapture.getValue());
-  Set<String> drawables=finder.findDrawables(resDirectories);
+  Set<String> drawables=finder.findDrawables(inResDirToOutResDirMap.keySet());
   Predicate<File> expectedPred=Filters.createImageDensityFilter(drawables,targetDensity);
   Predicate<File> capturedPred=predCapture.getValue();
   for (  String drawablePath : drawables) {

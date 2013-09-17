@@ -1,7 +1,23 @@
 {
-  Set<String> drawables=drawableFinder.findDrawables(originalToFiltered.keySet());
-  Predicate<File> densityFilter=Filters.createImageDensityFilter(drawables,resourceFilter);
-  filteredDirectoryCopier.copyDirs(originalToFiltered,densityFilter);
+  List<Predicate<File>> filePredicates=Lists.newArrayList();
+  if (filterDrawables) {
+    Set<String> drawables=drawableFinder.findDrawables(inResDirToOutResDirMap.keySet());
+    filePredicates.add(Filters.createImageDensityFilter(drawables,resourceFilter));
+  }
+  if (filterStrings) {
+    filePredicates.add(new Predicate<File>(){
+      @Override public boolean apply(      File input){
+        String inputPath=input.getAbsolutePath();
+        if (NON_ENGLISH_STRING_PATH.matcher(inputPath).matches()) {
+          nonEnglishStringFilesBuilder.add(inputPath);
+          return false;
+        }
+        return true;
+      }
+    }
+);
+  }
+  filteredDirectoryCopier.copyDirs(inResDirToOutResDirMap,Predicates.and(filePredicates));
   if ((imageScaler != null) && imageScaler.isAvailable(context)) {
     scaleUnmatchedDrawables(context);
   }

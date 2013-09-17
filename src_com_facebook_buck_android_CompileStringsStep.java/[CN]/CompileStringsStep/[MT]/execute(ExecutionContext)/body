@@ -1,0 +1,17 @@
+{
+  ImmutableSet<String> filteredStringFiles=filterResourcesStep.getNonEnglishStringFiles();
+  ImmutableMultimap<String,String> filesByLocale=groupFilesByLocale(filteredStringFiles);
+  ProjectFilesystem filesystem=context.getProjectFilesystem();
+  for (  String locale : filesByLocale.keySet()) {
+    try {
+      ImmutableMap<String,Object> resources=compileStringFiles(filesByLocale.get(locale));
+      File jsonFile=filesystem.getFileForRelativePath(destinationDir.resolve(locale + ".json"));
+      objectMapper.writeValue(jsonFile,resources);
+    }
+ catch (    IOException e) {
+      context.getBuckEventBus().post(ThrowableLogEvent.create(e,"Error creating json string file for locale: %s",locale));
+      return 1;
+    }
+  }
+  return 0;
+}
