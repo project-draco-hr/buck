@@ -6,7 +6,6 @@
       additionalLibraryJarsForProguardBuilder.addAll(classpathEntriesMap.get((JavaLibraryRule)buildRule));
     }
   }
-  Set<String> classpathEntries=dexDeps.classpathEntriesToDex;
   String proguardDirectory=getPathForProGuardDirectory();
   commands.add(new MakeCleanDirectoryStep(proguardDirectory));
   String generatedProGuardConfig=proguardDirectory + "/proguard.txt";
@@ -17,17 +16,13 @@
   if (proguardConfig.isPresent()) {
     proguardConfigsBuilder.add(proguardConfig.get().resolve(context).toString());
   }
-  ImmutableMap.Builder<String,String> inputOutputEntriesBuilder=ImmutableMap.builder();
-  for (  String classpathEntry : classpathEntries) {
-    inputOutputEntriesBuilder.put(classpathEntry,getProguardOutputFromInputClasspath(classpathEntry));
-  }
-  final ImmutableMap<String,String> inputOutputEntries=inputOutputEntriesBuilder.build();
-  ProGuardObfuscateStep obfuscateCommand=new ProGuardObfuscateStep(generatedProGuardConfig,proguardConfigsBuilder.build(),useAndroidProguardConfigWithOptimizations,inputOutputEntriesBuilder.build(),additionalLibraryJarsForProguardBuilder.build(),proguardDirectory);
-  commands.add(obfuscateCommand);
-  dexDeps.applyClasspathTransformation(new AndroidDexTransitiveDependencies.InputTransformation(){
-    @Override public String apply(    String originalClasspath){
-      return inputOutputEntries.get(originalClasspath);
+  final ImmutableMap<String,String> inputOutputEntries=FluentIterable.from(classpathEntriesToDex).toMap(new Function<String,String>(){
+    @Override public String apply(    String classpathEntry){
+      return getProguardOutputFromInputClasspath(classpathEntry);
     }
   }
 );
+  ProGuardObfuscateStep obfuscateCommand=new ProGuardObfuscateStep(generatedProGuardConfig,proguardConfigsBuilder.build(),useAndroidProguardConfigWithOptimizations,inputOutputEntries,additionalLibraryJarsForProguardBuilder.build(),proguardDirectory);
+  commands.add(obfuscateCommand);
+  return ImmutableSet.copyOf(inputOutputEntries.values());
 }
