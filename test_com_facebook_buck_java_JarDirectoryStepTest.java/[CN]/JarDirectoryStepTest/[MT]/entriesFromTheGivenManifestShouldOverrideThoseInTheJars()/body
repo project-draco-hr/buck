@@ -1,0 +1,30 @@
+{
+  String expected="1.4";
+  File tmp=folder.newFolder();
+  Manifest manifest=new Manifest();
+  manifest.getMainAttributes().putValue(MANIFEST_VERSION.toString(),"1.0");
+  manifest.getMainAttributes().putValue(IMPLEMENTATION_VERSION.toString(),expected);
+  File manifestFile=new File(tmp,"manifest");
+  try (FileOutputStream fos=new FileOutputStream(manifestFile)){
+    manifest.write(fos);
+  }
+   manifest=new Manifest();
+  manifest.getMainAttributes().putValue(MANIFEST_VERSION.toString(),"1.0");
+  manifest.getMainAttributes().putValue(IMPLEMENTATION_VERSION.toString(),"1.0");
+  File input=new File(tmp,"input.jar");
+  try (CustomZipOutputStream out=ZipOutputStreams.newOutputStream(input)){
+    ZipEntry entry=new ZipEntry("META-INF/MANIFEST.MF");
+    out.putNextEntry(entry);
+    manifest.write(out);
+  }
+   File output=new File(tmp,"output.jar");
+  JarDirectoryStep step=new JarDirectoryStep("output.jar",ImmutableSet.of("input.jar"),null,"manifest");
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(new ProjectFilesystem(tmp)).build();
+  assertEquals(0,step.execute(context));
+  try (Zip zip=new Zip(output,false)){
+    byte[] rawManifest=zip.readFully("META-INF/MANIFEST.MF");
+    manifest=new Manifest(new ByteArrayInputStream(rawManifest));
+    String version=manifest.getMainAttributes().getValue(IMPLEMENTATION_VERSION);
+    assertEquals(expected,version);
+  }
+ }
