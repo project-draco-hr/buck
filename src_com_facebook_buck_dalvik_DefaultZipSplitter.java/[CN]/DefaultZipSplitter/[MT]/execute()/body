@@ -9,9 +9,8 @@
     }
   }
 );
-  currentSecondaryIndex=0;
   primaryOut=newZipOutput(outPrimary);
-  currentSecondaryOut=null;
+  secondaryDexWriter.reset();
   try {
     for (    File inFile : inFiles) {
       classpathTraverser.traverse(new ClasspathTraversal(ImmutableSet.of(inFile)){
@@ -20,16 +19,15 @@
         }
       }
 );
+      DefaultZipOutputStreamHelper currentSecondaryOut=secondaryDexWriter.getCurrentOutput();
       if (currentSecondaryOut != null && currentSecondaryOut.getCurrentSize() >= zipSizeSoftLimit) {
-        newSecondaryOutOnNextEntry=true;
+        secondaryDexWriter.finishCurrentZipFile();
       }
     }
   }
   finally {
     primaryOut.close();
-    if (currentSecondaryOut != null) {
-      currentSecondaryOut.close();
-    }
+    secondaryDexWriter.close();
   }
-  return secondaryFiles.build();
+  return secondaryDexWriter.getFiles();
 }

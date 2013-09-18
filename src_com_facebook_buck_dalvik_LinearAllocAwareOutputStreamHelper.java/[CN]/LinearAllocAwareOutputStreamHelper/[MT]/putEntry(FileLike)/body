@@ -1,0 +1,15 @@
+{
+  String name=fileLike.getRelativePath();
+  if (!containsEntry(fileLike)) {
+    entryNames.add(name);
+    outStream.putNextEntry(new ZipEntry(name));
+    try (InputStream in=fileLike.getInput()){
+      ByteStreams.copy(in,outStream);
+    }
+     long entryLinearAllocSize=getLinearAllocSize(fileLike);
+    Preconditions.checkState(!isEntryTooBig(fileLike),"Putting entry %s (%s) exceeded maximum size of %s",name,entryLinearAllocSize,linearAllocLimit);
+    currentLinearAllocSize+=entryLinearAllocSize;
+    String report=String.format("%s %s\n",entryLinearAllocSize,name);
+    Files.append(report,reportFile,Charsets.UTF_8);
+  }
+}
