@@ -6,10 +6,11 @@
     try (InputStream in=fileLike.getInput()){
       ByteStreams.copy(in,outStream);
     }
-     long entryLinearAllocSize=getLinearAllocSize(fileLike);
-    Preconditions.checkState(!isEntryTooBig(fileLike),"Putting entry %s (%s) exceeded maximum size of %s",name,entryLinearAllocSize,linearAllocLimit);
-    currentLinearAllocSize+=entryLinearAllocSize;
-    String report=String.format("%s %s\n",entryLinearAllocSize,name);
+     LinearAllocEstimator.Stats stats=getStats(fileLike);
+    Preconditions.checkState(!isEntryTooBig(fileLike),"Putting entry %s (%s) exceeded maximum size of %s",name,stats.estimatedLinearAllocSize,linearAllocLimit);
+    currentLinearAllocSize+=stats.estimatedLinearAllocSize;
+    currentMethodReferences.addAll(stats.methodReferences);
+    String report=String.format("%d %d %s\n",stats.estimatedLinearAllocSize,stats.methodReferences.size(),name);
     Files.append(report,reportFile,Charsets.UTF_8);
   }
 }
