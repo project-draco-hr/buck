@@ -5,8 +5,22 @@
       if (entries.contains(customEntry.getName())) {
         customEntry.setCompressionLevel(compressionLevel);
       }
+      InputStream toUse;
+      if (customEntry.getMethod() == ZipEntry.STORED) {
+        try (ByteArrayOutputStream bos=new ByteArrayOutputStream()){
+          ByteStreams.copy(in,bos);
+          byte[] bytes=bos.toByteArray();
+          customEntry.setCrc(Hashing.crc32().hashBytes(bytes).padToLong());
+          customEntry.setSize(bytes.length);
+          customEntry.setCompressedSize(bytes.length);
+          toUse=new ByteArrayInputStream(bytes);
+        }
+       }
+ else {
+        toUse=in;
+      }
       out.putNextEntry(customEntry);
-      ByteStreams.copy(in,out);
+      ByteStreams.copy(toUse,out);
       out.closeEntry();
     }
     return 0;

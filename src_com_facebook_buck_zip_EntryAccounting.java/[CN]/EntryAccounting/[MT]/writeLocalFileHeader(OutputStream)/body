@@ -1,26 +1,40 @@
 {
-  try (ByteArrayOutputStream stream=new ByteArrayOutputStream()){
-    ByteIo.writeInt(stream,ZipEntry.LOCSIG);
-    ByteIo.writeShort(stream,getRequiredExtractVersion());
-    ByteIo.writeShort(stream,flags);
-    ByteIo.writeShort(stream,getCompressionMethod());
-    ByteIo.writeInt(stream,getTime());
-    if (isDeflated()) {
-      ByteIo.writeInt(stream,0);
-      ByteIo.writeInt(stream,0);
-      ByteIo.writeInt(stream,0);
-    }
+  if (method == Method.DEFLATE) {
+    flags|=DATA_DESCRIPTOR_FLAG;
+    if (entry instanceof CustomZipEntry) {
+      int level=((CustomZipEntry)entry).getCompressionLevel();
+switch (level) {
+case Deflater.BEST_COMPRESSION:
+        flags|=(1 << 1);
+      break;
+case Deflater.BEST_SPEED:
+    flags|=(1 << 2);
+  break;
+}
+}
+}
+try (ByteArrayOutputStream stream=new ByteArrayOutputStream()){
+ByteIo.writeInt(stream,ZipEntry.LOCSIG);
+ByteIo.writeShort(stream,getRequiredExtractVersion());
+ByteIo.writeShort(stream,flags);
+ByteIo.writeShort(stream,getCompressionMethod());
+ByteIo.writeInt(stream,getTime());
+if (isDeflated()) {
+ByteIo.writeInt(stream,0);
+ByteIo.writeInt(stream,0);
+ByteIo.writeInt(stream,0);
+}
  else {
-      ByteIo.writeInt(stream,entry.getCrc());
-      ByteIo.writeInt(stream,entry.getSize());
-      ByteIo.writeInt(stream,entry.getSize());
-    }
-    byte[] nameBytes=entry.getName().getBytes(Charsets.UTF_8);
-    ByteIo.writeShort(stream,nameBytes.length);
-    ByteIo.writeShort(stream,0);
-    stream.write(nameBytes);
-    byte[] bytes=stream.toByteArray();
-    out.write(bytes);
-    return bytes.length;
-  }
+ByteIo.writeInt(stream,entry.getCrc());
+ByteIo.writeInt(stream,entry.getSize());
+ByteIo.writeInt(stream,entry.getSize());
+}
+byte[] nameBytes=entry.getName().getBytes(Charsets.UTF_8);
+ByteIo.writeShort(stream,nameBytes.length);
+ByteIo.writeShort(stream,0);
+stream.write(nameBytes);
+byte[] bytes=stream.toByteArray();
+out.write(bytes);
+return bytes.length;
+}
  }

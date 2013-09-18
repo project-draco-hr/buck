@@ -8,8 +8,11 @@
     out.write(input);
     entry=new CustomZipEntry("stored");
     entry.setCompressionLevel(NO_COMPRESSION);
+    byte[] bytes="stored".getBytes();
+    entry.setSize(bytes.length);
+    entry.setCrc(Hashing.crc32().hashBytes(bytes).padToLong());
     out.putNextEntry(entry);
-    out.write("stored".getBytes());
+    out.write(bytes);
     entry=new CustomZipEntry("best");
     entry.setCompressionLevel(BEST_COMPRESSION);
     out.putNextEntry(entry);
@@ -22,9 +25,11 @@
     long defaultCompressedSize=entry.getCompressedSize();
     assertNotEquals(entry.getCompressedSize(),entry.getSize());
     entry=in.getNextEntry();
+    ByteStreams.copy(in,ByteStreams.nullOutputStream());
     assertEquals("stored",entry.getName());
     assertEquals(entry.getCompressedSize(),entry.getSize());
     entry=in.getNextEntry();
+    ByteStreams.copy(in,ByteStreams.nullOutputStream());
     assertEquals("best",entry.getName());
     ByteStreams.copy(in,ByteStreams.nullOutputStream());
     assertThat(entry.getCompressedSize(),lessThan(defaultCompressedSize));
