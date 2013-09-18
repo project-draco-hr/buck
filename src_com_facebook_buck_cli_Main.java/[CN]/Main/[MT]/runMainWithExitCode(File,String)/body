@@ -8,19 +8,27 @@
   final Console console=new Console(verbosity,stdOut,stdErr,config.createAnsi());
   KnownBuildRuleTypes knownBuildRuleTypes=new KnownBuildRuleTypes();
   Parser parser;
+  Optional<Daemon> daemonOptional;
   if (isDaemon()) {
     Daemon daemon=getDaemon(projectFilesystem,config,console);
     daemon.watchFileSystem();
+    daemon.initWebServer();
+    daemonOptional=Optional.of(daemon);
     parser=daemon.getParser();
   }
  else {
+    daemonOptional=Optional.absent();
     parser=new Parser(projectFilesystem,knownBuildRuleTypes,console,config.getPythonInterpreter(),config.getTempFilePatterns());
   }
   Clock clock=new DefaultClock();
   final BuckEventBus buildEventBus=new BuckEventBus(clock,MoreStrings.createRandomString());
   Optional<Command> command=Command.getCommandForName(args[0],console);
   if (command.isPresent()) {
-    ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,clock,projectFilesystem,console,config);
+    Optional<WebServer> webServerOptional=Optional.absent();
+    if (daemonOptional.isPresent()) {
+      webServerOptional=daemonOptional.get().getWebServer();
+    }
+    ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,clock,projectFilesystem,console,config,webServerOptional);
     String[] remainingArgs=new String[args.length - 1];
     System.arraycopy(args,1,remainingArgs,0,remainingArgs.length);
     Command executingCommand=command.get();
