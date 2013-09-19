@@ -1,0 +1,22 @@
+{
+  Preconditions.checkNotNull(command);
+  ProcessBuilder processBuilder=new ProcessBuilder(command);
+  processBuilder.directory(workingDirectory);
+  for (  ImmutableMap.Entry<String,String> entry : environment.entrySet()) {
+    processBuilder.environment().put(entry.getKey(),entry.getValue());
+  }
+  try {
+    Process process=processBuilder.start();
+    int exitCode;
+    Future<String> stdoutFuture=readStream(process.getInputStream());
+    Future<String> stderrFuture=readStream(process.getErrorStream());
+    process.destroy();
+    stdout=stdoutFuture.get();
+    stderr=stderrFuture.get();
+    return exitCode;
+  }
+ catch (  IOException|ExecutionException|InterruptedException e) {
+    LOG.error(e);
+  }
+  return -1;
+}
