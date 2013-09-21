@@ -1,0 +1,14 @@
+{
+  BuildContext buildContext=EasyMock.createMock(BuildContext.class);
+  FakeBuildableContext buildableContext=new FakeBuildableContext();
+  List<Step> buildSteps=junitJarRule.getBuildSteps(buildContext,buildableContext);
+  assertEquals("CalculateAbiStep should be the only step.",1,buildSteps.size());
+  Step calculateAbiStep=buildSteps.get(0);
+  ExecutionContext executionContext=TestExecutionContext.newBuilder().build();
+  int exitCode=calculateAbiStep.execute(executionContext);
+  assertEquals("Step should execute successfully.",0,exitCode);
+  Sha1HashCode abiKey=junitJarRule.getAbiKey();
+  HashCode hashForJar=ByteStreams.hash(Files.newInputStreamSupplier(new File(PATH_TO_JUNIT_JAR)),Hashing.sha1());
+  assertEquals("ABI key should be the sha1 of the file contents.",hashForJar.toString(),abiKey.toString());
+  assertEquals("Executing the step should record the ABI key as metadata.",ImmutableMap.of(AbiRule.ABI_KEY_ON_DISK_METADATA,hashForJar.toString()),buildableContext.getRecordedMetadata());
+}
