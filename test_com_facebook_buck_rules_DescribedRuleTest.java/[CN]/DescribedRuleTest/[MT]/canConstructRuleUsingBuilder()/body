@@ -1,0 +1,39 @@
+{
+class Dto {
+    public String name;
+  }
+  Description<Dto> description=new Description<Dto>(){
+    @Override public BuildRuleType getBuildRuleType(){
+      return new BuildRuleType("example");
+    }
+    @Override public Dto createUnpopulatedConstructorArg(){
+      return new Dto();
+    }
+    @Override public Buildable createBuildable(    BuildRuleParams params,    Dto args){
+      return new ExampleBuildable(args.name);
+    }
+  }
+;
+  ProjectFilesystem filesystem=new ProjectFilesystem(new File("."));
+  BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(ImmutableMap.of("name","cheese"),filesystem,new BuildFileTree(ImmutableSet.<String>of()),new BuildTargetParser(filesystem),BuildTargetFactory.newInstance("//one/two:example"),new FakeRuleKeyBuilderFactory(),true);
+  BuildContext fakeBuildContext=EasyMock.createNiceMock(BuildContext.class);
+  ExecutionContext fakeExecutionContext=EasyMock.createNiceMock(ExecutionContext.class);
+  BuckEventBus bus=BuckEventBusFactory.newInstance();
+  final AtomicBoolean ok=new AtomicBoolean(false);
+  bus.register(new Object(){
+    @Subscribe public void echo(    LogEvent event){
+      ok.set("cheese".equals(event.getMessage()));
+    }
+  }
+);
+  EasyMock.expect(fakeExecutionContext.getBuckEventBus()).andStubReturn(bus);
+  EasyMock.replay(fakeBuildContext,fakeExecutionContext);
+  DescribedRuleFactory<Dto> factory=new DescribedRuleFactory<>(description);
+  DescribedRuleBuilder<Dto> builder=factory.newInstance(factoryParams);
+  DescribedRule rule=builder.build(new BuildRuleResolver());
+  List<Step> steps=rule.getBuildable().getBuildSteps(fakeBuildContext,new FakeBuildableContext());
+  assertEquals(1,steps.size());
+  EchoStep step=(EchoStep)Iterables.getOnlyElement(steps);
+  step.execute(fakeExecutionContext);
+  assertTrue(ok.get());
+}
