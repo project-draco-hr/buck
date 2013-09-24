@@ -1,43 +1,10 @@
 {
-  Document doc=XmlDomParser.parse(xml);
-  Element root=doc.getDocumentElement();
-  Preconditions.checkState("testcase".equals(root.getTagName()));
-  String testCaseName=root.getAttribute("name");
-  NodeList testElements=doc.getElementsByTagName("test");
-  List<TestResultSummary> testResults=Lists.newArrayListWithCapacity(testElements.getLength());
-  for (int i=0; i < testElements.getLength(); i++) {
-    Element node=(Element)testElements.item(i);
-    String testName=node.getAttribute("name");
-    boolean isSuccess=Boolean.valueOf(node.getAttribute("success"));
-    long time=Long.valueOf(node.getAttribute("time"));
-    String message;
-    String stacktrace;
-    if (isSuccess) {
-      message=null;
-      stacktrace=null;
-    }
- else {
-      message=node.getAttribute("message");
-      stacktrace=node.getAttribute("stacktrace");
-    }
-    NodeList stdoutElements=node.getElementsByTagName("stdout");
-    String stdOut;
-    if (stdoutElements.getLength() == 1) {
-      stdOut=stdoutElements.item(0).getTextContent();
-    }
- else {
-      stdOut=null;
-    }
-    NodeList stderrElements=node.getElementsByTagName("stderr");
-    String stdErr;
-    if (stderrElements.getLength() == 1) {
-      stdErr=stderrElements.item(0).getTextContent();
-    }
- else {
-      stdErr=null;
-    }
-    TestResultSummary testResult=new TestResultSummary(testCaseName,testName,isSuccess,time,message,stacktrace,stdOut,stdErr);
-    testResults.add(testResult);
+  String xmlFileContents=Files.toString(xmlFile,Charsets.UTF_8);
+  try {
+    return doParse(xmlFileContents);
   }
-  return new TestCaseSummary(testCaseName,testResults);
+ catch (  NumberFormatException e) {
+    String message=createDetailedExceptionMessage(xmlFile,xmlFileContents);
+    throw new RuntimeException(message,e);
+  }
 }
