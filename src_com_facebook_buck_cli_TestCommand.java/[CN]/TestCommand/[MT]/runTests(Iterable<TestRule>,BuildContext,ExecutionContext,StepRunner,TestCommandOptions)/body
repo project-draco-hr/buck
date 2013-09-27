@@ -31,12 +31,16 @@
     }
   }
 ;
+  TestRuleKeyFileHelper testRuleKeyFileHelper=new TestRuleKeyFileHelper(executionContext.getProjectFilesystem());
   for (  TestRule test : tests) {
     List<Step> steps;
-    boolean isTestRunRequired=isTestRunRequiredForTest(test,executionContext);
+    boolean isTestRunRequired=isTestRunRequiredForTest(test,executionContext,testRuleKeyFileHelper);
     if (isTestRunRequired) {
       getBuckEventBus().post(IndividualTestEvent.started(options.getArgumentsFormattedAsBuildTargets()));
-      steps=test.runTests(buildContext,executionContext);
+      ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
+      stepsBuilder.addAll(test.runTests(buildContext,executionContext));
+      stepsBuilder.add(testRuleKeyFileHelper.createRuleKeyInDirStep(test));
+      steps=stepsBuilder.build();
     }
  else {
       steps=ImmutableList.of();
