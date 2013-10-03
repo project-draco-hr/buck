@@ -1,0 +1,22 @@
+{
+  if (!projectFilesystem.exists(BuckConstant.BUCK_TRACE_DIR)) {
+    return;
+  }
+  ImmutableList<File> filesSortedByModified=FluentIterable.from(Arrays.asList(projectFilesystem.listFiles(BuckConstant.BUCK_TRACE_DIR))).filter(new Predicate<File>(){
+    @Override public boolean apply(    File input){
+      return input.getName().matches(TRACE_FILE_PATTERN);
+    }
+  }
+).toSortedList(new Comparator<File>(){
+    @Override public int compare(    File a,    File b){
+      return Long.signum(b.lastModified() - a.lastModified());
+    }
+  }
+);
+  if (filesSortedByModified.size() > tracesToKeep) {
+    ImmutableList<File> filesToRemove=filesSortedByModified.subList(tracesToKeep,filesSortedByModified.size());
+    for (    File file : filesToRemove) {
+      file.delete();
+    }
+  }
+}
