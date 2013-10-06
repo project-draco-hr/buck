@@ -1,4 +1,20 @@
 {
+class FakeProjectFilesystem extends ProjectFilesystem {
+    public FakeProjectFilesystem(){
+      super(new File("."));
+    }
+    @Override public Function<String,Path> getPathRelativizer(){
+      return new Function<String,Path>(){
+        @Override public Path apply(        String input){
+          return Paths.get(input);
+        }
+      }
+;
+    }
+    @Override public Path resolve(    Path path){
+      return path;
+    }
+  }
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
   AndroidBinaryRule.Builder builder=AndroidBinaryRule.newAndroidBinaryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//:fbandroid_with_dash_debug_fbsign")).setManifest("AndroidManifest.xml").setKeystore(addKeystoreRule(ruleResolver)).setTarget("Google Inc:Google APIs:16");
   for (  String filter : cpuFilters) {
@@ -8,13 +24,13 @@
   AndroidBinaryRule buildRule=ruleResolver.buildAndAddToIndex(builder);
   buildRule.copyNativeLibrary(sourceDir,destinationDir,commands);
   ImmutableList<Step> steps=commands.build();
-  assertEquals(steps.size(),expectedShellCommands.size());
+  assertEquals(steps.size(),expectedCommandDescriptions.size());
   ExecutionContext context=createMock(ExecutionContext.class);
+  expect(context.getProjectFilesystem()).andReturn(new FakeProjectFilesystem()).anyTimes();
   replay(context);
   for (int i=0; i < steps.size(); ++i) {
-    Iterable<String> observedArgs=((BashStep)steps.get(i)).getShellCommand(context);
-    String observedCommand=Joiner.on(' ').join(observedArgs);
-    assertEquals(expectedShellCommands.get(i),observedCommand);
+    String description=steps.get(i).getDescription(context);
+    assertEquals(expectedCommandDescriptions.get(i),description);
   }
   verify(context);
 }
