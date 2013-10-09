@@ -1,0 +1,18 @@
+{
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(tmp.getRoot());
+  tmp.newFolder("foo","bar","baz");
+  tmp.newFile("foo/bar/baz/biz.txt");
+  tmp.newFolder("alpha","beta");
+  Path pathToDesiredLinkUnderProjectRoot=Paths.get("alpha/beta/gamma.txt");
+  Path pathToExistingFileUnderProjectRoot=Paths.get("foo/bar/baz/biz.txt");
+  Path relativePath=MorePaths.createRelativeSymlink(pathToDesiredLinkUnderProjectRoot,pathToExistingFileUnderProjectRoot,projectFilesystem);
+  assertEquals("../../foo/bar/baz/biz.txt",relativePath.toString());
+  Path absolutePathToDesiredLinkUnderProjectRoot=projectFilesystem.resolve(pathToDesiredLinkUnderProjectRoot);
+  assertTrue(Files.isSymbolicLink(absolutePathToDesiredLinkUnderProjectRoot));
+  Path targetOfSymbolicLink=Files.readSymbolicLink(absolutePathToDesiredLinkUnderProjectRoot);
+  assertEquals(relativePath,targetOfSymbolicLink);
+  Path absolutePathToExistingFileUnderProjectRoot=projectFilesystem.resolve(pathToExistingFileUnderProjectRoot);
+  Files.write(absolutePathToExistingFileUnderProjectRoot,"Hello, World!".getBytes());
+  String dataReadFromSymlink=new String(Files.readAllBytes(absolutePathToDesiredLinkUnderProjectRoot));
+  assertEquals("Hello, World!",dataReadFromSymlink);
+}
