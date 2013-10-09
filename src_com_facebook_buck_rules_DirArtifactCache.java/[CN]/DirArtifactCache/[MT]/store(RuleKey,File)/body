@@ -1,15 +1,20 @@
 {
   File cacheEntry=new File(cacheDir,ruleKey.toString());
-  File tmpCacheEntry=null;
+  Path tmpCacheEntry=null;
   try {
-    tmpCacheEntry=File.createTempFile(ruleKey.toString(),".tmp",cacheDir);
-    Files.copy(output,tmpCacheEntry);
-    Files.move(tmpCacheEntry,cacheEntry);
+    tmpCacheEntry=File.createTempFile(ruleKey.toString(),".tmp",cacheDir).toPath();
+    Files.copy(output.toPath(),tmpCacheEntry,REPLACE_EXISTING);
+    Files.move(tmpCacheEntry,cacheEntry.toPath());
   }
  catch (  IOException e) {
     logger.warning(String.format("Artifact store(%s, %s) error: %s",ruleKey,output.getPath(),e.getMessage()));
     if (tmpCacheEntry != null) {
-      tmpCacheEntry.delete();
+      try {
+        Files.deleteIfExists(tmpCacheEntry);
+      }
+ catch (      IOException ignored) {
+        logger.log(Level.INFO,"Unable to delete temp cache file",ignored);
+      }
     }
   }
 }
