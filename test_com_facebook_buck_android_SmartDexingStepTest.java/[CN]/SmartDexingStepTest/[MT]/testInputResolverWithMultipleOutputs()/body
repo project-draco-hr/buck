@@ -6,11 +6,17 @@
   File secondaryInDir=tmpDir.newFolder("secondary-in");
   File secondaryInFile=new File(secondaryInDir,"2.jar");
   Files.write(new byte[]{0},secondaryInFile);
-  InputResolver resolver=new InputResolver(primaryOut.getPath(),primaryIn,Optional.of(secondaryOutDir.getPath()),Optional.of(secondaryInDir.getPath()));
+  InputResolver resolver=new InputResolver("primary-out/primary.jar",primaryIn,Optional.of("secondary-out"),Optional.of("secondary-in"));
   assertTrue("Expected secondary output",resolver.hasSecondaryOutput());
-  Multimap<File,File> outputToInputs=resolver.createOutputToInputs(DexStore.JAR);
+  final ProjectFilesystem projectFilesystem=new ProjectFilesystem(tmpDir.getRoot());
+  Multimap<File,File> outputToInputs=resolver.createOutputToInputs(DexStore.JAR,projectFilesystem);
   assertEquals("Expected 2 output artifacts",2,outputToInputs.keySet().size());
-  MoreAsserts.assertIterablesEquals("Detected inconsistency with primary input arguments",Paths.transformPathToFile(primaryIn),outputToInputs.get(primaryOut));
+  MoreAsserts.assertIterablesEquals("Detected inconsistency with primary input arguments",Iterables.transform(primaryIn,new Function<String,File>(){
+    @Override public File apply(    String input){
+      return projectFilesystem.getFileForRelativePath(input);
+    }
+  }
+),outputToInputs.get(primaryOut));
   File secondaryOutFile=new File(secondaryOutDir,SmartDexingStep.transformInputToDexOutput(secondaryInFile,DexStore.JAR));
   MoreAsserts.assertIterablesEquals("Detected inconsistency with secondary output arguments",ImmutableSet.of(secondaryInFile),outputToInputs.get(secondaryOutFile));
 }
