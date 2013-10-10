@@ -1,5 +1,17 @@
 {
-  ImmutableMap.Builder<String,String> environmentVariablesBuilder=ImmutableMap.builder();
-  addEnvironmentVariables(context,environmentVariablesBuilder);
-  return environmentVariablesBuilder.build();
+  ImmutableMap.Builder<String,String> allEnvironmentVariablesBuilder=ImmutableMap.builder();
+  addEnvironmentVariables(context,allEnvironmentVariablesBuilder);
+  ImmutableMap<String,String> allEnvironmentVariables=allEnvironmentVariablesBuilder.build();
+  String command=getCommandAndExecutionArgs(context).command;
+  ImmutableMap.Builder<String,String> usedEnvironmentVariablesBuilder=ImmutableMap.builder();
+  for (  Map.Entry<String,String> environmentVariable : allEnvironmentVariables.entrySet()) {
+    String environmentVariableName=environmentVariable.getKey();
+    if (command.contains(environmentVariableName)) {
+      if ("DEPS".equals(environmentVariableName) && allEnvironmentVariables.containsKey("GEN_DIR")) {
+        usedEnvironmentVariablesBuilder.put("GEN_DIR",allEnvironmentVariables.get("GEN_DIR"));
+      }
+      usedEnvironmentVariablesBuilder.put(environmentVariable);
+    }
+  }
+  return usedEnvironmentVariablesBuilder.build();
 }
