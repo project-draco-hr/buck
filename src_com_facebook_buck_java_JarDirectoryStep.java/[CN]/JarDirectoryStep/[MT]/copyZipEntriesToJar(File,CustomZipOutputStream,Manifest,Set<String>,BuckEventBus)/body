@@ -1,22 +1,23 @@
 {
-  ZipFile zip=new ZipFile(file);
-  for (Enumeration<? extends ZipEntry> entries=zip.entries(); entries.hasMoreElements(); ) {
-    ZipEntry entry=entries.nextElement();
-    String entryName=entry.getName();
-    if (entryName.equals(JarFile.MANIFEST_NAME)) {
-      Manifest readManifest=readManifest(zip,entry);
-      merge(manifest,readManifest);
-      continue;
+  try (ZipFile zip=new ZipFile(file)){
+    for (Enumeration<? extends ZipEntry> entries=zip.entries(); entries.hasMoreElements(); ) {
+      ZipEntry entry=entries.nextElement();
+      String entryName=entry.getName();
+      if (entryName.equals(JarFile.MANIFEST_NAME)) {
+        Manifest readManifest=readManifest(zip,entry);
+        merge(manifest,readManifest);
+        continue;
+      }
+      if (!isDuplicateAllowed(entryName) && !alreadyAddedEntries.add(entryName)) {
+        eventBus.post(LogEvent.create(determineSeverity(entry),"Duplicate found when adding file to jar: %s",entryName));
+        continue;
+      }
+      ZipEntry newEntry=new ZipEntry(entry);
+      newEntry.setCompressedSize(-1);
+      jar.putNextEntry(newEntry);
+      InputStream inputStream=zip.getInputStream(entry);
+      ByteStreams.copy(inputStream,jar);
+      jar.closeEntry();
     }
-    if (!isDuplicateAllowed(entryName) && !alreadyAddedEntries.add(entryName)) {
-      eventBus.post(LogEvent.create(determineSeverity(entry),"Duplicate found when adding file to jar: %s",entryName));
-      continue;
-    }
-    ZipEntry newEntry=new ZipEntry(entry);
-    newEntry.setCompressedSize(-1);
-    jar.putNextEntry(newEntry);
-    InputStream inputStream=zip.getInputStream(entry);
-    ByteStreams.copy(inputStream,jar);
-    jar.closeEntry();
   }
-}
+ }
