@@ -1,0 +1,33 @@
+{
+  Matcher queryMatcher=ARROW_PATTERN.matcher(queryString);
+  if (!queryMatcher.matches()) {
+    throw new HumanReadableException(String.format("Invalid query string: %s.",queryString));
+  }
+  String arrowType=queryMatcher.group(2).trim();
+  Optional<Integer> depth;
+  if (arrowType.isEmpty() || arrowType.equals("*")) {
+    depth=Optional.absent();
+  }
+ else {
+    try {
+      int numDepth=Integer.parseInt(arrowType);
+      if (numDepth < 0) {
+        throw new IllegalArgumentException(String.format("Negative depth: %d.",numDepth));
+      }
+      depth=Optional.of(numDepth);
+    }
+ catch (    IllegalArgumentException e) {
+      throw new HumanReadableException(e,String.format("Invalid search depth: %s.",arrowType));
+    }
+  }
+  String target=queryMatcher.group(1).trim();
+  final String fullyQualifiedTarget=CommandLineBuildTargetNormalizer.normalizeBuildTargetIdentifier(target);
+  String source=queryMatcher.group(3).trim();
+  String fullyQualifiedSource=CommandLineBuildTargetNormalizer.normalizeBuildTargetIdentifier(source);
+  if (source.isEmpty()) {
+    return new DependencyQuery(depth,fullyQualifiedTarget);
+  }
+ else {
+    return new DependencyQuery(depth,fullyQualifiedTarget,Optional.of(fullyQualifiedSource));
+  }
+}

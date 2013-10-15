@@ -1,0 +1,28 @@
+{
+  clearDbPath();
+  String pathToDatabaseDirectory=getProjectFilesystem().getFileForRelativePath(DB_PATH).getAbsolutePath();
+  GraphDatabaseService graphDb=new GraphDatabaseFactory().newEmbeddedDatabase(pathToDatabaseDirectory);
+  registerShutdownHook(graphDb);
+  String output;
+  try (Transaction tx=graphDb.beginTx()){
+    Map<String,Node> nameNodeMap=populateNeo4j(graphDb,partialGraph);
+    if (!nameNodeMap.containsKey(query.getTarget())) {
+      throw new HumanReadableException(String.format("Unknown build target: %s.",query.getTarget()));
+    }
+    if (query.getSource().isPresent()) {
+      String presentSource=query.getSource().get();
+      if (!nameNodeMap.containsKey(presentSource)) {
+        throw new HumanReadableException(String.format("Unknown build target: %s.",presentSource));
+      }
+      output=traversePaths(nameNodeMap.get(query.getTarget()),nameNodeMap.get(presentSource),query.getDepth(),true);
+    }
+ else {
+      output=traverseDependencies(nameNodeMap.get(query.getTarget()),query.getDepth());
+    }
+    tx.success();
+  }
+  finally {
+    graphDb.shutdown();
+  }
+  return output;
+}

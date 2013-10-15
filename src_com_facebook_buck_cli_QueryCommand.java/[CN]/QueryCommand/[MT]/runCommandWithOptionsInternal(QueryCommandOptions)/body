@@ -1,0 +1,18 @@
+{
+  if (options.getArguments().size() != 1) {
+    getStdErr().printf("buck query expects 1 argument, but received %d.\n",options.getArguments().size());
+    return 1;
+  }
+  DependencyQuery query=DependencyQuery.parseQueryString(options.getArguments().get(0));
+  PartialGraph graph;
+  try {
+    graph=PartialGraph.createPartialGraph(RawRulePredicates.matchName(query.getTarget()),getProjectFilesystem(),options.getDefaultIncludes(),getParser(),getBuckEventBus());
+  }
+ catch (  BuildFileParseException|BuildTargetException e) {
+    console.printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  String output=executeQuery(graph,query);
+  getStdOut().println(output);
+  return 0;
+}
