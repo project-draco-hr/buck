@@ -1,12 +1,28 @@
 {
   ImmutableSet<String> filteredStringFiles=filterResourcesStep.getNonEnglishStringFiles();
   ImmutableMultimap<String,String> filesByLocale=groupFilesByLocale(filteredStringFiles);
+  Map<String,StringResources> resourcesByLocale=Maps.newHashMap();
+  for (  String locale : filesByLocale.keySet()) {
+    try {
+      resourcesByLocale.put(locale,compileStringFiles(filesByLocale.get(locale)));
+    }
+ catch (    IOException e) {
+      context.getBuckEventBus().post(ThrowableLogEvent.create(e,"Error parsing string file for locale: %s",locale));
+      return 1;
+    }
+  }
+  for (  String regionSpecificLocale : regionSpecificToBaseLocaleMap.keySet()) {
+    String baseLocale=regionSpecificToBaseLocaleMap.get(regionSpecificLocale);
+    if (!resourcesByLocale.containsKey(baseLocale)) {
+      continue;
+    }
+    resourcesByLocale.put(regionSpecificLocale,resourcesByLocale.get(regionSpecificLocale).getMergedResources(resourcesByLocale.get(baseLocale)));
+  }
   ProjectFilesystem filesystem=context.getProjectFilesystem();
   for (  String locale : filesByLocale.keySet()) {
     try {
-      ImmutableMap<String,Object> resources=compileStringFiles(filesByLocale.get(locale));
       File jsonFile=filesystem.getFileForRelativePath(destinationDir.resolve(locale + ".json"));
-      objectMapper.writeValue(jsonFile,resources);
+      objectMapper.writeValue(jsonFile,resourcesByLocale.get(locale).asMap());
     }
  catch (    IOException e) {
       context.getBuckEventBus().post(ThrowableLogEvent.create(e,"Error creating json string file for locale: %s",locale));
