@@ -1,0 +1,43 @@
+{
+class TestNGInputStream extends NGInputStream {
+    public NGClientListener listener=null;
+    public TestNGInputStream(    InputStream in,    DataOutputStream out,    PrintStream serverLog){
+      super(in,out,serverLog);
+    }
+    @Override public synchronized void addClientListener(    NGClientListener listener){
+      this.listener=listener;
+    }
+  }
+  Thread.currentThread().setName("Test");
+  CapturingPrintStream serverLog=new CapturingPrintStream();
+  NGContext context=new NGContext();
+  TestNGInputStream inputStream=new TestNGInputStream(new DataInputStream(createHeartbeatStream(100)),new DataOutputStream(new ByteArrayOutputStream(0)),serverLog);
+  context.setArgs(new String[]{"targets"});
+  context.in=inputStream;
+  context.out=new CapturingPrintStream();
+  context.err=new CapturingPrintStream();
+  SecurityManager originalSecurityManager=System.getSecurityManager();
+  try {
+    System.setSecurityManager(new NGSecurityManager(originalSecurityManager));
+    Main.nailMain(context);
+    fail("Should throw NGExitException.");
+  }
+ catch (  NGExitException e) {
+    assertEquals("Should exit with status 0.",SUCCESS_EXIT_CODE,e.getStatus());
+  }
+ finally {
+    System.setSecurityManager(originalSecurityManager);
+  }
+  try {
+    System.setSecurityManager(new NGSecurityManager(originalSecurityManager));
+    assertNotNull("Should register client listener.",inputStream.listener);
+    inputStream.listener.clientDisconnected();
+    fail("Should throw NGExitException.");
+  }
+ catch (  NGExitException e) {
+    assertEquals("Should exit with status 3",Main.CLIENT_DISCONNECT_EXIT_CODE,e.getStatus());
+  }
+ finally {
+    System.setSecurityManager(originalSecurityManager);
+  }
+}
