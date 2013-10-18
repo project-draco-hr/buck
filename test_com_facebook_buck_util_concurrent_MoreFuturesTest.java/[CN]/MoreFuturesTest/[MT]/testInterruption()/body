@@ -1,0 +1,52 @@
+{
+  final List<String> backgroundThreadProblems=Lists.newArrayList();
+  final AtomicBoolean sawSuccessfulFuture=new AtomicBoolean();
+  final AtomicBoolean sawInterruption=new AtomicBoolean();
+  final AtomicInteger doNotOptimizeMe=new AtomicInteger();
+  final int SPIN_COUNT=256;
+  final SettableFuture<Void> future=SettableFuture.create();
+  future.set(null);
+  Runnable testingRunner=new Runnable(){
+    @Override public void run(){
+      try {
+        if (!MoreFutures.isSuccess(future)) {
+          backgroundThreadProblems.add("Initial check was false.");
+          return;
+        }
+        if (Thread.interrupted()) {
+          backgroundThreadProblems.add("Was interrupted early.");
+          return;
+        }
+        sawSuccessfulFuture.set(true);
+        while (true) {
+          for (int i=0; i < SPIN_COUNT; i++) {
+            doNotOptimizeMe.incrementAndGet();
+          }
+          MoreFutures.isSuccess(future);
+          if (Thread.interrupted()) {
+            sawInterruption.set(true);
+            break;
+          }
+        }
+      }
+ catch (      Throwable t) {
+        backgroundThreadProblems.add(t.toString());
+      }
+    }
+  }
+;
+  ExecutorService executor=Executors.newSingleThreadExecutor();
+  executor.execute(testingRunner);
+  while (!sawSuccessfulFuture.get()) {
+    sawSuccessfulFuture.get();
+  }
+  List<Runnable> preempted=executor.shutdownNow();
+  executor.awaitTermination(1,TimeUnit.SECONDS);
+  assertTrue(sawSuccessfulFuture.get());
+  assertTrue(sawInterruption.get());
+  assertTrue(preempted.isEmpty());
+  if (!backgroundThreadProblems.isEmpty()) {
+    String msg=Joiner.on('\n').join(Iterables.concat(ImmutableList.of("Problems on background thread:"),backgroundThreadProblems,ImmutableList.of("")));
+    fail(msg);
+  }
+}

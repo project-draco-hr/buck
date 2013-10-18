@@ -2,17 +2,27 @@
   if (!future.isDone()) {
     return false;
   }
+  boolean wasInterrupted=false;
   try {
-    future.get();
-    return true;
+    while (true) {
+      try {
+        future.get();
+        return true;
+      }
+ catch (      ExecutionException e) {
+        return false;
+      }
+catch (      CancellationException e) {
+        return false;
+      }
+catch (      InterruptedException e) {
+        wasInterrupted=true;
+      }
+    }
   }
- catch (  ExecutionException e) {
-    return false;
-  }
-catch (  CancellationException e) {
-    return false;
-  }
-catch (  InterruptedException e) {
-    throw new RuntimeException("Should not be possible to interrupt a resolved future.",e);
+  finally {
+    if (wasInterrupted) {
+      Thread.currentThread().interrupt();
+    }
   }
 }
