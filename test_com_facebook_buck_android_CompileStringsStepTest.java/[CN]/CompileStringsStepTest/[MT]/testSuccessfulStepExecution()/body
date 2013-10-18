@@ -1,33 +1,19 @@
 {
   Path destinationDir=Paths.get("");
+  Path rDotJavaSrcDir=Paths.get("");
   ExecutionContext context=createMock(ExecutionContext.class);
-  ProjectFilesystem filesystem=createMock(ProjectFilesystem.class);
-  expect(filesystem.getFileForRelativePath(anyObject(Path.class))).andAnswer(new IAnswer<File>(){
-    @Override public File answer() throws Throwable {
-      return ((Path)getCurrentArguments()[0]).toFile();
-    }
-  }
-).times(3);
-  expect(context.getProjectFilesystem()).andReturn(filesystem);
-  ObjectMapper mapper=createMock(ObjectMapper.class);
-  mapper.writeValue(anyObject(File.class),anyObject());
-  final ImmutableMap.Builder<String,ImmutableMap<String,Object>> capturedResourcesBuilder=ImmutableMap.builder();
-  expectLastCall().andAnswer(new IAnswer<Object>(){
-    @Override public Object answer() throws Throwable {
-      File file=(File)getCurrentArguments()[0];
-      capturedResourcesBuilder.put(file.getName(),getMapFromArgs());
-      return null;
-    }
-    @SuppressWarnings("unchecked") private ImmutableMap<String,Object> getMapFromArgs(){
-      return (ImmutableMap<String,Object>)getCurrentArguments()[1];
-    }
-  }
-).times(3);
+  FakeProjectFileSystem fileSystem=new FakeProjectFileSystem();
+  expect(context.getProjectFilesystem()).andStubReturn(fileSystem);
   FilterResourcesStep filterResourcesStep=createMock(FilterResourcesStep.class);
   expect(filterResourcesStep.getNonEnglishStringFiles()).andReturn(ImmutableSet.of(FIRST_FILE,SECOND_FILE,THIRD_FILE,FOURTH_FILE));
   replayAll();
-  CompileStringsStep step=new CompileStringsStep(filterResourcesStep,destinationDir,mapper);
+  CompileStringsStep step=new CompileStringsStep(filterResourcesStep,rDotJavaSrcDir,destinationDir);
   assertEquals(0,step.execute(context));
-  assertEquals(ImmutableMap.of("es.json",ImmutableMap.of("name1_1","Value11","name1_2","Value12","name1_3","Value13","name2_1","Value21","name2_2","Value22"),"pt.json",ImmutableMap.of("name3_1","Value31","name3_2","Value32","name3_3","Value33"),"pt_BR.json",ImmutableMap.of("name3_1","Value311","name3_2","Value32","name3_3","Value33")),capturedResourcesBuilder.build());
+  Map<String,byte[]> fileContentsMap=fileSystem.getFileContents();
+  assertEquals("Incorrect number of string files written.",3,fileContentsMap.size());
+  for (  Map.Entry<String,byte[]> entry : fileContentsMap.entrySet()) {
+    File expectedFile=Paths.get(TESTDATA_DIR + entry.getKey()).toFile();
+    assertArrayEquals(Files.toByteArray(expectedFile),fileContentsMap.get(entry.getKey()));
+  }
   verifyAll();
 }

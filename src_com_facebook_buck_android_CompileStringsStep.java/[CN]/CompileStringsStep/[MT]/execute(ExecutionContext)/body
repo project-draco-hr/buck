@@ -1,4 +1,12 @@
 {
+  ProjectFilesystem filesystem=context.getProjectFilesystem();
+  try {
+    buildResourceNameToIdMap(filesystem);
+  }
+ catch (  IOException e) {
+    context.logError(e,"Failure parsing R.txt file.");
+    return 1;
+  }
   ImmutableSet<String> filteredStringFiles=filterResourcesStep.getNonEnglishStringFiles();
   ImmutableMultimap<String,String> filesByLocale=groupFilesByLocale(filteredStringFiles);
   Map<String,StringResources> resourcesByLocale=Maps.newHashMap();
@@ -18,14 +26,12 @@
     }
     resourcesByLocale.put(regionSpecificLocale,resourcesByLocale.get(regionSpecificLocale).getMergedResources(resourcesByLocale.get(baseLocale)));
   }
-  ProjectFilesystem filesystem=context.getProjectFilesystem();
   for (  String locale : filesByLocale.keySet()) {
     try {
-      File jsonFile=filesystem.getFileForRelativePath(destinationDir.resolve(locale + ".json"));
-      objectMapper.writeValue(jsonFile,resourcesByLocale.get(locale).asMap());
+      filesystem.writeBytesToPath(resourcesByLocale.get(locale).getBinaryFileContent(),destinationDir.resolve(locale + ".fbstr"));
     }
  catch (    IOException e) {
-      context.logError(e,"Error creating json string file for locale: %s",locale);
+      context.logError(e,"Error creating binary file for locale: %s",locale);
       return 1;
     }
   }
