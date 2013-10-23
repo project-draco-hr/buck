@@ -29,14 +29,14 @@
   }
   walkRuleAndAdd(projectRule,false,dependencies,projectConfig.getSrcRule());
   String basePathWithSlash=projectConfig.getBuildTarget().getBasePathWithSlash();
-  module.moduleGenPath=generateRelativeGenPath(basePathWithSlash);
+  module.moduleGenPath=generateRelativeGenPath(basePathWithSlash).toString();
   DependentModule jdkDependency;
   if (isAndroidRule) {
     if (projectRule.getBuildable() instanceof NdkLibrary) {
       NdkLibrary ndkLibrary=(NdkLibrary)projectRule.getBuildable();
       module.isAndroidLibraryProject=true;
       module.keystorePath=null;
-      module.nativeLibs=Paths.computeRelativePath(relativePath,ndkLibrary.getLibraryPath());
+      module.nativeLibs=Paths.get(relativePath).relativize(Paths.get(ndkLibrary.getLibraryPath())).toString();
     }
  else     if (projectRule instanceof AndroidResourceRule) {
       AndroidResourceRule androidResourceRule=(AndroidResourceRule)projectRule;
@@ -49,7 +49,7 @@
       module.resFolder=null;
       module.isAndroidLibraryProject=false;
       KeystoreProperties keystoreProperties=KeystoreProperties.createFromPropertiesFile(androidBinaryRule.getKeystore().getPathToStore(),androidBinaryRule.getKeystore().getPathToPropertiesFile(),projectFilesystem);
-      module.keystorePath=Paths.computeRelativePath(relativePath,keystoreProperties.getKeystore());
+      module.keystorePath=Paths.get(relativePath).relativize(Paths.get(keystoreProperties.getKeystore())).toString();
     }
  else {
       module.isAndroidLibraryProject=true;
@@ -64,7 +64,7 @@
         String rootPrefix="//";
         Preconditions.checkState(manifestPath.startsWith(rootPrefix),"Currently, we expect this option to start with '%s', " + "indicating that it is relative to the root of the repository.",rootPrefix);
         manifestPath=manifestPath.substring(rootPrefix.length());
-        String relativePathToManifest=Paths.computeRelativePath(basePathWithSlash,manifestPath);
+        String relativePathToManifest=Paths.get(basePathWithSlash).relativize(Paths.get(manifestPath)).toString();
         module.androidManifest="/" + relativePathToManifest;
       }
     }
@@ -85,7 +85,7 @@
     AnnotationProcessingData processingData=javaLibraryRule.getAnnotationProcessingData();
     String annotationGenSrc=processingData.getGeneratedSourceFolderName();
     if (annotationGenSrc != null) {
-      module.annotationGenPath="/" + Paths.computeRelativePath(basePathWithSlash,annotationGenSrc);
+      module.annotationGenPath="/" + Paths.get(basePathWithSlash).relativize(Paths.get(annotationGenSrc)).toString();
       module.annotationGenIsForTest=!hasSourceFoldersForSrcRule;
     }
   }
