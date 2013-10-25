@@ -1,0 +1,26 @@
+{
+  BuildRule rule1=createRule("1");
+  BuildRule rule2=createRule("2");
+  BuildRule rule3=createRule("3");
+  BuildRule rule4=createRule("4");
+  BuildRule rule5=createRule("5");
+  BuildRule rule6=createRule("6",rule5,rule4);
+  BuildRule rule7=createRule("7");
+  BuildRule rule8=createRule("8",rule3,rule2);
+  BuildRule rule9=createRule("9",rule1);
+  BuildRule initialRule=createRule("10",rule6,rule7,rule8,rule9);
+  final List<BuildRule> buildRuleTraversalOrder=Lists.newArrayList();
+  new AbstractDependencyVisitor(initialRule){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      buildRuleTraversalOrder.add(rule);
+      return ImmutableSet.copyOf(Iterables.filter(rule.getDeps(),new Predicate<BuildRule>(){
+        @Override public boolean apply(        BuildRule input){
+          return Integer.parseInt(input.getBuildTarget().getShortName()) % 2 == 0;
+        }
+      }
+));
+    }
+  }
+.start();
+  assertEquals("Dependencies should be explored depth-first, only containing rules whose rule name is " + "an even number",ImmutableList.of(initialRule,rule6,rule8,rule4,rule2),buildRuleTraversalOrder);
+}

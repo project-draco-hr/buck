@@ -6,7 +6,7 @@
   final ImmutableSet.Builder<String> proguardConfigs=ImmutableSet.builder();
   UberRDotJavaUtil.AndroidResourceDetails details=createAndroidResourceDetails(androidResourceDeps);
   new AbstractDependencyVisitor(rulesToTraverseForTransitiveDeps.get()){
-    @Override public boolean visit(    BuildRule rule){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
       if (rule.getBuildable() instanceof NativeLibraryBuildable) {
         NativeLibraryBuildable nativeLibraryRule=(NativeLibraryBuildable)rule.getBuildable();
         if (nativeLibraryRule.isAsset()) {
@@ -16,7 +16,7 @@
           nativeLibsDirectories.add(nativeLibraryRule.getLibraryPath());
         }
         if (rule.getBuildable() instanceof PrebuiltNativeLibrary) {
-          return true;
+          return rule.getDeps();
         }
       }
  else       if (rule instanceof AndroidResourceRule) {
@@ -38,7 +38,7 @@
           Optionals.addIfPresent(androidLibraryRule.getManifestFile(),manifestFiles);
         }
       }
-      return rule.getProperties().is(LIBRARY);
+      return maybeVisitAllDeps(rule,rule.getProperties().is(LIBRARY));
     }
   }
 .start();

@@ -3,7 +3,7 @@
   new AbstractDependencyVisitor(rule,true){
     private final LinkedHashSet<DependentModule> librariesToAdd=Sets.newLinkedHashSet();
     private final LinkedHashSet<DependentModule> modulesToAdd=Sets.newLinkedHashSet();
-    @Override public boolean visit(    BuildRule dep){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule dep){
       boolean depShouldExportDeps=dep.getExportDeps() || rule.getProperties().is(PACKAGING);
       boolean shouldVisitDeps=(dep.getProperties().is(LIBRARY) && (depShouldExportDeps)) || (dep instanceof AndroidResourceRule) || dep == rule;
       if (isForTests && !shouldVisitDeps && dep.getBuildTarget().getBasePath().equals(basePathForRule)&& !dep.equals(srcTarget)) {
@@ -20,7 +20,7 @@
         dependentModule=DependentModule.newModule(dep.getBuildTarget(),moduleName);
       }
  else       if (dep.getFullyQualifiedName().startsWith(ANDROID_GEN_BUILD_TARGET_PREFIX)) {
-        return shouldVisitDeps;
+        return maybeVisitAllDeps(dep,shouldVisitDeps);
       }
  else       if (dep instanceof JavaLibraryRule) {
         String moduleName=getIntellijNameForRule(dep);
@@ -31,10 +31,10 @@
         dependentModule=DependentModule.newModule(dep.getBuildTarget(),moduleName);
       }
  else       if (dep.getBuildable() instanceof GenAidl) {
-        return shouldVisitDeps;
+        return maybeVisitAllDeps(dep,shouldVisitDeps);
       }
  else {
-        return shouldVisitDeps;
+        return maybeVisitAllDeps(dep,shouldVisitDeps);
       }
       if (isForTests) {
         dependentModule.scope="TEST";
@@ -53,7 +53,7 @@
  else {
         modulesToAdd.add(dependentModule);
       }
-      return shouldVisitDeps;
+      return maybeVisitAllDeps(dep,shouldVisitDeps);
     }
     @Override protected void onComplete(){
       dependencies.addAll(librariesToAdd);
