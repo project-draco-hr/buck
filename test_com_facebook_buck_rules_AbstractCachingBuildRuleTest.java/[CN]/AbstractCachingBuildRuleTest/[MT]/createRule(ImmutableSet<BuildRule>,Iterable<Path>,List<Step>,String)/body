@@ -1,0 +1,18 @@
+{
+  Comparator<BuildRule> comparator=RetainOrderComparator.createComparator(deps);
+  ImmutableSortedSet<BuildRule> sortedDeps=ImmutableSortedSet.copyOf(comparator,deps);
+  final FileHashCache fileHashCache=FakeFileHashCache.createFromStrings(ImmutableMap.of("/dev/null","ae8c0f860a0ecad94ecede79b69460434eddbfbc"));
+  final RuleKeyBuilderFactory ruleKeyBuilderFactory=new RuleKeyBuilderFactory(){
+    @Override public RuleKey.Builder newInstance(    BuildRule buildRule){
+      return RuleKey.builder(buildRule,fileHashCache);
+    }
+  }
+;
+  BuildRuleParams buildRuleParams=new FakeBuildRuleParams(buildTarget,sortedDeps){
+    @Override public RuleKeyBuilderFactory getRuleKeyBuilderFactory(){
+      return ruleKeyBuilderFactory;
+    }
+  }
+;
+  return new BuildableAbstractCachingBuildRule(buildRuleParams,inputs,pathToOutputFile,buildSteps);
+}

@@ -1,7 +1,15 @@
 {
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
-  ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:common")));
-  DefaultJavaLibraryRule.Builder javaLibraryBuilder=DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:cli")).addSrc("src/com/facebook/buck/cli/Main.java");
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(new File("."));
+  final FileHashCache fileHashCache=new DefaultFileHashCache(projectFilesystem,new TestConsole());
+  AbstractBuildRuleBuilderParams builderParams=new DefaultBuildRuleBuilderParams(projectFilesystem,new RuleKeyBuilderFactory(){
+    @Override public Builder newInstance(    BuildRule buildRule){
+      return RuleKey.builder(buildRule,fileHashCache);
+    }
+  }
+);
+  ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(builderParams).setBuildTarget(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:common")));
+  DefaultJavaLibraryRule.Builder javaLibraryBuilder=DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(builderParams).setBuildTarget(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:cli")).addSrc("src/com/facebook/buck/cli/Main.java");
   DefaultJavaLibraryRule libraryNoCommon=ruleResolver.buildAndAddToIndex(javaLibraryBuilder);
   javaLibraryBuilder.addDep(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:common"));
   DefaultJavaLibraryRule libraryWithCommon=ruleResolver.buildAndAddToIndex(javaLibraryBuilder);

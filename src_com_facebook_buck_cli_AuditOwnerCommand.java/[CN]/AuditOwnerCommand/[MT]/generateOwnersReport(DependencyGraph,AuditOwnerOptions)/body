@@ -1,9 +1,8 @@
 {
-  Set<InputRule> inputs=Sets.newHashSet();
+  Set<Path> inputs=Sets.newHashSet();
   Set<String> nonExistentInputs=Sets.newHashSet();
   Set<String> nonFileInputs=Sets.newHashSet();
   ProjectFilesystem projectFilesystem=getProjectFilesystem();
-  Function<String,Path> pathRelativizer=projectFilesystem.getPathRelativizer();
   for (  String filePath : options.getArguments()) {
     File file=projectFilesystem.getFileForRelativePath(filePath);
     if (!file.exists()) {
@@ -13,13 +12,13 @@
       nonFileInputs.add(filePath);
     }
  else {
-      inputs.add(InputRule.inputPathAsInputRule(filePath,pathRelativizer));
+      inputs.add(Paths.get(filePath));
     }
   }
-  Set<InputRule> inputsWithNoOwners=Sets.newHashSet(inputs);
-  SetMultimap<BuildRule,InputRule> owners=createOwnersMap();
+  Set<Path> inputsWithNoOwners=Sets.newHashSet(inputs);
+  SetMultimap<BuildRule,Path> owners=TreeMultimap.create();
   for (  BuildRule rule : graph.getNodes()) {
-    for (    InputRule ruleInput : rule.getInputs()) {
+    for (    Path ruleInput : rule.getInputs()) {
       if (inputs.contains(ruleInput)) {
         inputsWithNoOwners.remove(ruleInput);
         owners.put(rule,ruleInput);
