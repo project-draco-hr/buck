@@ -1,0 +1,26 @@
+{
+  final DelegateRunNotifier wrapper=new DelegateRunNotifier(delegate,notifier,defaultTestTimeoutMillis);
+  ExecutorService executor=MoreExecutors.newSingleThreadExecutor();
+  Future<?> future=executor.submit(new Runnable(){
+    @Override public void run(){
+      delegate.run(wrapper);
+    }
+  }
+);
+  while (true) {
+    if (future.isDone()) {
+      return;
+    }
+ else     if (wrapper.hasTestThatExceededTimeout()) {
+      executor.shutdownNow();
+      return;
+    }
+ else {
+      try {
+        Thread.sleep(250L);
+      }
+ catch (      InterruptedException e) {
+      }
+    }
+  }
+}

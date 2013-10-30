@@ -1,0 +1,31 @@
+{
+  delegate.fireTestStarted(description);
+  Test testAnnotation=description.getAnnotation(Test.class);
+  if (testAnnotation != null && testAnnotation.timeout() > 0) {
+    return;
+  }
+  TestClass testClass=getTestClass(description);
+  if (BuckBlockJUnit4ClassRunner.hasTimeoutRule(testClass)) {
+    return;
+  }
+  TimerTask task=new TimerTask(){
+    @Override public void run(){
+synchronized (finishedTests) {
+        if (finishedTests.contains(description)) {
+          return;
+        }
+        Exception exception=new Exception(String.format("test timed out after %d milliseconds",defaultTestTimeoutMillis));
+        Failure failure=new Failure(description,exception);
+        fireTestFailure(failure);
+        fireTestFinished(description);
+        if (!finishedTests.contains(description)) {
+          throw new IllegalStateException("fireTestFinished() should update finishedTests.");
+        }
+        onTestRunFinished();
+        hasTestThatExceededTimeout.set(true);
+      }
+    }
+  }
+;
+  timer.schedule(task,defaultTestTimeoutMillis);
+}
