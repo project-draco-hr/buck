@@ -1,0 +1,12 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"classpath_corruption_regression",tmp);
+  workspace.setUp();
+  ProcessResult processResult1=workspace.runBuckCommand("build","//:example");
+  processResult1.assertExitCode(0);
+  assertTrue("example.jar should be written. This should not be on the classpath on the next build.",workspace.getFile("buck-out/gen/lib__example__output/example.jar").isFile());
+  File buildFile=workspace.getFile("BUCK");
+  String newBuildFileContents=Joiner.on('\n').join("java_library(","  name = 'example',","  srcs = [ 'Foo.java' ], ",")");
+  Files.write(newBuildFileContents,buildFile,Charsets.UTF_8);
+  ProcessResult processResult2=workspace.runBuckCommand("build","//:example");
+  processResult2.assertExitCode("Build should fail because Foo.java depends on Bar.java.",1);
+}
