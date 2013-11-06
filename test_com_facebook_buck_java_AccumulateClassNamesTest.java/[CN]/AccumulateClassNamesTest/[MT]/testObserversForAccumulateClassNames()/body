@@ -1,0 +1,24 @@
+{
+  BuildRuleResolver buildRuleResolver=new BuildRuleResolver();
+  JavaLibraryRule javaLibraryRule=buildRuleResolver.buildAndAddToIndex(PrebuiltJarRule.newPrebuiltJarRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(new BuildTarget("//foo/bar","jar")).setBinaryJar("foo/bar/example.jar"));
+  AbstractBuildRuleBuilderParams params=new FakeAbstractBuildRuleBuilderParams();
+  AccumulateClassNames.Builder builder=AccumulateClassNames.newAccumulateClassNamesBuilder(params);
+  assertEquals(BuildRuleType._CLASS_NAMES,builder.getType());
+  BuildTarget buildTarget=new BuildTarget("//foo/bar","baz","class_names");
+  builder.setBuildTarget(buildTarget);
+  builder.setJavaLibraryToDex(javaLibraryRule);
+  BuildRule buildRule=buildRuleResolver.buildAndAddToIndex(builder);
+  AccumulateClassNames accumulateClassNames=(AccumulateClassNames)buildRule.getBuildable();
+  String pathToOutput="buck-out/gen/foo/bar/baz#class_names.classes.txt";
+  assertEquals(pathToOutput,accumulateClassNames.getPathToOutputFile());
+  assertEquals("There should not be any input files that factor into the cache key.",ImmutableSortedSet.of(),accumulateClassNames.getInputsToCompareToOutput());
+  BuildContext buildContext=createMock(BuildContext.class);
+  BuildableContext buildableContext=createMock(BuildableContext.class);
+  replayAll();
+  List<Step> steps=accumulateClassNames.getBuildSteps(buildContext,buildableContext);
+  verifyAll();
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(new File("."));
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
+  Path absolutePathToOutput=projectFilesystem.resolve(Paths.get(pathToOutput));
+  MoreAsserts.assertSteps("Delete old classes.txt file, if present, and then write a new one.",ImmutableList.of("rm -f " + absolutePathToOutput,"mkdir -p " + absolutePathToOutput.getParent(),"get_class_names foo/bar/example.jar > " + pathToOutput),steps,context);
+}

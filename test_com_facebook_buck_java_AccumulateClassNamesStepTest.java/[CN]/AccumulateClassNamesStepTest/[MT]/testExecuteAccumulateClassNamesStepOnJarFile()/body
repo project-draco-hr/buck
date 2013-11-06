@@ -1,0 +1,19 @@
+{
+  String name="example.jar";
+  File jarFile=tmp.newFile(name);
+  try (JarOutputStream out=new JarOutputStream(new BufferedOutputStream(new FileOutputStream(jarFile)))){
+    out.putNextEntry(new ZipEntry("com/example/Foo.class"));
+    out.closeEntry();
+    out.putNextEntry(new ZipEntry("com/example/Bar.class"));
+    out.closeEntry();
+    out.putNextEntry(new ZipEntry("com/example/not_a_class.png"));
+    out.closeEntry();
+    out.putNextEntry(new ZipEntry("com/example/subpackage/Baz.class"));
+    out.closeEntry();
+  }
+   AccumulateClassNamesStep accumulateClassNamesStep=new AccumulateClassNamesStep(Paths.get(name),Paths.get("output.txt"));
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(new ProjectFilesystem(tmp.getRoot())).build();
+  accumulateClassNamesStep.execute(context);
+  String contents=Files.toString(new File(tmp.getRoot(),"output.txt"),Charsets.UTF_8);
+  assertEquals("Verify that the contents are sorted alphabetically and ignore non-.class files.",Joiner.on('\n').join("com/example/Bar","com/example/Foo","com/example/subpackage/Baz") + '\n',contents);
+}
