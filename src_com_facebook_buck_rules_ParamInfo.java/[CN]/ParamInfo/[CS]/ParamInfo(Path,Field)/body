@@ -1,0 +1,35 @@
+{
+  this.pathRelativeToProjectRoot=Preconditions.checkNotNull(pathRelativeToProjectRoot);
+  this.field=Preconditions.checkNotNull(field);
+  Hint hint=field.getAnnotation(Hint.class);
+  this.name=determineName(field.getName(),hint);
+  Class<?> rawType=field.getType();
+  Type genericType=field.getGenericType();
+  this.isOptional=Optional.class.isAssignableFrom(rawType);
+  if (List.class.isAssignableFrom(rawType) || Set.class.isAssignableFrom(rawType)) {
+    this.containerType=rawType;
+    this.type=determineGenericType(genericType);
+  }
+ else   if (Optional.class.isAssignableFrom(rawType)) {
+    this.type=unwrapGenericType(genericType);
+    Class<?> container=null;
+    if (genericType instanceof ParameterizedType) {
+      Type containerType=((ParameterizedType)genericType).getActualTypeArguments()[0];
+      if (containerType instanceof ParameterizedType) {
+        Type rawContainerType=((ParameterizedType)containerType).getRawType();
+        if (!(rawContainerType instanceof Class)) {
+          throw new RuntimeException("Container type isn't a class: " + rawContainerType);
+        }
+        container=(Class<?>)rawContainerType;
+        if (!Collection.class.isAssignableFrom(container)) {
+          throw new RuntimeException("Cannot determine container type: " + container);
+        }
+      }
+    }
+    containerType=container;
+  }
+ else {
+    this.containerType=null;
+    this.type=Primitives.wrap(rawType);
+  }
+}

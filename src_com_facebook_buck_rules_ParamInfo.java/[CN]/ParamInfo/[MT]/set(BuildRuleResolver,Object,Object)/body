@@ -1,0 +1,38 @@
+{
+  if (value == null) {
+    if (!isOptional) {
+      throw new IllegalArgumentException(String.format("%s cannot be null. Build file can be found in %s.",dto,pathRelativeToProjectRoot));
+    }
+    value=Optional.absent();
+  }
+ else   if (isOptional && matchesDefaultValue(value)) {
+    if (value instanceof Collection) {
+      value=asCollection(resolver,Lists.newArrayList());
+      value=Optional.of(value);
+    }
+ else {
+      value=Optional.absent();
+    }
+  }
+ else   if (containerType == null) {
+    value=coerceToExpectedType(resolver,value);
+    if (isOptional) {
+      value=Optional.of(value);
+    }
+  }
+ else {
+    value=asCollection(resolver,value);
+    if (isOptional) {
+      value=Optional.of(value);
+    }
+  }
+  try {
+    field.set(dto,value);
+  }
+ catch (  ReflectiveOperationException e) {
+    throw new RuntimeException(e);
+  }
+catch (  ClassCastException|IllegalArgumentException|NullPointerException e) {
+    throw new IllegalArgumentException(String.format("Unable to convert '%s' to %s in build file in %s",value,type,pathRelativeToProjectRoot));
+  }
+}
