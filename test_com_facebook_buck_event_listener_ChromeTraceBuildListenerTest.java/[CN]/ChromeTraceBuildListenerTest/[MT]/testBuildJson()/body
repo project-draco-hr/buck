@@ -2,7 +2,9 @@
   ProjectFilesystem projectFilesystem=new ProjectFilesystem(tmpDir.getRoot());
   ChromeTraceBuildListener listener=new ChromeTraceBuildListener(projectFilesystem,new IncrementingFakeClock(),42);
   BuildTarget target=BuildTargetFactory.newInstance("//fake:rule");
-  BuildRule rule=new FakeBuildRule(new BuildRuleType("fakeRule"),target,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of());
+  FakeBuildRule rule=new FakeBuildRule(new BuildRuleType("fakeRule"),target,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of());
+  RuleKey ruleKey=new RuleKey("abc123");
+  rule.setRuleKey(ruleKey);
   FakeStep step=new FakeStep("fakeStep","I'm a Fake Step!",0);
   ExecutionContext context=createMock(ExecutionContext.class);
   replay(context);
@@ -16,8 +18,8 @@
   eventBus.post(ArtifactCacheConnectEvent.started());
   eventBus.post(ArtifactCacheConnectEvent.finished());
   eventBus.post(BuildEvent.started(buildTargets));
-  eventBus.post(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.FETCH,new RuleKey("abc123")));
-  eventBus.post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.FETCH,new RuleKey("abc123"),CacheResult.CASSANDRA_HIT));
+  eventBus.post(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.FETCH,ruleKey));
+  eventBus.post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.FETCH,ruleKey,CacheResult.CASSANDRA_HIT));
   eventBus.post(BuildRuleEvent.started(rule));
   eventBus.post(StepEvent.started(step,"I'm a Fake Step!"));
   BuckEvent stepFinished=StepEvent.finished(step,"I'm a Fake Step!",0);
@@ -49,12 +51,14 @@
   assertEquals(ChromeTraceEvent.Phase.END,resultMap.get(5).getPhase());
   assertEquals("//fake:rule",resultMap.get(6).getName());
   assertEquals(ChromeTraceEvent.Phase.BEGIN,resultMap.get(6).getPhase());
+  assertEquals(ImmutableMap.of("rule_key","abc123"),resultMap.get(6).getArgs());
   assertEquals("fakeStep",resultMap.get(7).getName());
   assertEquals(ChromeTraceEvent.Phase.BEGIN,resultMap.get(7).getPhase());
   assertEquals("fakeStep",resultMap.get(8).getName());
   assertEquals(ChromeTraceEvent.Phase.END,resultMap.get(8).getPhase());
   assertEquals("//fake:rule",resultMap.get(9).getName());
   assertEquals(ChromeTraceEvent.Phase.END,resultMap.get(9).getPhase());
+  assertEquals(ImmutableMap.of("cache_result","miss","success_type","BUILT_LOCALLY"),resultMap.get(9).getArgs());
   assertEquals("build",resultMap.get(10).getName());
   assertEquals(ChromeTraceEvent.Phase.END,resultMap.get(10).getPhase());
   assertEquals("party",resultMap.get(11).getName());
