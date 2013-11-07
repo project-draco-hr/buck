@@ -4,6 +4,19 @@
   if (!(keystore instanceof Keystore)) {
     throw new HumanReadableException("In %s, keystore='%s' must be a keystore() but was %s().",getBuildTarget(),rule.getFullyQualifiedName(),rule.getType().getName());
   }
+  BuildRuleParams originalParams=createBuildRuleParams(ruleResolver);
+  ImmutableSortedSet<BuildRule> originalDeps=originalParams.getDeps();
+  ImmutableSet<DexProducedFromJavaLibraryThatContainsClassFiles> preDexDeps;
+  if (PackageType.DEBUG.equals(packageType) && !dexSplitMode.isShouldSplitDex() && !preprocessJavaClassesBash.isPresent()) {
+    preDexDeps=enhanceGraphToLeveragePreDexing(originalDeps,buildRulesToExcludeFromDex,ruleResolver,originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory());
+    for (    DexProducedFromJavaLibraryThatContainsClassFiles preDexDep : preDexDeps) {
+      addDep(preDexDep.getBuildTarget());
+    }
+  }
+ else {
+    preDexDeps=ImmutableSortedSet.of();
+  }
   boolean allowNonExistentRule=false;
-  return new AndroidBinaryRule(createBuildRuleParams(ruleResolver),manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()),(Keystore)keystore,packageType,getBuildTargetsAsBuildRules(ruleResolver,buildRulesToExcludeFromDex,allowNonExistentRule),dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,primaryDexSubstrings.build(),linearAllocHardLimit,primaryDexClassesFile,resourceFilter,cpuFilters.build(),getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash);
+  BuildRuleParams finalParams=createBuildRuleParams(ruleResolver);
+  return new AndroidBinaryRule(finalParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()),(Keystore)keystore,packageType,getBuildTargetsAsBuildRules(ruleResolver,buildRulesToExcludeFromDex,allowNonExistentRule),dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,primaryDexSubstrings.build(),linearAllocHardLimit,primaryDexClassesFile,resourceFilter,cpuFilters.build(),preDexDeps,getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash);
 }

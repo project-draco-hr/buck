@@ -1,0 +1,35 @@
+{
+  ImmutableSet.Builder<DexProducedFromJavaLibraryThatContainsClassFiles> preDexDeps=ImmutableSet.builder();
+  ImmutableSet<JavaLibraryRule> transitiveJavaDeps=Classpaths.getClasspathEntries(originalDeps).keySet();
+  for (  JavaLibraryRule javaLibraryRule : transitiveJavaDeps) {
+    if (javaLibraryRule.getPathToOutputFile() == null) {
+      continue;
+    }
+    if (buildRulesToExcludeFromDex.contains(javaLibraryRule.getBuildTarget())) {
+      continue;
+    }
+    BuildTarget originalTarget=javaLibraryRule.getBuildTarget();
+    BuildTarget preDexTarget=new BuildTarget(originalTarget.getBaseName(),originalTarget.getShortName(),"dex");
+    BuildRule preDexRule=ruleResolver.get(preDexTarget);
+    if (preDexRule != null) {
+      preDexDeps.add((DexProducedFromJavaLibraryThatContainsClassFiles)preDexRule.getBuildable());
+      continue;
+    }
+    AccumulateClassNames.Builder accumulateClassNamesBuilder=AccumulateClassNames.newAccumulateClassNamesBuilder(new DefaultBuildRuleBuilderParams(pathRelativizer,ruleKeyBuilderFactory));
+    BuildTarget accumulateClassNamesBuildTarget=new BuildTarget(originalTarget.getBaseName(),originalTarget.getShortName(),"class_names");
+    accumulateClassNamesBuilder.setBuildTarget(accumulateClassNamesBuildTarget);
+    accumulateClassNamesBuilder.setJavaLibraryToDex(javaLibraryRule);
+    accumulateClassNamesBuilder.addDep(originalTarget);
+    accumulateClassNamesBuilder.addVisibilityPattern(BuildTargetPattern.MATCH_ALL);
+    BuildRule accumulateClassNamesRule=ruleResolver.buildAndAddToIndex(accumulateClassNamesBuilder);
+    AccumulateClassNames accumulateClassNames=(AccumulateClassNames)accumulateClassNamesRule.getBuildable();
+    DexProducedFromJavaLibraryThatContainsClassFiles.Builder preDexBuilder=DexProducedFromJavaLibraryThatContainsClassFiles.newPreDexBuilder(new DefaultBuildRuleBuilderParams(pathRelativizer,ruleKeyBuilderFactory));
+    preDexBuilder.setBuildTarget(preDexTarget);
+    preDexBuilder.setPathToClassNamesList(accumulateClassNames);
+    preDexBuilder.addDep(accumulateClassNamesBuildTarget);
+    preDexBuilder.addVisibilityPattern(BuildTargetPattern.MATCH_ALL);
+    BuildRule preDex=ruleResolver.buildAndAddToIndex(preDexBuilder);
+    preDexDeps.add((DexProducedFromJavaLibraryThatContainsClassFiles)preDex.getBuildable());
+  }
+  return preDexDeps.build();
+}
