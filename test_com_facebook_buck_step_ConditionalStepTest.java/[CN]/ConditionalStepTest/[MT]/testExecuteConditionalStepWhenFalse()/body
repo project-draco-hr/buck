@@ -1,0 +1,30 @@
+{
+  final AtomicReference<TriState> condition=new AtomicReference<>(TriState.UNSPECIFIED);
+  Supplier<Boolean> conditional=new Supplier<Boolean>(){
+    @Override public Boolean get(){
+      if (!condition.get().isSet()) {
+        throw new IllegalStateException("condition must be satisfied before this is queried.");
+      }
+ else {
+        return condition.get().asBoolean();
+      }
+    }
+  }
+;
+  final AtomicInteger numCalls=new AtomicInteger(0);
+  Step stepToRunWhenSupplierIsTrue=new AbstractExecutionStep("inc"){
+    @Override public int execute(    ExecutionContext context){
+      numCalls.incrementAndGet();
+      throw new IllegalStateException("This step should not be executed.");
+    }
+  }
+;
+  ConditionalStep conditionalStep=new ConditionalStep(conditional,stepToRunWhenSupplierIsTrue);
+  condition.set(TriState.FALSE);
+  ExecutionContext context=TestExecutionContext.newInstance();
+  int exitCode=conditionalStep.execute(context);
+  assertEquals("stepToRunWhenSupplierIsTrue should not have been run.",0,numCalls.get());
+  assertEquals("The exit code should be zero when the conditional is false.",0,exitCode);
+  assertEquals("inc",conditionalStep.getShortName());
+  assertEquals("conditionally: inc",conditionalStep.getDescription(context));
+}
