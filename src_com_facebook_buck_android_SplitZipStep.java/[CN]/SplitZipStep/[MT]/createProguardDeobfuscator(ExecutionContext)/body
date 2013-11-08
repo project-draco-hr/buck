@@ -1,0 +1,17 @@
+{
+  if (!proguardMappingFile.isPresent()) {
+    return Functions.identity();
+  }
+  Map<String,String> rawProguardMap=ProguardMapping.readClassMapping(context.getProjectFilesystem().readLines(proguardMappingFile.get()));
+  ImmutableMap.Builder<String,String> internalNameBuilder=ImmutableMap.builder();
+  for (  Map.Entry<String,String> entry : rawProguardMap.entrySet()) {
+    internalNameBuilder.put(entry.getValue().replace('.','/'),entry.getKey().replace('.','/'));
+  }
+  final Map<String,String> deobfuscator=internalNameBuilder.build();
+  return new Function<String,String>(){
+    @Nullable @Override public String apply(    @Nullable String input){
+      return deobfuscator.get(input);
+    }
+  }
+;
+}
