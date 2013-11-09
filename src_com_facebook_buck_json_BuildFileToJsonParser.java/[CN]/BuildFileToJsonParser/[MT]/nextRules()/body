@@ -1,84 +1,18 @@
 {
-  List<Map<String,Object>> currentObjects=null;
-  String currentFieldName=null;
-  List<String> currentArray=null;
-  Map<String,Object> currentObject=null;
-  while (true) {
-    JsonToken token=parser.nextToken();
-    if (token == null) {
-      if (currentObject != null) {
-        throw new EOFException("unexpected end-of-stream");
-      }
- else       if (currentObjects == null) {
-        throw new EOFException("missing build rules");
-      }
- else {
-        return currentObjects;
-      }
+  List<Map<String,Object>> items=Lists.newArrayList();
+  if (isServerMode) {
+    reader.beginArray();
+    while (reader.hasNext()) {
+      JsonObject json=gson.fromJson(reader,JsonObject.class);
+      items.add((Map<String,Object>)toRawTypes(json));
     }
-switch (token) {
-case START_OBJECT:
-      if (currentObjects == null) {
-        currentObjects=Lists.newArrayList();
-      }
-    currentObject=Maps.newHashMap();
-  break;
-case END_OBJECT:
-currentObjects.add(currentObject);
-currentObject=null;
-break;
-case START_ARRAY:
-if (currentObjects == null) {
-currentObjects=Lists.newArrayList();
-}
+    reader.endArray();
+  }
  else {
-currentArray=Lists.newArrayList();
-}
-break;
-case END_ARRAY:
-if (currentArray != null) {
-currentObject.put(currentFieldName,currentArray);
-currentArray=null;
-currentFieldName=null;
-break;
-}
- else {
-return currentObjects;
-}
-case FIELD_NAME:
-currentFieldName=parser.getText();
-break;
-case VALUE_STRING:
-if (currentArray == null) {
-currentObject.put(currentFieldName,parser.getText());
-currentFieldName=null;
-}
- else {
-currentArray.add(parser.getText());
-}
-break;
-case VALUE_TRUE:
-case VALUE_FALSE:
-Preconditions.checkState(currentArray == null,"Unexpected boolean in JSON array");
-currentObject.put(currentFieldName,token == JsonToken.VALUE_TRUE);
-currentFieldName=null;
-break;
-case VALUE_NUMBER_INT:
-Preconditions.checkState(currentArray == null,"Unexpected int in JSON array");
-currentObject.put(currentFieldName,parser.getLongValue());
-currentFieldName=null;
-break;
-case VALUE_NULL:
-if (currentArray == null) {
-currentObject.put(currentFieldName,null);
-currentFieldName=null;
-}
- else {
-currentArray.add(null);
-}
-break;
-default :
-throw new JsonParseException("Unexpected token: " + token,parser.getCurrentLocation());
-}
-}
+    while (reader.peek() != JsonToken.END_DOCUMENT) {
+      JsonObject json=gson.fromJson(reader,JsonObject.class);
+      items.add((Map<String,Object>)toRawTypes(json));
+    }
+  }
+  return items;
 }
