@@ -6,11 +6,11 @@
   BuildContext buildContext=createMock(BuildContext.class);
   PythonLibrary rule=(PythonLibrary)ruleResolver.get(pyLibraryTarget).getBuildable();
   List<Step> steps=rule.getBuildSteps(buildContext,buildableContext);
-  final String projectRoot="/";
+  final String projectRoot=projectRootDir.getRoot().getAbsolutePath();
   final String pylibpath="__pylib_py_library";
   ProjectFilesystem projectFilesystem=new ProjectFilesystem(new File(projectRoot));
   ExecutionContext executionContext=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
-  MoreAsserts.assertSteps("python_library() should ensure each file is copied and has its destination directory made",ImmutableList.of(String.format("mkdir -p %s%s/%s",projectRoot,BuckConstant.GEN_DIR,pylibpath),String.format("mkdir -p %s%s/%s/foo",projectRoot,BuckConstant.GEN_DIR,pylibpath),String.format("cp baz.py %s/%s/baz.py",BuckConstant.GEN_DIR,pylibpath),String.format("cp foo/__init__.py %s/%s/foo/__init__.py",BuckConstant.GEN_DIR,pylibpath),String.format("cp foo/bar.py %s/%s/foo/bar.py",BuckConstant.GEN_DIR,pylibpath)),steps.subList(1,6),executionContext);
+  MoreAsserts.assertSteps("python_library() should ensure each file is linked and has its destination directory made",ImmutableList.of(String.format("mkdir -p %s/%s/%s",projectRoot,BuckConstant.GEN_DIR,pylibpath),String.format("mkdir -p %s/%s/%s/foo",projectRoot,BuckConstant.GEN_DIR,pylibpath),String.format("ln -f -s ../../../baz.py %s/%s/%s/baz.py",projectRoot,BuckConstant.GEN_DIR,pylibpath),String.format("ln -f -s ../../../../foo/__init__.py %s/%s/%s/foo/__init__.py",projectRoot,BuckConstant.GEN_DIR,pylibpath),String.format("ln -f -s ../../../../foo/bar.py %s/%s/%s/foo/bar.py",projectRoot,BuckConstant.GEN_DIR,pylibpath)),steps.subList(1,6),executionContext);
   ImmutableSet<Path> artifacts=buildableContext.getRecordedArtifacts();
   assertEquals(ImmutableSet.of(Paths.get(pylibpath,"baz.py"),Paths.get(pylibpath,"foo/__init__.py"),Paths.get(pylibpath,"foo/bar.py")),artifacts);
 }

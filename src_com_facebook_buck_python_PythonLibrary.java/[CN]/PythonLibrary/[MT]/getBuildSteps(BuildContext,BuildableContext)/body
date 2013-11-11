@@ -2,19 +2,18 @@
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
   commands.add(new MakeCleanDirectoryStep(pythonPathDirectory));
   ImmutableSortedSet.Builder<Path> directories=ImmutableSortedSet.naturalOrder();
-  ImmutableList.Builder<Step> copySteps=ImmutableList.builder();
+  ImmutableList.Builder<Step> symlinkSteps=ImmutableList.builder();
   for (  String src : srcs) {
     Path srcPath=Paths.get(src);
-    Path relativeSrc=Paths.get(buildTarget.getBasePath()).relativize(srcPath);
-    Path target=pythonPathDirectory.resolve(relativeSrc);
-    directories.add(target.getParent());
-    copySteps.add(new CopyStep(srcPath,target));
-    Path pathToArtifact=Paths.get(getPathUnderGenDirectory()).resolve(relativeSrc);
+    Path targetPath=pythonPathDirectory.resolve(srcPath);
+    directories.add(targetPath.getParent());
+    symlinkSteps.add(new SymlinkFileStep(srcPath.toString(),targetPath.toString(),false));
+    Path pathToArtifact=Paths.get(getPathUnderGenDirectory()).resolve(srcPath);
     buildableContext.recordArtifact(pathToArtifact);
   }
   for (  Path path : directories.build()) {
     commands.add(new MkdirStep(path));
   }
-  commands.addAll(copySteps.build());
+  commands.addAll(symlinkSteps.build());
   return commands.build();
 }
