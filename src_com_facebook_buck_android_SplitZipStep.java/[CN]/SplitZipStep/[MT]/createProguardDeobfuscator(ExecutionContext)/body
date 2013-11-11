@@ -2,7 +2,13 @@
   if (!proguardMappingFile.isPresent()) {
     return Functions.identity();
   }
-  Map<String,String> rawProguardMap=ProguardMapping.readClassMapping(context.getProjectFilesystem().readLines(proguardMappingFile.get()));
+  ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
+  Path pathToProguardMappingFile=proguardMappingFile.get();
+  if (!projectFilesystem.exists(pathToProguardMappingFile.toString())) {
+    return Functions.identity();
+  }
+  List<String> lines=projectFilesystem.readLines(pathToProguardMappingFile);
+  Map<String,String> rawProguardMap=ProguardMapping.readClassMapping(lines);
   ImmutableMap.Builder<String,String> internalNameBuilder=ImmutableMap.builder();
   for (  Map.Entry<String,String> entry : rawProguardMap.entrySet()) {
     internalNameBuilder.put(entry.getValue().replace('.','/'),entry.getKey().replace('.','/'));
