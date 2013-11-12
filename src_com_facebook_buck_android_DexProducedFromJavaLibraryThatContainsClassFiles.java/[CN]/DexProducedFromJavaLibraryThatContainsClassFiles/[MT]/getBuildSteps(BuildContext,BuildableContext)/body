@@ -2,18 +2,25 @@
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   steps.add(new RmStep(getPathToDex().toString(),true));
   steps.add(new MkdirStep(getPathToDex().getParent()));
-  if (!javaLibraryWithClassesList.getClassNames().isEmpty()) {
+  final boolean hasClassesToDx=!javaLibraryWithClassesList.getClassNames().isEmpty();
+  if (hasClassesToDx) {
     JavaLibraryRule javaLibraryRuleToDex=javaLibraryWithClassesList.getJavaLibraryRule();
     DxStep dx=new DxStep(getPathToDex().toString(),Collections.singleton(Paths.get(javaLibraryRuleToDex.getPathToOutputFile())),EnumSet.of(DxStep.Option.NO_OPTIMIZE,DxStep.Option.FORCE_JUMBO));
     steps.add(dx);
-    AbstractExecutionStep recordArtifactStep=new AbstractExecutionStep("record_dx_success"){
-      @Override public int execute(      ExecutionContext context){
-        buildableContext.recordArtifact(getPathToDex().getFileName());
-        return 0;
-      }
-    }
-;
-    steps.add(recordArtifactStep);
   }
+  String stepName=hasClassesToDx ? "record_dx_success" : "record_empty_dx";
+  AbstractExecutionStep recordArtifactAndMetadataStep=new AbstractExecutionStep(stepName){
+    @Override public int execute(    ExecutionContext context){
+      if (hasClassesToDx) {
+        buildableContext.recordArtifact(getPathToDex().getFileName());
+      }
+      String abiKeyHash=getAbiKeyForDeps().getHash();
+      buildableContext.addMetadata(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,abiKeyHash);
+      buildableContext.addMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,abiKeyHash);
+      return 0;
+    }
+  }
+;
+  steps.add(recordArtifactAndMetadataStep);
   return steps.build();
 }

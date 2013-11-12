@@ -14,6 +14,16 @@
   expect(projectFilesystem.resolve(Paths.get("buck-out/gen/foo/bar.dex.jar"))).andReturn(Paths.get("/home/user/buck-out/gen/foo/bar.dex.jar"));
   replayAll();
   ExecutionContext executionContext=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
-  MoreAsserts.assertSteps("Do not generate a .dex.jar file.",ImmutableList.of("rm -f /home/user/buck-out/gen/foo/bar.dex.jar","mkdir -p /home/user/buck-out/gen/foo"),steps,executionContext);
+  MoreAsserts.assertSteps("Do not generate a .dex.jar file.",ImmutableList.of("rm -f /home/user/buck-out/gen/foo/bar.dex.jar","mkdir -p /home/user/buck-out/gen/foo","record_empty_dx"),steps,executionContext);
+  verifyAll();
+  resetAll();
+  Sha1HashCode abiKey=new Sha1HashCode(AbiWriterProtocol.EMPTY_ABI_KEY);
+  expect(accumulateClassNames.getAbiKey()).andReturn(abiKey);
+  buildableContext.addMetadata(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,abiKey.getHash());
+  buildableContext.addMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,abiKey.getHash());
+  replayAll();
+  Step recordArtifactAndMetadataStep=steps.get(2);
+  int exitCode=recordArtifactAndMetadataStep.execute(executionContext);
+  assertEquals(0,exitCode);
   verifyAll();
 }

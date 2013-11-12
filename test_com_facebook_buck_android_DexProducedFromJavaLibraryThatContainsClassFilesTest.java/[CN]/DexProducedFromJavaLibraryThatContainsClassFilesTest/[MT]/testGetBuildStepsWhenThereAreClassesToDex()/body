@@ -23,4 +23,15 @@
   String expectedDxCommand="/usr/bin/dx" + " --dex --no-optimize --force-jumbo --output buck-out/gen/foo/bar.dex.jar " + "/home/user/buck-out/gen/foo/bar.jar";
   MoreAsserts.assertSteps("Generate bar.dex.jar.",ImmutableList.of("rm -f /home/user/buck-out/gen/foo/bar.dex.jar","mkdir -p /home/user/buck-out/gen/foo",expectedDxCommand,"record_dx_success"),steps,executionContext);
   verifyAll();
+  resetAll();
+  buildableContext.recordArtifact(Paths.get("bar.dex.jar"));
+  Sha1HashCode abiKey=new Sha1HashCode("f7f34ed13b881c6c6f663533cde4a436ea84435e");
+  expect(accumulateClassNames.getAbiKey()).andReturn(abiKey);
+  buildableContext.addMetadata(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,abiKey.getHash());
+  buildableContext.addMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,abiKey.getHash());
+  replayAll();
+  Step recordArtifactAndMetadataStep=steps.get(3);
+  int exitCode=recordArtifactAndMetadataStep.execute(executionContext);
+  assertEquals(0,exitCode);
+  verifyAll();
 }

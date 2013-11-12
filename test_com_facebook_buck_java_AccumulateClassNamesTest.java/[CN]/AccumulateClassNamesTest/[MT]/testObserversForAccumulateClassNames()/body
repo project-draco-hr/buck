@@ -21,5 +21,17 @@
   ProjectFilesystem projectFilesystem=new ProjectFilesystem(new File("."));
   ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
   Path absolutePathToOutput=projectFilesystem.resolve(Paths.get(pathToOutput));
-  MoreAsserts.assertSteps("Delete old classes.txt file, if present, and then write a new one.",ImmutableList.of("rm -f " + absolutePathToOutput,"mkdir -p " + absolutePathToOutput.getParent(),"get_class_names foo/bar/example.jar > " + pathToOutput),steps,context);
+  MoreAsserts.assertSteps("Delete old classes.txt file, if present, and then write a new one.",ImmutableList.of("rm -f " + absolutePathToOutput,"mkdir -p " + absolutePathToOutput.getParent(),"get_class_names foo/bar/example.jar > " + pathToOutput,"record_abi"),steps,context);
+  AccumulateClassNamesStep accumulateClassNamesStep=(AccumulateClassNamesStep)steps.get(2);
+  ImmutableSortedMap<String,HashCode> classNames=ImmutableSortedMap.of();
+  accumulateClassNamesStep.setClassNamesForTesting(classNames);
+  resetAll();
+  String expectedAbiKey=AbiWriterProtocol.EMPTY_ABI_KEY;
+  buildableContext.addMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,expectedAbiKey);
+  replayAll();
+  Step recordAbiStep=steps.get(3);
+  int exitCode=recordAbiStep.execute(context);
+  assertEquals(0,exitCode);
+  assertEquals("Should be the empty ABI key because the classNames map is empty.",new Sha1HashCode(expectedAbiKey),accumulateClassNames.getAbiKey());
+  verifyAll();
 }
