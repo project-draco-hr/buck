@@ -1,11 +1,19 @@
 {
-  final ImmutableSortedSet.Builder<String> classNamesBuilder=ImmutableSortedSet.naturalOrder();
+  final ImmutableSortedMap.Builder<String,HashCode> classNamesBuilder=ImmutableSortedMap.naturalOrder();
   Path path=context.getProjectFilesystem().resolve(pathToJarOrClassesDirectory);
   ClasspathTraversal traversal=new ClasspathTraversal(Collections.singleton(path)){
-    @Override public void visit(    FileLike fileLike) throws IOException {
+    @Override public void visit(    final FileLike fileLike) throws IOException {
       String name=fileLike.getRelativePath();
       if (name.endsWith(CLASS_NAME_SUFFIX)) {
-        classNamesBuilder.add(name.substring(0,name.length() - CLASS_NAME_SUFFIX.length()));
+        String key=name.substring(0,name.length() - CLASS_NAME_SUFFIX.length());
+        InputSupplier<InputStream> input=new InputSupplier<InputStream>(){
+          @Override public InputStream getInput() throws IOException {
+            return fileLike.getInput();
+          }
+        }
+;
+        HashCode value=ByteStreams.hash(input,Hashing.sha1());
+        classNamesBuilder.put(key,value);
       }
     }
   }
@@ -17,9 +25,14 @@
     e.printStackTrace(context.getStdErr());
     return 1;
   }
-  ImmutableSortedSet<String> classNames=classNamesBuilder.build();
+  ImmutableSortedMap<String,HashCode> classNames=classNamesBuilder.build();
   try {
-    context.getProjectFilesystem().writeLinesToPath(classNames,whereClassNamesShouldBeWritten);
+    context.getProjectFilesystem().writeLinesToPath(Iterables.transform(classNames.entrySet(),new Function<Map.Entry<String,HashCode>,String>(){
+      @Override public String apply(      Entry<String,HashCode> entry){
+        return entry.getKey() + CLASS_NAME_HASH_CODE_SEPARATOR + entry.getValue();
+      }
+    }
+),whereClassNamesShouldBeWritten);
   }
  catch (  IOException e) {
     context.getBuckEventBus().post(ThrowableLogEvent.create(e,"There was an error writing the list of .class files to %s.",whereClassNamesShouldBeWritten));
