@@ -1,0 +1,19 @@
+{
+  AccumulateClassNames accumulateClassNames=createMock(AccumulateClassNames.class);
+  expect(accumulateClassNames.getClassNames()).andReturn(ImmutableSortedMap.<String,HashCode>of());
+  BuildContext context=createMock(BuildContext.class);
+  BuildableContext buildableContext=createMock(BuildableContext.class);
+  replayAll();
+  BuildTarget buildTarget=new BuildTarget("//foo","bar");
+  DexProducedFromJavaLibraryThatContainsClassFiles preDex=new DexProducedFromJavaLibraryThatContainsClassFiles(buildTarget,accumulateClassNames);
+  List<Step> steps=preDex.getBuildSteps(context,buildableContext);
+  verifyAll();
+  resetAll();
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  expect(projectFilesystem.resolve(Paths.get("buck-out/gen/foo"))).andReturn(Paths.get("/home/user/buck-out/gen/foo"));
+  expect(projectFilesystem.resolve(Paths.get("buck-out/gen/foo/bar.dex.jar"))).andReturn(Paths.get("/home/user/buck-out/gen/foo/bar.dex.jar"));
+  replayAll();
+  ExecutionContext executionContext=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
+  MoreAsserts.assertSteps("Do not generate a .dex.jar file.",ImmutableList.of("rm -f /home/user/buck-out/gen/foo/bar.dex.jar","mkdir -p /home/user/buck-out/gen/foo"),steps,executionContext);
+  verifyAll();
+}

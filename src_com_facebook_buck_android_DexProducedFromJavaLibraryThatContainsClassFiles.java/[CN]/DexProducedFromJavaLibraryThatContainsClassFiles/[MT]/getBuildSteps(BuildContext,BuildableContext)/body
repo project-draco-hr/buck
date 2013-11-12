@@ -2,21 +2,18 @@
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   steps.add(new RmStep(getPathToDex().toString(),true));
   steps.add(new MkdirStep(getPathToDex().getParent()));
-  FileExistsAndIsNotEmptyStep fileExistsStep=new FileExistsAndIsNotEmptyStep(Paths.get(javaLibraryWithClassesList.getPathToOutputFile()));
-  hasOutputFile=fileExistsStep;
-  steps.add(fileExistsStep);
-  JavaLibraryRule javaLibraryRuleToDex=javaLibraryWithClassesList.getJavaLibraryRule();
-  DxStep dx=new DxStep(getPathToDex().toString(),Collections.singleton(Paths.get(javaLibraryRuleToDex.getPathToOutputFile())),EnumSet.of(DxStep.Option.NO_OPTIMIZE,DxStep.Option.FORCE_JUMBO));
-  AbstractExecutionStep recordArtifactStep=new AbstractExecutionStep("record dx success"){
-    @Override public int execute(    ExecutionContext context){
-      buildableContext.recordArtifact(getPathToDex().getFileName());
-      buildableContext.addMetadata(HAS_DEX_OUTPUT_METADATA,"true");
-      return 0;
+  if (!javaLibraryWithClassesList.getClassNames().isEmpty()) {
+    JavaLibraryRule javaLibraryRuleToDex=javaLibraryWithClassesList.getJavaLibraryRule();
+    DxStep dx=new DxStep(getPathToDex().toString(),Collections.singleton(Paths.get(javaLibraryRuleToDex.getPathToOutputFile())),EnumSet.of(DxStep.Option.NO_OPTIMIZE,DxStep.Option.FORCE_JUMBO));
+    steps.add(dx);
+    AbstractExecutionStep recordArtifactStep=new AbstractExecutionStep("record_dx_success"){
+      @Override public int execute(      ExecutionContext context){
+        buildableContext.recordArtifact(getPathToDex().getFileName());
+        return 0;
+      }
     }
-  }
 ;
-  CompositeStep dxAndStore=new CompositeStep(ImmutableList.of(dx,recordArtifactStep));
-  ConditionalStep runDxIfThereAreClassFiles=new ConditionalStep(fileExistsStep,dxAndStore);
-  steps.add(runDxIfThereAreClassFiles);
+    steps.add(recordArtifactStep);
+  }
   return steps.build();
 }
