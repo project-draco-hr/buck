@@ -5,7 +5,7 @@
   expect(accumulateClassNames.getClassNames()).andReturn(ImmutableSortedMap.of("com/example/Foo",HashCode.fromString("cafebabe")));
   expect(accumulateClassNames.getJavaLibraryRule()).andReturn(javaLibraryRule);
   BuildContext context=createMock(BuildContext.class);
-  BuildableContext buildableContext=createMock(BuildableContext.class);
+  FakeBuildableContext buildableContext=new FakeBuildableContext();
   replayAll();
   BuildTarget buildTarget=new BuildTarget("//foo","bar");
   DexProducedFromJavaLibraryThatContainsClassFiles preDex=new DexProducedFromJavaLibraryThatContainsClassFiles(buildTarget,accumulateClassNames);
@@ -24,14 +24,14 @@
   MoreAsserts.assertSteps("Generate bar.dex.jar.",ImmutableList.of("rm -f /home/user/buck-out/gen/foo/bar.dex.jar","mkdir -p /home/user/buck-out/gen/foo",expectedDxCommand,"record_dx_success"),steps,executionContext);
   verifyAll();
   resetAll();
-  buildableContext.recordArtifact(Paths.get("bar.dex.jar"));
   Sha1HashCode abiKey=new Sha1HashCode("f7f34ed13b881c6c6f663533cde4a436ea84435e");
   expect(accumulateClassNames.getAbiKey()).andReturn(abiKey);
-  buildableContext.addMetadata(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,abiKey.getHash());
-  buildableContext.addMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,abiKey.getHash());
   replayAll();
   Step recordArtifactAndMetadataStep=steps.get(3);
   int exitCode=recordArtifactAndMetadataStep.execute(executionContext);
   assertEquals(0,exitCode);
+  assertTrue("The generated .dex.jar file should be in the set of recorded artifacts.",buildableContext.getRecordedArtifacts().contains(Paths.get("bar.dex.jar")));
+  buildableContext.assertContainsMetadataMapping(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,abiKey.getHash());
+  buildableContext.assertContainsMetadataMapping(AbiRule.ABI_KEY_ON_DISK_METADATA,abiKey.getHash());
   verifyAll();
 }
