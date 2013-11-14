@@ -1,6 +1,9 @@
 import errno
+import fnmatch
 import json
 import os
+import re
+import subprocess
 import sys
 MODULE_XML_START = '<?xml version="1.0" encoding="UTF-8"?>\n<module type="%(type)s" version="4">'
 MODULE_XML_END = '\n</module>\n'
@@ -17,7 +20,14 @@ RUN_CONFIG_XML_START = '<component name="ProjectRunConfigurationManager">'
 RUN_CONFIG_XML_END = '</component>'
 REMOTE_RUN_CONFIG_XML = '\n  <configuration default="false" name="%(name)s" type="Remote" factoryName="Remote">\n    <option name="USE_SOCKET_TRANSPORT" value="true" />\n    <option name="SERVER_MODE" value="false" />\n    <option name="SHMEM_ADDRESS" value="javadebug" />\n    <option name="HOST" value="localhost" />\n    <option name="PORT" value="5005" />\n    <RunnerSettings RunnerId="Debug">\n      <option name="DEBUG_PORT" value="5005" />\n      <option name="TRANSPORT" value="0" />\n      <option name="LOCAL" value="false" />\n    </RunnerSettings>\n    <ConfigurationWrapper RunnerId="Debug" />\n    <method />\n  </configuration>\n'
 MODIFIED_FILES = []
+PROJECT_FILES = set()
 if (__name__ == '__main__'):
+    if (not os.path.isdir('.git')):
+        for (root, dirnames, filenames) in os.walk('.'):
+            if fnmatch.filter(filenames, '*.iml'):
+                sys.stderr.write('\n'.join(['  ::  "buck project" run from a directory not under Git source', '  ::  control.  If invoking buck project with an argument, we are', '  ::  not able to remove old .iml files, which can result in', '  ::  IntelliJ being in a bad state.  Please close and re-open', "  ::  IntelliJ if it's open."]))
+                sys.stderr.flush()
+                break
     json_file = sys.argv[1]
     parsed_json = json.load(open(json_file, 'r'))
     libraries = parsed_json['libraries']
@@ -26,5 +36,7 @@ if (__name__ == '__main__'):
     write_modules(modules)
     write_all_modules(modules)
     write_run_configs()
+    if PROJECT_FILES:
+        clean_old_files()
     for path in MODIFIED_FILES:
         print path
