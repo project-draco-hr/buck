@@ -1,2 +1,27 @@
 {
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  steps.add(new MkdirAndSymlinkFileStep(getManifest(),getAndroidManifestXml()));
+  final AndroidTransitiveDependencies transitiveDependencies=findTransitiveDependencies(context.getDependencyGraph());
+  final AndroidDexTransitiveDependencies dexTransitiveDependencies=findDexTransitiveDependencies(context.getDependencyGraph());
+  ResourceDirectoriesFromAapt resourceDirectoriesFromAapt=addAaptPackageSteps(steps,transitiveDependencies,dexTransitiveDependencies);
+  addDxAndApkBuilderSteps(context,steps,transitiveDependencies,dexTransitiveDependencies,resourceDirectoriesFromAapt.resDirectories,resourceDirectoriesFromAapt.nativeLibraryDirectories,getResourceApkPath(),getUnsignedApkPath());
+  String signedApkPath=getSignedApkPath();
+  SignApkStep signApkStep=new SignApkStep(keystore.getPathToStore(),keystore.getPathToPropertiesFile(),getUnsignedApkPath(),signedApkPath);
+  steps.add(signApkStep);
+  String apkToAlign;
+  if (this.isCompressResources()) {
+    String compressedApkPath=getCompressedResourcesApkPath();
+    apkToAlign=compressedApkPath;
+    RepackZipEntriesStep arscComp=new RepackZipEntriesStep(signedApkPath,compressedApkPath,ImmutableSet.of("resources.arsc"));
+    steps.add(arscComp);
+  }
+ else {
+    apkToAlign=signedApkPath;
+  }
+  String apkPath=getApkPath();
+  ZipalignStep zipalign=new ZipalignStep(apkToAlign,apkPath);
+  steps.add(zipalign);
+  EchoStep success=new EchoStep(String.format("built APK for %s at %s",getFullyQualifiedName(),apkPath));
+  steps.add(success);
+  return steps.build();
 }
