@@ -6,7 +6,7 @@
   String firstOrderStdout=stdout.getContentsAsString(Charsets.UTF_8);
   String firstOrderStderr=stderr.getContentsAsString(Charsets.UTF_8);
   if (declaredDepsResult != 0) {
-    int transitiveResult=buildWithClasspath(context,getClasspathEntries());
+    int transitiveResult=buildWithClasspath(context,ImmutableSet.copyOf(transitiveClasspathEntries));
     if (transitiveResult == 0) {
       ImmutableSet<String> failedImports=findFailedImports(firstOrderStderr);
       context.getStdErr().println(String.format("Rule %s builds with its transitive " + "dependencies but not with its first order dependencies.",invokingRule.or("")));
@@ -14,7 +14,7 @@
       context.getStdErr().println(Joiner.on(LINE_SEPARATOR).join(failedImports));
       if (suggestBuildRules.isPresent()) {
         context.getStdErr().println("Try adding the following deps:");
-        context.getStdErr().println(Joiner.on(LINE_SEPARATOR).join(suggestBuildRules.get().apply(failedImports)));
+        context.getStdErr().println(Joiner.on(LINE_SEPARATOR).join(suggestBuildRules.get().suggest(context.getProjectFilesystem(),failedImports)));
       }
       context.getStdErr().println();
       context.getStdErr().println();

@@ -1,5 +1,6 @@
 {
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(tmp.getRoot());
   BuildTarget libraryOneTarget=BuildTargetFactory.newInstance("//:libone");
   DefaultJavaLibraryRule libraryOne=ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(libraryOneTarget).addSrc("java/src/com/libone/Bar.java").addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
   BuildTarget libraryTwoTarget=BuildTargetFactory.newInstance("//:libtwo");
@@ -13,6 +14,6 @@
   ImmutableMap<String,String> classToSymbols=ImmutableMap.of(Iterables.getFirst(transitive.get(parent),null),"com.facebook.Foo",Iterables.getFirst(transitive.get(libraryOne),null),"com.facebook.Bar",Iterables.getFirst(transitive.get(libraryTwo),null),"com.facebook.Foo");
   Optional<JavacInMemoryStep.SuggestBuildRules> suggestFn=grandparent.createSuggestBuildFunction(context,transitive,ImmutableSetMultimap.<JavaLibraryRule,String>of(),createJarResolver(classToSymbols));
   assertTrue(suggestFn.isPresent());
-  assertEquals(ImmutableSet.of("//:parent","//:libone"),suggestFn.get().apply(ImmutableSet.of("com.facebook.Foo","com.facebook.Bar")));
+  assertEquals(ImmutableSet.of("//:parent","//:libone"),suggestFn.get().suggest(projectFilesystem,ImmutableSet.of("com.facebook.Foo","com.facebook.Bar")));
   EasyMock.verify(context);
 }
