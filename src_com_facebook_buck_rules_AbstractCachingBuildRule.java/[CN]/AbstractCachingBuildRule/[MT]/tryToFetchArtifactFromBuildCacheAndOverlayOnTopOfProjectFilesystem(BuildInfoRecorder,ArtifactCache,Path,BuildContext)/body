@@ -11,19 +11,11 @@
     zipFile.delete();
     return cacheResult;
   }
-  ProcessBuilder processBuilder=new ProcessBuilder("unzip","-o","-qq",zipFile.getAbsolutePath());
-  processBuilder.directory(projectRoot.toFile());
   try {
-    ProcessExecutor executor=buildContext.createProcessExecutorForUnzippingArtifact();
-    Process process=processBuilder.start();
-    ProcessExecutor.Result result=executor.execute(process,false,false,false);
-    int exitCode=result.getExitCode();
-    if (exitCode != 0) {
-      buildContext.getEventBus().post(LogEvent.warning("Failed to unzip the artifact for %s at %s.\n" + "The rule will be built locally, but here is the output of the failed unzip call:\n" + "Exit code: %s\n"+ "STDOUT:\n%s\n"+ "STDERR:\n%s\n",getBuildTarget(),zipFile.getAbsolutePath(),exitCode,result.getStdout(),result.getStderr()));
-      return CacheResult.MISS;
-    }
+    Unzip.extractZipFile(zipFile.getAbsolutePath(),projectRoot.toAbsolutePath().toString(),true);
   }
  catch (  IOException e) {
+    buildContext.getEventBus().post(LogEvent.warning("Failed to unzip the artifact for %s at %s.\n" + "The rule will be built locally, but here is the stacktrace of the failed unzip call:\n" + getBuildTarget(),zipFile.getAbsolutePath(),Throwables.getStackTraceAsString(e)));
     return CacheResult.MISS;
   }
   zipFile.delete();
