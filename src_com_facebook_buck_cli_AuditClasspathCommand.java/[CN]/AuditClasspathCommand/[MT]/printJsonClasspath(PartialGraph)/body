@@ -1,0 +1,16 @@
+{
+  DependencyGraph graph=partialGraph.getDependencyGraph();
+  List<BuildTarget> targets=partialGraph.getTargets();
+  Multimap<String,String> targetClasspaths=TreeMultimap.create();
+  for (  BuildTarget target : targets) {
+    BuildRule rule=graph.findBuildRuleByTarget(target);
+    if (!(rule instanceof HasClasspathEntries)) {
+      continue;
+    }
+    HasClasspathEntries classpathEntries=(HasClasspathEntries)rule;
+    targetClasspaths.putAll(target.getFullyQualifiedName(),classpathEntries.getTransitiveClasspathEntries().values());
+  }
+  ObjectMapper mapper=new ObjectMapper();
+  mapper.writeValue(console.getStdOut(),targetClasspaths.asMap());
+  return 0;
+}
