@@ -4,10 +4,18 @@
     private final LinkedHashSet<DependentModule> librariesToAdd=Sets.newLinkedHashSet();
     private final LinkedHashSet<DependentModule> modulesToAdd=Sets.newLinkedHashSet();
     @Override public ImmutableSet<BuildRule> visit(    BuildRule dep){
-      boolean depShouldExportDeps=dep.getExportDeps() || rule.getProperties().is(PACKAGING);
-      boolean shouldVisitDeps=(dep.getProperties().is(LIBRARY) && (depShouldExportDeps)) || (dep instanceof AndroidResourceRule) || dep == rule;
-      if (isForTests && !shouldVisitDeps && dep.getBuildTarget().getBasePath().equals(basePathForRule)&& !dep.equals(srcTarget)) {
-        shouldVisitDeps=true;
+      ImmutableSet<BuildRule> depsToVisit;
+      if (rule.getProperties().is(PACKAGING) || dep instanceof AndroidResourceRule || dep == rule) {
+        depsToVisit=dep.getDeps();
+      }
+ else       if (dep.getProperties().is(LIBRARY) && dep instanceof ExportDependencies) {
+        depsToVisit=((ExportDependencies)dep).getExportedDeps();
+      }
+ else {
+        depsToVisit=ImmutableSet.of();
+      }
+      if (isForTests && depsToVisit.isEmpty() && dep.getBuildTarget().getBasePath().equals(basePathForRule)&& !dep.equals(srcTarget)) {
+        depsToVisit=dep.getDeps();
       }
       DependentModule dependentModule;
       if (dep instanceof PrebuiltJarRule) {
@@ -20,14 +28,14 @@
         dependentModule=DependentModule.newModule(dep.getBuildTarget(),moduleName);
       }
  else       if (dep.getFullyQualifiedName().startsWith(ANDROID_GEN_BUILD_TARGET_PREFIX)) {
-        return maybeVisitAllDeps(dep,shouldVisitDeps);
+        return depsToVisit;
       }
  else       if (dep instanceof JavaLibraryRule || dep instanceof AndroidResourceRule) {
         String moduleName=getIntellijNameForRule(dep);
         dependentModule=DependentModule.newModule(dep.getBuildTarget(),moduleName);
       }
  else {
-        return maybeVisitAllDeps(dep,shouldVisitDeps);
+        return depsToVisit;
       }
       if (isForTests) {
         dependentModule.scope="TEST";
@@ -46,7 +54,7 @@
  else {
         modulesToAdd.add(dependentModule);
       }
-      return maybeVisitAllDeps(dep,shouldVisitDeps);
+      return depsToVisit;
     }
     @Override protected void onComplete(){
       dependencies.addAll(librariesToAdd);

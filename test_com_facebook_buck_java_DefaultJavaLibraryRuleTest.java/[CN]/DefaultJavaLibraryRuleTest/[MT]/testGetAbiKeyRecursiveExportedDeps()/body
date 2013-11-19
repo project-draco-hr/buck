@@ -1,0 +1,27 @@
+{
+  String libAAbiKeyHash=Strings.repeat("a",40);
+  String libBAbiKeyHash=Strings.repeat("b",40);
+  String libCAbiKeyHash=Strings.repeat("c",40);
+  String libDAbiKeyHash=Strings.repeat("d",40);
+  JavaLibraryRule libD=createDefaultJavaLibaryRuleWithAbiKey(libDAbiKeyHash,BuildTargetFactory.newInstance("//:lib_d"),ImmutableSet.of("foo/Bar.java"),ImmutableSet.<BuildRule>of(),ImmutableSet.<BuildRule>of());
+  JavaLibraryRule libC=createDefaultJavaLibaryRuleWithAbiKey(libCAbiKeyHash,BuildTargetFactory.newInstance("//:lib_c"),ImmutableSet.of("foo/Bar.java"),ImmutableSet.<BuildRule>of(libD),ImmutableSet.<BuildRule>of(libD));
+  JavaLibraryRule libB=createDefaultJavaLibaryRuleWithAbiKey(libBAbiKeyHash,BuildTargetFactory.newInstance("//:lib_b"),ImmutableSet.of("foo/Bar.java"),ImmutableSet.<BuildRule>of(libC),ImmutableSet.<BuildRule>of(libC));
+  JavaLibraryRule libA=createDefaultJavaLibaryRuleWithAbiKey(libAAbiKeyHash,BuildTargetFactory.newInstance("//:lib_a"),ImmutableSet.of("foo/Bar.java"),ImmutableSet.<BuildRule>of(libB),ImmutableSet.<BuildRule>of(libB));
+  assertEquals("If a rule has no dependencies its final ABI key should be the rule's own ABI key.",libDAbiKeyHash,libD.getAbiKey().getHash());
+  String expectedLibCAbiKeyHash=Hashing.sha1().newHasher().putUnencodedChars(libDAbiKeyHash).putUnencodedChars(libCAbiKeyHash).hash().toString();
+  assertEquals("The ABI key for lib_c should contain lib_d's ABI key.",expectedLibCAbiKeyHash,libC.getAbiKey().getHash());
+  String expectedLibBAbiKeyHash=Hashing.sha1().newHasher().putUnencodedChars(expectedLibCAbiKeyHash).putUnencodedChars(libDAbiKeyHash).putUnencodedChars(libBAbiKeyHash).hash().toString();
+  assertEquals("The ABI key for lib_b should contain lib_c's and lib_d's ABI keys.",expectedLibBAbiKeyHash,libB.getAbiKey().getHash());
+  String expectedLibAAbiKeyHash=Hashing.sha1().newHasher().putUnencodedChars(expectedLibBAbiKeyHash).putUnencodedChars(expectedLibCAbiKeyHash).putUnencodedChars(libAAbiKeyHash).hash().toString();
+  assertEquals("The ABI key for lib_a should contain lib_b's, lib_c's and lib_d's ABI keys.",expectedLibAAbiKeyHash,libA.getAbiKey().getHash());
+  libD=createDefaultJavaLibaryRuleWithAbiKey(libDAbiKeyHash,BuildTargetFactory.newInstance("//:lib_d2"),ImmutableSet.of("foo/Bar.java"),ImmutableSet.<BuildRule>of(),ImmutableSet.<BuildRule>of());
+  libC=createDefaultJavaLibaryRuleWithAbiKey(libCAbiKeyHash,BuildTargetFactory.newInstance("//:lib_c2"),ImmutableSet.of("foo/Bar.java"),ImmutableSet.<BuildRule>of(libD),ImmutableSet.<BuildRule>of());
+  libB=createDefaultJavaLibaryRuleWithAbiKey(libBAbiKeyHash,BuildTargetFactory.newInstance("//:lib_b2"),ImmutableSet.of("foo/Bar.java"),ImmutableSet.<BuildRule>of(libC),ImmutableSet.<BuildRule>of(libC));
+  libA=createDefaultJavaLibaryRuleWithAbiKey(libAAbiKeyHash,BuildTargetFactory.newInstance("//:lib_a2"),ImmutableSet.of("foo/Bar.java"),ImmutableSet.<BuildRule>of(libB),ImmutableSet.<BuildRule>of(libB));
+  assertEquals("If export_deps is false, the final ABI key should be the rule's own ABI key.",libDAbiKeyHash,libD.getAbiKey().getHash());
+  assertEquals("If export_deps is false, the final ABI key should be the rule's own ABI key.",libCAbiKeyHash,libC.getAbiKey().getHash());
+  expectedLibBAbiKeyHash=Hashing.sha1().newHasher().putUnencodedChars(libCAbiKeyHash).putUnencodedChars(libBAbiKeyHash).hash().toString();
+  assertEquals("The ABI key for lib_b should contain lib_c's ABI key.",expectedLibBAbiKeyHash,libB.getAbiKey().getHash());
+  expectedLibAAbiKeyHash=Hashing.sha1().newHasher().putUnencodedChars(expectedLibBAbiKeyHash).putUnencodedChars(libCAbiKeyHash).putUnencodedChars(libAAbiKeyHash).hash().toString();
+  assertEquals("The ABI key for lib_a should contain lib_b's, lib_c's and lib_d's ABI keys.",expectedLibAAbiKeyHash,libA.getAbiKey().getHash());
+}

@@ -3,7 +3,7 @@
   this.srcs=ImmutableSortedSet.copyOf(srcs);
   this.resources=ImmutableSortedSet.copyOf(resources);
   this.proguardConfig=Preconditions.checkNotNull(proguardConfig);
-  this.exportDeps=exportDeps;
+  this.exportedDeps=ImmutableSortedSet.copyOf(exportedDeps);
   this.javacOptions=Preconditions.checkNotNull(javacOptions);
   if (!srcs.isEmpty() || !resources.isEmpty()) {
     this.outputJar=Optional.of(getOutputJarPath(getBuildTarget()));
@@ -16,17 +16,16 @@
   inputsToConsiderForCachingPurposes=builder.build();
   outputClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibraryRule,String>>(){
     @Override public ImmutableSetMultimap<JavaLibraryRule,String> get(){
-      ImmutableSetMultimap<JavaLibraryRule,String> outputClasspathEntries;
-      if (DefaultJavaLibraryRule.this.exportDeps) {
-        outputClasspathEntries=getTransitiveClasspathEntries();
+      ImmutableSetMultimap.Builder<JavaLibraryRule,String> outputClasspathBuilder=ImmutableSetMultimap.builder();
+      Iterable<JavaLibraryRule> javaExportedLibraryDeps=Iterables.filter(getExportedDeps(),JavaLibraryRule.class);
+      for (      JavaLibraryRule rule : javaExportedLibraryDeps) {
+        outputClasspathBuilder.putAll(rule,rule.getOutputClasspathEntries().values());
+        outputClasspathBuilder.putAll(DefaultJavaLibraryRule.this,rule.getOutputClasspathEntries().values());
       }
- else       if (outputJar.isPresent()) {
-        outputClasspathEntries=ImmutableSetMultimap.<JavaLibraryRule,String>builder().put(DefaultJavaLibraryRule.this,getPathToOutputFile()).build();
+      if (outputJar.isPresent()) {
+        outputClasspathBuilder.put(DefaultJavaLibraryRule.this,getPathToOutputFile());
       }
- else {
-        outputClasspathEntries=ImmutableSetMultimap.of();
-      }
-      return outputClasspathEntries;
+      return outputClasspathBuilder.build();
     }
   }
 );
@@ -34,9 +33,10 @@
     @Override public ImmutableSetMultimap<JavaLibraryRule,String> get(){
       final ImmutableSetMultimap.Builder<JavaLibraryRule,String> classpathEntries=ImmutableSetMultimap.builder();
       ImmutableSetMultimap<JavaLibraryRule,String> classpathEntriesForDeps=Classpaths.getClasspathEntries(getDeps());
+      ImmutableSetMultimap<JavaLibraryRule,String> classpathEntriesForExportedsDeps=Classpaths.getClasspathEntries(getExportedDeps());
       classpathEntries.putAll(classpathEntriesForDeps);
-      if (DefaultJavaLibraryRule.this.exportDeps) {
-        classpathEntries.putAll(DefaultJavaLibraryRule.this,classpathEntriesForDeps.values());
+      if (!classpathEntriesForExportedsDeps.isEmpty()) {
+        classpathEntries.putAll(DefaultJavaLibraryRule.this,classpathEntriesForExportedsDeps.values());
       }
       if (outputJar.isPresent()) {
         classpathEntries.putAll(DefaultJavaLibraryRule.this,getPathToOutputFile());
