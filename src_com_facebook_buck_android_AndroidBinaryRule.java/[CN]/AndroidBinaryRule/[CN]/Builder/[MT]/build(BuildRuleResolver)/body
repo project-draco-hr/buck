@@ -6,22 +6,17 @@
   }
   BuildRuleParams originalParams=createBuildRuleParams(ruleResolver);
   ImmutableSortedSet<BuildRule> originalDeps=originalParams.getDeps();
-  ImmutableSet<BuildRule> preDexDepsAsBuildRules;
-  ImmutableSet<DexProducedFromJavaLibraryThatContainsClassFiles> preDexDeps;
+  ImmutableSet<IntermediateDexRule> preDexDeps;
+  ImmutableSet<BuildTarget> buildRulesToExcludeFromDex=buildRulesToExcludeFromDexBuilder.build();
   if (!disablePreDex && PackageType.DEBUG.equals(packageType) && !dexSplitMode.isShouldSplitDex()&& !preprocessJavaClassesBash.isPresent()) {
-    preDexDepsAsBuildRules=enhanceGraphToLeveragePreDexing(originalDeps,buildRulesToExcludeFromDex,ruleResolver,originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory());
-    ImmutableSet.Builder<DexProducedFromJavaLibraryThatContainsClassFiles> preDexDepsBuilder=ImmutableSet.builder();
-    for (    BuildRule preDexDepBuildRule : preDexDepsAsBuildRules) {
-      preDexDepsBuilder.add((DexProducedFromJavaLibraryThatContainsClassFiles)preDexDepBuildRule.getBuildable());
-    }
-    preDexDeps=preDexDepsBuilder.build();
+    AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalDeps,buildRulesToExcludeFromDex,originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory());
+    preDexDeps=graphEnhancer.createDepsForPreDexing(ruleResolver);
   }
  else {
-    preDexDepsAsBuildRules=ImmutableSet.of();
-    preDexDeps=ImmutableSortedSet.of();
+    preDexDeps=ImmutableSet.of();
   }
   boolean allowNonExistentRule=false;
-  ImmutableSortedSet<BuildRule> totalDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalDeps).addAll(preDexDepsAsBuildRules).build();
+  ImmutableSortedSet<BuildRule> totalDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalDeps).addAll(preDexDeps).build();
   BuildRuleParams finalParams=new BuildRuleParams(getBuildTarget(),totalDeps,originalParams.getVisibilityPatterns(),originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory());
   return new AndroidBinaryRule(finalParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()),(Keystore)keystore,packageType,getBuildTargetsAsBuildRules(ruleResolver,buildRulesToExcludeFromDex,allowNonExistentRule),dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,primaryDexSubstrings.build(),linearAllocHardLimit,primaryDexClassesFile,resourceFilter,cpuFilters.build(),preDexDeps,getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash);
 }

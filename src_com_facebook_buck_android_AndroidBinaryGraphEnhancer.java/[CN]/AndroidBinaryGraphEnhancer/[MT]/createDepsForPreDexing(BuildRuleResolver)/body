@@ -1,0 +1,27 @@
+{
+  ImmutableSet.Builder<IntermediateDexRule> preDexDeps=ImmutableSet.builder();
+  ImmutableSet<JavaLibraryRule> transitiveJavaDeps=Classpaths.getClasspathEntries(originalDeps).keySet();
+  for (  JavaLibraryRule javaLibraryRule : transitiveJavaDeps) {
+    if (javaLibraryRule.getPathToOutputFile() == null) {
+      continue;
+    }
+    if (buildRulesToExcludeFromDex.contains(javaLibraryRule.getBuildTarget())) {
+      continue;
+    }
+    BuildTarget originalTarget=javaLibraryRule.getBuildTarget();
+    BuildTarget preDexTarget=createBuildTargetWithDexFlavor(originalTarget);
+    IntermediateDexRule preDexRule=(IntermediateDexRule)ruleResolver.get(preDexTarget);
+    if (preDexRule != null) {
+      preDexDeps.add(preDexRule);
+      continue;
+    }
+    BuildTarget accumulateClassNamesBuildTarget=new BuildTarget(originalTarget.getBaseName(),originalTarget.getShortName(),"class_names");
+    AccumulateClassNames.Builder accumulateClassNamesBuilder=AccumulateClassNames.newAccumulateClassNamesBuilder(buildRuleBuilderParams).setBuildTarget(accumulateClassNamesBuildTarget).setJavaLibraryToDex(javaLibraryRule).addDep(originalTarget).addVisibilityPattern(BuildTargetPattern.MATCH_ALL);
+    BuildRule accumulateClassNamesRule=ruleResolver.buildAndAddToIndex(accumulateClassNamesBuilder);
+    AccumulateClassNames accumulateClassNames=(AccumulateClassNames)accumulateClassNamesRule.getBuildable();
+    IntermediateDexRule.Builder preDexBuilder=IntermediateDexRule.newPreDexBuilder(buildRuleBuilderParams).setBuildTarget(preDexTarget).setAccumulateClassNamesDep(accumulateClassNames).addDep(accumulateClassNamesBuildTarget).addVisibilityPattern(BuildTargetPattern.MATCH_ALL);
+    IntermediateDexRule preDex=ruleResolver.buildAndAddToIndex(preDexBuilder);
+    preDexDeps.add(preDex);
+  }
+  return preDexDeps.build();
+}
