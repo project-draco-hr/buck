@@ -1,15 +1,17 @@
 {
   ProjectFilesystem filesystem=context.getProjectFilesystem();
+  Filters.Density targetDensity=Filters.Density.ORDERING.max(targetDensities);
   for (  String drawable : drawableFinder.findDrawables(inResDirToOutResDirMap.values())) {
     File drawableFile=filesystem.getFileForRelativePath(drawable);
     if (drawable.endsWith(".9.png")) {
       continue;
     }
     Filters.Qualifiers qualifiers=new Filters.Qualifiers(drawableFile);
-    if (!qualifiers.density.equals(this.resourceFilter) && !qualifiers.density.isEmpty()) {
-      String destination=drawable.replaceFirst("((?:^|/)drawable[^/]*-)" + Pattern.quote(qualifiers.density) + "(-|$|/)","$1" + resourceFilter + "$2");
-      double factor=DPI_VALUES.get(resourceFilter) / (DPI_VALUES.get(qualifiers.density));
-      if (factor > 1.0) {
+    Filters.Density density=qualifiers.density;
+    if (!targetDensities.contains(density)) {
+      String destination=drawable.replaceFirst("((?:^|/)drawable[^/]*-)" + Pattern.quote(density.toString()) + "(-|$|/)","$1" + targetDensity + "$2");
+      double factor=targetDensity.value() / density.value();
+      if (factor >= 1.0) {
         continue;
       }
       filesystem.createParentDirs(destination);
