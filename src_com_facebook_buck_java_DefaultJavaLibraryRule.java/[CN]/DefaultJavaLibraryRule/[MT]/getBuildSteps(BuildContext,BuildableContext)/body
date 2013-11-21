@@ -31,13 +31,13 @@
   String outputDirectory=getClassesDir(getBuildTarget());
   commands.add(new MakeCleanDirectoryStep(outputDirectory));
   Optional<JavacInMemoryStep.SuggestBuildRules> suggestBuildRule=createSuggestBuildFunction(context,transitiveClasspathEntries,declaredClasspathEntries,JAR_RESOLVER);
-  createCommandsForJavac(outputDirectory,ImmutableSet.copyOf(transitiveClasspathEntries.values()),ImmutableSet.copyOf(declaredClasspathEntries.values()),javacOptions,context.getBuildDependencies(),suggestBuildRule,commands);
+  Supplier<Sha1HashCode> abiKeySupplier=createCommandsForJavac(outputDirectory,ImmutableSet.copyOf(transitiveClasspathEntries.values()),ImmutableSet.copyOf(declaredClasspathEntries.values()),javacOptions,context.getBuildDependencies(),suggestBuildRule,commands);
   addResourceCommands(context,commands,outputDirectory,context.getJavaPackageFinder());
   if (outputJar.isPresent()) {
     commands.add(new MakeCleanDirectoryStep(getOutputJarDirPath(getBuildTarget())));
     commands.add(new JarDirectoryStep(outputJar.get(),Collections.singleton(outputDirectory),null,null));
   }
   Preconditions.checkNotNull(abiKeySupplier,"abiKeySupplier must be set so that getAbiKey() will " + "return a non-null value if this rule builds successfully.");
-  addStepsToRecordAbiToDisk(commands,buildableContext);
+  addStepsToRecordAbiToDisk(commands,abiKeySupplier,buildableContext);
   return commands.build();
 }

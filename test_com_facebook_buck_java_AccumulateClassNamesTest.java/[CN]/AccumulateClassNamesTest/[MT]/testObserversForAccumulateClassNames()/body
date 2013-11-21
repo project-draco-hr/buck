@@ -17,7 +17,6 @@
   replayAll();
   List<Step> steps=accumulateClassNames.getBuildSteps(buildContext,buildableContext);
   verifyAll();
-  assertNotNull("The Supplier should be set as a side-effect of creating the steps.",accumulateClassNames.classNames);
   ProjectFilesystem projectFilesystem=new ProjectFilesystem(new File("."));
   ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
   Path absolutePathToOutput=projectFilesystem.resolve(Paths.get(pathToOutput));
@@ -30,5 +29,11 @@
   String expectedAbiKey=AbiWriterProtocol.EMPTY_ABI_KEY;
   buildableContext.assertContainsMetadataMapping(AbiRule.ABI_KEY_ON_DISK_METADATA,expectedAbiKey);
   assertEquals(0,exitCode);
+  FakeOnDiskBuildInfo onDiskBuildInfo=new FakeOnDiskBuildInfo();
+  onDiskBuildInfo.putMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,expectedAbiKey);
+  onDiskBuildInfo.setOutputFileContentsForBuildable(accumulateClassNames,ImmutableList.<String>of());
+  ClassNamesAndAbiKey classNamesAndAbikey=accumulateClassNames.initializeFromDisk(onDiskBuildInfo);
+  accumulateClassNames.setBuildOutput(classNamesAndAbikey);
   assertEquals("Should be the empty ABI key because the classNames map is empty.",new Sha1HashCode(expectedAbiKey),accumulateClassNames.getAbiKey());
+  assertEquals("The classNames map available through the getter should also be empty.",classNames,accumulateClassNames.getClassNames());
 }
