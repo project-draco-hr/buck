@@ -31,8 +31,9 @@
   Optional<Command> command=Command.getCommandForName(args[0],console);
   if (command.isPresent()) {
     String buildId=MoreStrings.createRandomString();
-    try (BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
-      ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,clock,projectFilesystem,console,config,getWebServerIfDaemon(context));
+    ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment();
+    try (BuckEventBus buildEventBus=new BuckEventBus(clock,buildId);AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,executionEnvironment)){
+      ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,clock,projectFilesystem,config,getWebServerIfDaemon(context),executionEnvironment,consoleListener);
       String[] remainingArgs=new String[args.length - 1];
       System.arraycopy(args,1,remainingArgs,0,remainingArgs.length);
       Command executingCommand=command.get();
