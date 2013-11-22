@@ -1,23 +1,18 @@
 {
   final ImmutableMap<String,String> projectConfig=getEntriesForSection("project");
   final String IGNORE_KEY="ignore";
-  ImmutableSet.Builder<String> builder=ImmutableSet.builder();
-  builder.add(BuckConstant.BUCK_OUTPUT_DIRECTORY);
-  builder.add(".idea");
-  String buckdDir=System.getProperty(BUCK_BUCKD_DIR_KEY,".buckd");
+  ImmutableSet.Builder<Path> builder=ImmutableSet.builder();
+  builder.add(Paths.get(BuckConstant.BUCK_OUTPUT_DIRECTORY));
+  builder.add(Paths.get(".idea"));
+  Path buckdDir=Paths.get(System.getProperty(BUCK_BUCKD_DIR_KEY,".buckd"));
   Path cacheDir=getCacheDir();
-  for (  String path : ImmutableList.of(buckdDir,cacheDir.toString())) {
-    if (!path.isEmpty() && path.charAt(0) != '/') {
+  for (  Path path : ImmutableList.of(buckdDir,cacheDir)) {
+    if (!path.toString().isEmpty()) {
       builder.add(path);
     }
   }
   if (projectConfig.containsKey(IGNORE_KEY)) {
-    builder.addAll(Splitter.on(',').omitEmptyStrings().trimResults().split(projectConfig.get(IGNORE_KEY)));
+    builder.addAll(MorePaths.asPaths(Splitter.on(',').omitEmptyStrings().trimResults().split(projectConfig.get(IGNORE_KEY))));
   }
-  return ImmutableSet.<String>builder().addAll(Iterables.transform(builder.build(),new Function<String,String>(){
-    @Override public String apply(    String path){
-      return MorePaths.newPathInstance(path).toString();
-    }
-  }
-)).build();
+  return builder.build();
 }
