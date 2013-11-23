@@ -1,0 +1,12 @@
+{
+  DexWithClasses dex1=createDexWithClasses("buck-out/gen/dex1.dex.jar",ImmutableSet.of("com/example/init/Init"),200);
+  DexWithClasses dex2=createDexWithClasses("buck-out/gen/dex2.dex.jar",ImmutableSet.of("com/example/init/Init$1"),1);
+  PreDexMergeStep preDexMergeStep=createPreDexMergeStep(ImmutableList.of(dex1,dex2),300,DexStore.JAR);
+  BuckEventBus eventBus=BuckEventBusFactory.newInstance();
+  CapturingLogEventListener listener=new BuckEventBusFactory.CapturingLogEventListener();
+  eventBus.register(listener);
+  ExecutionContext context=TestExecutionContext.newBuilder().setEventBus(eventBus).build();
+  int exitCode=preDexMergeStep.execute(context);
+  assertEquals(1,exitCode);
+  assertEquals("There should be 100 from the R.class dex, 200 from dex1.dex.jar, and 1 from dex2.dex.jar.",ImmutableList.of("DexWithClasses buck-out/gen/dex2.dex.jar with cost 1 puts the linear " + "alloc estimate for the primary dex at 301, exceeding the maximum of 300."),listener.getErrorMessages());
+}

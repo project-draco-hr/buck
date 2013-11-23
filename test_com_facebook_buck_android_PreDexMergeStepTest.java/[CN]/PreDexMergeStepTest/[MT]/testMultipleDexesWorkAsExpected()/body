@@ -1,0 +1,18 @@
+{
+  PreDexMergeStep preDexMergeStep=createPreDexMergeStep(SAMPLE_DEX_FILES_TO_MERGE,300,DexStore.JAR);
+  ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
+  configureResolveMethod(projectFilesystem);
+  setExpectedSecondaryDexFiles(projectFilesystem,2,DexStore.JAR,true);
+  ImmutableList<String> lines=ImmutableList.of("secondary-1.dex.jar a451b51 com.example.common.base.Base","secondary-2.dex.jar 6e279aa com.example.common.io.Files");
+  projectFilesystem.writeLinesToPath(lines,secondaryDexMetadataTxt);
+  AndroidPlatformTarget androidPlatformTarget=EasyMock.createMock(AndroidPlatformTarget.class);
+  EasyMock.expect(androidPlatformTarget.getDxExecutable()).andReturn(new File("/usr/bin/dx")).anyTimes();
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).setAndroidPlatformTarget(Optional.of(androidPlatformTarget)).build();
+  EasyMock.replay(projectFilesystem,androidPlatformTarget);
+  int exitCode=preDexMergeStep.execute(context);
+  assertEquals(0,exitCode);
+  assertTrue(executorService.wasShutdownNowInvoked());
+  String dxCommandPrefix=createDxCommandPrefix();
+  MoreAsserts.assertSteps("There should be three dx steps: one for the primary dex, and one for each secondary dex.",ImmutableList.of(dxCommandPrefix + "buck-out/gen/app/__app_classes.dex " + "buck-out/gen/app/r_classes.dex.jar "+ "buck-out/gen/dex3.dex.jar",dxCommandPrefix + secondaryDexJarFilesDir + "/secondary-1.dex.jar "+ "buck-out/gen/dex1.dex.jar "+ "buck-out/gen/dex2.dex.jar",dxCommandPrefix + secondaryDexJarFilesDir + "/secondary-2.dex.jar "+ "buck-out/gen/dex4.dex.jar"),stepsAddedToStepRunnerToBeRunInParallel,context);
+  EasyMock.verify(projectFilesystem,androidPlatformTarget);
+}

@@ -1,0 +1,74 @@
+{
+  int primaryDexSize=0;
+  List<DexWithClasses> primaryDexContents=Lists.newArrayList();
+  if (dexWithClassesForRDotJava.isPresent()) {
+    primaryDexSize+=dexWithClassesForRDotJava.get().getSizeEstimate();
+    primaryDexContents.add(dexWithClassesForRDotJava.get());
+  }
+  List<List<DexWithClasses>> secondaryDexesContents=Lists.newArrayList();
+  List<DexWithClasses> currentSecondaryDexContents=null;
+  int currentSecondaryDexSize=0;
+  for (  DexWithClasses dexWithClasses : dexFilesToMerge) {
+    if (mustBeInPrimaryDex(dexWithClasses)) {
+      primaryDexSize+=dexWithClasses.getSizeEstimate();
+      if (primaryDexSize > linearAllocHardLimit) {
+        context.postEvent(LogEvent.severe("DexWithClasses %s with cost %s puts the linear alloc estimate for the primary dex " + "at %s, exceeding the maximum of %s.",dexWithClasses.getPathToDexFile(),dexWithClasses.getSizeEstimate(),primaryDexSize,linearAllocHardLimit));
+        return 1;
+      }
+      primaryDexContents.add(dexWithClasses);
+    }
+ else     if (currentSecondaryDexContents == null || dexWithClasses.getSizeEstimate() + currentSecondaryDexSize > linearAllocHardLimit) {
+      if (dexWithClasses.getSizeEstimate() > linearAllocHardLimit) {
+        context.postEvent(LogEvent.severe("DexWithClasses %s with cost %s exceeds the max cost %s for a secondary dex file.",dexWithClasses.getPathToDexFile(),dexWithClasses.getSizeEstimate(),linearAllocHardLimit));
+        return 1;
+      }
+      currentSecondaryDexContents=Lists.newArrayList(dexWithClasses);
+      currentSecondaryDexSize=dexWithClasses.getSizeEstimate();
+      secondaryDexesContents.add(currentSecondaryDexContents);
+    }
+ else {
+      currentSecondaryDexContents.add(dexWithClasses);
+      currentSecondaryDexSize+=dexWithClasses.getSizeEstimate();
+    }
+  }
+  List<Step> dxSteps=Lists.newArrayList();
+  dxSteps.add(createDxStep(primaryDexPath,primaryDexContents));
+  String pattern="secondary-%d" + dexStore.getExtension();
+  Map<Integer,Path> indexToPathToSecondaryDex=Maps.newHashMap();
+  for (int index=0; index < secondaryDexesContents.size(); index++) {
+    String name=String.format(pattern,index + 1);
+    Path pathToSecondaryDex=Paths.get(secondaryDexJarFilesDir,name);
+    indexToPathToSecondaryDex.put(index,pathToSecondaryDex);
+    List<DexWithClasses> secondaryDex=secondaryDexesContents.get(index);
+    dxSteps.add(SmartDexingStep.createDxStepForDxPseudoRule(Iterables.transform(secondaryDex,TO_PATH),pathToSecondaryDex.toString(),DX_OPTIONS));
+  }
+  StepRunner stepRunner=createStepRunner(context);
+  try {
+    stepRunner.runStepsInParallelAndWait(dxSteps);
+  }
+ catch (  StepFailedException e) {
+    context.logError(e,"Failed when dx-merging for multi-dex.");
+    return 1;
+  }
+ finally {
+    stepRunner.getListeningExecutorService().shutdownNow();
+  }
+  try {
+    ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
+    List<String> lines=Lists.newArrayListWithCapacity(secondaryDexesContents.size());
+    for (int index=0; index < secondaryDexesContents.size(); index++) {
+      Path pathToSecondaryDex=indexToPathToSecondaryDex.get(index);
+      DexWithClasses dexWithClasses=Iterables.get(secondaryDexesContents.get(index),0);
+      String containedClass=Iterables.get(dexWithClasses.getClassNames(),0);
+      containedClass=containedClass.replace('/','.');
+      String hash=projectFilesystem.computeSha1(pathToSecondaryDex);
+      lines.add(String.format("%s %s %s",pathToSecondaryDex.getFileName(),hash,containedClass));
+    }
+    projectFilesystem.writeLinesToPath(lines,secondaryDexMetadataTxt);
+  }
+ catch (  IOException e) {
+    context.logError(e,"Failed when writing metadata.txt multi-dex.");
+    return 1;
+  }
+  return 0;
+}

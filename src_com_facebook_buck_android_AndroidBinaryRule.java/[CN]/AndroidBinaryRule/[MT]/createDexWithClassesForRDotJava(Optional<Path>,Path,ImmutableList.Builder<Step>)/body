@@ -1,0 +1,24 @@
+{
+  if (!pathToCompiledRDotJavaFiles.isPresent()) {
+    return Optional.absent();
+  }
+  steps.add(new MakeCleanDirectoryStep(rDotJavaScratchDir));
+  final AccumulateClassNamesStep accumulateClassNames=new AccumulateClassNamesStep(pathToCompiledRDotJavaFiles.get(),rDotJavaScratchDir.resolve("classes.txt"));
+  steps.add(accumulateClassNames);
+  final Path rDotJavaDex=rDotJavaScratchDir.resolve("classes.dex.jar");
+  steps.add(new DxStep(rDotJavaDex.toString(),Collections.singleton(pathToCompiledRDotJavaFiles.get()),EnumSet.of(DxStep.Option.NO_OPTIMIZE)));
+  final EstimateLinearAllocStep estimateLinearAllocStep=new EstimateLinearAllocStep(pathToCompiledRDotJavaFiles.get());
+  steps.add(estimateLinearAllocStep);
+  return Optional.<DexWithClasses>of(new DexWithClasses(){
+    @Override public Path getPathToDexFile(){
+      return rDotJavaDex;
+    }
+    @Override public ImmutableSet<String> getClassNames(){
+      return accumulateClassNames.get().keySet();
+    }
+    @Override public int getSizeEstimate(){
+      return estimateLinearAllocStep.get();
+    }
+  }
+);
+}
