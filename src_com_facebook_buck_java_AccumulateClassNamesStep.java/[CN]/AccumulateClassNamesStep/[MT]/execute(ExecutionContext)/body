@@ -3,18 +3,18 @@
   Path path=context.getProjectFilesystem().resolve(pathToJarOrClassesDirectory);
   ClasspathTraversal traversal=new ClasspathTraversal(Collections.singleton(path)){
     @Override public void visit(    final FileLike fileLike) throws IOException {
-      String name=fileLike.getRelativePath();
-      if (name.endsWith(CLASS_NAME_SUFFIX)) {
-        String key=name.substring(0,name.length() - CLASS_NAME_SUFFIX.length());
-        InputSupplier<InputStream> input=new InputSupplier<InputStream>(){
-          @Override public InputStream getInput() throws IOException {
-            return fileLike.getInput();
-          }
-        }
-;
-        HashCode value=ByteStreams.hash(input,Hashing.sha1());
-        classNamesBuilder.put(key,value);
+      if (!FileLikes.isClassFile(fileLike)) {
+        return;
       }
+      String key=FileLikes.getFileNameWithoutClassSuffix(fileLike);
+      InputSupplier<InputStream> input=new InputSupplier<InputStream>(){
+        @Override public InputStream getInput() throws IOException {
+          return fileLike.getInput();
+        }
+      }
+;
+      HashCode value=ByteStreams.hash(input,Hashing.sha1());
+      classNamesBuilder.put(key,value);
     }
   }
 ;
@@ -22,7 +22,7 @@
     new DefaultClasspathTraverser().traverse(traversal);
   }
  catch (  IOException e) {
-    e.printStackTrace(context.getStdErr());
+    context.logError(e,"Error accumulating class names for %s.",pathToJarOrClassesDirectory);
     return 1;
   }
   ImmutableSortedMap<String,HashCode> classNames=classNamesBuilder.build();

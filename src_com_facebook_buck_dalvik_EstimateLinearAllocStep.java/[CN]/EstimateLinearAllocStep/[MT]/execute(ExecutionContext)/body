@@ -1,0 +1,25 @@
+{
+  Path path=context.getProjectFilesystem().resolve(pathToJarOrClassesDirectory);
+  ClasspathTraversal traversal=new ClasspathTraversal(Collections.singleton(path)){
+    private int totalLinearAllocEstimate=0;
+    @Override public void visit(    FileLike fileLike) throws IOException {
+      if (!FileLikes.isClassFile(fileLike)) {
+        return;
+      }
+      totalLinearAllocEstimate+=linearAllocEstimator.getEstimate(fileLike);
+    }
+    @Override public Integer getResult(){
+      return totalLinearAllocEstimate;
+    }
+  }
+;
+  try {
+    new DefaultClasspathTraverser().traverse(traversal);
+  }
+ catch (  IOException e) {
+    context.logError(e,"Error accumulating class names for %s.",pathToJarOrClassesDirectory);
+    return 1;
+  }
+  this.linearAllocEstimate=(Integer)traversal.getResult();
+  return 0;
+}

@@ -3,10 +3,18 @@
   steps.add(new RmStep(getPathToDex().toString(),true));
   steps.add(new MkdirStep(getPathToDex().getParent()));
   final boolean hasClassesToDx=!javaLibraryWithClassesList.getClassNames().isEmpty();
+  final Supplier<Integer> linearAllocEstimate;
   if (hasClassesToDx) {
     JavaLibraryRule javaLibraryRuleToDex=javaLibraryWithClassesList.getJavaLibraryRule();
-    DxStep dx=new DxStep(getPathToDex().toString(),Collections.singleton(Paths.get(javaLibraryRuleToDex.getPathToOutputFile())),EnumSet.of(DxStep.Option.NO_OPTIMIZE,DxStep.Option.FORCE_JUMBO));
+    Path pathToOutputFile=Paths.get(javaLibraryRuleToDex.getPathToOutputFile());
+    EstimateLinearAllocStep estimate=new EstimateLinearAllocStep(pathToOutputFile);
+    steps.add(estimate);
+    linearAllocEstimate=estimate;
+    DxStep dx=new DxStep(getPathToDex().toString(),Collections.singleton(pathToOutputFile),EnumSet.of(DxStep.Option.NO_OPTIMIZE,DxStep.Option.FORCE_JUMBO));
     steps.add(dx);
+  }
+ else {
+    linearAllocEstimate=Suppliers.ofInstance(0);
   }
   String stepName=hasClassesToDx ? "record_dx_success" : "record_empty_dx";
   AbstractExecutionStep recordArtifactAndMetadataStep=new AbstractExecutionStep(stepName){
@@ -17,6 +25,7 @@
       String abiKeyHash=getAbiKeyForDeps().getHash();
       buildableContext.addMetadata(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,abiKeyHash);
       buildableContext.addMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,abiKeyHash);
+      buildableContext.addMetadata(LINEAR_ALLOC_KEY_ON_DISK_METADATA,String.valueOf(linearAllocEstimate.get()));
       return 0;
     }
   }
