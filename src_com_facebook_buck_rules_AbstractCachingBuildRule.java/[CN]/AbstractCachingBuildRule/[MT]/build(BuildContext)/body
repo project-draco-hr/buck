@@ -73,12 +73,18 @@ synchronized (hasBuildStarted) {
             onFailure(e);
           }
         }
+        AbstractCachingBuildRule self=AbstractCachingBuildRule.this;
         if (result.success.shouldInitializeFromDiskAfterBuilding()) {
-          initializeFromDisk(onDiskBuildInfo);
+          if (InitializableFromDisk.class.isAssignableFrom(self.getClass())) {
+            ((InitializableFromDisk)self).initializeFromDisk(onDiskBuildInfo);
+          }
+          if (self.getBuildable() instanceof InitializableFromDisk && self != self.getBuildable()) {
+            ((InitializableFromDisk)self.getBuildable()).initializeFromDisk(onDiskBuildInfo);
+          }
         }
-        BuildRuleSuccess buildRuleSuccess=new BuildRuleSuccess(AbstractCachingBuildRule.this,result.success);
+        BuildRuleSuccess buildRuleSuccess=new BuildRuleSuccess(self,result.success);
         buildRuleResult.set(buildRuleSuccess);
-        eventBus.post(BuildRuleEvent.finished(AbstractCachingBuildRule.this,result.status,result.cacheResult,Optional.of(result.success)));
+        eventBus.post(BuildRuleEvent.finished(self,result.status,result.cacheResult,Optional.of(result.success)));
         if (result.success.shouldUploadResultingArtifact()) {
           buildInfoRecorder.get().performUploadToArtifactCache(context.getArtifactCache(),eventBus);
         }
