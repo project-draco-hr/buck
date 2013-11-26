@@ -47,25 +47,13 @@
     Command executingCommand=command.get();
     String commandName=executingCommand.name().toLowerCase();
     buildEventBus.post(CommandEvent.started(commandName,context.isPresent()));
-    ArtifactCacheFactory artifactCacheFactory=new ArtifactCacheFactory(){
-      @Override public ArtifactCache newInstance(      AbstractCommandOptions options){
-        if (options.isNoCache()) {
-          return new NoopArtifactCache();
-        }
- else {
-          buildEventBus.post(ArtifactCacheConnectEvent.started());
-          ArtifactCache artifactCache=new LoggingArtifactCacheDecorator(buildEventBus).decorate(options.getBuckConfig().createArtifactCache(buildEventBus));
-          buildEventBus.post(ArtifactCacheConnectEvent.finished());
-          return artifactCache;
-        }
-      }
-    }
-;
+    ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(buildEventBus);
     int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),artifactCacheFactory,buildEventBus,parser,platform));
     buildEventBus.post(CommandEvent.finished(commandName,context.isPresent(),exitCode));
     for (    BuckEventListener eventListener : eventListeners) {
       eventListener.outputTrace();
     }
+    artifactCacheFactory.closeCreatedArtifactCaches(ARTIFACT_CACHE_TIMEOUT_IN_SECONDS);
     return exitCode;
   }
  }
