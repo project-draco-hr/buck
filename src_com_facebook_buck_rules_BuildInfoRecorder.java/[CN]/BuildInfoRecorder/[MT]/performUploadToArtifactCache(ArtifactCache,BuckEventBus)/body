@@ -2,12 +2,21 @@
   if (!artifactCache.isStoreSupported()) {
     return;
   }
-  ImmutableSet<Path> pathsToIncludeInZip=ImmutableSet.<Path>builder().addAll(Iterables.transform(metadataToWrite.keySet(),new Function<String,Path>(){
+  ImmutableSet.Builder<Path> pathsToIncludeInZipBuilder=ImmutableSet.<Path>builder().addAll(Iterables.transform(metadataToWrite.keySet(),new Function<String,Path>(){
     @Override public Path apply(    String key){
       return pathToMetadataDirectory.resolve(key);
     }
   }
-)).addAll(pathsToOutputFiles).build();
+)).addAll(pathsToOutputFiles);
+  try {
+    for (    Path outputDirectory : pathsToOutputDirectories) {
+      pathsToIncludeInZipBuilder.addAll(getEntries(outputDirectory));
+    }
+  }
+ catch (  IOException e) {
+    throw new RuntimeException(e);
+  }
+  ImmutableSet<Path> pathsToIncludeInZip=pathsToIncludeInZipBuilder.build();
   File zip;
   try {
     zip=File.createTempFile(buildTarget.getFullyQualifiedName().replace('/','_'),".zip");

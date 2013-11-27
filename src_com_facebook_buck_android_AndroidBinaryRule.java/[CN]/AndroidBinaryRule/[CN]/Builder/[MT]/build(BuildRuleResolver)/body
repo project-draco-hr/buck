@@ -4,19 +4,34 @@
   if (!(keystore instanceof Keystore)) {
     throw new HumanReadableException("In %s, keystore='%s' must be a keystore() but was %s().",getBuildTarget(),rule.getFullyQualifiedName(),rule.getType().getName());
   }
+  ImmutableSortedSet<BuildRule> classpathDeps=getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build());
+  AndroidTransitiveDependencyGraph androidTransitiveDependencyGraph=new AndroidTransitiveDependencyGraph(classpathDeps);
   BuildRuleParams originalParams=createBuildRuleParams(ruleResolver);
-  ImmutableSortedSet<BuildRule> originalDeps=originalParams.getDeps();
+  final ImmutableSortedSet<BuildRule> originalDeps=originalParams.getDeps();
   ImmutableSet<IntermediateDexRule> preDexDeps;
-  ImmutableSet<BuildTarget> buildRulesToExcludeFromDex=buildRulesToExcludeFromDexBuilder.build();
+  ImmutableSet<BuildTarget> buildTargetsToExcludeFromDex=buildTargetsToExcludeFromDexBuilder.build();
   if (!disablePreDex && PackageType.DEBUG.equals(packageType) && !dexSplitMode.isShouldSplitDex()&& !preprocessJavaClassesBash.isPresent()) {
-    AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalDeps,buildRulesToExcludeFromDex,originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory());
+    AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalDeps,buildTargetsToExcludeFromDex,originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory());
     preDexDeps=graphEnhancer.createDepsForPreDexing(ruleResolver);
   }
  else {
     preDexDeps=ImmutableSet.of();
   }
   boolean allowNonExistentRule=false;
-  ImmutableSortedSet<BuildRule> totalDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalDeps).addAll(preDexDeps).build();
+  ImmutableSortedSet<BuildRule> buildRulesToExcludeFromDex=getBuildTargetsAsBuildRules(ruleResolver,buildTargetsToExcludeFromDex,allowNonExistentRule);
+  AndroidResourceDepsFinder androidResourceDepsFinder=new AndroidResourceDepsFinder(androidTransitiveDependencyGraph,buildRulesToExcludeFromDex){
+    @Override protected ImmutableList<HasAndroidResourceDeps> findMyAndroidResourceDeps(){
+      return UberRDotJavaUtil.getAndroidResourceDeps(originalDeps);
+    }
+    @Override protected Set<HasAndroidResourceDeps> findMyAndroidResourceDepsUnsorted(){
+      return UberRDotJavaUtil.getAndroidResourceDepsUnsorted(originalDeps);
+    }
+  }
+;
+  BuildTarget buildTargetForResources=new BuildTarget(getBuildTarget().getBaseName(),getBuildTarget().getShortName(),"uber_r_dot_java");
+  BuildRule uberRDotJavaBuildRule=ruleResolver.buildAndAddToIndex(UberRDotJavaBuildable.newUberRDotJavaBuildableBuilder(new DefaultBuildRuleBuilderParams(originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory())).setBuildTarget(buildTargetForResources).setAllParams(buildTargetForResources,resourceCompressionMode,resourceFilter,androidResourceDepsFinder));
+  UberRDotJavaBuildable uberRDotJavaBuildable=(UberRDotJavaBuildable)uberRDotJavaBuildRule.getBuildable();
+  ImmutableSortedSet<BuildRule> totalDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalDeps).addAll(preDexDeps).add(uberRDotJavaBuildRule).build();
   BuildRuleParams finalParams=new BuildRuleParams(getBuildTarget(),totalDeps,originalParams.getVisibilityPatterns(),originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory());
-  return new AndroidBinaryRule(finalParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()),(Keystore)keystore,packageType,getBuildTargetsAsBuildRules(ruleResolver,buildRulesToExcludeFromDex,allowNonExistentRule),dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,primaryDexSubstrings.build(),linearAllocHardLimit,primaryDexClassesFile,resourceFilter,cpuFilters.build(),preDexDeps,getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash);
+  return new AndroidBinaryRule(finalParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build()),(Keystore)keystore,packageType,buildRulesToExcludeFromDex,dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,primaryDexSubstrings.build(),linearAllocHardLimit,primaryDexClassesFile,cpuFilters.build(),preDexDeps,uberRDotJavaBuildable,getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash,androidResourceDepsFinder,androidTransitiveDependencyGraph);
 }

@@ -6,6 +6,34 @@
  else   if (!(apkRule instanceof InstallableBuildRule)) {
     throw new HumanReadableException("In %s, apk='%s' must be an android_binary() or apk_genrule() but was %s().",getBuildTarget(),apkRule.getFullyQualifiedName(),apkRule.getType().getName());
   }
-  AndroidBinaryRule underlyingApk=getUnderlyingApk((InstallableBuildRule)apkRule);
-  return new AndroidInstrumentationApk(createBuildRuleParams(ruleResolver),manifest,underlyingApk,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()));
+  BuildRuleParams buildRuleParams=createBuildRuleParams(ruleResolver);
+  final ImmutableSortedSet<BuildRule> originalDeps=buildRuleParams.getDeps();
+  final AndroidBinaryRule underlyingApk=getUnderlyingApk((InstallableBuildRule)apkRule);
+  ImmutableSortedSet<BuildRule> classpathDepsForInstrumentationApk=getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build());
+  AndroidTransitiveDependencyGraph androidTransitiveDependencyGraph=new AndroidTransitiveDependencyGraph(classpathDepsForInstrumentationApk);
+  AndroidResourceDepsFinder androidResourceDepsFinder=new AndroidResourceDepsFinder(androidTransitiveDependencyGraph,underlyingApk.getBuildRulesToExcludeFromDex()){
+    @Override protected ImmutableList<HasAndroidResourceDeps> findMyAndroidResourceDeps(){
+      ImmutableSet<HasAndroidResourceDeps> originalResources=ImmutableSet.copyOf(UberRDotJavaUtil.getAndroidResourceDeps(underlyingApk));
+      ImmutableList<HasAndroidResourceDeps> instrumentationResources=UberRDotJavaUtil.getAndroidResourceDeps(originalDeps);
+      ImmutableList.Builder<HasAndroidResourceDeps> allResources=ImmutableList.builder();
+      for (      HasAndroidResourceDeps resource : instrumentationResources) {
+        if (!originalResources.contains(resource)) {
+          allResources.add(resource);
+        }
+      }
+      return allResources.build();
+    }
+    @Override protected Set<HasAndroidResourceDeps> findMyAndroidResourceDepsUnsorted(){
+      Collection<BuildRule> apk=Collections.<BuildRule>singleton(underlyingApk);
+      Set<HasAndroidResourceDeps> originalResources=UberRDotJavaUtil.getAndroidResourceDepsUnsorted(apk);
+      Set<HasAndroidResourceDeps> instrumentationResources=UberRDotJavaUtil.getAndroidResourceDepsUnsorted(originalDeps);
+      return Sets.difference(instrumentationResources,originalResources);
+    }
+  }
+;
+  BuildTarget buildTargetForResources=new BuildTarget(getBuildTarget().getBaseName(),getBuildTarget().getShortName(),"uber_r_dot_java");
+  BuildRule uberRDotJavaBuildRule=ruleResolver.buildAndAddToIndex(UberRDotJavaBuildable.newUberRDotJavaBuildableBuilder(new DefaultBuildRuleBuilderParams(buildRuleParams.getPathRelativizer(),buildRuleParams.getRuleKeyBuilderFactory())).setBuildTarget(buildTargetForResources).setAllParams(buildTargetForResources,ResourceCompressionMode.DISABLED,ResourceFilter.EMPTY_FILTER,androidResourceDepsFinder));
+  UberRDotJavaBuildable uberRDotJavaBuildable=(UberRDotJavaBuildable)uberRDotJavaBuildRule.getBuildable();
+  BuildRuleParams finalParams=new BuildRuleParams(getBuildTarget(),ImmutableSortedSet.<BuildRule>naturalOrder().addAll(buildRuleParams.getDeps()).add(uberRDotJavaBuildRule).build(),buildRuleParams.getVisibilityPatterns(),buildRuleParams.getPathRelativizer(),buildRuleParams.getRuleKeyBuilderFactory());
+  return new AndroidInstrumentationApk(finalParams,manifest,underlyingApk,uberRDotJavaBuildable,androidResourceDepsFinder,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()),androidTransitiveDependencyGraph);
 }

@@ -1,23 +1,9 @@
 {
-  final Set<String> rDotJavaPackages=transitiveDependencies.rDotJavaPackages;
-  final FilterResourcesStep filterResourcesStep;
-  final ImmutableSet<String> resDirectories;
-  if (requiresResourceFilter()) {
-    filterResourcesStep=createFilterResourcesStep(transitiveDependencies.resDirectories);
-    resDirectories=filterResourcesStep.getOutputResourceDirs();
-    steps.add(filterResourcesStep);
-  }
- else {
-    filterResourcesStep=null;
-    resDirectories=transitiveDependencies.resDirectories;
-  }
-  if (!resDirectories.isEmpty()) {
-    UberRDotJavaUtil.generateRDotJavaFiles(resDirectories,rDotJavaPackages,getBuildTarget(),steps);
-    if (isStoreStringsAsAssets()) {
-      Path tmpStringsDirPath=getPathForTmpStringAssetsDirectory();
-      steps.add(new MakeCleanDirectoryStep(tmpStringsDirPath));
-      steps.add(new CompileStringsStep(filterResourcesStep,Paths.get(UberRDotJavaUtil.getPathToGeneratedRDotJavaSrcFiles(getBuildTarget())),tmpStringsDirPath));
-    }
+  final ImmutableSet<String> resDirectories=uberRDotJavaBuildable.getResDirectories();
+  if (!resDirectories.isEmpty() && isStoreStringsAsAssets()) {
+    Path tmpStringsDirPath=getPathForTmpStringAssetsDirectory();
+    steps.add(new MakeCleanDirectoryStep(tmpStringsDirPath));
+    steps.add(new CompileStringsStep(uberRDotJavaBuildable.getNonEnglishStringFiles(),Paths.get(uberRDotJavaBuildable.getPathToGeneratedRDotJavaSrcFiles()),tmpStringsDirPath));
   }
   Step collectAssets=new Step(){
     @Override public int execute(    ExecutionContext context){
@@ -85,6 +71,5 @@
     AaptStep aaptCommand=new AaptStep(getAndroidManifestXml(),resDirectories,assetsDirectory,getResourceApkPath(),packageType.isCrunchPngFiles());
     steps.add(aaptCommand);
   }
-  ResourceDirectoriesFromAapt resourceDirectoriesFromAapt=new ResourceDirectoriesFromAapt(resDirectories,nativeLibraryDirectories);
-  return resourceDirectoriesFromAapt;
+  return nativeLibraryDirectories;
 }
