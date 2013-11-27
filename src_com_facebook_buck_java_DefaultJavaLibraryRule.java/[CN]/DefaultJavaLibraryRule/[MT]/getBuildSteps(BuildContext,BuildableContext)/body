@@ -1,23 +1,18 @@
 {
-  ImmutableList.Builder<Step> commands=ImmutableList.builder();
-  BuildTarget buildTarget=getBuildTarget();
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
   JavacOptions javacOptions=this.javacOptions;
   if (getProperties().is(ANDROID)) {
     javacOptions=JavacOptions.builder(this.javacOptions).setBootclasspath(context.getAndroidBootclasspathSupplier().get()).build();
   }
-  androidResourceDeps=UberRDotJavaUtil.getAndroidResourceDeps(this);
-  boolean dependsOnAndroidResourceRules=!androidResourceDeps.isEmpty();
-  if (dependsOnAndroidResourceRules) {
-    UberRDotJavaUtil.createDummyRDotJavaFiles(androidResourceDeps,buildTarget,commands);
-  }
   ImmutableSetMultimap<JavaLibraryRule,String> transitiveClasspathEntries=getTransitiveClasspathEntries();
   ImmutableSetMultimap<JavaLibraryRule,String> declaredClasspathEntries=getDeclaredClasspathEntries();
-  if (dependsOnAndroidResourceRules) {
+  if (optionalDummyRDotJava.isPresent()) {
+    DummyRDotJava dummyRDotJava=optionalDummyRDotJava.get();
     ImmutableSetMultimap.Builder<JavaLibraryRule,String> transitiveClasspathEntriesWithRDotJava=ImmutableSetMultimap.builder();
     transitiveClasspathEntriesWithRDotJava.putAll(transitiveClasspathEntries);
     ImmutableSetMultimap.Builder<JavaLibraryRule,String> declaredClasspathEntriesWithRDotJava=ImmutableSetMultimap.builder();
     declaredClasspathEntriesWithRDotJava.putAll(declaredClasspathEntries);
-    ImmutableSet<String> rDotJavaClasspath=ImmutableSet.of(UberRDotJavaUtil.getRDotJavaBinFolder(buildTarget));
+    ImmutableSet<String> rDotJavaClasspath=ImmutableSet.of(dummyRDotJava.getRDotJavaBinFolder());
     transitiveClasspathEntriesWithRDotJava.putAll(this,rDotJavaClasspath);
     declaredClasspathEntriesWithRDotJava.putAll(this,rDotJavaClasspath);
     declaredClasspathEntries=declaredClasspathEntriesWithRDotJava.build();
@@ -26,19 +21,19 @@
   String annotationGenFolder=javacOptions.getAnnotationProcessingData().getGeneratedSourceFolderName();
   if (annotationGenFolder != null) {
     MakeCleanDirectoryStep mkdirGeneratedSources=new MakeCleanDirectoryStep(annotationGenFolder);
-    commands.add(mkdirGeneratedSources);
+    steps.add(mkdirGeneratedSources);
   }
   String outputDirectory=getClassesDir(getBuildTarget());
-  commands.add(new MakeCleanDirectoryStep(outputDirectory));
+  steps.add(new MakeCleanDirectoryStep(outputDirectory));
   Optional<JavacInMemoryStep.SuggestBuildRules> suggestBuildRule=createSuggestBuildFunction(context,transitiveClasspathEntries,declaredClasspathEntries,JAR_RESOLVER);
-  Supplier<Sha1HashCode> abiKeySupplier=createCommandsForJavac(outputDirectory,ImmutableSet.copyOf(transitiveClasspathEntries.values()),ImmutableSet.copyOf(declaredClasspathEntries.values()),javacOptions,context.getBuildDependencies(),suggestBuildRule,commands);
-  addResourceCommands(context,commands,outputDirectory,context.getJavaPackageFinder());
+  Supplier<Sha1HashCode> abiKeySupplier=createCommandsForJavac(outputDirectory,ImmutableSet.copyOf(transitiveClasspathEntries.values()),ImmutableSet.copyOf(declaredClasspathEntries.values()),javacOptions,context.getBuildDependencies(),suggestBuildRule,steps);
+  addResourceCommands(context,steps,outputDirectory,context.getJavaPackageFinder());
   if (outputJar.isPresent()) {
-    commands.add(new MakeCleanDirectoryStep(getOutputJarDirPath(getBuildTarget())));
-    commands.add(new JarDirectoryStep(outputJar.get(),Collections.singleton(outputDirectory),null,null));
+    steps.add(new MakeCleanDirectoryStep(getOutputJarDirPath(getBuildTarget())));
+    steps.add(new JarDirectoryStep(outputJar.get(),Collections.singleton(outputDirectory),null,null));
   }
   Preconditions.checkNotNull(abiKeySupplier,"abiKeySupplier must be set so that getAbiKey() will " + "return a non-null value if this rule builds successfully.");
-  addStepsToRecordAbiToDisk(commands,abiKeySupplier,buildableContext);
-  JavaLibraryRules.addAccumulateClassNamesStep(this,buildableContext,commands);
-  return commands.build();
+  addStepsToRecordAbiToDisk(steps,abiKeySupplier,buildableContext);
+  JavaLibraryRules.addAccumulateClassNamesStep(this,buildableContext,steps);
+  return steps.build();
 }

@@ -1,0 +1,16 @@
+{
+  ImmutableSortedSet<BuildRule> originalDeps=originalBuildRuleParams.getDeps();
+  ImmutableList<HasAndroidResourceDeps> androidResourceDeps=UberRDotJavaUtil.getAndroidResourceDeps(originalDeps);
+  if (androidResourceDeps.isEmpty() && !createBuildableIfEmptyDeps) {
+    return new Result(originalBuildRuleParams,Optional.<DummyRDotJava>absent());
+  }
+  DummyRDotJava.Builder ruleBuilder=DummyRDotJava.newDummyRDotJavaBuildableBuilder(buildRuleBuilderParams).setBuildTarget(dummyRDotJavaBuildTarget).setAndroidResourceDeps(androidResourceDeps);
+  for (  HasAndroidResourceDeps resourceDep : androidResourceDeps) {
+    ruleBuilder.addDep(resourceDep.getBuildTarget());
+  }
+  BuildRule dummyRDotJavaBuildRule=ruleResolver.buildAndAddToIndex(ruleBuilder);
+  final DummyRDotJava dummyRDotJava=(DummyRDotJava)dummyRDotJavaBuildRule.getBuildable();
+  ImmutableSortedSet<BuildRule> totalDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalDeps).add(dummyRDotJavaBuildRule).build();
+  BuildRuleParams newBuildRuleParams=new BuildRuleParams(originalBuildRuleParams.getBuildTarget(),totalDeps,originalBuildRuleParams.getVisibilityPatterns(),originalBuildRuleParams.getPathRelativizer(),originalBuildRuleParams.getRuleKeyBuilderFactory());
+  return new Result(newBuildRuleParams,Optional.of(dummyRDotJava));
+}

@@ -1,0 +1,42 @@
+{
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  final String rDotJavaSrcFolder=getRDotJavaSrcFolder(buildTarget);
+  steps.add(new MakeCleanDirectoryStep(rDotJavaSrcFolder));
+  Set<String> javaSourceFilePaths=Sets.newHashSet();
+  if (androidResourceDeps.isEmpty()) {
+    String rDotJavaPackage="com.facebook";
+    String javaCode=MergeAndroidResourcesStep.generateJavaCodeForPackageWithoutResources(rDotJavaPackage);
+    steps.add(new MakeCleanDirectoryStep(rDotJavaSrcFolder + "/com/facebook"));
+    String rDotJavaFile=rDotJavaSrcFolder + "/com/facebook/R.java";
+    steps.add(new WriteFileStep(javaCode,rDotJavaFile));
+    javaSourceFilePaths.add(rDotJavaFile);
+  }
+ else {
+    Map<String,String> symbolsFileToRDotJavaPackage=Maps.newHashMap();
+    for (    HasAndroidResourceDeps res : androidResourceDeps) {
+      String rDotJavaPackage=res.getRDotJavaPackage();
+      symbolsFileToRDotJavaPackage.put(res.getPathToTextSymbolsFile(),rDotJavaPackage);
+      String rDotJavaFilePath=MergeAndroidResourcesStep.getOutputFilePath(rDotJavaSrcFolder,rDotJavaPackage);
+      javaSourceFilePaths.add(rDotJavaFilePath);
+    }
+    steps.add(new MergeAndroidResourcesStep(symbolsFileToRDotJavaPackage,rDotJavaSrcFolder));
+  }
+  final String rDotJavaClassesFolder=getRDotJavaBinFolder();
+  steps.add(new MakeCleanDirectoryStep(rDotJavaClassesFolder));
+  String pathToAbiOutputDir=getPathToAbiOutputDir(buildTarget);
+  steps.add(new MakeCleanDirectoryStep(pathToAbiOutputDir));
+  String pathToAbiOutputFile=pathToAbiOutputDir + "/abi";
+  final JavacInMemoryStep javacInMemoryStep=UberRDotJavaUtil.createJavacInMemoryCommandForRDotJavaFiles(javaSourceFilePaths,rDotJavaClassesFolder,Optional.of(pathToAbiOutputFile));
+  steps.add(javacInMemoryStep);
+  steps.add(new AbstractExecutionStep("record_abi_key"){
+    @Override public int execute(    ExecutionContext context){
+      Sha1HashCode abiKey=javacInMemoryStep.getAbiKey();
+      Preconditions.checkNotNull(abiKey,"Javac step must create a non-null ABI key for this rule.");
+      buildableContext.addMetadata(ABI_KEY_ON_DISK_METADATA,abiKey.getHash());
+      return 0;
+    }
+  }
+);
+  buildableContext.recordArtifactsInDirectory(Paths.get(rDotJavaClassesFolder));
+  return steps.build();
+}

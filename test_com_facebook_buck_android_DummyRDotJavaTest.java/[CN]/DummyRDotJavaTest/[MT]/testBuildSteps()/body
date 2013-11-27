@@ -1,0 +1,15 @@
+{
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  AndroidResourceRule resourceRule1=ruleResolver.buildAndAddToIndex(AndroidResourceRule.newAndroidResourceRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res1")).setRDotJavaPackage("com.facebook").setRes("android_res/com/example/res1"));
+  AndroidResourceRule resourceRule2=ruleResolver.buildAndAddToIndex(AndroidResourceRule.newAndroidResourceRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res2")).setRDotJavaPackage("com.facebook").setRes("android_res/com/example/res2"));
+  DummyRDotJava dummyRDotJava=new DummyRDotJava(ImmutableList.<HasAndroidResourceDeps>of(resourceRule1,resourceRule2),BuildTargetFactory.newInstance("//java/base:rule"));
+  FakeBuildableContext buildableContext=new FakeBuildableContext();
+  List<Step> steps=dummyRDotJava.getBuildSteps(EasyMock.createMock(BuildContext.class),buildableContext);
+  assertEquals("DummyRDotJava returns an incorrect number of Steps.",6,steps.size());
+  String rDotJavaSrcFolder="buck-out/bin/java/base/__rule_rdotjava_src__";
+  String rDotJavaBinFolder="buck-out/bin/java/base/__rule_rdotjava_bin__";
+  String rDotJavaAbiFolder="buck-out/gen/java/base/__rule_dummyrdotjava_abi__";
+  List<String> expectedStepDescriptions=Lists.newArrayList(makeCleanDirDescription(rDotJavaSrcFolder),mergeAndroidResourcesDescription(ImmutableList.of(resourceRule1,resourceRule2),rDotJavaSrcFolder),makeCleanDirDescription(rDotJavaBinFolder),makeCleanDirDescription(rDotJavaAbiFolder),javacInMemoryDescription(rDotJavaBinFolder,rDotJavaAbiFolder + "/abi"),"record_abi_key");
+  MoreAsserts.assertSteps("DummyRDotJava.getBuildSteps() must return these exact steps.",expectedStepDescriptions,steps,TestExecutionContext.newInstance());
+  assertEquals(ImmutableSet.<Path>of(Paths.get(rDotJavaBinFolder)),buildableContext.getRecordedArtifactDirectories());
+}

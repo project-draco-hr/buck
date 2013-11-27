@@ -1,0 +1,17 @@
+{
+  BuildTarget buildTarget=BuildTargetFactory.newInstance("//java/com/example:library");
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  AndroidResourceRule resourceRule1=ruleResolver.buildAndAddToIndex(AndroidResourceRule.newAndroidResourceRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res1")).setRDotJavaPackage("com.facebook").setRes("android_res/com/example/res1"));
+  AndroidResourceRule resourceRule2=ruleResolver.buildAndAddToIndex(AndroidResourceRule.newAndroidResourceRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res2")).setRDotJavaPackage("com.facebook").setRes("android_res/com/example/res2"));
+  BuildRuleParams buildRuleParams=new FakeBuildRuleParams(buildTarget,ImmutableSortedSet.<BuildRule>of(resourceRule1,resourceRule2));
+  JavaLibraryGraphEnhancer graphEnhancer=new JavaLibraryGraphEnhancer(buildTarget,buildRuleParams,new FakeAbstractBuildRuleBuilderParams());
+  Result result=graphEnhancer.createBuildableForAndroidResources(ruleResolver,false);
+  assertTrue(result.getOptionalDummyRDotJava().isPresent());
+  assertEquals("DummyRDotJava must contain these exact AndroidResourceRules.",ImmutableList.of(resourceRule1,resourceRule2),result.getOptionalDummyRDotJava().get().getAndroidResourceDeps());
+  ImmutableSortedSet<BuildRule> newDeps=result.getBuildRuleParams().getDeps();
+  assertEquals("BuildRuleParams in the result object must have DummyRDotJava as a dependency.",3,newDeps.size());
+  BuildRule dummyRDotJavaRule=newDeps.last();
+  assertTrue(dummyRDotJavaRule instanceof JavaAbiRule);
+  assertEquals("//java/com/example:library#dummy_r_dot_java",dummyRDotJavaRule.getFullyQualifiedName());
+  assertEquals("DummyRDotJava must depend on the two AndroidResourceRules.",ImmutableSet.of("//android_res/com/example:res1","//android_res/com/example:res2"),FluentIterable.from(dummyRDotJavaRule.getDeps()).transform(Functions.toStringFunction()).toSet());
+}
