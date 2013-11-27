@@ -32,21 +32,6 @@
   }
 ;
   steps.add(collectAssets);
-  ImmutableSet<String> nativeLibraryDirectories;
-  if (!transitiveDependencies.nativeLibsDirectories.isEmpty()) {
-    ImmutableSet.Builder<String> nativeLibraryDirectoriesBuilder=ImmutableSet.builder();
-    String pathForNativeLibs=getPathForNativeLibs();
-    String libSubdirectory=pathForNativeLibs + "/lib";
-    nativeLibraryDirectoriesBuilder.add(libSubdirectory);
-    steps.add(new MakeCleanDirectoryStep(libSubdirectory));
-    for (    String nativeLibDir : transitiveDependencies.nativeLibsDirectories) {
-      copyNativeLibrary(nativeLibDir,libSubdirectory,steps);
-    }
-    nativeLibraryDirectories=nativeLibraryDirectoriesBuilder.build();
-  }
- else {
-    nativeLibraryDirectories=ImmutableSet.of();
-  }
   Optional<String> assetsDirectory;
   if (transitiveDependencies.assetsDirectories.isEmpty() && transitiveDependencies.nativeLibAssetsDirectories.isEmpty() && !isStoreStringsAsAssets()) {
     assetsDirectory=Optional.absent();
@@ -67,9 +52,5 @@
     steps.add(new CopyStep(getPathForTmpStringAssetsDirectory(),stringAssetsDir,true));
   }
   steps.add(new MkdirStep(outputGenDirectory));
-  if (!canSkipAaptResourcePackaging()) {
-    AaptStep aaptCommand=new AaptStep(getAndroidManifestXml(),resDirectories,assetsDirectory,getResourceApkPath(),packageType.isCrunchPngFiles());
-    steps.add(aaptCommand);
-  }
-  return nativeLibraryDirectories;
+  steps.add(new AaptStep(getAndroidManifestXml(),resDirectories,assetsDirectory,getResourceApkPath(),packageType.isCrunchPngFiles()));
 }

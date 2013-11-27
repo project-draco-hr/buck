@@ -2,8 +2,23 @@
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   steps.add(new MkdirAndSymlinkFileStep(getManifest().resolve(context).toString(),getAndroidManifestXml()));
   final AndroidTransitiveDependencies transitiveDependencies=findTransitiveDependencies();
-  final AndroidDexTransitiveDependencies dexTransitiveDependencies=findDexTransitiveDependencies();
-  ImmutableSet<String> nativeLibraryDirectories=addAaptPackageSteps(steps,transitiveDependencies);
+  addAaptPackageSteps(steps,transitiveDependencies);
+  ImmutableSet<String> nativeLibraryDirectories;
+  if (!transitiveDependencies.nativeLibsDirectories.isEmpty()) {
+    ImmutableSet.Builder<String> nativeLibraryDirectoriesBuilder=ImmutableSet.builder();
+    String pathForNativeLibs=getPathForNativeLibs();
+    String libSubdirectory=pathForNativeLibs + "/lib";
+    nativeLibraryDirectoriesBuilder.add(libSubdirectory);
+    steps.add(new MakeCleanDirectoryStep(libSubdirectory));
+    for (    String nativeLibDir : transitiveDependencies.nativeLibsDirectories) {
+      copyNativeLibrary(nativeLibDir,libSubdirectory,steps);
+    }
+    nativeLibraryDirectories=nativeLibraryDirectoriesBuilder.build();
+  }
+ else {
+    nativeLibraryDirectories=ImmutableSet.of();
+  }
+  AndroidDexTransitiveDependencies dexTransitiveDependencies=findDexTransitiveDependencies();
   addDxAndApkBuilderSteps(context,steps,transitiveDependencies,dexTransitiveDependencies,uberRDotJavaBuildable.getResDirectories(),nativeLibraryDirectories,getResourceApkPath(),getUnsignedApkPath());
   String signedApkPath=getSignedApkPath();
   SignApkStep signApkStep=new SignApkStep(keystore.getPathToStore(),keystore.getPathToPropertiesFile(),getUnsignedApkPath(),signedApkPath);
