@@ -25,6 +25,12 @@
     @Override protected void onNodeExplored(    BuildTarget buildTarget){
       BuildRuleBuilder<?> builderForTarget=knownBuildTargets.get(buildTarget);
       BuildRule buildRule=ruleResolver.buildAndAddToIndex(builderForTarget);
+      for (      BuildRule dep : buildRule.getDeps()) {
+        if (dep.getBuildTarget().isFlavored()) {
+          addGraphEnhancedDeps(buildRule);
+          break;
+        }
+      }
       if (buildRule.getDeps().isEmpty()) {
         graph.addNode(buildRule);
       }
@@ -33,6 +39,28 @@
           graph.addEdge(buildRule,dep);
         }
       }
+    }
+    private void addGraphEnhancedDeps(    BuildRule buildRule){
+      new AbstractDependencyVisitor(buildRule){
+        @Override public ImmutableSet<BuildRule> visit(        BuildRule rule){
+          ImmutableSet.Builder<BuildRule> depsToVisit=null;
+          boolean isRuleFlavored=rule.getBuildTarget().isFlavored();
+          for (          BuildRule dep : rule.getDeps()) {
+            boolean isDepFlavored=dep.getBuildTarget().isFlavored();
+            if (isRuleFlavored || isDepFlavored) {
+              graph.addEdge(rule,dep);
+            }
+            if (isDepFlavored) {
+              if (depsToVisit == null) {
+                depsToVisit=ImmutableSet.builder();
+              }
+              depsToVisit.add(dep);
+            }
+          }
+          return depsToVisit == null ? ImmutableSet.<BuildRule>of() : depsToVisit.build();
+        }
+      }
+.start();
     }
     @Override protected void onTraversalComplete(    Iterable<BuildTarget> nodesInExplorationOrder){
     }
