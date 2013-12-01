@@ -11,7 +11,8 @@
   final AndroidBinaryRule underlyingApk=getUnderlyingApk((InstallableBuildRule)apkRule);
   ImmutableSortedSet<BuildRule> classpathDepsForInstrumentationApk=getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build());
   AndroidTransitiveDependencyGraph androidTransitiveDependencyGraph=new AndroidTransitiveDependencyGraph(classpathDepsForInstrumentationApk);
-  AndroidResourceDepsFinder androidResourceDepsFinder=new AndroidResourceDepsFinder(androidTransitiveDependencyGraph,underlyingApk.getBuildRulesToExcludeFromDex()){
+  ImmutableSet<BuildRule> buildRulesToExcludeFromDex=ImmutableSet.<BuildRule>builder().addAll(underlyingApk.getBuildRulesToExcludeFromDex()).addAll(Classpaths.getClasspathEntries(underlyingApk.getClasspathDeps()).keySet()).build();
+  AndroidResourceDepsFinder androidResourceDepsFinder=new AndroidResourceDepsFinder(androidTransitiveDependencyGraph,buildRulesToExcludeFromDex){
     @Override protected ImmutableList<HasAndroidResourceDeps> findMyAndroidResourceDeps(){
       ImmutableSet<HasAndroidResourceDeps> originalResources=ImmutableSet.copyOf(UberRDotJavaUtil.getAndroidResourceDeps(underlyingApk));
       ImmutableList<HasAndroidResourceDeps> instrumentationResources=UberRDotJavaUtil.getAndroidResourceDeps(originalDeps);
@@ -35,5 +36,5 @@
   BuildRule uberRDotJavaBuildRule=ruleResolver.buildAndAddToIndex(UberRDotJavaBuildable.newUberRDotJavaBuildableBuilder(new DefaultBuildRuleBuilderParams(buildRuleParams.getPathRelativizer(),buildRuleParams.getRuleKeyBuilderFactory())).setBuildTarget(buildTargetForResources).setAllParams(buildTargetForResources,ResourceCompressionMode.DISABLED,ResourceFilter.EMPTY_FILTER,androidResourceDepsFinder));
   UberRDotJavaBuildable uberRDotJavaBuildable=(UberRDotJavaBuildable)uberRDotJavaBuildRule.getBuildable();
   BuildRuleParams finalParams=new BuildRuleParams(getBuildTarget(),ImmutableSortedSet.<BuildRule>naturalOrder().addAll(buildRuleParams.getDeps()).add(uberRDotJavaBuildRule).build(),buildRuleParams.getVisibilityPatterns(),buildRuleParams.getPathRelativizer(),buildRuleParams.getRuleKeyBuilderFactory());
-  return new AndroidInstrumentationApk(finalParams,manifest,underlyingApk,uberRDotJavaBuildable,androidResourceDepsFinder,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()),androidTransitiveDependencyGraph);
+  return new AndroidInstrumentationApk(finalParams,manifest,underlyingApk,buildRulesToExcludeFromDex,uberRDotJavaBuildable,androidResourceDepsFinder,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()),androidTransitiveDependencyGraph);
 }
