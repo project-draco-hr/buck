@@ -10,8 +10,8 @@
   final ImmutableSortedSet<BuildRule> originalDeps=originalParams.getDeps();
   ImmutableSet<IntermediateDexRule> preDexDeps;
   ImmutableSet<BuildTarget> buildTargetsToExcludeFromDex=buildTargetsToExcludeFromDexBuilder.build();
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,buildTargetsToExcludeFromDex);
   if (!disablePreDex && PackageType.DEBUG.equals(packageType) && !dexSplitMode.isShouldSplitDex()&& !preprocessJavaClassesBash.isPresent()) {
-    AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalDeps,buildTargetsToExcludeFromDex,originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory());
     preDexDeps=graphEnhancer.createDepsForPreDexing(ruleResolver);
   }
  else {
@@ -28,10 +28,6 @@
     }
   }
 ;
-  BuildTarget buildTargetForResources=new BuildTarget(getBuildTarget().getBaseName(),getBuildTarget().getShortName(),"uber_r_dot_java");
-  BuildRule uberRDotJavaBuildRule=ruleResolver.buildAndAddToIndex(UberRDotJavaBuildable.newUberRDotJavaBuildableBuilder(new DefaultBuildRuleBuilderParams(originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory())).setBuildTarget(buildTargetForResources).setAllParams(buildTargetForResources,resourceCompressionMode,resourceFilter,androidResourceDepsFinder));
-  UberRDotJavaBuildable uberRDotJavaBuildable=(UberRDotJavaBuildable)uberRDotJavaBuildRule.getBuildable();
-  ImmutableSortedSet<BuildRule> totalDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalDeps).addAll(preDexDeps).add(uberRDotJavaBuildRule).build();
-  BuildRuleParams finalParams=new BuildRuleParams(getBuildTarget(),totalDeps,originalParams.getVisibilityPatterns(),originalParams.getPathRelativizer(),originalParams.getRuleKeyBuilderFactory());
-  return new AndroidBinaryRule(finalParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build()),(Keystore)keystore,packageType,buildRulesToExcludeFromDex,dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,primaryDexSubstrings.build(),linearAllocHardLimit,primaryDexClassesFile,cpuFilters.build(),preDexDeps,uberRDotJavaBuildable,getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash,androidResourceDepsFinder,androidTransitiveDependencyGraph);
+  AndroidBinaryGraphEnhancer.Result result=graphEnhancer.addBuildablesToCreateAaptResources(ruleResolver,resourceCompressionMode,resourceFilter,androidResourceDepsFinder,manifest,packageType,cpuFilters.build(),preDexDeps);
+  return new AndroidBinaryRule(result.getParams(),manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build()),(Keystore)keystore,packageType,buildRulesToExcludeFromDex,dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,primaryDexSubstrings.build(),linearAllocHardLimit,primaryDexClassesFile,cpuFilters.build(),preDexDeps,result.getUberRDotJavaBuildable(),result.getAaptPackageResources(),getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash,androidResourceDepsFinder,androidTransitiveDependencyGraph);
 }

@@ -1,0 +1,28 @@
+{
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  AndroidBinaryRuleTest.createAndroidLibraryRule("//java/src/com/facebook/base:libraryOne",ruleResolver,null,null,null);
+  AndroidBinaryRuleTest.createAndroidLibraryRule("//java/src/com/facebook/base:libraryTwo",ruleResolver,null,"java/src/com/facebook/base/assets2",null);
+  UberRDotJavaBuildable uberRDotJava=EasyMock.createMock(UberRDotJavaBuildable.class);
+  EasyMock.replay(uberRDotJava);
+  AndroidResourceRule resourceOne=(AndroidResourceRule)ruleResolver.get(BuildTargetFactory.newInstance("//java/src/com/facebook/base:libraryTwo_resources"));
+  AaptPackageResources aaptPackageResources=new AaptPackageResources(new BuildTarget("//java/src/com/facebook/base","apk","aapt_package"),new FileSourcePath("java/src/com/facebook/base/AndroidManifest.xml"),uberRDotJava,PackageType.DEBUG,ImmutableSet.<TargetCpuType>of());
+  Set<String> assetsDirectories=ImmutableSet.of(resourceOne.getAssets());
+  ImmutableList.Builder<Step> commands=ImmutableList.builder();
+  DirectoryTraverser traverser=new DirectoryTraverser(){
+    @Override public void traverse(    DirectoryTraversal traversal) throws IOException {
+      String rootPath=MorePaths.newPathInstance(traversal.getRoot()).toString();
+      if ("java/src/com/facebook/base/assets2".equals(rootPath)) {
+        traversal.visit(new File("java/src/com/facebook/base/assets2","fonts/Theinhardt-Medium.otf"),"fonts/Theinhardt-Medium.otf");
+        traversal.visit(new File("java/src/com/facebook/base/assets2","fonts/Theinhardt-Regular.otf"),"fonts/Theinhardt-Regular.otf");
+      }
+ else {
+        throw new RuntimeException("Unexpected path: " + rootPath);
+      }
+    }
+  }
+;
+  Optional<String> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(assetsDirectories,commands,traverser);
+  EasyMock.verify(uberRDotJava);
+  assertTrue(allAssetsDirectory.isPresent());
+  assertEquals("Even though there is only one assets directory, the one in " + BIN_DIR + " should be used.",aaptPackageResources.getPathToAllAssetsDirectory(),allAssetsDirectory.get());
+}

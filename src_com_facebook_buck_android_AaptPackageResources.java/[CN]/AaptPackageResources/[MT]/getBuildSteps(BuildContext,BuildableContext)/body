@@ -1,0 +1,61 @@
+{
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  steps.add(new MkdirAndSymlinkFileStep(manifest.resolve(context).toString(),getAndroidManifestXml()));
+  buildableContext.recordArtifact(Paths.get(getAndroidManifestXml()));
+  final AndroidTransitiveDependencies transitiveDependencies=uberRDotJavaBuildable.getAndroidTransitiveDependencies();
+  final ImmutableSet<String> resDirectories=uberRDotJavaBuildable.getResDirectories();
+  if (!resDirectories.isEmpty() && isStoreStringsAsAssets()) {
+    Path tmpStringsDirPath=getPathForTmpStringAssetsDirectory();
+    steps.add(new MakeCleanDirectoryStep(tmpStringsDirPath));
+    steps.add(new CompileStringsStep(uberRDotJavaBuildable.getNonEnglishStringFiles(),Paths.get(uberRDotJavaBuildable.getPathToGeneratedRDotJavaSrcFiles()),tmpStringsDirPath));
+  }
+  Step collectAssets=new Step(){
+    @Override public int execute(    ExecutionContext context){
+      ImmutableList.Builder<Step> commands=ImmutableList.builder();
+      try {
+        createAllAssetsDirectory(transitiveDependencies.assetsDirectories,commands,new DefaultDirectoryTraverser());
+      }
+ catch (      IOException e) {
+        context.logError(e,"Error creating all assets directory in %s.",buildTarget);
+        return 1;
+      }
+      for (      Step command : commands.build()) {
+        int exitCode=command.execute(context);
+        if (exitCode != 0) {
+          throw new HumanReadableException("Error running " + command.getDescription(context));
+        }
+      }
+      return 0;
+    }
+    @Override public String getShortName(){
+      return "symlink_assets";
+    }
+    @Override public String getDescription(    ExecutionContext context){
+      return getShortName();
+    }
+  }
+;
+  steps.add(collectAssets);
+  Optional<String> assetsDirectory;
+  if (transitiveDependencies.assetsDirectories.isEmpty() && transitiveDependencies.nativeLibAssetsDirectories.isEmpty() && !isStoreStringsAsAssets()) {
+    assetsDirectory=Optional.absent();
+  }
+ else {
+    assetsDirectory=Optional.of(getPathToAllAssetsDirectory());
+  }
+  if (!transitiveDependencies.nativeLibAssetsDirectories.isEmpty()) {
+    String nativeLibAssetsDir=assetsDirectory.get() + "/lib";
+    steps.add(new MakeCleanDirectoryStep(nativeLibAssetsDir));
+    for (    String nativeLibDir : transitiveDependencies.nativeLibAssetsDirectories) {
+      AndroidBinaryRule.copyNativeLibrary(nativeLibDir,nativeLibAssetsDir,cpuFilters,steps);
+    }
+  }
+  if (isStoreStringsAsAssets()) {
+    Path stringAssetsDir=Paths.get(assetsDirectory.get()).resolve("strings");
+    steps.add(new MakeCleanDirectoryStep(stringAssetsDir));
+    steps.add(new CopyStep(getPathForTmpStringAssetsDirectory(),stringAssetsDir,true));
+  }
+  steps.add(new MkdirStep(outputGenDirectory));
+  steps.add(new AaptStep(getAndroidManifestXml(),resDirectories,assetsDirectory,getResourceApkPath(),packageType.isCrunchPngFiles()));
+  return steps.build();
+}

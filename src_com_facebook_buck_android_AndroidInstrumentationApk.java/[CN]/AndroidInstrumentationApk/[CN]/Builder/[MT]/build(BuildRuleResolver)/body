@@ -6,15 +6,22 @@
  else   if (!(apkRule instanceof InstallableBuildRule)) {
     throw new HumanReadableException("In %s, apk='%s' must be an android_binary() or apk_genrule() but was %s().",getBuildTarget(),apkRule.getFullyQualifiedName(),apkRule.getType().getName());
   }
-  BuildRuleParams buildRuleParams=createBuildRuleParams(ruleResolver);
-  final ImmutableSortedSet<BuildRule> originalDeps=buildRuleParams.getDeps();
-  final AndroidBinaryRule underlyingApk=getUnderlyingApk((InstallableBuildRule)apkRule);
+  BuildRuleParams originalParams=createBuildRuleParams(ruleResolver);
+  final ImmutableSortedSet<BuildRule> originalDeps=originalParams.getDeps();
+  final AndroidBinaryRule apkUnderTest=getUnderlyingApk((InstallableBuildRule)apkRule);
+  ImmutableSet<BuildRule> buildRulesToExcludeFromDex=ImmutableSet.<BuildRule>builder().addAll(apkUnderTest.getBuildRulesToExcludeFromDex()).addAll(Classpaths.getClasspathEntries(apkUnderTest.getClasspathDeps()).keySet()).build();
+  ImmutableSet<BuildTarget> buildTargetsToExcludeFromDex=FluentIterable.from(buildRulesToExcludeFromDex).transform(new Function<BuildRule,BuildTarget>(){
+    @Override public BuildTarget apply(    BuildRule input){
+      return input.getBuildTarget();
+    }
+  }
+).toSet();
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,buildTargetsToExcludeFromDex);
   ImmutableSortedSet<BuildRule> classpathDepsForInstrumentationApk=getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build());
   AndroidTransitiveDependencyGraph androidTransitiveDependencyGraph=new AndroidTransitiveDependencyGraph(classpathDepsForInstrumentationApk);
-  ImmutableSet<BuildRule> buildRulesToExcludeFromDex=ImmutableSet.<BuildRule>builder().addAll(underlyingApk.getBuildRulesToExcludeFromDex()).addAll(Classpaths.getClasspathEntries(underlyingApk.getClasspathDeps()).keySet()).build();
   AndroidResourceDepsFinder androidResourceDepsFinder=new AndroidResourceDepsFinder(androidTransitiveDependencyGraph,buildRulesToExcludeFromDex){
     @Override protected ImmutableList<HasAndroidResourceDeps> findMyAndroidResourceDeps(){
-      ImmutableSet<HasAndroidResourceDeps> originalResources=ImmutableSet.copyOf(UberRDotJavaUtil.getAndroidResourceDeps(underlyingApk));
+      ImmutableSet<HasAndroidResourceDeps> originalResources=ImmutableSet.copyOf(UberRDotJavaUtil.getAndroidResourceDeps(apkUnderTest));
       ImmutableList<HasAndroidResourceDeps> instrumentationResources=UberRDotJavaUtil.getAndroidResourceDeps(originalDeps);
       ImmutableList.Builder<HasAndroidResourceDeps> allResources=ImmutableList.builder();
       for (      HasAndroidResourceDeps resource : instrumentationResources) {
@@ -25,16 +32,13 @@
       return allResources.build();
     }
     @Override protected Set<HasAndroidResourceDeps> findMyAndroidResourceDepsUnsorted(){
-      Collection<BuildRule> apk=Collections.<BuildRule>singleton(underlyingApk);
+      Collection<BuildRule> apk=Collections.<BuildRule>singleton(apkUnderTest);
       Set<HasAndroidResourceDeps> originalResources=UberRDotJavaUtil.getAndroidResourceDepsUnsorted(apk);
       Set<HasAndroidResourceDeps> instrumentationResources=UberRDotJavaUtil.getAndroidResourceDepsUnsorted(originalDeps);
       return Sets.difference(instrumentationResources,originalResources);
     }
   }
 ;
-  BuildTarget buildTargetForResources=new BuildTarget(getBuildTarget().getBaseName(),getBuildTarget().getShortName(),"uber_r_dot_java");
-  BuildRule uberRDotJavaBuildRule=ruleResolver.buildAndAddToIndex(UberRDotJavaBuildable.newUberRDotJavaBuildableBuilder(new DefaultBuildRuleBuilderParams(buildRuleParams.getPathRelativizer(),buildRuleParams.getRuleKeyBuilderFactory())).setBuildTarget(buildTargetForResources).setAllParams(buildTargetForResources,ResourceCompressionMode.DISABLED,ResourceFilter.EMPTY_FILTER,androidResourceDepsFinder));
-  UberRDotJavaBuildable uberRDotJavaBuildable=(UberRDotJavaBuildable)uberRDotJavaBuildRule.getBuildable();
-  BuildRuleParams finalParams=new BuildRuleParams(getBuildTarget(),ImmutableSortedSet.<BuildRule>naturalOrder().addAll(buildRuleParams.getDeps()).add(uberRDotJavaBuildRule).build(),buildRuleParams.getVisibilityPatterns(),buildRuleParams.getPathRelativizer(),buildRuleParams.getRuleKeyBuilderFactory());
-  return new AndroidInstrumentationApk(finalParams,manifest,underlyingApk,buildRulesToExcludeFromDex,uberRDotJavaBuildable,androidResourceDepsFinder,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()),androidTransitiveDependencyGraph);
+  AndroidBinaryGraphEnhancer.Result result=graphEnhancer.addBuildablesToCreateAaptResources(ruleResolver,ResourceCompressionMode.DISABLED,ResourceFilter.EMPTY_FILTER,androidResourceDepsFinder,manifest,PackageType.INSTRUMENTED,apkUnderTest.getCpuFilters(),ImmutableSet.<IntermediateDexRule>of());
+  return new AndroidInstrumentationApk(result.getParams(),manifest,apkUnderTest,buildRulesToExcludeFromDex,result.getUberRDotJavaBuildable(),result.getAaptPackageResources(),androidResourceDepsFinder,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()),androidTransitiveDependencyGraph);
 }

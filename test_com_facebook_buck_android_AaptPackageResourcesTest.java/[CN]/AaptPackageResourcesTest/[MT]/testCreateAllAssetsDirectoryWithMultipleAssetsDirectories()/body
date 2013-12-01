@@ -1,0 +1,34 @@
+{
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  AndroidBinaryRuleTest.createAndroidLibraryRule("//facebook/base:libraryOne",ruleResolver,null,"facebook/base/assets1",null);
+  AndroidBinaryRuleTest.createAndroidLibraryRule("//facebook/base:libraryTwo",ruleResolver,null,"facebook/base/assets2",null);
+  UberRDotJavaBuildable uberRDotJava=EasyMock.createMock(UberRDotJavaBuildable.class);
+  EasyMock.replay(uberRDotJava);
+  AaptPackageResources aaptPackageResources=new AaptPackageResources(new BuildTarget("//facebook/base","apk","aapt_package"),new FileSourcePath("facebook/base/AndroidManifest.xml"),uberRDotJava,PackageType.DEBUG,ImmutableSet.<TargetCpuType>of());
+  AndroidResourceRule resourceOne=(AndroidResourceRule)ruleResolver.get(BuildTargetFactory.newInstance("//facebook/base:libraryOne_resources"));
+  AndroidResourceRule resourceTwo=(AndroidResourceRule)ruleResolver.get(BuildTargetFactory.newInstance("//facebook/base:libraryTwo_resources"));
+  Set<String> assetsDirectories=ImmutableSet.of(resourceOne.getAssets(),resourceTwo.getAssets());
+  ImmutableList.Builder<Step> commands=ImmutableList.builder();
+  DirectoryTraverser traverser=new DirectoryTraverser(){
+    @Override public void traverse(    DirectoryTraversal traversal) throws IOException {
+      String rootPath=MorePaths.newPathInstance(traversal.getRoot()).toString();
+      if ("facebook/base/assets1".equals(rootPath)) {
+        traversal.visit(new File("facebook/base/assets1","guava-10.0.1-fork.dex.1.jar"),"guava-10.0.1-fork.dex.1.jar");
+      }
+ else       if ("facebook/base/assets2".equals(rootPath)) {
+        traversal.visit(new File("facebook/base/assets2","fonts/Theinhardt-Medium.otf"),"fonts/Theinhardt-Medium.otf");
+        traversal.visit(new File("facebook/base/assets2","fonts/Theinhardt-Regular.otf"),"fonts/Theinhardt-Regular.otf");
+      }
+ else {
+        throw new RuntimeException("Unexpected path: " + rootPath);
+      }
+    }
+  }
+;
+  Optional<String> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(assetsDirectories,commands,traverser);
+  EasyMock.verify(uberRDotJava);
+  assertTrue(allAssetsDirectory.isPresent());
+  assertEquals(BIN_DIR + "/facebook/base/__assets_apk#aapt_package__",allAssetsDirectory.get());
+  List<? extends Step> expectedCommands=ImmutableList.of(new MakeCleanDirectoryStep(BIN_DIR + "/facebook/base/__assets_apk#aapt_package__"),new MkdirAndSymlinkFileStep("facebook/base/assets1/guava-10.0.1-fork.dex.1.jar",BIN_DIR + "/facebook/base/__assets_apk#aapt_package__/guava-10.0.1-fork.dex.1.jar"),new MkdirAndSymlinkFileStep("facebook/base/assets2/fonts/Theinhardt-Medium.otf",BIN_DIR + "/facebook/base/__assets_apk#aapt_package__/fonts/Theinhardt-Medium.otf"),new MkdirAndSymlinkFileStep("facebook/base/assets2/fonts/Theinhardt-Regular.otf",BIN_DIR + "/facebook/base/__assets_apk#aapt_package__/fonts/Theinhardt-Regular.otf"));
+  MoreAsserts.assertListEquals(expectedCommands,commands.build());
+}
