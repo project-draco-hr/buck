@@ -5,7 +5,8 @@
   }
   ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
   try {
-    ApkBuilder builder=new ApkBuilder(projectFilesystem.getFileForRelativePath(pathToOutputApkFile),projectFilesystem.getFileForRelativePath(resourceApk),projectFilesystem.getFileForRelativePath(dexFile),null,output);
+    PrivateKeyAndCertificate privateKeyAndCertificate=createKeystoreProperties(context);
+    ApkBuilder builder=new ApkBuilder(projectFilesystem.getFileForRelativePath(pathToOutputApkFile),projectFilesystem.getFileForRelativePath(resourceApk),projectFilesystem.getFileForRelativePath(dexFile),privateKeyAndCertificate.privateKey,privateKeyAndCertificate.certificate,output);
     builder.setDebugMode(debugMode);
     for (    String nativeLibraryDirectory : nativeLibraryDirectories) {
       builder.addNativeLibraries(projectFilesystem.getFileForRelativePath(nativeLibraryDirectory));
@@ -25,14 +26,12 @@
     }
     builder.sealApk();
   }
- catch (  ApkCreationException e) {
-    throw new HumanReadableException(e.getMessage());
+ catch (  ApkCreationException|CertificateException|IOException|KeyStoreException|NoSuchAlgorithmException|SealedApkException|UnrecoverableKeyException e) {
+    context.logError(e,"Error when creating APK at: %s.",pathToOutputApkFile);
+    return 1;
   }
 catch (  DuplicateFileException e) {
     throw new HumanReadableException(String.format("Found duplicate file for APK: %1$s\nOrigin 1: %2$s\nOrigin 2: %3$s",e.getArchivePath(),e.getFile1(),e.getFile2()));
-  }
-catch (  SealedApkException e) {
-    throw new HumanReadableException(e.getMessage());
   }
   return 0;
 }
