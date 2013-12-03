@@ -1,11 +1,14 @@
 {
-  BuildRuleResolver ruleResolver=new BuildRuleResolver();
-  BuildTarget orphanPyLibraryTarget=BuildTargetFactory.newInstance("//:orphan_python_library");
-  ruleResolver.buildAndAddToIndex(PythonLibrary.newPythonLibraryBuilder(new FakeAbstractBuildRuleBuilderParams()).addSrc("java/src/com/javalib/orphan/sadpanda.py").setBuildTarget(orphanPyLibraryTarget).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
+  BuildTarget orphanPyLibraryTarget=new BuildTarget("//","orphan_python_library");
+  PythonLibrary orphanPyLibrary=new PythonLibrary(new FakeBuildRuleParams(orphanPyLibraryTarget),ImmutableSortedSet.<SourcePath>of(new FileSourcePath("java/src/com/javalib/orphan/sadpanda.py")));
+  BuildTarget pyLibraryTarget=BuildTargetFactory.newInstance("//:py_library");
+  PythonLibrary pyLibrary=new PythonLibrary(new FakeBuildRuleParams(pyLibraryTarget),ImmutableSortedSet.<SourcePath>of(new FileSourcePath("python/tastypy.py")));
+  Map<BuildTarget,BuildRule> rules=Maps.newHashMap();
+  rules.put(orphanPyLibraryTarget,createBuildRule(orphanPyLibrary,orphanPyLibraryTarget));
+  rules.put(pyLibraryTarget,createBuildRule(pyLibrary,pyLibraryTarget));
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(rules);
   BuildTarget javaLibraryTarget=BuildTargetFactory.newInstance("//:javalib");
   ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(javaLibraryTarget).addSrc("java/src/com/javalib/Bar.java").addDep(orphanPyLibraryTarget).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
-  BuildTarget pyLibraryTarget=BuildTargetFactory.newInstance("//:py_library");
-  ruleResolver.buildAndAddToIndex(PythonLibrary.newPythonLibraryBuilder(new FakeAbstractBuildRuleBuilderParams()).addSrc("python/tastypy.py").setBuildTarget(pyLibraryTarget).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
   BuildTarget pyBinaryTarget=BuildTargetFactory.newInstance("//:py_binary");
   PythonBinaryRule pyBinary=ruleResolver.buildAndAddToIndex(PythonBinaryRule.newPythonBinaryBuilder(new FakeAbstractBuildRuleBuilderParams()).setMain("foo").addDep(javaLibraryTarget).addDep(pyLibraryTarget).setBuildTarget(pyBinaryTarget).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
   assertEquals(ImmutableSet.of(Paths.get("buck-out/gen/__pylib_py_library")),pyBinary.getPythonPathEntries());
