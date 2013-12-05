@@ -17,16 +17,24 @@
       }
       primaryDexContents.add(dexWithClasses);
     }
- else     if (currentSecondaryDexContents == null || dexWithClasses.getSizeEstimate() + currentSecondaryDexSize > linearAllocHardLimit) {
+ else {
       if (dexWithClasses.getSizeEstimate() > linearAllocHardLimit) {
         context.postEvent(LogEvent.severe("DexWithClasses %s with cost %s exceeds the max cost %s for a secondary dex file.",dexWithClasses.getPathToDexFile(),dexWithClasses.getSizeEstimate(),linearAllocHardLimit));
         return 1;
       }
-      currentSecondaryDexContents=Lists.newArrayList(dexWithClasses);
-      currentSecondaryDexSize=dexWithClasses.getSizeEstimate();
-      secondaryDexesContents.add(currentSecondaryDexContents);
-    }
- else {
+      if (currentSecondaryDexContents == null || dexWithClasses.getSizeEstimate() + currentSecondaryDexSize > linearAllocHardLimit) {
+        DexWithClasses canary;
+        try {
+          canary=createCanary(secondaryDexesContents.size() + 1,context);
+        }
+ catch (        IOException e) {
+          context.logError(e,"Failed to create canary for secondary dex.");
+          return 1;
+        }
+        currentSecondaryDexContents=Lists.newArrayList(canary);
+        currentSecondaryDexSize=canary.getSizeEstimate();
+        secondaryDexesContents.add(currentSecondaryDexContents);
+      }
       currentSecondaryDexContents.add(dexWithClasses);
       currentSecondaryDexSize+=dexWithClasses.getSizeEstimate();
     }
@@ -40,7 +48,7 @@
     Path pathToSecondaryDex=Paths.get(secondaryDexJarFilesDir,name);
     indexToPathToSecondaryDex.put(index,pathToSecondaryDex);
     List<DexWithClasses> secondaryDex=secondaryDexesContents.get(index);
-    dxSteps.add(SmartDexingStep.createDxStepForDxPseudoRule(Iterables.transform(secondaryDex,TO_PATH),pathToSecondaryDex.toString(),DX_OPTIONS));
+    dxSteps.add(SmartDexingStep.createDxStepForDxPseudoRule(Iterables.transform(secondaryDex,TO_PATH),pathToSecondaryDex.toString(),DX_MERGE_OPTIONS));
   }
   StepRunner stepRunner=createStepRunner(context);
   try {
