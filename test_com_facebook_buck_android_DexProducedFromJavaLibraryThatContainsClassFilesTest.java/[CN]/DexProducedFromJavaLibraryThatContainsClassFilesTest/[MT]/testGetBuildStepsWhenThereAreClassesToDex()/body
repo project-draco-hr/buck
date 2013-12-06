@@ -1,14 +1,19 @@
 {
-  FakeJavaLibraryRule javaLibraryRule=new FakeJavaLibraryRule(new BuildTarget("//foo","bar"));
+  FakeJavaLibraryRule javaLibraryRule=new FakeJavaLibraryRule(new BuildTarget("//foo","bar")){
+    @Override public ImmutableSortedMap<String,HashCode> getClassNamesToHashes(){
+      return ImmutableSortedMap.of("com/example/Foo",HashCode.fromString("cafebabe"));
+    }
+    @Override public Sha1HashCode getAbiKey(){
+      return new Sha1HashCode("f7f34ed13b881c6c6f663533cde4a436ea84435e");
+    }
+  }
+;
   javaLibraryRule.setOutputFile("buck-out/gen/foo/bar.jar");
-  AccumulateClassNames accumulateClassNames=createMock(AccumulateClassNames.class);
-  expect(accumulateClassNames.getClassNames()).andReturn(ImmutableSortedMap.of("com/example/Foo",HashCode.fromString("cafebabe")));
-  expect(accumulateClassNames.getJavaLibraryRule()).andReturn(javaLibraryRule);
   BuildContext context=createMock(BuildContext.class);
   FakeBuildableContext buildableContext=new FakeBuildableContext();
   replayAll();
   BuildTarget buildTarget=new BuildTarget("//foo","bar","dex");
-  DexProducedFromJavaLibraryThatContainsClassFiles preDex=new DexProducedFromJavaLibraryThatContainsClassFiles(buildTarget,accumulateClassNames);
+  DexProducedFromJavaLibraryThatContainsClassFiles preDex=new DexProducedFromJavaLibraryThatContainsClassFiles(buildTarget,javaLibraryRule);
   List<Step> steps=preDex.getBuildSteps(context,buildableContext);
   verifyAll();
   resetAll();
@@ -24,14 +29,13 @@
   MoreAsserts.assertSteps("Generate bar.dex.jar.",ImmutableList.of("rm -f /home/user/buck-out/gen/foo/bar#dex.dex.jar","mkdir -p /home/user/buck-out/gen/foo","estimate_linear_alloc",expectedDxCommand,"record_dx_success"),steps,executionContext);
   verifyAll();
   resetAll();
-  Sha1HashCode abiKey=new Sha1HashCode("f7f34ed13b881c6c6f663533cde4a436ea84435e");
-  expect(accumulateClassNames.getAbiKey()).andReturn(abiKey);
   replayAll();
   ((EstimateLinearAllocStep)steps.get(2)).setLinearAllocEstimateForTesting(250);
   Step recordArtifactAndMetadataStep=steps.get(4);
   int exitCode=recordArtifactAndMetadataStep.execute(executionContext);
   assertEquals(0,exitCode);
   assertEquals("The generated .dex.jar file should be in the set of recorded artifacts.",ImmutableSet.of(Paths.get("buck-out/gen/foo/bar#dex.dex.jar")),buildableContext.getRecordedArtifacts());
+  Sha1HashCode abiKey=DexProducedFromJavaLibraryThatContainsClassFiles.computeAbiKey(javaLibraryRule.getClassNamesToHashes());
   buildableContext.assertContainsMetadataMapping(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,abiKey.getHash());
   buildableContext.assertContainsMetadataMapping(AbiRule.ABI_KEY_ON_DISK_METADATA,abiKey.getHash());
   buildableContext.assertContainsMetadataMapping(DexProducedFromJavaLibraryThatContainsClassFiles.LINEAR_ALLOC_KEY_ON_DISK_METADATA,"250");

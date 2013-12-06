@@ -1,11 +1,11 @@
 {
-  AccumulateClassNames accumulateClassNames=createMock(AccumulateClassNames.class);
-  expect(accumulateClassNames.getClassNames()).andReturn(ImmutableSortedMap.<String,HashCode>of());
+  JavaLibraryRule javaLibrary=createMock(JavaLibraryRule.class);
+  expect(javaLibrary.getClassNamesToHashes()).andReturn(ImmutableSortedMap.<String,HashCode>of());
   BuildContext context=createMock(BuildContext.class);
   FakeBuildableContext buildableContext=new FakeBuildableContext();
   replayAll();
   BuildTarget buildTarget=new BuildTarget("//foo","bar");
-  DexProducedFromJavaLibraryThatContainsClassFiles preDex=new DexProducedFromJavaLibraryThatContainsClassFiles(buildTarget,accumulateClassNames);
+  DexProducedFromJavaLibraryThatContainsClassFiles preDex=new DexProducedFromJavaLibraryThatContainsClassFiles(buildTarget,javaLibrary);
   List<Step> steps=preDex.getBuildSteps(context,buildableContext);
   verifyAll();
   resetAll();
@@ -18,9 +18,10 @@
   verifyAll();
   resetAll();
   Sha1HashCode abiKey=new Sha1HashCode(AbiWriterProtocol.EMPTY_ABI_KEY);
-  expect(accumulateClassNames.getAbiKey()).andReturn(abiKey);
+  expect(javaLibrary.getClassNamesToHashes()).andReturn(ImmutableSortedMap.<String,HashCode>of());
   replayAll();
   Step recordArtifactAndMetadataStep=steps.get(2);
+  assertThat(recordArtifactAndMetadataStep.getShortName(),startsWith("record_"));
   int exitCode=recordArtifactAndMetadataStep.execute(executionContext);
   assertEquals(0,exitCode);
   buildableContext.assertContainsMetadataMapping(AbiRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,abiKey.getHash());

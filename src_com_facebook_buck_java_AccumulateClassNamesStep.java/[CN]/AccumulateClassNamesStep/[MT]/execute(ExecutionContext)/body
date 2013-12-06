@@ -1,31 +1,17 @@
 {
-  final ImmutableSortedMap.Builder<String,HashCode> classNamesBuilder=ImmutableSortedMap.naturalOrder();
-  Path path=context.getProjectFilesystem().resolve(pathToJarOrClassesDirectory);
-  ClasspathTraversal traversal=new ClasspathTraversal(Collections.singleton(path)){
-    @Override public void visit(    final FileLike fileLike) throws IOException {
-      if (!FileLikes.isClassFile(fileLike)) {
-        return;
-      }
-      String key=FileLikes.getFileNameWithoutClassSuffix(fileLike);
-      InputSupplier<InputStream> input=new InputSupplier<InputStream>(){
-        @Override public InputStream getInput() throws IOException {
-          return fileLike.getInput();
-        }
-      }
-;
-      HashCode value=ByteStreams.hash(input,Hashing.sha1());
-      classNamesBuilder.put(key,value);
+  ImmutableSortedMap<String,HashCode> classNames;
+  if (pathToJarOrClassesDirectory.isPresent()) {
+    Optional<ImmutableSortedMap<String,HashCode>> classNamesOptional=calculateClassHashes(context,context.getProjectFilesystem().resolve(pathToJarOrClassesDirectory.get()));
+    if (classNamesOptional.isPresent()) {
+      classNames=classNamesOptional.get();
+    }
+ else {
+      return 1;
     }
   }
-;
-  try {
-    new DefaultClasspathTraverser().traverse(traversal);
+ else {
+    classNames=ImmutableSortedMap.of();
   }
- catch (  IOException e) {
-    context.logError(e,"Error accumulating class names for %s.",pathToJarOrClassesDirectory);
-    return 1;
-  }
-  ImmutableSortedMap<String,HashCode> classNames=classNamesBuilder.build();
   try {
     context.getProjectFilesystem().writeLinesToPath(Iterables.transform(classNames.entrySet(),new Function<Map.Entry<String,HashCode>,String>(){
       @Override public String apply(      Entry<String,HashCode> entry){
@@ -38,6 +24,5 @@
     context.getBuckEventBus().post(ThrowableLogEvent.create(e,"There was an error writing the list of .class files to %s.",whereClassNamesShouldBeWritten));
     return 1;
   }
-  this.classNames=classNames;
   return 0;
 }
