@@ -1,11 +1,15 @@
 {
-  String watchmanOutput=Joiner.on('\n').join("{\"files\": [","{","\"name\": \"/foo/bar/baz\"","},","{","\"name\": \"/foo/bar/boz\"","}","]}");
+  String watchmanOutput=Joiner.on('\n').join("{\"files\": [","{","\"name\": \"foo/bar/baz\"","},","{","\"name\": \"foo/bar/boz\"","}","]}");
   EventBus eventBus=createStrictMock(EventBus.class);
-  eventBus.post(anyObject(WatchEvent.class));
-  eventBus.post(anyObject(WatchEvent.class));
+  Capture<WatchEvent<Path>> firstEvent=new Capture<>();
+  Capture<WatchEvent<Path>> secondEvent=new Capture<>();
+  eventBus.post(capture(firstEvent));
+  eventBus.post(capture(secondEvent));
   Process process=createMockProcess(watchmanOutput);
   replay(eventBus,process);
   WatchmanWatcher watcher=createWatcher(eventBus,process);
   watcher.postEvents();
   verify(eventBus,process);
+  assertEquals("Path should match watchman output.","foo/bar/baz",firstEvent.getValue().context().toString());
+  assertEquals("Path should match watchman output.","foo/bar/boz",secondEvent.getValue().context().toString());
 }
