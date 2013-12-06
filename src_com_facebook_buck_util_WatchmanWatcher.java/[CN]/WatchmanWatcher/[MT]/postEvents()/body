@@ -1,0 +1,46 @@
+{
+  Process watchmanProcess=watchmanProcessSupplier.get();
+  watchmanProcess.getOutputStream().write(query.getBytes(Charsets.US_ASCII));
+  watchmanProcess.getOutputStream().close();
+  JsonParser jsonParser=jsonFactory.createJsonParser(watchmanProcess.getInputStream());
+  PathEventBuilder builder=new PathEventBuilder();
+  JsonToken token=jsonParser.nextToken();
+  int eventCount=0;
+  while (token != null) {
+    if (eventCount > overflow) {
+      eventBus.post(createOverflowEvent());
+      return;
+    }
+switch (token) {
+case FIELD_NAME:
+      String fieldName=jsonParser.getCurrentName();
+switch (fieldName) {
+case "name":
+      File file=new File(jsonParser.nextTextValue());
+    if (!file.isDirectory() && !shouldIgnore(file.toPath())) {
+      builder.setPath(file.toPath());
+    }
+  break;
+case "new":
+if (jsonParser.nextBooleanValue()) {
+  builder.setCreationEvent();
+}
+break;
+case "exists":
+if (!jsonParser.nextBooleanValue()) {
+builder.setDeletionEvent();
+}
+break;
+}
+break;
+case END_OBJECT:
+if (builder.canBuild()) {
+eventBus.post(builder.build());
+++eventCount;
+}
+builder=new PathEventBuilder();
+break;
+}
+token=jsonParser.nextToken();
+}
+}

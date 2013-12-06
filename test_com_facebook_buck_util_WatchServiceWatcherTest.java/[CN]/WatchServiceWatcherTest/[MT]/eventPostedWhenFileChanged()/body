@@ -1,0 +1,16 @@
+{
+  expect(watchService.poll()).andReturn(key).andReturn(null);
+  expect(key.pollEvents()).andReturn(Lists.<WatchEvent<?>>newArrayList(event));
+  expect(filesystem.isPathChangeEvent(anyObject(WatchEvent.class))).andReturn(true).anyTimes();
+  expect(event.context()).andReturn(path);
+  expect(path.resolve(anyObject(Path.class))).andReturn(path);
+  expect(path.normalize()).andReturn(path);
+  expect(filesystem.isDirectory(anyObject(Path.class),eq(LinkOption.NOFOLLOW_LINKS))).andReturn(false);
+  expect(key.reset()).andReturn(false);
+  eventBus.post(anyObject(WatchEvent.class));
+  replay(filesystem,eventBus,watchService,path,key,event);
+  watcher=new WatchServiceWatcher(filesystem,eventBus,ImmutableSet.<Path>of(),watchService);
+  visitor.getValue().preVisitDirectory(path,null);
+  watcher.postEvents();
+  verify(filesystem,eventBus,watchService,path,key,event);
+}

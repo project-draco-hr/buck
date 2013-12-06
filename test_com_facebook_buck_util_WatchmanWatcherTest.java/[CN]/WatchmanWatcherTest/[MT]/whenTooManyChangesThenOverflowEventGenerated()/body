@@ -1,0 +1,12 @@
+{
+  String watchmanOutput=Joiner.on('\n').join("{\"files\": [","{","\"name\": \"/foo/bar/baz\"","}","]}");
+  Capture<WatchEvent<Path>> eventCapture=new Capture<>();
+  EventBus eventBus=createStrictMock(EventBus.class);
+  eventBus.post(capture(eventCapture));
+  Process process=createMockProcess(watchmanOutput);
+  replay(eventBus,process);
+  WatchmanWatcher watcher=createWatcher(eventBus,process,ImmutableSet.<Path>of(),-1);
+  watcher.postEvents();
+  verify(eventBus,process);
+  assertEquals("Should be overflow event.",StandardWatchEventKinds.OVERFLOW,eventCapture.getValue().kind());
+}
