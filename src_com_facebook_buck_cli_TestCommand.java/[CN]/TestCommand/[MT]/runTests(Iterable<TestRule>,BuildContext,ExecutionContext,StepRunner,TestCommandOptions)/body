@@ -4,8 +4,13 @@
     rulesUnderTest=getRulesUnderTest(tests);
     if (!rulesUnderTest.isEmpty()) {
       try {
-        stepRunner.runStep(new MakeCleanDirectoryStep(JUnitStep.EMMA_OUTPUT_DIR));
-        stepRunner.runStep(getInstrumentCommand(rulesUnderTest,executionContext.getProjectFilesystem()));
+        if (options.isJacocoEnabled()) {
+          stepRunner.runStep(new MakeCleanDirectoryStep(JUnitStep.JACOCO_OUTPUT_DIR));
+        }
+ else {
+          stepRunner.runStep(new MakeCleanDirectoryStep(JUnitStep.EMMA_OUTPUT_DIR));
+          stepRunner.runStep(getInstrumentCommand(rulesUnderTest,executionContext.getProjectFilesystem()));
+        }
       }
  catch (      StepFailedException e) {
         console.printBuildFailureWithoutStacktrace(e);
@@ -74,7 +79,14 @@ catch (  ExecutionException e) {
   if (options.isCodeCoverageEnabled() && !rulesUnderTest.isEmpty()) {
     try {
       Optional<DefaultJavaPackageFinder> defaultJavaPackageFinderOptional=options.getJavaPackageFinder();
-      stepRunner.runStep(getReportCommand(rulesUnderTest,defaultJavaPackageFinderOptional,getProjectFilesystem()));
+      String outputDirectory;
+      if (options.isJacocoEnabled()) {
+        outputDirectory=JUnitStep.JACOCO_OUTPUT_DIR;
+      }
+ else {
+        outputDirectory=JUnitStep.EMMA_OUTPUT_DIR;
+      }
+      stepRunner.runStep(getReportCommand(rulesUnderTest,defaultJavaPackageFinderOptional,getProjectFilesystem(),outputDirectory));
     }
  catch (    StepFailedException e) {
       console.printBuildFailureWithoutStacktrace(e);

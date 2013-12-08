@@ -2,7 +2,12 @@
   ImmutableList.Builder<String> args=ImmutableList.builder();
   args.add("java");
   if (isCodeCoverageEnabled) {
-    args.add(String.format("-D%s=%s/coverage.ec",EMMA_COVERAGE_OUT_FILE,EMMA_OUTPUT_DIR));
+    if (!isJacocoEnabled) {
+      args.add(String.format("-D%s=%s/coverage.ec",EMMA_COVERAGE_OUT_FILE,EMMA_OUTPUT_DIR));
+    }
+ else {
+      args.add(String.format("-javaagent:%s=destfile=%s/%s,append=true",PATH_TO_JACOCO_AGENT_JAR,JACOCO_OUTPUT_DIR,JACOCO_EXEC_COVERAGE_FILE));
+    }
   }
   if (isDebugEnabled) {
     args.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005");
@@ -13,7 +18,7 @@
     args.add("-verbose");
   }
   List<String> classpath=Lists.newArrayList(classpathEntries);
-  if (isCodeCoverageEnabled) {
+  if (isCodeCoverageEnabled && !isJacocoEnabled) {
     classpath.add(PATH_TO_EMMA_JAR);
   }
   if (context.getAndroidPlatformTargetOptional().isPresent()) {
