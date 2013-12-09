@@ -1,0 +1,31 @@
+{
+  BuildRule dep1=new FutureReturningFakeBuildRule("//java/com/example:rule1",Strings.repeat("a",40),BuildRuleSuccess.Type.BUILT_LOCALLY);
+  BuildRule dep2=new FutureReturningFakeBuildRule("//java/com/example:rule2",Strings.repeat("b",40),BuildRuleSuccess.Type.FETCHED_FROM_CACHE);
+  final List<String> strings=Lists.newArrayList();
+  Step buildStep=new AbstractExecutionStep("test_step"){
+    @Override public int execute(    ExecutionContext context){
+      strings.add("Step was executed.");
+      return 0;
+    }
+  }
+;
+  AbstractCachingBuildRule cachingBuildRule=createRule(ImmutableSet.of(dep1,dep2),ImmutableList.of(Paths.get("/dev/null")),ImmutableList.of(buildStep),"buck-out/gen/src/com/facebook/orca/some_file");
+  ArtifactCache artifactCache=new NoopArtifactCache(){
+    @Override public CacheResult fetch(    RuleKey ruleKey,    File output){
+      throw new RuntimeException("Artifact cache must not be accessed while building the rule.");
+    }
+  }
+;
+  BuildContext buildContext=FakeBuildContext.newBuilder(new FakeProjectFilesystem()).setDependencyGraph(new DependencyGraph(new MutableDirectedGraph<BuildRule>())).setJavaPackageFinder(new JavaPackageFinder(){
+    @Override public String findJavaPackageFolderForPath(    String pathRelativeToProjectRoot){
+      return null;
+    }
+    @Override public String findJavaPackageForPath(    String pathRelativeToProjectRoot){
+      return null;
+    }
+  }
+).setArtifactCache(artifactCache).build();
+  BuildRuleSuccess result=cachingBuildRule.build(buildContext).get();
+  assertEquals(result.getType(),BuildRuleSuccess.Type.BUILT_LOCALLY);
+  MoreAsserts.assertListEquals(Lists.newArrayList("Step was executed."),strings);
+}
