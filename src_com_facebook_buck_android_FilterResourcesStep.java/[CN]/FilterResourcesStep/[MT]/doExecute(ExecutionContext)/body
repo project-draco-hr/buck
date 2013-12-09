@@ -10,12 +10,17 @@
     filePredicates.add(new Predicate<File>(){
       @Override public boolean apply(      File input){
         String inputPath=input.getAbsolutePath();
-        if (NON_ENGLISH_STRING_PATH.matcher(inputPath).matches()) {
-          Path pathRelativeToProjectRoot=filesystem.getRootPath().toAbsolutePath().normalize().relativize(Paths.get(inputPath));
-          nonEnglishStringFilesBuilder.add(pathRelativeToProjectRoot);
-          return false;
+        Path pathRelativeToProjectRoot=filesystem.getRootPath().toAbsolutePath().normalize().relativize(Paths.get(inputPath));
+        if (!NON_ENGLISH_STRING_PATH.matcher(pathRelativeToProjectRoot.toString()).matches()) {
+          return true;
         }
-        return true;
+        for (        Path whitelistedStringDir : whitelistedStringDirs) {
+          if (pathRelativeToProjectRoot.startsWith(whitelistedStringDir)) {
+            return true;
+          }
+        }
+        nonEnglishStringFilesBuilder.add(pathRelativeToProjectRoot);
+        return false;
       }
     }
 );

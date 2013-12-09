@@ -1,0 +1,14 @@
+{
+  FilteredDirectoryCopier copier=EasyMock.createMock(FilteredDirectoryCopier.class);
+  Capture<Predicate<File>> capturedPredicate=new Capture<>();
+  copier.copyDirs(EasyMock.<Map<String,String>>anyObject(),EasyMock.capture(capturedPredicate));
+  EasyMock.replay(copier);
+  FilterResourcesStep step=new FilterResourcesStep(ImmutableBiMap.<String,String>of(),false,true,ImmutableSet.<Path>of(Paths.get("com/whitelisted/res")),copier,null,null,null);
+  assertEquals(0,step.execute(TestExecutionContext.newInstance()));
+  Predicate<File> filePredicate=capturedPredicate.getValue();
+  assertTrue(filePredicate.apply(new File("com/example/res/drawables/image.png")));
+  assertTrue(filePredicate.apply(new File("com/example/res/values/strings.xml")));
+  assertTrue(filePredicate.apply(new File("com/whitelisted/res/values-af/strings.xml")));
+  assertFalse(filePredicate.apply(new File("com/example/res/values-af/strings.xml")));
+  EasyMock.verify(copier);
+}
