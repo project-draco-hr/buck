@@ -6,7 +6,8 @@
   BuckConfig config=createBuckConfig(projectFilesystem,platform);
   Verbosity verbosity=VerbosityParser.parse(args);
   Optional<String> color;
-  if (context.isPresent() && (context.get().getEnv() != null)) {
+  final boolean isDaemon=context.isPresent();
+  if (isDaemon && (context.get().getEnv() != null)) {
     String colorString=context.get().getEnv().getProperty(BUCKD_COLOR_DEFAULT_ENV_VAR);
     color=Optional.fromNullable(colorString);
   }
@@ -16,7 +17,7 @@
   final Console console=new Console(verbosity,stdOut,stdErr,config.createAnsi(color));
   KnownBuildRuleTypes knownBuildRuleTypes=new KnownBuildRuleTypes();
   Parser parser;
-  if (context.isPresent()) {
+  if (isDaemon) {
     Daemon daemon=getDaemon(projectFilesystem,config,console);
     daemon.watchClient(context.get());
     daemon.watchFileSystem(console);
@@ -46,10 +47,10 @@
     System.arraycopy(args,1,remainingArgs,0,remainingArgs.length);
     Command executingCommand=command.get();
     String commandName=executingCommand.name().toLowerCase();
-    buildEventBus.post(CommandEvent.started(commandName,context.isPresent()));
+    buildEventBus.post(CommandEvent.started(commandName,isDaemon));
     ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(buildEventBus);
     int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),artifactCacheFactory,buildEventBus,parser,platform));
-    buildEventBus.post(CommandEvent.finished(commandName,context.isPresent(),exitCode));
+    buildEventBus.post(CommandEvent.finished(commandName,isDaemon,exitCode));
     for (    BuckEventListener eventListener : eventListeners) {
       eventListener.outputTrace();
     }
