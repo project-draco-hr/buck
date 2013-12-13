@@ -1,0 +1,27 @@
+{
+class Dto {
+    public Set<SourcePath> paths;
+  }
+  Description<Dto> description=new Description<Dto>(){
+    @Override public BuildRuleType getBuildRuleType(){
+      return new BuildRuleType("example");
+    }
+    @Override public Dto createUnpopulatedConstructorArg(){
+      return new Dto();
+    }
+    @Override public Buildable createBuildable(    BuildRuleParams params,    Dto args){
+      return new ExampleBuildable("hello world");
+    }
+  }
+;
+  BuildRuleType type=new BuildRuleType("fake");
+  BuildRule depRule1=new FakeBuildRule(type,BuildTargetFactory.newInstance("//example:dep1"));
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(ImmutableMap.of(depRule1.getBuildTarget(),depRule1));
+  ProjectFilesystem filesystem=new ProjectFilesystem(new File("."));
+  BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(ImmutableMap.of("paths",ImmutableList.of("//example:dep1")),filesystem,new BuildFileTree(ImmutableSet.<String>of()),new BuildTargetParser(filesystem),BuildTargetFactory.newInstance("//one/two:example"),new FakeRuleKeyBuilderFactory(),true);
+  DescribedRuleFactory<Dto> factory=new DescribedRuleFactory<>(description);
+  DescribedRuleBuilder<Dto> builder=factory.newInstance(factoryParams);
+  DescribedRule rule=builder.build(ruleResolver);
+  ImmutableSortedSet<BuildRule> deps=rule.getDeps();
+  assertSetEquals(ImmutableSet.of(depRule1),deps);
+}

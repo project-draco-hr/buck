@@ -1,0 +1,33 @@
+{
+class Dto {
+    public SourcePath path;
+    public Optional<SourcePath> other;
+    public ImmutableSet<SourcePath> paths;
+    public Optional<List<SourcePath>> optionalPaths;
+  }
+  Description<Dto> description=new Description<Dto>(){
+    @Override public BuildRuleType getBuildRuleType(){
+      return new BuildRuleType("example");
+    }
+    @Override public Dto createUnpopulatedConstructorArg(){
+      return new Dto();
+    }
+    @Override public Buildable createBuildable(    BuildRuleParams params,    Dto args){
+      return new ExampleBuildable("hello world");
+    }
+  }
+;
+  BuildRuleType type=new BuildRuleType("fake");
+  BuildRule depRule1=new FakeBuildRule(type,BuildTargetFactory.newInstance("//example:dep1"));
+  BuildRule depRule2=new FakeBuildRule(type,BuildTargetFactory.newInstance("//example:dep2"));
+  BuildRule depRule3=new FakeBuildRule(type,BuildTargetFactory.newInstance("//example:dep3"));
+  BuildRule depRule4=new FakeBuildRule(type,BuildTargetFactory.newInstance("//example:dep4"));
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(ImmutableMap.of(depRule1.getBuildTarget(),depRule1,depRule2.getBuildTarget(),depRule2,depRule3.getBuildTarget(),depRule3,depRule4.getBuildTarget(),depRule4));
+  ProjectFilesystem filesystem=new ProjectFilesystem(new File("."));
+  BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(ImmutableMap.of("path","//example:dep1","other","//example:dep2","paths",ImmutableList.of("//example:dep3"),"optionalPaths",ImmutableList.of("//example:dep4")),filesystem,new BuildFileTree(ImmutableSet.<String>of()),new BuildTargetParser(filesystem),BuildTargetFactory.newInstance("//one/two:example"),new FakeRuleKeyBuilderFactory(),true);
+  DescribedRuleFactory<Dto> factory=new DescribedRuleFactory<>(description);
+  DescribedRuleBuilder<Dto> builder=factory.newInstance(factoryParams);
+  DescribedRule rule=builder.build(ruleResolver);
+  ImmutableSortedSet<BuildRule> deps=rule.getDeps();
+  assertSetEquals("Should have added all resolved SourcePaths as dependencies",ImmutableSet.of(depRule1,depRule2,depRule3,depRule4),deps);
+}

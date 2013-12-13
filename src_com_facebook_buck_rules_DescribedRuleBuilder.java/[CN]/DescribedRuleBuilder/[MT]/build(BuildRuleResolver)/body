@@ -7,6 +7,11 @@
   ConstructorArgMarshaller inspector=new ConstructorArgMarshaller(Paths.get(target.getBasePath()));
   T arg=description.createUnpopulatedConstructorArg();
   inspector.populate(ruleResolver,ruleFactoryParams,arg);
+  ImmutableSortedSet<BuildRule> depsFromSourcePaths=findSourcePathDeps(ruleResolver,arg);
+  if (depsFromSourcePaths != null) {
+    ImmutableSortedSet<BuildRule> completeDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeps()).addAll(depsFromSourcePaths).build();
+    params=new BuildRuleParams(params.getBuildTarget(),completeDeps,params.getVisibilityPatterns(),params.getPathRelativizer(),params.getRuleKeyBuilderFactory());
+  }
   Buildable buildable=description.createBuildable(params,arg);
   ImmutableSortedSet<BuildRule> enhancedDeps=buildable.getEnhancedDeps(ruleResolver);
   if (enhancedDeps != null) {
