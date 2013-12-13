@@ -1,0 +1,27 @@
+{
+  Request baseRequest=createMock(Request.class);
+  expect(baseRequest.getMethod()).andReturn("GET");
+  expect(baseRequest.getPathInfo()).andReturn("/abcdef");
+  expect(baseRequest.getParameter("callback")).andReturn(null);
+  baseRequest.setHandled(true);
+  HttpServletRequest request=createMock(HttpServletRequest.class);
+  HttpServletResponse response=createMock(HttpServletResponse.class);
+  response.setStatus(200);
+  response.setContentType("application/javascript; charset=utf-8");
+  StringWriter stringWriter=new StringWriter();
+  PrintWriter printWriter=new PrintWriter(stringWriter);
+  expect(response.getWriter()).andReturn(printWriter);
+  response.flushBuffer();
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  expect(projectFilesystem.getInputSupplierForRelativePath("buck-out/log/traces/build.abcdef.trace")).andReturn((InputSupplier)new InputSupplier<InputStream>(){
+    @Override public InputStream getInput() throws IOException {
+      return new ByteArrayInputStream("{\"foo\":\"bar\"}".getBytes());
+    }
+  }
+);
+  TraceDataHandler traceDataHandler=new TraceDataHandler(projectFilesystem);
+  replayAll();
+  traceDataHandler.handle("/trace/abcdef",baseRequest,request,response);
+  verifyAll();
+  assertEquals("{\"foo\":\"bar\"}",stringWriter.toString());
+}

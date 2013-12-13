@@ -1,0 +1,20 @@
+{
+  Request baseRequest=createMock(Request.class);
+  expect(baseRequest.getMethod()).andReturn("GET");
+  expect(baseRequest.getPathInfo()).andReturn("/abcdef");
+  baseRequest.setHandled(true);
+  HttpServletRequest request=createMock(HttpServletRequest.class);
+  HttpServletResponse response=createMock(HttpServletResponse.class);
+  response.setStatus(200);
+  response.setContentType("text/html; charset=utf-8");
+  StringWriter stringWriter=new StringWriter();
+  PrintWriter printWriter=new PrintWriter(stringWriter);
+  expect(response.getWriter()).andReturn(printWriter);
+  response.flushBuffer();
+  TraceHandler traceHandler=new TraceHandler();
+  replayAll();
+  traceHandler.handle("/trace/abcdef",baseRequest,request,response);
+  verifyAll();
+  String expectedHtml="<!doctype html>" + "<html>" + "<head>"+ "  <link type='text/css' rel='stylesheet' href='/static/trace_viewer.css'>"+ "</head>"+ "<body>"+ "  <script src='/static/trace_viewer.js'></script>"+ "  <script>"+ "  var onTraceLoaded = function(trace) {"+ "    var model = new tracing.TraceModel();"+ "    model.importTraces([trace]);"+ ""+ "    var viewEl = tracing.TimelineView();"+ "    viewEl.model = model;"+ "    document.body.appendChild(viewEl);"+ "  };"+ "  </script>"+ "  <script src='/tracedata/abcdef?callback=onTraceLoaded'></script>"+ "</body>"+ "</html>";
+  assertEquals(expectedHtml,stringWriter.toString());
+}

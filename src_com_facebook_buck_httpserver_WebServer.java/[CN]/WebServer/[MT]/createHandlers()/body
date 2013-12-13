@@ -1,0 +1,20 @@
+{
+  Map<String,Handler> contextPathToHandler=Maps.newHashMap();
+  ResourceHandler resourceHandler=new ResourceHandler();
+  resourceHandler.setResourceBase(staticContentDirectory);
+  contextPathToHandler.put(STATIC_CONTEXT_PATH,resourceHandler);
+  contextPathToHandler.put(TRACE_CONTEXT_PATH,new TraceHandler());
+  contextPathToHandler.put(TRACE_DATA_CONTEXT_PATH,new TraceDataHandler(projectFilesystem));
+  ImmutableList.Builder<Handler> handlers=ImmutableList.builder();
+  for (  Map.Entry<String,Handler> entry : contextPathToHandler.entrySet()) {
+    String contextPath=entry.getKey();
+    Handler handler=entry.getValue();
+    ContextHandler contextHandler=new ContextHandler(contextPath);
+    contextHandler.setHandler(handler);
+    handlers.add(contextHandler);
+  }
+  ServletContextHandler servletContextHandler=new ServletContextHandler(server,"/comet",true,false);
+  servletContextHandler.addServlet(new ServletHolder(streamingWebSocketServlet),"/echo");
+  handlers.add(servletContextHandler);
+  return handlers.build();
+}

@@ -17,14 +17,16 @@
   final Console console=new Console(verbosity,stdOut,stdErr,config.createAnsi(color));
   KnownBuildRuleTypes knownBuildRuleTypes=new KnownBuildRuleTypes();
   Parser parser;
+  Daemon daemon;
   if (isDaemon) {
-    Daemon daemon=getDaemon(projectFilesystem,config,console);
+    daemon=getDaemon(projectFilesystem,config,console);
     daemon.watchClient(context.get());
     daemon.watchFileSystem(console);
     daemon.initWebServer();
     parser=daemon.getParser();
   }
  else {
+    daemon=null;
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten();
     parser=new Parser(projectFilesystem,knownBuildRuleTypes,console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
   }
@@ -55,6 +57,16 @@
       eventListener.outputTrace(buildId);
     }
     artifactCacheFactory.closeCreatedArtifactCaches(ARTIFACT_CACHE_TIMEOUT_IN_SECONDS);
+    if (isDaemon && daemon.webServer.isPresent()) {
+      int port=daemon.webServer.get().getPort();
+      buildEventBus.post(LogEvent.info("See trace at http://localhost:%s/trace/%s",port,buildId));
+      try {
+        Thread.sleep(DELAY_BEFORE_SHUTDOWN.getTimeSpanInMillis());
+      }
+ catch (      InterruptedException e) {
+        e.printStackTrace(console.getStdErr());
+      }
+    }
     return exitCode;
   }
  }
