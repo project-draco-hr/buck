@@ -1,26 +1,15 @@
 {
   Preconditions.checkState(maxCacheSizeBytes.isPresent());
   long maxSizeBytes=maxCacheSizeBytes.get();
-  File[] artifacts=cacheDir.listFiles();
-  FileAccessedEntry[] fileAccessedEntries=new FileAccessedEntry[artifacts.length];
-  for (int i=0; i < artifacts.length; ++i) {
-    FileTime lastAccess;
-    try {
-      lastAccess=Files.readAttributes(artifacts[i].toPath(),BasicFileAttributes.class).lastAccessTime();
-    }
- catch (    IOException e) {
-      lastAccess=FileTime.fromMillis(artifacts[i].lastModified());
-    }
-    fileAccessedEntries[i]=new FileAccessedEntry(artifacts[i],lastAccess);
-  }
-  Arrays.sort(fileAccessedEntries,SORT_BY_LAST_ACCESSED_TIME_DESC);
+  File[] files=cacheDir.listFiles();
+  MoreFiles.sortFilesByAccessTime(files);
   long currentSizeBytes=0;
-  for (int i=0; i < fileAccessedEntries.length; ++i) {
-    FileAccessedEntry file=fileAccessedEntries[i];
-    currentSizeBytes+=file.getFile().length();
+  for (int i=0; i < files.length; ++i) {
+    File file=files[i];
+    currentSizeBytes+=file.length();
     if (currentSizeBytes > maxSizeBytes) {
-      return ArrayIterable.of(fileAccessedEntries,i,fileAccessedEntries.length);
+      return ArrayIterable.of(files,i,files.length);
     }
   }
-  return ImmutableList.<FileAccessedEntry>of();
+  return ImmutableList.<File>of();
 }
