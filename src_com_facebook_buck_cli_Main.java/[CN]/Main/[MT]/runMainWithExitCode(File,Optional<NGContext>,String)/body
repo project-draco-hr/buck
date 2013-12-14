@@ -15,21 +15,6 @@
     color=Optional.absent();
   }
   final Console console=new Console(verbosity,stdOut,stdErr,config.createAnsi(color));
-  KnownBuildRuleTypes knownBuildRuleTypes=new KnownBuildRuleTypes();
-  Parser parser;
-  Daemon daemon;
-  if (isDaemon) {
-    daemon=getDaemon(projectFilesystem,config,console);
-    daemon.watchClient(context.get());
-    daemon.watchFileSystem(console);
-    daemon.initWebServer();
-    parser=daemon.getParser();
-  }
- else {
-    daemon=null;
-    JavaUtilsLoggingBuildListener.ensureLogFileIsWritten();
-    parser=new Parser(projectFilesystem,knownBuildRuleTypes,console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
-  }
   Optional<Command> command=Command.getCommandForName(args[0],console);
   if (!command.isPresent()) {
     int exitCode=new GenericBuckOptions(stdOut,stdErr).execute(args);
@@ -44,13 +29,26 @@
   String buildId=MoreStrings.createRandomString();
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment();
   try (BuckEventBus buildEventBus=new BuckEventBus(clock,buildId);AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,executionEnvironment)){
-    ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,getWebServerIfDaemon(context),consoleListener);
+    ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,getWebServerIfDaemon(context,projectFilesystem,config,console),consoleListener);
     String[] remainingArgs=new String[args.length - 1];
     System.arraycopy(args,1,remainingArgs,0,remainingArgs.length);
     Command executingCommand=command.get();
     String commandName=executingCommand.name().toLowerCase();
-    buildEventBus.post(CommandEvent.started(commandName,isDaemon));
+    CommandEvent commandEvent=CommandEvent.started(commandName,isDaemon);
+    buildEventBus.post(commandEvent);
     ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(buildEventBus);
+    Parser parser;
+    if (isDaemon) {
+      Daemon daemon=getDaemon(projectFilesystem,config,console);
+      daemon.watchClient(context.get());
+      daemon.watchFileSystem(console,commandEvent);
+      daemon.initWebServer();
+      parser=daemon.getParser();
+    }
+ else {
+      JavaUtilsLoggingBuildListener.ensureLogFileIsWritten();
+      parser=new Parser(projectFilesystem,new KnownBuildRuleTypes(),console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
+    }
     int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),artifactCacheFactory,buildEventBus,parser,platform));
     buildEventBus.post(CommandEvent.finished(commandName,isDaemon,exitCode));
     for (    BuckEventListener eventListener : eventListeners) {
