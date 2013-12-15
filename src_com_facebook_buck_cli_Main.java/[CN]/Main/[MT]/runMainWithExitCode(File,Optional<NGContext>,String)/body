@@ -30,10 +30,10 @@
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment();
   try (BuckEventBus buildEventBus=new BuckEventBus(clock,buildId);AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,executionEnvironment)){
     ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,getWebServerIfDaemon(context,projectFilesystem,config,console),consoleListener);
-    List<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
+    ImmutableList<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
     Command executingCommand=command.get();
     String commandName=executingCommand.name().toLowerCase();
-    CommandEvent commandEvent=CommandEvent.started(commandName,isDaemon);
+    CommandEvent commandEvent=CommandEvent.started(commandName,remainingArgs,isDaemon);
     buildEventBus.post(commandEvent);
     ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(buildEventBus);
     Parser parser;
@@ -49,7 +49,7 @@
       parser=new Parser(projectFilesystem,new KnownBuildRuleTypes(),console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
     }
     int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),artifactCacheFactory,buildEventBus,parser,platform));
-    buildEventBus.post(CommandEvent.finished(commandName,isDaemon,exitCode));
+    buildEventBus.post(CommandEvent.finished(commandName,remainingArgs,isDaemon,exitCode));
     for (    BuckEventListener eventListener : eventListeners) {
       eventListener.outputTrace(buildId);
     }
