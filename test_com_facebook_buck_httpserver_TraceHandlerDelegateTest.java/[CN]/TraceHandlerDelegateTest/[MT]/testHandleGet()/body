@@ -1,0 +1,19 @@
+{
+  Request baseRequest=createMock(Request.class);
+  expect(baseRequest.getPathInfo()).andReturn("/abcdef");
+  baseRequest.setHandled(true);
+  HttpServletRequest request=createMock(HttpServletRequest.class);
+  HttpServletResponse response=createMock(HttpServletResponse.class);
+  response.setStatus(200);
+  response.setContentType("text/html; charset=utf-8");
+  StringWriter stringWriter=new StringWriter();
+  PrintWriter printWriter=new PrintWriter(stringWriter);
+  expect(response.getWriter()).andReturn(printWriter);
+  response.flushBuffer();
+  Handler traceHandler=new TemplateHandler(new TraceHandlerDelegate());
+  replayAll();
+  traceHandler.handle("/trace/abcdef",baseRequest,request,response);
+  verifyAll();
+  String expectedScriptTag="<script src=\"/tracedata/abcdef?callback=onTraceLoaded\">";
+  assertThat(stringWriter.toString(),containsString(expectedScriptTag));
+}

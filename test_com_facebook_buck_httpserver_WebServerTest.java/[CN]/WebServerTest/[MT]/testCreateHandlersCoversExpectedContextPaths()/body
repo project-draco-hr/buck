@@ -1,0 +1,20 @@
+{
+  ProjectFilesystem projectFilesystem=new FakeProjectFilesystem();
+  WebServer webServer=new WebServer(9999,projectFilesystem,"/static/");
+  List<ContextHandler> handlers=webServer.createHandlers();
+  final Map<String,ContextHandler> contextPathToHandler=Maps.newHashMap();
+  for (  ContextHandler handler : handlers) {
+    contextPathToHandler.put(handler.getContextPath(),handler);
+  }
+  Function<String,TemplateHandlerDelegate> getDelegate=new Function<String,TemplateHandlerDelegate>(){
+    @Override public TemplateHandlerDelegate apply(    String contextPath){
+      return ((TemplateHandler)contextPathToHandler.get(contextPath).getHandler()).getDelegate();
+    }
+  }
+;
+  assertTrue(getDelegate.apply("/") instanceof IndexHandlerDelegate);
+  assertTrue(contextPathToHandler.get("/static").getHandler() instanceof ResourceHandler);
+  assertTrue(getDelegate.apply("/trace") instanceof TraceHandlerDelegate);
+  assertTrue(getDelegate.apply("/traces") instanceof TracesHandlerDelegate);
+  assertTrue(contextPathToHandler.get("/tracedata").getHandler() instanceof TraceDataHandler);
+}
