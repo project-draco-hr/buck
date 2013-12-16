@@ -15,9 +15,10 @@
     color=Optional.absent();
   }
   final Console console=new Console(verbosity,stdOut,stdErr,config.createAnsi(color));
+  int exitCode;
   Optional<Command> command=Command.getCommandForName(args[0],console);
   if (!command.isPresent()) {
-    int exitCode=new GenericBuckOptions(stdOut,stdErr).execute(args);
+    exitCode=new GenericBuckOptions(stdOut,stdErr).execute(args);
     if (exitCode == GenericBuckOptions.SHOW_MAIN_HELP_SCREEN_EXIT_CODE) {
       return usage();
     }
@@ -25,11 +26,16 @@
       return exitCode;
     }
   }
-  Clock clock=new DefaultClock();
+  if (!commandSemaphore.tryAcquire()) {
+    return BUSY_EXIT_CODE;
+  }
+  ImmutableList<BuckEventListener> eventListeners;
   String buildId=MoreStrings.createRandomString();
+  Clock clock=new DefaultClock();
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment();
-  try (BuckEventBus buildEventBus=new BuckEventBus(clock,buildId);AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,executionEnvironment)){
-    ImmutableList<BuckEventListener> eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,getWebServerIfDaemon(context,projectFilesystem,config,console),consoleListener);
+  try (AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,executionEnvironment);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
+    Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,console);
+    eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,webServer,consoleListener);
     ImmutableList<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
     Command executingCommand=command.get();
     String commandName=executingCommand.name().toLowerCase();
@@ -48,22 +54,23 @@
       JavaUtilsLoggingBuildListener.ensureLogFileIsWritten();
       parser=new Parser(projectFilesystem,new KnownBuildRuleTypes(),console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
     }
-    int exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),artifactCacheFactory,buildEventBus,parser,platform));
-    buildEventBus.post(CommandEvent.finished(commandName,remainingArgs,isDaemon,exitCode));
-    for (    BuckEventListener eventListener : eventListeners) {
-      eventListener.outputTrace(buildId);
-    }
+    exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,new KnownBuildRuleTypes(),artifactCacheFactory,buildEventBus,parser,platform));
     artifactCacheFactory.closeCreatedArtifactCaches(ARTIFACT_CACHE_TIMEOUT_IN_SECONDS);
-    if (isDaemon && daemon.webServer.isPresent()) {
-      int port=daemon.webServer.get().getPort();
+    if (webServer.isPresent()) {
+      int port=webServer.get().getPort();
       buildEventBus.post(LogEvent.info("See trace at http://localhost:%s/trace/%s",port,buildId));
-      try {
-        Thread.sleep(DELAY_BEFORE_SHUTDOWN.getTimeSpanInMillis());
-      }
- catch (      InterruptedException e) {
-        e.printStackTrace(console.getStdErr());
-      }
     }
-    return exitCode;
+    buildEventBus.post(CommandEvent.finished(commandName,remainingArgs,isDaemon,exitCode));
   }
- }
+  finally {
+    commandSemaphore.release();
+  }
+  if (isDaemon) {
+    context.get().in.close();
+    context.get().exit(exitCode);
+  }
+  for (  BuckEventListener eventListener : eventListeners) {
+    eventListener.outputTrace(buildId);
+  }
+  return exitCode;
+}
