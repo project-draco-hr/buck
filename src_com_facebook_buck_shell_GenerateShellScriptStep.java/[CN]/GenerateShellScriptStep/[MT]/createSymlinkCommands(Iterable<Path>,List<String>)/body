@@ -1,10 +1,13 @@
 {
+  lines.add("SYMLINK_PATHS=(");
   for (  Path path : paths) {
     Preconditions.checkArgument(basePath.toString().isEmpty() || path.startsWith(basePath),"%s should start with %s",path,basePath);
-    if (path.getNameCount() > 1) {
-      lines.add(String.format("mkdir -p %s",Escaper.escapeAsBashString(path.getParent())));
-    }
-    String escapedPath=Escaper.escapeAsBashString(path);
-    lines.add(String.format("ln -s \"$BUCK_REAL_ROOT\"/%s $BUCK_TMP_ROOT/%s",escapedPath,escapedPath));
+    lines.add("  " + Escaper.escapeAsBashString(path));
   }
+  lines.add("  \"$SCRIPT_TO_RUN\"");
+  lines.add(")");
+  lines.add("for path in \"${SYMLINK_PATHS[@]}\"; do");
+  lines.add("  mkdir -p \"$(dirname \"$path\")\"");
+  lines.add("  ln -s \"$BUCK_REAL_ROOT/$path\" \"$path\"");
+  lines.add("done");
 }
