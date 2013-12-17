@@ -2,15 +2,16 @@
   final ImmutableSet.Builder<String> assetsDirectories=ImmutableSet.builder();
   final ImmutableSet.Builder<String> nativeLibsDirectories=ImmutableSet.builder();
   final ImmutableSet.Builder<String> nativeLibAssetsDirectories=ImmutableSet.builder();
+  final ImmutableSet.Builder<BuildTarget> nativeTargetsWithAssets=ImmutableSet.builder();
   final ImmutableSet.Builder<String> manifestFiles=ImmutableSet.builder();
   final ImmutableSet.Builder<String> proguardConfigs=ImmutableSet.builder();
-  UberRDotJavaUtil.AndroidResourceDetails details=createAndroidResourceDetails(androidResourceDeps);
   new AbstractDependencyVisitor(rulesToTraverseForTransitiveDeps){
     @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
       if (rule.getBuildable() instanceof NativeLibraryBuildable) {
         NativeLibraryBuildable nativeLibraryRule=(NativeLibraryBuildable)rule.getBuildable();
         if (nativeLibraryRule.isAsset()) {
           nativeLibAssetsDirectories.add(nativeLibraryRule.getLibraryPath());
+          nativeTargetsWithAssets.add(rule.getBuildTarget());
         }
  else {
           nativeLibsDirectories.add(nativeLibraryRule.getLibraryPath());
@@ -42,5 +43,5 @@
     }
   }
 .start();
-  return new AndroidTransitiveDependencies(assetsDirectories.build(),nativeLibsDirectories.build(),nativeLibAssetsDirectories.build(),manifestFiles.build(),details.resDirectories,details.whitelistedStringDirs,details.rDotJavaPackages,proguardConfigs.build());
+  return new AndroidTransitiveDependencies(nativeLibsDirectories.build(),nativeLibAssetsDirectories.build(),assetsDirectories.build(),nativeTargetsWithAssets.build(),manifestFiles.build(),proguardConfigs.build());
 }
