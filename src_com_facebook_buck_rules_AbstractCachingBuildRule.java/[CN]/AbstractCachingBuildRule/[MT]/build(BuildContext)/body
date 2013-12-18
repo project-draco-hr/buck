@@ -51,9 +51,8 @@ synchronized (hasBuildStarted) {
       @Override public void onSuccess(      List<BuildRuleSuccess> deps){
         eventBus.post(BuildRuleEvent.started(AbstractCachingBuildRule.this));
         startOfBuildWasRecordedOnTheEventBus=true;
-        boolean shouldTryToFetchFromCache=RULES_NOT_BUILT_LOCALLY_PREDICATE.apply(deps);
         try {
-          BuildResult result=buildOnceDepsAreBuilt(context,onDiskBuildInfo,buildInfoRecorder.get(),shouldTryToFetchFromCache);
+          BuildResult result=buildOnceDepsAreBuilt(context,onDiskBuildInfo,buildInfoRecorder.get(),shouldTryToFetchFromCache(deps));
           if (result.getStatus() == BuildRuleStatus.SUCCESS) {
             recordBuildRuleSuccess(result);
           }
@@ -75,7 +74,7 @@ synchronized (hasBuildStarted) {
           }
         }
         doHydrationAfterBuildStepsFinish(result,onDiskBuildInfo);
-        eventBus.post(BuildRuleEvent.finished(AbstractCachingBuildRule.this,result.getStatus(),result.getCacheResult(),Optional.of(result.getSuccess())));
+        logBuildRuleFinished(result);
         if (result.getSuccess().shouldUploadResultingArtifact()) {
           buildInfoRecorder.get().performUploadToArtifactCache(context.getArtifactCache(),eventBus);
         }
@@ -85,9 +84,12 @@ synchronized (hasBuildStarted) {
       }
       private void recordBuildRuleFailure(      BuildResult result){
         if (startOfBuildWasRecordedOnTheEventBus) {
-          eventBus.post(BuildRuleEvent.finished(AbstractCachingBuildRule.this,result.getStatus(),result.getCacheResult(),Optional.<BuildRuleSuccess.Type>absent()));
+          logBuildRuleFinished(result);
         }
         buildRuleResult.setException(result.getFailure());
+      }
+      private void logBuildRuleFinished(      BuildResult result){
+        eventBus.post(BuildRuleEvent.finished(AbstractCachingBuildRule.this,result.getStatus(),result.getCacheResult(),Optional.fromNullable(result.getSuccess())));
       }
     }
 ,context.getExecutor());
