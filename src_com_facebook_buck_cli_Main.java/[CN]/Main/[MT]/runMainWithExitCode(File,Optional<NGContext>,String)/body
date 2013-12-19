@@ -2,22 +2,12 @@
   if (args.length == 0) {
     return usage();
   }
-  ProjectFilesystem projectFilesystem=new ProjectFilesystem(projectRoot,createBuckConfig(new ProjectFilesystem(projectRoot),platform).getIgnorePaths());
-  BuckConfig config=createBuckConfig(projectFilesystem,platform);
-  Verbosity verbosity=VerbosityParser.parse(args);
-  Optional<String> color;
-  final boolean isDaemon=context.isPresent();
-  if (isDaemon && (context.get().getEnv() != null)) {
-    String colorString=context.get().getEnv().getProperty(BUCKD_COLOR_DEFAULT_ENV_VAR);
-    color=Optional.fromNullable(colorString);
+  int exitCode;
+  Command.ParseResult command=Command.parseCommandName(args[0]);
+  if (command.getCommand().isPresent()) {
+    return executeCommand(projectRoot,command,context,args);
   }
  else {
-    color=Optional.absent();
-  }
-  final Console console=new Console(verbosity,stdOut,stdErr,config.createAnsi(color));
-  int exitCode;
-  Optional<Command> command=Command.getCommandForName(args[0],console);
-  if (!command.isPresent()) {
     exitCode=new GenericBuckOptions(stdOut,stdErr).execute(args);
     if (exitCode == GenericBuckOptions.SHOW_MAIN_HELP_SCREEN_EXIT_CODE) {
       return usage();
@@ -26,51 +16,4 @@
       return exitCode;
     }
   }
-  if (!commandSemaphore.tryAcquire()) {
-    return BUSY_EXIT_CODE;
-  }
-  ImmutableList<BuckEventListener> eventListeners;
-  String buildId=MoreStrings.createRandomString();
-  Clock clock=new DefaultClock();
-  ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment();
-  try (AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
-    Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,console);
-    eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,webServer,consoleListener);
-    ImmutableList<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
-    Command executingCommand=command.get();
-    String commandName=executingCommand.name().toLowerCase();
-    CommandEvent commandEvent=CommandEvent.started(commandName,remainingArgs,isDaemon);
-    buildEventBus.post(commandEvent);
-    ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(buildEventBus);
-    Parser parser;
-    if (isDaemon) {
-      Daemon daemon=getDaemon(projectFilesystem,config,console);
-      daemon.watchClient(context.get());
-      daemon.watchFileSystem(console,commandEvent);
-      daemon.initWebServer();
-      parser=daemon.getParser();
-    }
- else {
-      JavaUtilsLoggingBuildListener.ensureLogFileIsWritten();
-      parser=new Parser(projectFilesystem,KnownBuildRuleTypes.getDefault(),console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
-    }
-    exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,KnownBuildRuleTypes.getDefault(),artifactCacheFactory,buildEventBus,parser,platform));
-    artifactCacheFactory.closeCreatedArtifactCaches(ARTIFACT_CACHE_TIMEOUT_IN_SECONDS);
-    if (webServer.isPresent()) {
-      int port=webServer.get().getPort();
-      buildEventBus.post(LogEvent.info("See trace at http://localhost:%s/trace/%s",port,buildId));
-    }
-    buildEventBus.post(CommandEvent.finished(commandName,remainingArgs,isDaemon,exitCode));
-  }
-  finally {
-    commandSemaphore.release();
-  }
-  if (isDaemon) {
-    context.get().in.close();
-    context.get().exit(exitCode);
-  }
-  for (  BuckEventListener eventListener : eventListeners) {
-    eventListener.outputTrace(buildId);
-  }
-  return exitCode;
 }
