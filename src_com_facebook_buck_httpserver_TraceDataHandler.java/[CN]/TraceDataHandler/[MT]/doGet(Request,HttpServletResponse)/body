@@ -6,7 +6,6 @@
     return;
   }
   String id=matcher.group(1);
-  Path pathToTrace=getPathToTrace(id);
   response.setContentType(MediaType.JAVASCRIPT_UTF_8.toString());
   response.setStatus(HttpServletResponse.SC_OK);
   boolean hasValidCallbackParam=false;
@@ -20,10 +19,11 @@
       responseWriter.write("(");
     }
   }
-  InputSupplier<? extends InputStream> inputSupplier=projectFilesystem.getInputSupplierForRelativePath(pathToTrace);
-  InputStreamReader inputStreamReader=new InputStreamReader(inputSupplier.getInput());
-  CharStreams.copy(inputStreamReader,responseWriter);
-  if (hasValidCallbackParam) {
+  InputSupplier<? extends InputStream> inputSupplier=tracesHelper.getInputForTrace(id);
+  try (InputStreamReader inputStreamReader=new InputStreamReader(inputSupplier.getInput())){
+    CharStreams.copy(inputStreamReader,responseWriter);
+  }
+   if (hasValidCallbackParam) {
     responseWriter.write(");\n");
   }
   response.flushBuffer();

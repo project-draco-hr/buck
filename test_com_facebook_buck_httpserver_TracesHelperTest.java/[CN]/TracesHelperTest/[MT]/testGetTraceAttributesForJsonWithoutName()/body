@@ -1,0 +1,17 @@
+{
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  File traceFile=createMock(File.class);
+  expect(traceFile.lastModified()).andStubReturn(2000L);
+  String name="build.b.trace";
+  expect(traceFile.getName()).andStubReturn(name);
+  Path pathToTraceFile=Paths.get(BuckConstant.BUCK_TRACE_DIR,name);
+  expect(projectFilesystem.getFileForRelativePath(pathToTraceFile)).andStubReturn(traceFile);
+  String buckBuildJson="[" + "{" + "\"cat\":\"buck\","+ "\"ph\":\"B\","+ "\"pid\":0,"+ "\"tid\":1,"+ "\"ts\":5621911884918,"+ "\"args\":{\"command_args\":\"buck\"}"+ "}"+ "]";
+  expect(projectFilesystem.getInputSupplierForRelativePath(pathToTraceFile)).andReturn((InputSupplier)FakeInputStreams.createInputSupplierFromString(buckBuildJson));
+  replayAll();
+  TracesHelper helper=new TracesHelper(projectFilesystem);
+  TraceAttributes traceAttributes=helper.getTraceAttributesFor("b");
+  assertEquals("TracesHelper should not be able to extract the command because there is no name attribute.",Optional.absent(),traceAttributes.getCommand());
+  assertEquals(2000L,traceAttributes.getLastModifiedTime());
+  verifyAll();
+}

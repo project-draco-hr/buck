@@ -1,0 +1,23 @@
+{
+  InputSupplier<? extends InputStream> inputSupplier=projectFilesystem.getInputSupplierForRelativePath(pathToTrace);
+  try (JsonReader jsonReader=new JsonReader(new InputStreamReader(inputSupplier.getInput()))){
+    jsonReader.beginArray();
+    Gson gson=new Gson();
+    JsonObject json=gson.fromJson(jsonReader,JsonObject.class);
+    JsonElement nameEl=json.get("name");
+    if (nameEl == null || !nameEl.isJsonPrimitive()) {
+      return Optional.absent();
+    }
+    JsonElement argsEl=json.get("args");
+    if (argsEl == null || !argsEl.isJsonObject() || argsEl.getAsJsonObject().get("command_args") == null || !argsEl.getAsJsonObject().get("command_args").isJsonPrimitive()) {
+      return Optional.absent();
+    }
+    String name=nameEl.getAsString();
+    String commandArgs=argsEl.getAsJsonObject().get("command_args").getAsString();
+    String command="buck " + name + " "+ commandArgs;
+    return Optional.of(command);
+  }
+ catch (  IOException e) {
+    throw new RuntimeException(e);
+  }
+}
