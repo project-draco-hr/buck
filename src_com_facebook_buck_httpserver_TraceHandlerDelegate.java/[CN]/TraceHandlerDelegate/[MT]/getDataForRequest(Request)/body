@@ -1,11 +1,16 @@
 {
   String path=baseRequest.getPathInfo();
   Matcher matcher=TraceDataHandler.ID_PATTERN.matcher(path);
-  if (matcher.matches()) {
-    String id=matcher.group(1);
-    return new SoyMapData("traceId",id);
-  }
- else {
+  if (!matcher.matches()) {
     return null;
   }
+  SoyMapData templateData=new SoyMapData();
+  String id=matcher.group(1);
+  templateData.put("traceId",id);
+  TraceAttributes traceAttributes=tracesHelper.getTraceAttributesFor(id);
+  templateData.put("dateTime",traceAttributes.getFormattedDateTime());
+  if (traceAttributes.getCommand().isPresent()) {
+    templateData.put("command",traceAttributes.getCommand().get());
+  }
+  return templateData;
 }
