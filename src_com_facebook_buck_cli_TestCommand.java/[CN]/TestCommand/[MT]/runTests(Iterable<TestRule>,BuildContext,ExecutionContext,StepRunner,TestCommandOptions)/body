@@ -14,6 +14,7 @@
       }
  catch (      StepFailedException e) {
         console.printBuildFailureWithoutStacktrace(e);
+        DebugLog.log("Failing test run due to code coverage exception: " + e.toString());
         return 1;
       }
     }
@@ -64,10 +65,12 @@
   }
  catch (  InterruptedException e) {
     e.printStackTrace(getStdErr());
+    DebugLog.log("Failing test run due to interrupted exception: " + e.toString());
     return 1;
   }
 catch (  ExecutionException e) {
     e.printStackTrace(getStdErr());
+    DebugLog.log("Failing test run due to execution exception: " + e.toString());
     return 1;
   }
   getBuckEventBus().post(TestRunEvent.finished(options.getArgumentsFormattedAsBuildTargets(),completedResults));
@@ -90,6 +93,7 @@ catch (  ExecutionException e) {
     }
  catch (    StepFailedException e) {
       console.printBuildFailureWithoutStacktrace(e);
+      DebugLog.log("Failing test run due to coverage step exception: " + e.toString());
       return 1;
     }
   }
@@ -99,5 +103,15 @@ catch (  ExecutionException e) {
     }
   }
 );
+  if (failures) {
+    StringBuilder message=new StringBuilder();
+    message.append("Failing test run due to failed tests:\n");
+    for (    TestResults completedResult : completedResults) {
+      if (!completedResult.isSuccess()) {
+        message.append("  ").append(completedResult.getBuildTarget()).append("\n");
+      }
+    }
+    DebugLog.log(message.toString());
+  }
   return failures ? 1 : 0;
 }
