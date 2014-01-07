@@ -1,15 +1,15 @@
 {
   TestResultSummary summary;
   if (context.getPlatform() == Platform.WINDOWS) {
-    summary=new TestResultSummary(pathToShellScript,"sh_test",true,0,"sh_test ignored on Windows",null,null,null);
+    summary=new TestResultSummary(getShortName(),"sh_test",true,0,"sh_test ignored on Windows",null,null,null);
   }
  else {
     ShellStep test=new ShellStep(){
       @Override public String getShortName(){
-        return pathToShellScript;
+        return pathToShellScript.toString();
       }
       @Override protected ImmutableList<String> getShellCommandInternal(      ExecutionContext context){
-        return ImmutableList.of(pathToShellScript);
+        return ImmutableList.of(pathToShellScript.toString());
       }
       @Override protected boolean shouldPrintStderr(      Verbosity verbosity){
         return false;
@@ -20,23 +20,14 @@
     }
 ;
     int exitCode=test.execute(context);
-    summary=new TestResultSummary(pathToShellScript,"sh_test",exitCode == 0,test.getDuration(),null,null,test.getStdout(),test.getStderr());
+    summary=new TestResultSummary(getShortName(),"sh_test",exitCode == 0,test.getDuration(),null,null,test.getStdout(),test.getStderr());
   }
   ObjectMapper mapper=new ObjectMapper();
   try {
     mapper.writeValue(Files.newWriter(new File(pathToTestResultFile),Charsets.UTF_8),summary);
   }
- catch (  JsonGenerationException e) {
-    Throwables.propagate(e);
-  }
-catch (  JsonMappingException e) {
-    Throwables.propagate(e);
-  }
-catch (  FileNotFoundException e) {
-    Throwables.propagate(e);
-  }
-catch (  IOException e) {
-    Throwables.propagate(e);
+ catch (  IOException e) {
+    throw Throwables.propagate(e);
   }
   return 0;
 }
