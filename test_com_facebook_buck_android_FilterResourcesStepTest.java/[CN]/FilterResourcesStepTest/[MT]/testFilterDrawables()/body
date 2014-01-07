@@ -21,7 +21,7 @@
   EasyMock.replay(context);
   FilterResourcesStep.DrawableFinder finder=EasyMock.createMock(FilterResourcesStep.DrawableFinder.class);
   FilteredDirectoryCopier copier=EasyMock.createMock(FilteredDirectoryCopier.class);
-  Capture<Map<String,String>> dirMapCapture=new Capture<>();
+  Capture<Map<Path,Path>> dirMapCapture=new Capture<>();
   Capture<Predicate<File>> predCapture=new Capture<>();
   copier.copyDirs(EasyMock.capture(dirMapCapture),EasyMock.capture(predCapture));
   EasyMock.replay(copier);
@@ -33,9 +33,9 @@
   EasyMock.expect(finder.findDrawables(inResDirToOutResDirMap.keySet())).andAnswer(new IAnswer<Set<String>>(){
     @SuppressWarnings("unchecked") @Override public Set<String> answer() throws Throwable {
       ImmutableSet.Builder<String> builder=ImmutableSet.builder();
-      for (      String dir : (Iterable<String>)EasyMock.getCurrentArguments()[0]) {
+      for (      Path dir : (Iterable<Path>)EasyMock.getCurrentArguments()[0]) {
         for (        String qualifier : qualifiers) {
-          builder.add(getDrawableFile(dir,qualifier,"some.png"));
+          builder.add(getDrawableFile(dir.toString(),qualifier,"some.png"));
         }
       }
       builder.add(scaleSource);
@@ -46,8 +46,8 @@
   EasyMock.expect(finder.findDrawables(inResDirToOutResDirMap.values())).andAnswer(new IAnswer<Set<String>>(){
     @SuppressWarnings("unchecked") @Override public Set<String> answer() throws Throwable {
       ImmutableSet.Builder<String> builder=ImmutableSet.builder();
-      for (      String dir : (Iterable<String>)EasyMock.getCurrentArguments()[0]) {
-        builder.add(getDrawableFile(dir,targetDensity.toString(),"some.png"));
+      for (      Path dir : (Iterable<Path>)EasyMock.getCurrentArguments()[0]) {
+        builder.add(getDrawableFile(dir.toString(),targetDensity.toString(),"some.png"));
       }
       builder.add(scaleSource);
       return builder.build();
@@ -55,12 +55,12 @@
   }
 ).once();
   EasyMock.replay(finder);
-  ImmutableMap.Builder<String,String> dirMapBuilder=ImmutableMap.builder();
-  Iterator<String> destIterator=inResDirToOutResDirMap.values().iterator();
-  for (  String dir : inResDirToOutResDirMap.keySet()) {
-    String nextDestination=destIterator.next();
+  ImmutableMap.Builder<Path,Path> dirMapBuilder=ImmutableMap.builder();
+  Iterator<Path> destIterator=inResDirToOutResDirMap.values().iterator();
+  for (  Path dir : inResDirToOutResDirMap.keySet()) {
+    Path nextDestination=destIterator.next();
     dirMapBuilder.put(dir,nextDestination);
-    assertEquals(baseDestination,new File(nextDestination).getParentFile());
+    assertEquals(baseDestination,nextDestination.getParent().toFile());
   }
   command.execute(context);
   assertEquals(dirMapBuilder.build(),dirMapCapture.getValue());
