@@ -3,7 +3,7 @@
   if (names.isEmpty() && targets.isEmpty() && parameters.isEmpty()) {
     return EMPTY;
   }
-  Set<String> searchPathElements=Sets.newHashSet();
+  Set<Path> searchPathElements=Sets.newHashSet();
   ImmutableSortedSet.Builder<BuildRule> rules=ImmutableSortedSet.naturalOrder();
   for (  BuildTarget target : targets) {
     BuildRule rule=ruleResolver.get(target);
@@ -12,12 +12,12 @@
     if ("java_binary".equals(type) || "prebuilt_jar".equals(type)) {
       String pathToOutput=rule.getBuildable().getPathToOutputFile();
       if (pathToOutput != null) {
-        searchPathElements.add(pathToOutput);
+        searchPathElements.add(Paths.get(pathToOutput));
       }
     }
  else     if (rule instanceof HasClasspathEntries) {
       HasClasspathEntries javaLibraryRule=(HasClasspathEntries)rule;
-      searchPathElements.addAll(javaLibraryRule.getTransitiveClasspathEntries().values());
+      searchPathElements.addAll(FluentIterable.from(javaLibraryRule.getTransitiveClasspathEntries().values()).transform(MorePaths.TO_PATH).toSet());
     }
  else {
       throw new HumanReadableException("%1$s: Error adding '%2$s' to annotation_processing_deps: " + "must refer only to prebuilt jar, java binary, or java library targets.",ownerTarget,target.getFullyQualifiedName());
