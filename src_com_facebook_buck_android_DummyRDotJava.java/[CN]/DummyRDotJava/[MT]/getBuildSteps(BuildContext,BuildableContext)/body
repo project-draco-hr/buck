@@ -1,13 +1,13 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
-  final String rDotJavaSrcFolder=getRDotJavaSrcFolder(buildTarget);
+  final Path rDotJavaSrcFolder=getRDotJavaSrcFolder(buildTarget);
   steps.add(new MakeCleanDirectoryStep(rDotJavaSrcFolder));
-  Set<String> javaSourceFilePaths=Sets.newHashSet();
+  Set<Path> javaSourceFilePaths=Sets.newHashSet();
   if (androidResourceDeps.isEmpty()) {
     String rDotJavaPackage="com.facebook";
     String javaCode=MergeAndroidResourcesStep.generateJavaCodeForPackageWithoutResources(rDotJavaPackage);
-    steps.add(new MakeCleanDirectoryStep(rDotJavaSrcFolder + "/com/facebook"));
-    String rDotJavaFile=rDotJavaSrcFolder + "/com/facebook/R.java";
+    steps.add(new MakeCleanDirectoryStep(rDotJavaSrcFolder.resolve("com/facebook")));
+    Path rDotJavaFile=rDotJavaSrcFolder.resolve("com/facebook/R.java");
     steps.add(new WriteFileStep(javaCode,rDotJavaFile));
     javaSourceFilePaths.add(rDotJavaFile);
   }
@@ -16,16 +16,16 @@
     for (    HasAndroidResourceDeps res : androidResourceDeps) {
       String rDotJavaPackage=res.getRDotJavaPackage();
       symbolsFileToRDotJavaPackage.put(res.getPathToTextSymbolsFile(),rDotJavaPackage);
-      String rDotJavaFilePath=MergeAndroidResourcesStep.getOutputFilePath(rDotJavaSrcFolder,rDotJavaPackage);
+      Path rDotJavaFilePath=MergeAndroidResourcesStep.getOutputFilePath(rDotJavaSrcFolder,rDotJavaPackage);
       javaSourceFilePaths.add(rDotJavaFilePath);
     }
     steps.add(new MergeAndroidResourcesStep(symbolsFileToRDotJavaPackage,rDotJavaSrcFolder));
   }
-  final String rDotJavaClassesFolder=getRDotJavaBinFolder();
+  final Path rDotJavaClassesFolder=getRDotJavaBinFolder();
   steps.add(new MakeCleanDirectoryStep(rDotJavaClassesFolder));
-  String pathToAbiOutputDir=getPathToAbiOutputDir(buildTarget);
+  Path pathToAbiOutputDir=getPathToAbiOutputDir(buildTarget);
   steps.add(new MakeCleanDirectoryStep(pathToAbiOutputDir));
-  String pathToAbiOutputFile=pathToAbiOutputDir + "/abi";
+  Path pathToAbiOutputFile=pathToAbiOutputDir.resolve("abi");
   final JavacInMemoryStep javacInMemoryStep=UberRDotJavaUtil.createJavacInMemoryCommandForRDotJavaFiles(javaSourceFilePaths,rDotJavaClassesFolder,Optional.of(pathToAbiOutputFile));
   steps.add(javacInMemoryStep);
   steps.add(new AbstractExecutionStep("record_abi_key"){
@@ -37,6 +37,6 @@
     }
   }
 );
-  buildableContext.recordArtifactsInDirectory(Paths.get(rDotJavaClassesFolder));
+  buildableContext.recordArtifactsInDirectory(rDotJavaClassesFolder);
   return steps.build();
 }
