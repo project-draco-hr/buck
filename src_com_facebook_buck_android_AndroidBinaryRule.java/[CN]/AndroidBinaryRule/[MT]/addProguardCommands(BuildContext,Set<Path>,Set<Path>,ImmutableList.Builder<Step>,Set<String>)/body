@@ -1,0 +1,28 @@
+{
+  final ImmutableSetMultimap<JavaLibraryRule,String> classpathEntriesMap=getTransitiveClasspathEntries();
+  ImmutableSet.Builder<String> additionalLibraryJarsForProguardBuilder=ImmutableSet.builder();
+  for (  BuildRule buildRule : buildRulesToExcludeFromDex) {
+    if (buildRule instanceof JavaLibraryRule) {
+      additionalLibraryJarsForProguardBuilder.addAll(classpathEntriesMap.get((JavaLibraryRule)buildRule));
+    }
+  }
+  Path proguardDirectory=getPathForProGuardDirectory();
+  steps.add(new MakeCleanDirectoryStep(proguardDirectory));
+  Path generatedProGuardConfig=proguardDirectory.resolve("proguard.txt");
+  GenProGuardConfigStep genProGuardConfig=new GenProGuardConfigStep(aaptPackageResourcesBuildable.getAndroidManifestXml(),resDirectories,generatedProGuardConfig);
+  steps.add(genProGuardConfig);
+  ImmutableSet.Builder<Path> proguardConfigsBuilder=ImmutableSet.builder();
+  proguardConfigsBuilder.addAll(depsProguardConfigs);
+  if (proguardConfig.isPresent()) {
+    proguardConfigsBuilder.add(proguardConfig.get().resolve(context));
+  }
+  final ImmutableMap<Path,Path> inputOutputEntries=FluentIterable.from(classpathEntriesToDex).toMap(new Function<Path,Path>(){
+    @Override public Path apply(    Path classpathEntry){
+      return getProguardOutputFromInputClasspath(classpathEntry);
+    }
+  }
+);
+  Step obfuscateCommand=ProGuardObfuscateStep.create(generatedProGuardConfig,proguardConfigsBuilder.build(),useAndroidProguardConfigWithOptimizations,inputOutputEntries,additionalLibraryJarsForProguardBuilder.build(),proguardDirectory);
+  steps.add(obfuscateCommand);
+  return ImmutableSet.copyOf(inputOutputEntries.values());
+}

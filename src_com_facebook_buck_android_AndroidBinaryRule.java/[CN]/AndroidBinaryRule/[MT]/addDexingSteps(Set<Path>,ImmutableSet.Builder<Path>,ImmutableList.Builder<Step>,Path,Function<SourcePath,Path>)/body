@@ -1,0 +1,40 @@
+{
+  final Set<Path> primaryInputsToDex;
+  final Optional<Path> secondaryDexDir;
+  final Optional<Path> secondaryInputsDir;
+  if (shouldSplitDex()) {
+    Optional<Path> proguardMappingFile=Optional.absent();
+    if (packageType.isBuildWithObfuscation()) {
+      proguardMappingFile=Optional.of(getPathForProGuardDirectory().resolve("mapping.txt"));
+    }
+    Path splitZipDir=getBinPath("__%s_split_zip__");
+    steps.add(new MakeCleanDirectoryStep(splitZipDir));
+    Path primaryJarPath=splitZipDir.resolve("primary.jar");
+    Path secondaryJarMetaDirParent=splitZipDir.resolve("secondary_meta");
+    Path secondaryJarMetaDir=secondaryJarMetaDirParent.resolve(SECONDARY_DEX_SUBDIR);
+    steps.add(new MakeCleanDirectoryStep(secondaryJarMetaDir));
+    Path secondaryJarMeta=secondaryJarMetaDir.resolve("metadata.txt");
+    Path secondaryZipDir=getBinPath("__%s_secondary_zip__");
+    steps.add(new MakeCleanDirectoryStep(secondaryZipDir));
+    Path zipSplitReportDir=getBinPath("__%s_split_zip_report__");
+    steps.add(new MakeCleanDirectoryStep(zipSplitReportDir));
+    SplitZipStep splitZipCommand=new SplitZipStep(classpathEntriesToDex,secondaryJarMeta,primaryJarPath,secondaryZipDir,"secondary-%d.jar",proguardMappingFile,primaryDexPatterns,primaryDexClassesFile.transform(sourcePathResolver),dexSplitMode.getDexSplitStrategy(),dexSplitMode.getDexStore(),zipSplitReportDir,dexSplitMode.useLinearAllocSplitDex(),linearAllocHardLimit);
+    steps.add(splitZipCommand);
+    Path secondaryDexParentDir=getBinPath("__%s_secondary_dex__/");
+    secondaryDexDir=Optional.of(secondaryDexParentDir.resolve(SECONDARY_DEX_SUBDIR));
+    steps.add(new MkdirStep(secondaryDexDir.get()));
+    secondaryDexDirectories.add(secondaryJarMetaDirParent);
+    secondaryDexDirectories.add(secondaryDexParentDir);
+    primaryInputsToDex=ImmutableSet.of(primaryJarPath);
+    secondaryInputsDir=Optional.of(secondaryZipDir);
+  }
+ else {
+    primaryInputsToDex=classpathEntriesToDex;
+    secondaryDexDir=Optional.absent();
+    secondaryInputsDir=Optional.absent();
+  }
+  Path successDir=getBinPath("__%s_smart_dex__/.success");
+  steps.add(new MkdirStep(successDir));
+  SmartDexingStep smartDexingCommand=new SmartDexingStep(primaryDexPath,primaryInputsToDex,secondaryDexDir,secondaryInputsDir,successDir,Optional.<Integer>absent(),dexSplitMode.getDexStore(),PackageType.RELEASE.equals(packageType));
+  steps.add(smartDexingCommand);
+}

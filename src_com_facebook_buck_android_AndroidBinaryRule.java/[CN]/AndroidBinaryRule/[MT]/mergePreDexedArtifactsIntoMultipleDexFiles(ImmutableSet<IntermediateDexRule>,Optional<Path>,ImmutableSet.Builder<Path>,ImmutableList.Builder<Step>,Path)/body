@@ -1,0 +1,17 @@
+{
+  Path rDotJavaScratchDir=getBinPath("__%s_r_dot_java_scratch__");
+  Optional<DexWithClasses> dexWithClassesForRDotJava=createDexWithClassesForRDotJava(pathToCompiledRDotJavaFiles,rDotJavaScratchDir,steps);
+  ImmutableList<DexWithClasses> dexFilesToMerge=FluentIterable.from(preDexDeps).transform(DexWithClasses.TO_DEX_WITH_CLASSES).filter(Predicates.notNull()).toList();
+  Path secondaryDexScratchDir=getBinPath("__%s_secondary_dex__");
+  Path secondaryDexMetadataScratchDir=secondaryDexScratchDir.resolve("metadata");
+  Path secondaryDexJarFilesScratchDir=secondaryDexScratchDir.resolve("jarfiles");
+  secondaryDexDirectoriesBuilder.add(secondaryDexMetadataScratchDir);
+  secondaryDexDirectoriesBuilder.add(secondaryDexJarFilesScratchDir);
+  Path secondaryDexMetadataDir=secondaryDexMetadataScratchDir.resolve(SECONDARY_DEX_SUBDIR);
+  Path secondaryDexJarFilesDir=secondaryDexJarFilesScratchDir.resolve(SECONDARY_DEX_SUBDIR);
+  steps.add(new MakeCleanDirectoryStep(secondaryDexMetadataDir));
+  steps.add(new MakeCleanDirectoryStep(secondaryDexJarFilesDir));
+  Path preDexScratchDir=secondaryDexScratchDir.resolve("__pre_dex_tmp__");
+  steps.add(new MakeCleanDirectoryStep(preDexScratchDir));
+  steps.add(new PreDexMergeStep(dexFilesToMerge,dexWithClassesForRDotJava,primaryDexPath,primaryDexPatterns,secondaryDexMetadataDir.resolve("metadata.txt"),secondaryDexJarFilesDir,dexSplitMode.getDexStore(),linearAllocHardLimit,preDexScratchDir));
+}

@@ -1,18 +1,18 @@
 {
   File primaryOutDir=tmpDir.newFolder("primary-out");
   File primaryOut=new File(primaryOutDir,"primary.jar");
-  Set<String> primaryIn=ImmutableSet.of("input/a.jar","input/b.jar","input/c.jar");
+  Set<Path> primaryIn=ImmutableSet.of(Paths.get("input/a.jar"),Paths.get("input/b.jar"),Paths.get("input/c.jar"));
   File secondaryOutDir=tmpDir.newFolder("secondary-out");
   File secondaryInDir=tmpDir.newFolder("secondary-in");
   File secondaryInFile=new File(secondaryInDir,"2.jar");
   Files.write(new byte[]{0},secondaryInFile);
-  InputResolver resolver=new InputResolver("primary-out/primary.jar",primaryIn,Optional.of("secondary-out"),Optional.of("secondary-in"));
+  InputResolver resolver=new InputResolver(Paths.get("primary-out/primary.jar"),primaryIn,Optional.of(Paths.get("secondary-out")),Optional.of(Paths.get("secondary-in")));
   assertTrue("Expected secondary output",resolver.hasSecondaryOutput());
   final ProjectFilesystem projectFilesystem=new ProjectFilesystem(tmpDir.getRoot());
   Multimap<File,File> outputToInputs=resolver.createOutputToInputs(DexStore.JAR,projectFilesystem);
   assertEquals("Expected 2 output artifacts",2,outputToInputs.keySet().size());
-  MoreAsserts.assertIterablesEquals("Detected inconsistency with primary input arguments",Iterables.transform(primaryIn,new Function<String,File>(){
-    @Override public File apply(    String input){
+  MoreAsserts.assertIterablesEquals("Detected inconsistency with primary input arguments",Iterables.transform(primaryIn,new Function<Path,File>(){
+    @Override public File apply(    Path input){
       return projectFilesystem.getFileForRelativePath(input);
     }
   }
