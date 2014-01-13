@@ -1,7 +1,7 @@
 {
-  final Set<Path> primaryInputsToDex;
+  final Supplier<Set<Path>> primaryInputsToDex;
   final Optional<Path> secondaryDexDir;
-  final Optional<Path> secondaryInputsDir;
+  final Optional<Supplier<Multimap<Path,Path>>> secondaryOutputToInputs;
   if (shouldSplitDex()) {
     Optional<Path> proguardMappingFile=Optional.absent();
     if (packageType.isBuildWithObfuscation()) {
@@ -14,7 +14,7 @@
     Path secondaryJarMetaDir=secondaryJarMetaDirParent.resolve(SECONDARY_DEX_SUBDIR);
     steps.add(new MakeCleanDirectoryStep(secondaryJarMetaDir));
     Path secondaryJarMeta=secondaryJarMetaDir.resolve("metadata.txt");
-    Path secondaryZipDir=getBinPath("__%s_secondary_zip__");
+    final Path secondaryZipDir=getBinPath("__%s_secondary_zip__");
     steps.add(new MakeCleanDirectoryStep(secondaryZipDir));
     Path zipSplitReportDir=getBinPath("__%s_split_zip_report__");
     steps.add(new MakeCleanDirectoryStep(zipSplitReportDir));
@@ -25,16 +25,18 @@
     steps.add(new MkdirStep(secondaryDexDir.get()));
     secondaryDexDirectories.add(secondaryJarMetaDirParent);
     secondaryDexDirectories.add(secondaryDexParentDir);
-    primaryInputsToDex=ImmutableSet.of(primaryJarPath);
-    secondaryInputsDir=Optional.of(secondaryZipDir);
+    primaryInputsToDex=Suppliers.<Set<Path>>ofInstance(ImmutableSet.of(primaryJarPath));
+    Supplier<Multimap<Path,Path>> secondaryOutputToInputsMap=splitZipCommand.getOutputToInputsMapSupplier(secondaryDexDir.get());
+    secondaryOutputToInputs=Optional.of(secondaryOutputToInputsMap);
   }
  else {
-    primaryInputsToDex=classpathEntriesToDex;
+    primaryInputsToDex=Suppliers.ofInstance(classpathEntriesToDex);
     secondaryDexDir=Optional.absent();
-    secondaryInputsDir=Optional.absent();
+    secondaryOutputToInputs=Optional.absent();
   }
   Path successDir=getBinPath("__%s_smart_dex__/.success");
   steps.add(new MkdirStep(successDir));
-  SmartDexingStep smartDexingCommand=new SmartDexingStep(primaryDexPath,primaryInputsToDex,secondaryDexDir,secondaryInputsDir,successDir,Optional.<Integer>absent(),dexSplitMode.getDexStore(),PackageType.RELEASE.equals(packageType));
+  EnumSet<DxStep.Option> dxOptions=PackageType.RELEASE.equals(packageType) ? EnumSet.noneOf(DxStep.Option.class) : EnumSet.of(DxStep.Option.NO_OPTIMIZE);
+  SmartDexingStep smartDexingCommand=new SmartDexingStep(primaryDexPath,primaryInputsToDex,secondaryDexDir,secondaryOutputToInputs,successDir,Optional.<Integer>absent(),dxOptions);
   steps.add(smartDexingCommand);
 }
