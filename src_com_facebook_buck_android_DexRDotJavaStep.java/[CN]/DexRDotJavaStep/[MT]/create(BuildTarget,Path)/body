@@ -1,0 +1,18 @@
+{
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  Path rDotJavaScratchDir=getRDotJavaScratchDir(buildTarget);
+  steps.add(new MakeCleanDirectoryStep(rDotJavaScratchDir));
+  final AccumulateClassNamesStep accumulateClassNames=new AccumulateClassNamesStep(Optional.of(pathToCompiledRDotJavaFiles),rDotJavaScratchDir.resolve("classes.txt"));
+  steps.add(accumulateClassNames);
+  Path rDotJavaDex=getPathToDexFile(buildTarget);
+  steps.add(new DxStep(rDotJavaDex,Collections.singleton(pathToCompiledRDotJavaFiles),EnumSet.of(DxStep.Option.NO_OPTIMIZE)));
+  final EstimateLinearAllocStep estimateLinearAllocStep=new EstimateLinearAllocStep(pathToCompiledRDotJavaFiles);
+  steps.add(estimateLinearAllocStep);
+  Supplier<Integer> linearAllocSizeEstimate=new Supplier<Integer>(){
+    @Override public Integer get(){
+      return estimateLinearAllocStep.get();
+    }
+  }
+;
+  return new DexRDotJavaStep(steps.build(),linearAllocSizeEstimate);
+}

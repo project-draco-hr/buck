@@ -1,0 +1,56 @@
+{
+  List<DexWithClasses> primaryDexContents=Lists.newArrayList();
+  List<List<DexWithClasses>> secondaryDexesContents=Lists.newArrayList();
+  int primaryDexSize=0;
+  if (rDotJavaDex.isPresent()) {
+    primaryDexSize+=rDotJavaDex.get().getSizeEstimate();
+    primaryDexContents.add(rDotJavaDex.get());
+  }
+  ImmutableList<DexWithClasses> sortedDexFilesToMerge=FluentIterable.from(dexFilesToMerge).toSortedList(DexWithClasses.DEX_WITH_CLASSES_COMPARATOR);
+  List<DexWithClasses> currentSecondaryDexContents=null;
+  int currentSecondaryDexSize=0;
+  for (  DexWithClasses dexWithClasses : sortedDexFilesToMerge) {
+    if (mustBeInPrimaryDex(dexWithClasses)) {
+      primaryDexSize+=dexWithClasses.getSizeEstimate();
+      if (primaryDexSize > linearAllocHardLimit) {
+        context.postEvent(LogEvent.severe("DexWithClasses %s with cost %s puts the linear alloc estimate for the primary dex " + "at %s, exceeding the maximum of %s.",dexWithClasses.getPathToDexFile(),dexWithClasses.getSizeEstimate(),primaryDexSize,linearAllocHardLimit));
+        return 1;
+      }
+      primaryDexContents.add(dexWithClasses);
+    }
+ else {
+      if (dexWithClasses.getSizeEstimate() > linearAllocHardLimit) {
+        context.postEvent(LogEvent.severe("DexWithClasses %s with cost %s exceeds the max cost %s for a secondary dex file.",dexWithClasses.getPathToDexFile(),dexWithClasses.getSizeEstimate(),linearAllocHardLimit));
+        return 1;
+      }
+      if (currentSecondaryDexContents == null || dexWithClasses.getSizeEstimate() + currentSecondaryDexSize > linearAllocHardLimit) {
+        DexWithClasses canary;
+        try {
+          canary=createCanary(secondaryDexesContents.size() + 1,context);
+        }
+ catch (        IOException e) {
+          context.logError(e,"Failed to create canary for secondary dex.");
+          return 1;
+        }
+        currentSecondaryDexContents=Lists.newArrayList(canary);
+        currentSecondaryDexSize=canary.getSizeEstimate();
+        secondaryDexesContents.add(currentSecondaryDexContents);
+      }
+      currentSecondaryDexContents.add(dexWithClasses);
+      currentSecondaryDexSize+=dexWithClasses.getSizeEstimate();
+    }
+  }
+  primaryDexInputs=FluentIterable.from(primaryDexContents).transform(DexWithClasses.TO_PATH).toSet();
+  metadataTxtEntries=Maps.newHashMap();
+  String pattern="secondary-%d" + dexStore.getExtension();
+  ImmutableMultimap.Builder<Path,Path> builder=ImmutableMultimap.builder();
+  for (int index=0; index < secondaryDexesContents.size(); index++) {
+    String secondaryDexFilename=String.format(pattern,index + 1);
+    Path pathToSecondaryDex=secondaryDexJarFilesDir.resolve(secondaryDexFilename);
+    metadataTxtEntries.put(pathToSecondaryDex,secondaryDexesContents.get(0).get(0));
+    Collection<Path> dexContentPaths=Collections2.transform(secondaryDexesContents.get(index),DexWithClasses.TO_PATH);
+    builder.putAll(pathToSecondaryDex,dexContentPaths);
+  }
+  secondaryOutputToInputs=builder.build();
+  return 0;
+}

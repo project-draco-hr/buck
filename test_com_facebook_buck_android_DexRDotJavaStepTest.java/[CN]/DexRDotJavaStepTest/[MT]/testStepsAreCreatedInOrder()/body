@@ -1,0 +1,14 @@
+{
+  AndroidPlatformTarget platformTarget=createMock(AndroidPlatformTarget.class);
+  expect(platformTarget.getDxExecutable()).andStubReturn(new File("/bin/dx"));
+  replay(platformTarget);
+  BuildTarget buildTarget=BuildTargetFactory.newInstance("//java/base:rule");
+  DexRDotJavaStep step=DexRDotJavaStep.create(buildTarget,Paths.get("."));
+  String rDotJavaScratchDir="buck-out/bin/java/base/__rule_r_dot_java_scratch__";
+  String rDotJavaClassesTxt=rDotJavaScratchDir + "/classes.txt";
+  String rDotJavaDex=rDotJavaScratchDir + "/classes.dex.jar";
+  List<String> expectedStepDescriptions=Lists.newArrayList(makeCleanDirDescription(rDotJavaScratchDir),String.format("get_class_names Optional.of(.) > %s",rDotJavaClassesTxt),dxStepDescription(rDotJavaDex),"estimate_linear_alloc");
+  ExecutionContext executionContext=TestExecutionContext.newBuilder().setAndroidPlatformTarget(Optional.of(platformTarget)).build();
+  assertEquals("DexRDotJavaStep.create() must build up this exact list of steps.",Joiner.on(" && ").join(expectedStepDescriptions),step.getDescription(executionContext));
+  verify(platformTarget);
+}
