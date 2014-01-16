@@ -1,0 +1,59 @@
+{
+  super(buildRuleParams);
+  this.srcs=ImmutableSortedSet.copyOf(srcs);
+  this.resources=ImmutableSortedSet.copyOf(resources);
+  this.optionalDummyRDotJava=Preconditions.checkNotNull(optionalDummyRDotJava);
+  this.proguardConfig=Preconditions.checkNotNull(proguardConfig);
+  this.exportedDeps=ImmutableSortedSet.copyOf(exportedDeps);
+  this.javacOptions=Preconditions.checkNotNull(javacOptions);
+  this.javac=Preconditions.checkNotNull(javac);
+  if (!srcs.isEmpty() || !resources.isEmpty()) {
+    this.outputJar=Optional.of(getOutputJarPath(getBuildTarget()));
+  }
+ else {
+    this.outputJar=Optional.absent();
+  }
+  inputsToConsiderForCachingPurposes=ImmutableList.<Path>builder().addAll(this.srcs).addAll(SourcePaths.filterInputsToCompareToOutput(this.resources)).build();
+  outputClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibraryRule,String>>(){
+    @Override public ImmutableSetMultimap<JavaLibraryRule,String> get(){
+      ImmutableSetMultimap.Builder<JavaLibraryRule,String> outputClasspathBuilder=ImmutableSetMultimap.builder();
+      Iterable<JavaLibraryRule> javaExportedLibraryDeps=Iterables.filter(getExportedDeps(),JavaLibraryRule.class);
+      for (      JavaLibraryRule rule : javaExportedLibraryDeps) {
+        outputClasspathBuilder.putAll(rule,rule.getOutputClasspathEntries().values());
+        outputClasspathBuilder.putAll(DefaultJavaLibraryRule.this,rule.getOutputClasspathEntries().values());
+      }
+      if (outputJar.isPresent()) {
+        outputClasspathBuilder.put(DefaultJavaLibraryRule.this,getPathToOutputFile().toString());
+      }
+      return outputClasspathBuilder.build();
+    }
+  }
+);
+  transitiveClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibraryRule,String>>(){
+    @Override public ImmutableSetMultimap<JavaLibraryRule,String> get(){
+      final ImmutableSetMultimap.Builder<JavaLibraryRule,String> classpathEntries=ImmutableSetMultimap.builder();
+      ImmutableSetMultimap<JavaLibraryRule,String> classpathEntriesForDeps=Classpaths.getClasspathEntries(getDeps());
+      ImmutableSetMultimap<JavaLibraryRule,String> classpathEntriesForExportedsDeps=Classpaths.getClasspathEntries(getExportedDeps());
+      classpathEntries.putAll(classpathEntriesForDeps);
+      if (!classpathEntriesForExportedsDeps.isEmpty()) {
+        classpathEntries.putAll(DefaultJavaLibraryRule.this,classpathEntriesForExportedsDeps.values());
+      }
+      if (outputJar.isPresent()) {
+        classpathEntries.putAll(DefaultJavaLibraryRule.this,getPathToOutputFile().toString());
+      }
+      return classpathEntries.build();
+    }
+  }
+);
+  declaredClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibraryRule,String>>(){
+    @Override public ImmutableSetMultimap<JavaLibraryRule,String> get(){
+      final ImmutableSetMultimap.Builder<JavaLibraryRule,String> classpathEntries=ImmutableSetMultimap.builder();
+      Iterable<JavaLibraryRule> javaLibraryDeps=Iterables.filter(getDeps(),JavaLibraryRule.class);
+      for (      JavaLibraryRule rule : javaLibraryDeps) {
+        classpathEntries.putAll(rule,rule.getOutputClasspathEntries().values());
+      }
+      return classpathEntries.build();
+    }
+  }
+);
+}

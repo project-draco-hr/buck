@@ -33,14 +33,15 @@
     buildEventBus.post(commandEvent);
     ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(buildEventBus);
     Parser parser;
+    KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.getConfigured(config);
     if (isDaemon) {
       parser=getParserFromDaemon(context,projectFilesystem,config,console,commandEvent);
     }
  else {
       JavaUtilsLoggingBuildListener.ensureLogFileIsWritten();
-      parser=new Parser(projectFilesystem,KnownBuildRuleTypes.getDefault(),console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
+      parser=new Parser(projectFilesystem,buildRuleTypes,console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
     }
-    exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,KnownBuildRuleTypes.getDefault(),artifactCacheFactory,buildEventBus,parser,platform));
+    exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,buildRuleTypes,artifactCacheFactory,buildEventBus,parser,platform));
     artifactCacheFactory.closeCreatedArtifactCaches(ARTIFACT_CACHE_TIMEOUT_IN_SECONDS);
     if (webServer.isPresent()) {
       int port=webServer.get().getPort();
