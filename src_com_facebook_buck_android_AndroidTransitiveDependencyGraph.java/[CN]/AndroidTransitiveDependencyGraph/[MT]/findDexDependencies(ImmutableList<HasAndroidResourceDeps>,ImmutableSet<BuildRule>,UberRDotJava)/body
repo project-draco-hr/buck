@@ -1,0 +1,39 @@
+{
+  final ImmutableSet.Builder<String> pathsToDexBuilder=ImmutableSet.builder();
+  final ImmutableSet.Builder<String> noDxPathsBuilder=ImmutableSet.builder();
+  final ImmutableSet.Builder<String> pathsToThirdPartyJarsBuilder=ImmutableSet.builder();
+  AndroidResourceDetails details=findAndroidResourceDetails(androidResourceDeps);
+  ImmutableSet<Map.Entry<JavaLibraryRule,String>> classpath=Classpaths.getClasspathEntries(rulesToTraverseForTransitiveDeps).entries();
+  for (  Map.Entry<JavaLibraryRule,String> entry : classpath) {
+    if (!buildRulesToExcludeFromDex.contains(entry.getKey())) {
+      pathsToDexBuilder.add(entry.getValue());
+    }
+ else {
+      noDxPathsBuilder.add(entry.getValue());
+    }
+  }
+  new AbstractDependencyVisitor(rulesToTraverseForTransitiveDeps){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      if (rule instanceof PrebuiltJarRule) {
+        PrebuiltJarRule prebuiltJarRule=(PrebuiltJarRule)rule;
+        pathsToThirdPartyJarsBuilder.add(prebuiltJarRule.getBinaryJar().toString());
+      }
+      return maybeVisitAllDeps(rule,rule.getProperties().is(LIBRARY));
+    }
+  }
+.start();
+  ImmutableSet<String> rDotJavaPackages=details.rDotJavaPackages;
+  Optional<Path> pathToCompiledRDotJavaFilesOptional;
+  if (!rDotJavaPackages.isEmpty()) {
+    Path pathToCompiledRDotJavaFiles=uberRDotJava.getPathToCompiledRDotJavaFiles();
+    pathsToDexBuilder.add(pathToCompiledRDotJavaFiles.toString());
+    pathToCompiledRDotJavaFilesOptional=Optional.of(pathToCompiledRDotJavaFiles);
+  }
+ else {
+    pathToCompiledRDotJavaFilesOptional=Optional.absent();
+  }
+  ImmutableSet<String> noDxPaths=noDxPathsBuilder.build();
+  Set<String> classpathEntries=Sets.difference(pathsToDexBuilder.build(),noDxPaths);
+  Set<String> pathsToThirdPartyJars=Sets.difference(pathsToThirdPartyJarsBuilder.build(),noDxPaths);
+  return new AndroidDexTransitiveDependencies(classpathEntries,pathsToThirdPartyJars,noDxPaths,pathToCompiledRDotJavaFilesOptional);
+}
