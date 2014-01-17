@@ -1,0 +1,24 @@
+{
+  Matcher matcher=SIGNATURE_OR_PLACEHOLDER_PATTERN.matcher(source);
+  Hasher md5Hasher=Hashing.md5().newHasher();
+  int pos=0;
+  while (matcher.find()) {
+    if (matcher.groupCount() == 1) {
+      md5Hasher.putString(source.substring(pos,matcher.start()),Charsets.UTF_8);
+      md5Hasher.putString(PLACEHOLDER,Charsets.UTF_8);
+    }
+ else {
+      md5Hasher.putString(source.substring(pos,matcher.end()),Charsets.UTF_8);
+    }
+    pos=matcher.end();
+  }
+  if (pos > 0) {
+    md5Hasher.putString(source.substring(pos),Charsets.UTF_8);
+    matcher.reset();
+    String newSignature=formatSignature(md5Hasher.hash().toString());
+    return Optional.of(matcher.replaceAll(newSignature));
+  }
+ else {
+    return Optional.absent();
+  }
+}
