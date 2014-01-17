@@ -1,11 +1,16 @@
 {
-  BuckEventBus eb=new BuckEventBus(new DefaultClock(),BuckEventBusFactory.BUILD_ID_FOR_TEST);
+  BuckEventBus eb=new BuckEventBus(new DefaultClock(),MoreExecutors.newSingleThreadExecutor(BuckEventBus.class.getSimpleName()),BuckEventBusFactory.BUILD_ID_FOR_TEST,timeoutMillis);
   eb.register(new SleepSubscriber());
-  eb.post(new SleepEvent(2500));
+  eb.post(new SleepEvent(timeoutMillis * 3));
   long start=System.nanoTime();
-  boolean success=eb.shutdown(500,TimeUnit.MILLISECONDS);
+  try {
+    eb.close();
+    fail("Bus should not shut down successfully.");
+  }
+ catch (  IOException e) {
+    assertThat("Exception should be due to shutdown.",e.getMessage(),Matchers.containsString("failed to shut down"));
+  }
   long durationNanos=System.nanoTime() - start;
   long durationMillis=TimeUnit.MILLISECONDS.convert(durationNanos,TimeUnit.NANOSECONDS);
-  assertFalse("Bus should not shut down successfully",success);
-  assertThat("Shutdown should not take a long time.",durationMillis,lessThanOrEqualTo(2400L));
+  assertThat("Shutdown should not take a long time.",durationMillis,lessThanOrEqualTo((long)timeoutMillis * 2));
 }
