@@ -2,14 +2,17 @@
   this.description=Preconditions.checkNotNull(description);
   this.ruleFactoryParams=Preconditions.checkNotNull(params);
   this.target=params.target;
-  ImmutableSortedSet.Builder<BuildTarget> allDeps=ImmutableSortedSet.naturalOrder();
+  final ImmutableSortedSet.Builder<BuildTarget> allDeps=ImmutableSortedSet.naturalOrder();
   for (  String rawDep : params.getOptionalListAttribute("deps")) {
     allDeps.add(params.resolveBuildTarget(rawDep));
   }
+  TypeCoercerFactory typeCoercerFactory=new TypeCoercerFactory();
   T arg=description.createUnpopulatedConstructorArg();
   for (  Field field : arg.getClass().getFields()) {
-    ParamInfo info=new ParamInfo(Paths.get(target.getBasePath()),field);
-    if (BuildRule.class.isAssignableFrom(info.getType()) || SourcePath.class.isAssignableFrom(info.getType())) {
+    ParamInfo info=new ParamInfo(typeCoercerFactory,Paths.get(target.getBasePath()),field);
+    Class<?> leafClass=info.getLeafClass();
+    Class<?> keyClass=info.getKeyClass();
+    if (BuildRule.class.isAssignableFrom(leafClass) || SourcePath.class.isAssignableFrom(leafClass) || (keyClass != null && (BuildRule.class.isAssignableFrom(keyClass) || SourcePath.class.isAssignableFrom(keyClass)))) {
       detectBuildTargetsForParameter(allDeps,info,params);
     }
   }

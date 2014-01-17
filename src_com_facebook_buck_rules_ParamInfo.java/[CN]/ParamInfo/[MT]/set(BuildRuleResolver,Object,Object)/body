@@ -1,38 +1,31 @@
 {
+  Object result;
   if (value == null) {
-    if (!isOptional) {
-      throw new IllegalArgumentException(String.format("%s cannot be null. Build file can be found in %s.",dto,pathRelativeToProjectRoot));
-    }
-    value=Optional.absent();
-  }
- else   if (isOptional && matchesDefaultValue(value)) {
-    if (value instanceof Collection) {
-      value=asCollection(resolver,Lists.newArrayList());
-      value=Optional.of(value);
+    if (isOptional) {
+      result=Optional.absent();
     }
  else {
-      value=Optional.absent();
+      throw new IllegalArgumentException(String.format("Field '%s' of object '%s' cannot be null. Build file can be found in %s.",name,dto,pathRelativeToProjectRoot));
     }
   }
- else   if (containerType == null) {
-    value=coerceToExpectedType(resolver,value);
-    if (isOptional) {
-      value=Optional.of(value);
-    }
+ else   if (isOptional && isDefaultPrimitiveValue(value)) {
+    result=Optional.absent();
   }
  else {
-    value=asCollection(resolver,value);
+    try {
+      result=typeCoercer.coerce(ruleResolver,pathRelativeToProjectRoot,value);
+    }
+ catch (    CoerceFailedException e) {
+      throw new RuntimeException(String.format("Failed to coerce field named: %s",name),e);
+    }
     if (isOptional) {
-      value=Optional.of(value);
+      result=Optional.of(result);
     }
   }
   try {
-    field.set(dto,value);
+    field.set(dto,result);
   }
  catch (  ReflectiveOperationException e) {
     throw new RuntimeException(e);
-  }
-catch (  ClassCastException|IllegalArgumentException|NullPointerException e) {
-    throw new IllegalArgumentException(String.format("Unable to convert '%s' to %s in build file in %s",value,type,pathRelativeToProjectRoot));
   }
 }

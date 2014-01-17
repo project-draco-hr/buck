@@ -1,13 +1,22 @@
 {
-  if (info.getContainerType() != null) {
-    List<String> allParams=params.getOptionalListAttribute(info.getName());
-    for (    String param : allParams) {
-      addTargetIfPresent(builder,params,param);
+  try {
+    info.traverse(new ParamInfo.Traversal(){
+      @Override public void traverse(      Object object){
+        if (object instanceof String) {
+          try {
+            addTargetIfPresent(builder,params,(String)object);
+          }
+ catch (          NoSuchBuildTargetException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      }
     }
+,params.getNullableRawAttribute(info.getName()));
   }
- else {
-    Optional<String> optional=params.getOptionalStringAttribute(info.getName());
-    String param=optional.or("");
-    addTargetIfPresent(builder,params,param);
+ catch (  RuntimeException e) {
+    if (e.getCause() instanceof NoSuchBuildTargetException) {
+      throw (NoSuchBuildTargetException)e.getCause();
+    }
   }
 }

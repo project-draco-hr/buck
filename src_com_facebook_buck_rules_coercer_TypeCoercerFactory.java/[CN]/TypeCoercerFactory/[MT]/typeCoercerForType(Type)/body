@@ -1,0 +1,62 @@
+{
+  if (type instanceof TypeVariable) {
+    type=((TypeVariable)type).getBounds()[0];
+    if (Object.class.equals(type)) {
+      throw new IllegalArgumentException("Generic types must be specific: " + type);
+    }
+  }
+  if (type instanceof WildcardType) {
+    type=((WildcardType)type).getUpperBounds()[0];
+    if (Object.class.equals(type)) {
+      throw new IllegalArgumentException("Generic types must be specific: " + type);
+    }
+  }
+  if (type instanceof Class) {
+    Class<?> rawClass=Primitives.wrap((Class<?>)type);
+    TypeCoercer<?> selectedTypeCoercer=null;
+    for (    TypeCoercer<?> typeCoercer : nonContainerTypeCoercers) {
+      if (rawClass.isAssignableFrom(typeCoercer.getOutputClass())) {
+        if (selectedTypeCoercer == null) {
+          selectedTypeCoercer=typeCoercer;
+        }
+ else {
+          throw new IllegalArgumentException("multiple coercers matched for type: " + type);
+        }
+      }
+    }
+    if (selectedTypeCoercer != null) {
+      return selectedTypeCoercer;
+    }
+ else {
+      throw new IllegalArgumentException("no type coercer for type: " + type);
+    }
+  }
+ else   if (type instanceof ParameterizedType) {
+    ParameterizedType parameterizedType=(ParameterizedType)type;
+    Type rawType=parameterizedType.getRawType();
+    if (!(rawType instanceof Class<?>)) {
+      throw new RuntimeException("expected getRawType() to return a class for type: " + parameterizedType);
+    }
+    Class<?> rawClass=(Class<?>)rawType;
+    if (rawClass.isAssignableFrom(ImmutableList.class)) {
+      return new ListTypeCoercer<>(typeCoercerForType(getSingletonTypeParameter(parameterizedType)));
+    }
+ else     if (rawClass.isAssignableFrom(ImmutableSet.class)) {
+      return new SetTypeCoercer<>(typeCoercerForType(getSingletonTypeParameter(parameterizedType)));
+    }
+ else     if (rawClass.isAssignableFrom(ImmutableSortedSet.class)) {
+      Type elementType=getSingletonTypeParameter(parameterizedType);
+      return new SortedSetTypeCoercer<>(typeCoercerForComparableType(elementType));
+    }
+ else     if (rawClass.isAssignableFrom(ImmutableMap.class)) {
+      Preconditions.checkState(parameterizedType.getActualTypeArguments().length == 2,"expected type '%s' to have two parameters",parameterizedType);
+      return new MapTypeCoercer<>(typeCoercerForType(parameterizedType.getActualTypeArguments()[0]),typeCoercerForType(parameterizedType.getActualTypeArguments()[1]));
+    }
+ else {
+      throw new IllegalArgumentException("Unhandled type: " + type);
+    }
+  }
+ else {
+    throw new IllegalArgumentException("Cannot create type coercer for type: " + type);
+  }
+}
