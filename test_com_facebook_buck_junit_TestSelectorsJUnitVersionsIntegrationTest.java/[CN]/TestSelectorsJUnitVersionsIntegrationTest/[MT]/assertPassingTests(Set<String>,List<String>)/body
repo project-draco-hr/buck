@@ -1,0 +1,17 @@
+{
+  String[] args=buckArgs.toArray(new String[buckArgs.size()]);
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand(args);
+  String[] lines=result.getStderr().split("\n");
+  ImmutableSet.Builder<String> actualPassingTestsBuilder=new ImmutableSet.Builder<>();
+  for (  String line : lines) {
+    String[] tokens=line.split("\\s+");
+    String testName=tokens[tokens.length - 1];
+    if (testName.startsWith("com.example")) {
+      String lineReason=String.format("Test %s should pass!",testName);
+      assertThat(lineReason,tokens[0],equalTo("PASS"));
+      actualPassingTestsBuilder.add(testName);
+    }
+  }
+  ImmutableSet<String> actualPassingTests=actualPassingTestsBuilder.build();
+  assertEquals("Expected tests were run (and passed)",expectedPassingTests,actualPassingTests);
+}
