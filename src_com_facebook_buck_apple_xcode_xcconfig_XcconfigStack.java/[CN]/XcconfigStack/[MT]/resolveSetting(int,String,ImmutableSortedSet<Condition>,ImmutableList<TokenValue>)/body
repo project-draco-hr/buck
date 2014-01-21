@@ -1,0 +1,63 @@
+{
+  List<TokenResolution> prefixes=Lists.newArrayList(new TokenResolution(conditions,""));
+  for (  final TokenValue token : tokens) {
+switch (token.type) {
+case LITERAL:
+      prefixes=Lists.transform(prefixes,new Function<TokenResolution,TokenResolution>(){
+        @Override public TokenResolution apply(        TokenResolution input){
+          return input.appendLiteral(token.literalValue);
+        }
+      }
+);
+    break;
+case INTERPOLATION:
+  List<TokenResolution> resolvedNames=resolveSetting(-1,null,conditions,token.interpolationValue);
+List<TokenResolution> resolvedValues=Lists.newArrayListWithExpectedSize(resolvedNames.size());
+for (TokenResolution resolvedName : resolvedNames) {
+Optional<LookupResult> result;
+if (resolvedName.value.equals("SDKROOT")) {
+  result=Optional.absent();
+}
+ else if (resolvedName.value.equals("inherited") || resolvedName.value.equals(key)) {
+  if (currentLayer < 0) {
+    throw new HumanReadableException("Referencing inherited value in nested interpolation");
+  }
+  result=lookupRawFromLayer(key,currentLayer + 1);
+}
+ else {
+  result=lookupRawFromLayer(resolvedName.value,0);
+}
+if (result.isPresent()) {
+  for (  PredicatedConfigValue lookedUpName : result.get().result) {
+    ImmutableSortedSet<Condition> mergedConditions=mergeConditions(conditions,lookedUpName.conditions);
+    if (mergedConditions == null) {
+      continue;
+    }
+    List<TokenResolution> resolvedValues1=resolveSetting(result.get().layerFound,result.get().key,mergedConditions,lookedUpName.valueTokens);
+    resolvedValues.addAll(resolvedValues1);
+  }
+}
+ else {
+  resolvedValues.add(new TokenResolution(resolvedName.conditions,String.format("$(%s)",resolvedName.value)));
+}
+}
+List<TokenResolution> newPrefixes=Lists.newArrayListWithExpectedSize(resolvedValues.size() * prefixes.size());
+for (TokenResolution prefix : prefixes) {
+for (TokenResolution suffix : resolvedValues) {
+ImmutableSortedSet<Condition> mergedConditions=mergeConditions(prefix.conditions,suffix.conditions);
+if (mergedConditions == null) {
+continue;
+}
+newPrefixes.add(new TokenResolution(mergedConditions,prefix.value + suffix.value));
+}
+}
+prefixes=newPrefixes;
+break;
+}
+}
+ImmutableList.Builder<TokenResolution> trimmedPrefixes=ImmutableList.builder();
+for (TokenResolution prefix : prefixes) {
+trimmedPrefixes.add(new TokenResolution(prefix.conditions,prefix.value.trim()));
+}
+return trimmedPrefixes.build();
+}
