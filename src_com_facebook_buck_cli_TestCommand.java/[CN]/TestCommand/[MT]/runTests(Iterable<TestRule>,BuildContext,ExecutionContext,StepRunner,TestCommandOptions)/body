@@ -22,7 +22,7 @@
  else {
     rulesUnderTest=ImmutableSet.of();
   }
-  getBuckEventBus().post(TestRunEvent.started(options.isRunAllTests(),options.getArgumentsFormattedAsBuildTargets()));
+  getBuckEventBus().post(TestRunEvent.started(options.isRunAllTests(),options.getTestSelectorListOptional(),options.shouldExplainTestSelectorList(),options.getArgumentsFormattedAsBuildTargets()));
   List<ListenableFuture<TestResults>> results=Lists.newArrayList();
   Verbosity verbosity=console.getVerbosity();
   final boolean printTestResults=(verbosity != Verbosity.SILENT);
@@ -40,11 +40,11 @@
   TestRuleKeyFileHelper testRuleKeyFileHelper=new TestRuleKeyFileHelper(executionContext.getProjectFilesystem());
   for (  TestRule test : tests) {
     List<Step> steps;
-    boolean isTestRunRequired=isTestRunRequiredForTest(test,executionContext,testRuleKeyFileHelper);
+    boolean isTestRunRequired=isTestRunRequiredForTest(test,executionContext,testRuleKeyFileHelper,options.getTestSelectorListOptional().isPresent());
     if (isTestRunRequired) {
       getBuckEventBus().post(IndividualTestEvent.started(options.getArgumentsFormattedAsBuildTargets()));
       ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
-      List<Step> testSteps=test.runTests(buildContext,executionContext);
+      List<Step> testSteps=test.runTests(buildContext,executionContext,options.getTestSelectorListOptional());
       if (!testSteps.isEmpty()) {
         stepsBuilder.addAll(testSteps);
         stepsBuilder.add(testRuleKeyFileHelper.createRuleKeyInDirStep(test));
@@ -54,7 +54,7 @@
  else {
       steps=ImmutableList.of();
     }
-    ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext)),test.getBuildTarget());
+    ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext,options.getTestSelectorListOptional().isPresent())),test.getBuildTarget());
     Futures.addCallback(testResults,onTestFinishedCallback);
     results.add(testResults);
   }
