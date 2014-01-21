@@ -4,6 +4,7 @@
     private ByteArrayOutputStream rawStdOutBytes, rawStdErrBytes;
     private Result result;
     private RunListener resultListener;
+    private long startTime=System.currentTimeMillis();
     @Override public void testStarted(    Description description) throws Exception {
       originalOut=System.out;
       originalErr=System.err;
@@ -43,7 +44,10 @@
       }
     }
     @Override public void testFailure(    Failure failure) throws Exception {
-      if (resultListener != null) {
+      if (resultListener == null) {
+        recordUnpairedFailure(failure);
+      }
+ else {
         resultListener.testFailure(failure);
       }
     }
@@ -51,6 +55,19 @@
       if (resultListener != null) {
         resultListener.testIgnored(description);
       }
+    }
+    /** 
+ * It's possible to encounter a Failure before we've started any tests (and therefore before
+ * testStarted() has been called).  The known example is a @BeforeClass that throws an
+ * exception, but there may be others.
+ * <p>
+ * Recording these unexpected failures helps us propagate failures back up to the "buck test"
+ * process.
+ */
+    private void recordUnpairedFailure(    Failure failure){
+      long runtime=System.currentTimeMillis() - startTime;
+      Description description=failure.getDescription();
+      results.add(new TestResult(description.getClassName(),description.getMethodName(),runtime,failure,null,null));
     }
   }
 ;

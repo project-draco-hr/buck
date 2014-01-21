@@ -1,0 +1,16 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"class_statements",temporaryFolder);
+  workspace.setUp();
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("test","--all");
+  result.assertExitCode("Tests should fail",1);
+  String stderr=result.getStderr();
+  assertThat("Explanatory exception output is present",stderr,containsString("BOOM!"));
+  String passString="PASS <100ms  3 Passed   0 Failed   com.example.EverythingOKTest";
+  assertThat("Some tests still pass",stderr,containsString(passString));
+  Pattern failPattern=Pattern.compile("^FAIL +(\\d+)ms.+com.example.HasBeforeClassFailure$",Pattern.MULTILINE);
+  Matcher matcher=failPattern.matcher(stderr);
+  String reason=String.format("Stderr matches '%s':\n%s",failPattern,stderr);
+  assertTrue(reason,matcher.find());
+  int actualRuntime=Integer.parseInt(matcher.group(1));
+  assertThat("Reasonable runtime was guessed",actualRuntime,greaterThan(BEFORE_CLASS_EXPECTED_RUNTIME));
+}
