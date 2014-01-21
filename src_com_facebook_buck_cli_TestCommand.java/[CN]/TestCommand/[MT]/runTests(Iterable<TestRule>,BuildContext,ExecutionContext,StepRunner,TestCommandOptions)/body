@@ -25,17 +25,10 @@
   List<ListenableFuture<TestResults>> results=Lists.newArrayList();
   Verbosity verbosity=console.getVerbosity();
   final boolean printTestResults=(verbosity != Verbosity.SILENT);
-  FutureCallback<TestResults> onTestFinishedCallback=new FutureCallback<TestResults>(){
-    @Override public void onSuccess(    TestResults testResults){
-      if (printTestResults) {
-        getBuckEventBus().post(IndividualTestEvent.finished(options.getArgumentsFormattedAsBuildTargets(),testResults));
-      }
-    }
-    @Override public void onFailure(    Throwable throwable){
-      throwable.printStackTrace(getStdErr());
-    }
+  TestResultsGrouper grouper=null;
+  if (options.isIgnoreFailingDependencies()) {
+    grouper=new TestResultsGrouper(tests);
   }
-;
   TestRuleKeyFileHelper testRuleKeyFileHelper=new TestRuleKeyFileHelper(executionContext.getProjectFilesystem());
   for (  TestRule test : tests) {
     List<Step> steps;
@@ -54,6 +47,7 @@
       steps=ImmutableList.of();
     }
     ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext,options.getTestSelectorListOptional().isPresent())),test.getBuildTarget());
+    FutureCallback<TestResults> onTestFinishedCallback=getFutureCallback(grouper,test,options,printTestResults);
     Futures.addCallback(testResults,onTestFinishedCallback);
     results.add(testResults);
   }
