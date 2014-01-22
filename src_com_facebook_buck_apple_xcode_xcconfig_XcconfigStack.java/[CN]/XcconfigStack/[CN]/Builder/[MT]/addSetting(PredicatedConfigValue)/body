@@ -1,11 +1,15 @@
 {
-  List<PredicatedConfigValue> conditionalSettings=currentLayer.get(setting.key);
-  for (ListIterator<PredicatedConfigValue> iterator=conditionalSettings.listIterator(); iterator.hasNext(); ) {
-    PredicatedConfigValue existingValue=iterator.next();
-    if (existingValue.conditions.equals(setting.conditions)) {
-      iterator.set(setting);
-      return;
-    }
+  String key=setting.key;
+  TokenValue inheritedValue;
+  String previousAlias=keyAliases.get(key);
+  if (previousAlias != null) {
+    inheritedValue=TokenValue.interpolation(previousAlias);
   }
-  conditionalSettings.add(setting);
+ else {
+    inheritedValue=TokenValue.interpolation(INHERITED);
+  }
+  ImmutableList<TokenValue> valueTokens=TokenValue.interpolateList(solveInherits(key,inheritedValue),setting.valueTokens);
+  String alias=getCurrentAlias(key);
+  PredicatedConfigValue privateSetting=new PredicatedConfigValue(alias,setting.conditions,valueTokens);
+  currentLayer.add(privateSetting);
 }
