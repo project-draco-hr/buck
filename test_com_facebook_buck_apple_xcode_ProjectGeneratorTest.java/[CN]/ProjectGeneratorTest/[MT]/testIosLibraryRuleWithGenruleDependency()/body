@@ -1,0 +1,27 @@
+{
+  BuildRuleResolver buildRuleResolver=new BuildRuleResolver();
+  AbstractBuildRuleBuilderParams genruleParams=new FakeAbstractBuildRuleBuilderParams();
+  Genrule.Builder builder=Genrule.newGenruleBuilder(genruleParams);
+  builder.setBuildTarget(new BuildTarget("//foo","script"));
+  builder.setBash(Optional.of("echo \"hello world!\""));
+  builder.setOut("helloworld.txt");
+  Genrule genrule=buildRuleResolver.buildAndAddToIndex(builder);
+  BuildTarget libTarget=new BuildTarget("//foo","lib");
+  BuildRuleParams libParams=new FakeBuildRuleParams(libTarget,ImmutableSortedSet.<BuildRule>of(genrule));
+  IosLibraryDescription.Arg arg=iosLibraryDescription.createUnpopulatedConstructorArg();
+  arg.configs=ImmutableMap.of("Debug",ImmutableList.<Either<Path,ImmutableMap<String,String>>>of());
+  arg.headers=ImmutableSortedSet.of((SourcePath)new FileSourcePath("foo.h"));
+  arg.srcs=ImmutableList.of(Either.<SourcePath,Pair<SourcePath,String>>ofRight(new Pair<SourcePath,String>(new FileSourcePath("foo.m"),"-foo")));
+  arg.frameworks=ImmutableSortedSet.of();
+  BuildRule rule=new DescribedRule(IosLibraryDescription.TYPE,iosLibraryDescription.createBuildable(libParams,arg),libParams);
+  buildRuleResolver.addToIndex(libTarget,rule);
+  ProjectGenerator projectGenerator=createProjectGenerator(buildRuleResolver,ImmutableList.of(rule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXProject project=projectGenerator.getGeneratedProject();
+  assertThat(project.getTargets(),hasSize(2));
+  PBXTarget target=project.getTargets().get(0);
+  assertThat(target.getName(),equalTo("//foo:lib"));
+  assertThat(target.isa(),equalTo("PBXNativeTarget"));
+  PBXShellScriptBuildPhase shellScriptBuildPhase=getSingletonPhaseByType(target,PBXShellScriptBuildPhase.class);
+  assertThat(shellScriptBuildPhase.getShellScript(),equalTo("/bin/bash -e -c 'echo \"hello world!\"'"));
+}
