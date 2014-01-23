@@ -1,0 +1,30 @@
+{
+  ImmutableSet<ImmutableSet<String>> included=includedLabelsSupplier.get();
+  ImmutableSet<ImmutableSet<String>> excluded=excludedLabelsSupplier.get();
+  Sets.SetView<ImmutableSet<String>> intersection=Sets.intersection(included,excluded);
+  if (!intersection.isEmpty()) {
+    ImmutableSet.Builder<String> builder=new ImmutableSet.Builder<>();
+    for (    ImmutableSet<String> labelSet : intersection) {
+      String setString=Joiner.on(LABEL_SEPERATOR).join(labelSet);
+      builder.add(setString);
+    }
+    String message="You have specified labels that are both included and excluded: " + Joiner.on(", ").join(builder.build());
+    throw new HumanReadableException(message);
+  }
+  if (!included.isEmpty()) {
+    for (    ImmutableSet<String> comparisonLabels : included) {
+      if (labels.containsAll(comparisonLabels)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  ImmutableSet<ImmutableSet<String>> globalExcluded=globalExcludedLabelsSupplier.get();
+  Sets.SetView<ImmutableSet<String>> allExcluded=Sets.union(excluded,globalExcluded);
+  for (  ImmutableSet<String> comparisonLabels : allExcluded) {
+    if (labels.containsAll(comparisonLabels)) {
+      return false;
+    }
+  }
+  return true;
+}
