@@ -1,0 +1,14 @@
+{
+  Path proguardConfigFile=Paths.get("the/configuration.txt");
+  Path proguardMappingFile=Paths.get("the/mapping.txt");
+  SplitZipStep splitZipStep=new SplitZipStep(ImmutableSet.<Path>of(),Paths.get(""),Paths.get(""),Paths.get(""),"",Optional.of(proguardConfigFile),Optional.of(proguardMappingFile),ImmutableSet.<String>of("primary"),Optional.<Path>absent(),ZipSplitter.DexSplitStrategy.MAXIMIZE_PRIMARY_DEX_SIZE,DexStore.JAR,Paths.get(""),true,4 * 1024 * 1024);
+  ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
+  EasyMock.expect(projectFilesystem.readLines(proguardConfigFile)).andReturn(ImmutableList.<String>of("-dontobfuscate"));
+  ExecutionContext context=EasyMock.createMock(ExecutionContext.class);
+  EasyMock.expect(context.getProjectFilesystem()).andReturn(projectFilesystem).anyTimes();
+  EasyMock.replay(projectFilesystem,context);
+  Predicate<String> requiredInPrimaryZipPredicate=splitZipStep.createRequiredInPrimaryZipPredicate(context);
+  assertTrue("Primary class should be in primary.",requiredInPrimaryZipPredicate.apply("primary.class"));
+  assertFalse("Secondary class should be in secondary.",requiredInPrimaryZipPredicate.apply("secondary.class"));
+  EasyMock.verify(projectFilesystem,context);
+}

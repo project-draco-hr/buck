@@ -1,12 +1,14 @@
 {
-  if (!proguardMappingFile.isPresent()) {
+  if (!(proguardFullConfigFile.isPresent())) {
     return Functions.identity();
   }
   ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
-  Path pathToProguardMappingFile=proguardMappingFile.get();
-  if (!projectFilesystem.exists(pathToProguardMappingFile.toString())) {
+  Path pathToProguardConfig=proguardFullConfigFile.get();
+  boolean obfuscationSkipped=Iterables.any(projectFilesystem.readLines(pathToProguardConfig),Predicates.equalTo("-dontobfuscate"));
+  if (obfuscationSkipped) {
     return Functions.identity();
   }
+  Path pathToProguardMappingFile=proguardMappingFile.get();
   List<String> lines=projectFilesystem.readLines(pathToProguardMappingFile);
   Map<String,String> rawProguardMap=ProguardMapping.readClassMapping(lines);
   ImmutableMap.Builder<String,String> internalNameBuilder=ImmutableMap.builder();
