@@ -2,21 +2,8 @@
   Type type=TestFields.class.getField("stringMapOfLists").getGenericType();
   TypeCoercer<?> coercer=typeCoercerFactory.typeCoercerForType(type);
   final ImmutableMap<String,ImmutableList<String>> input=ImmutableMap.of("foo",ImmutableList.of("//foo:bar","//foo:baz"),"bar",ImmutableList.of(":bar","//foo:foo"));
-  final List<Object> objects=Lists.newArrayList();
-  coercer.traverse(input,new ParamInfo.Traversal(){
-    @Override public void traverse(    Object object){
-      objects.add(object);
-    }
-  }
-);
-  assertThat(objects,hasSize(9));
-  assertSame(input,objects.get(0));
-  assertEquals("foo",objects.get(1));
-  assertSame(input.get("foo"),objects.get(2));
-  assertEquals("//foo:bar",objects.get(3));
-  assertEquals("//foo:baz",objects.get(4));
-  assertEquals("bar",objects.get(5));
-  assertSame(input.get("bar"),objects.get(6));
-  assertEquals(":bar",objects.get(7));
-  assertEquals("//foo:foo",objects.get(8));
+  TestTraversal traversal=new TestTraversal();
+  coercer.traverse(input,traversal);
+  List<Object> objects=traversal.getObjects();
+  assertThat(objects,Matchers.<Object>contains((Matcher)sameInstance(input),(Matcher)is("foo"),(Matcher)sameInstance(input.get("foo")),(Matcher)is("//foo:bar"),(Matcher)is("//foo:baz"),(Matcher)is("bar"),(Matcher)sameInstance(input.get("bar")),(Matcher)is(":bar"),(Matcher)is("//foo:foo")));
 }
