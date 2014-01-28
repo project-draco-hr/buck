@@ -10,8 +10,9 @@
   AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams);
   final ImmutableSortedSet<BuildRule> originalDeps=originalParams.getDeps();
   ImmutableSet<BuildTarget> buildTargetsToExcludeFromDex=buildTargetsToExcludeFromDexBuilder.build();
+  boolean shouldPreDex=!disablePreDex && PackageType.DEBUG.equals(packageType) && !preprocessJavaClassesBash.isPresent();
   ImmutableSet<IntermediateDexRule> preDexDeps;
-  if (!disablePreDex && PackageType.DEBUG.equals(packageType) && !preprocessJavaClassesBash.isPresent()) {
+  if (shouldPreDex) {
     preDexDeps=graphEnhancer.createDepsForPreDexing(ruleResolver,buildTargetsToExcludeFromDex);
   }
  else {
@@ -25,7 +26,7 @@
     }
   }
 ;
-  AndroidBinaryGraphEnhancer.Result result=graphEnhancer.addBuildablesToCreateAaptResources(ruleResolver,resourceCompressionMode,resourceFilter,androidResourceDepsFinder,manifest,packageType,cpuFilters.build(),!preDexDeps.isEmpty());
+  AndroidBinaryGraphEnhancer.Result result=graphEnhancer.addBuildablesToCreateAaptResources(ruleResolver,resourceCompressionMode,resourceFilter,androidResourceDepsFinder,manifest,packageType,cpuFilters.build(),shouldPreDex);
   BuildRuleParams newParams=originalParams.copyWithChangedDeps(graphEnhancer.getTotalDeps());
   return new AndroidBinaryRule(newParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build()),(Keystore)keystore,packageType,buildRulesToExcludeFromDex,dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,cpuFilters.build(),preDexDeps,result.getUberRDotJava(),result.getAaptPackageResources(),getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash,androidResourceDepsFinder,androidTransitiveDependencyGraph);
 }
