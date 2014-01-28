@@ -11,13 +11,6 @@
   final ImmutableSortedSet<BuildRule> originalDeps=originalParams.getDeps();
   ImmutableSet<BuildTarget> buildTargetsToExcludeFromDex=buildTargetsToExcludeFromDexBuilder.build();
   boolean shouldPreDex=!disablePreDex && PackageType.DEBUG.equals(packageType) && !preprocessJavaClassesBash.isPresent();
-  ImmutableSet<IntermediateDexRule> preDexDeps;
-  if (shouldPreDex) {
-    preDexDeps=graphEnhancer.createDepsForPreDexing(ruleResolver,buildTargetsToExcludeFromDex);
-  }
- else {
-    preDexDeps=ImmutableSet.of();
-  }
   boolean allowNonExistentRule=false;
   ImmutableSortedSet<BuildRule> buildRulesToExcludeFromDex=getBuildTargetsAsBuildRules(ruleResolver,buildTargetsToExcludeFromDex,allowNonExistentRule);
   AndroidResourceDepsFinder androidResourceDepsFinder=new AndroidResourceDepsFinder(androidTransitiveDependencyGraph,buildRulesToExcludeFromDex){
@@ -27,6 +20,13 @@
   }
 ;
   AndroidBinaryGraphEnhancer.AaptEnhancementResult aaptEnhancementResult=graphEnhancer.addBuildablesToCreateAaptResources(ruleResolver,resourceCompressionMode,resourceFilter,androidResourceDepsFinder,manifest,packageType,cpuFilters.build(),shouldPreDex);
+  ImmutableSet<IntermediateDexRule> preDexDeps;
+  if (shouldPreDex) {
+    preDexDeps=graphEnhancer.createDepsForPreDexing(ruleResolver,buildTargetsToExcludeFromDex);
+  }
+ else {
+    preDexDeps=ImmutableSet.of();
+  }
   BuildRuleParams newParams=originalParams.copyWithChangedDeps(graphEnhancer.getTotalDeps());
   return new AndroidBinaryRule(newParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build()),(Keystore)keystore,packageType,buildRulesToExcludeFromDex,dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,cpuFilters.build(),preDexDeps,aaptEnhancementResult.getUberRDotJava(),aaptEnhancementResult.getAaptPackageResources(),getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash,androidResourceDepsFinder,androidTransitiveDependencyGraph);
 }
