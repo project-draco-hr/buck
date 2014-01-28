@@ -20,13 +20,14 @@
   }
 ;
   AndroidBinaryGraphEnhancer.AaptEnhancementResult aaptEnhancementResult=graphEnhancer.addBuildablesToCreateAaptResources(ruleResolver,resourceCompressionMode,resourceFilter,androidResourceDepsFinder,manifest,packageType,cpuFilters.build(),shouldPreDex);
-  ImmutableSet<IntermediateDexRule> preDexDeps;
+  Path primaryDexPath=BuildTargets.getBinPath(getBuildTarget(),".dex/%s/classes.dex");
+  AndroidBinaryGraphEnhancer.DexEnhancementResult dexEnhancementResult;
   if (shouldPreDex) {
-    preDexDeps=graphEnhancer.createDepsForPreDexing(ruleResolver,buildTargetsToExcludeFromDex);
+    dexEnhancementResult=graphEnhancer.createDepsForPreDexing(ruleResolver,primaryDexPath,dexSplitMode,buildTargetsToExcludeFromDex,aaptEnhancementResult.getUberRDotJava());
   }
  else {
-    preDexDeps=ImmutableSet.of();
+    dexEnhancementResult=new AndroidBinaryGraphEnhancer.DexEnhancementResult(Optional.<PreDexMerge>absent());
   }
   BuildRuleParams newParams=originalParams.copyWithChangedDeps(graphEnhancer.getTotalDeps());
-  return new AndroidBinaryRule(newParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build()),(Keystore)keystore,packageType,buildRulesToExcludeFromDex,dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,cpuFilters.build(),preDexDeps,aaptEnhancementResult.getUberRDotJava(),aaptEnhancementResult.getAaptPackageResources(),getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash,androidResourceDepsFinder,androidTransitiveDependencyGraph);
+  return new AndroidBinaryRule(newParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build()),(Keystore)keystore,packageType,buildRulesToExcludeFromDex,dexSplitMode,useAndroidProguardConfigWithOptimizations,proguardConfig,resourceCompressionMode,cpuFilters.build(),primaryDexPath,aaptEnhancementResult.getUberRDotJava(),aaptEnhancementResult.getAaptPackageResources(),dexEnhancementResult.getPreDexMerge(),getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash,androidResourceDepsFinder,androidTransitiveDependencyGraph);
 }

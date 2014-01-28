@@ -1,0 +1,21 @@
+{
+  Iterable<Path> filesToDex=FluentIterable.from(preDexDeps).transform(new Function<IntermediateDexRule,Path>(){
+    @Override @Nullable public Path apply(    IntermediateDexRule preDexDep){
+      DexProducedFromJavaLibraryThatContainsClassFiles preDex=preDexDep.getBuildable();
+      if (preDex.hasOutput()) {
+        return preDex.getPathToDex();
+      }
+ else {
+        return null;
+      }
+    }
+  }
+).filter(Predicates.notNull());
+  Optional<DexWithClasses> rDotJavaDexWithClasses=uberRDotJava.getRDotJavaDexWithClasses();
+  if (rDotJavaDexWithClasses.isPresent()) {
+    filesToDex=Iterables.concat(filesToDex,Collections.singleton(rDotJavaDexWithClasses.get().getPathToDexFile()));
+  }
+  buildableContext.recordArtifact(primaryDexPath);
+  steps.add(new DxStep(primaryDexPath,filesToDex,AndroidBinaryRule.DX_MERGE_OPTIONS));
+  buildableContext.addMetadata(SECONDARY_DEX_DIRECTORIES_KEY,ImmutableSet.<String>of());
+}
