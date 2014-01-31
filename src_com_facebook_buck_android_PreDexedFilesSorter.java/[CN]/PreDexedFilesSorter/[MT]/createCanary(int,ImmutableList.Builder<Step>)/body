@@ -1,0 +1,36 @@
+{
+  final FileLike fileLike=CanaryFactory.create(index);
+  String canaryDirName="canary_" + String.valueOf(index);
+  final Path scratchDirectoryForCanaryClass=scratchDirectory.resolve(canaryDirName);
+  final String relativePathToClassFile=fileLike.getRelativePath();
+  Preconditions.checkState(relativePathToClassFile.endsWith(".class"));
+  final String className=relativePathToClassFile.replaceFirst("\\.class$","");
+  steps.add(new AbstractExecutionStep("write_canary_class"){
+    @Override public int execute(    ExecutionContext context){
+      Path classFile=scratchDirectoryForCanaryClass.resolve(relativePathToClassFile);
+      ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
+      try (InputStream inputStream=fileLike.getInput()){
+        projectFilesystem.createParentDirs(classFile);
+        projectFilesystem.copyToPath(inputStream,classFile);
+      }
+ catch (      IOException e) {
+        context.logError(e,"Error writing canary class file: %s.",classFile.toString());
+        return 1;
+      }
+      return 0;
+    }
+  }
+);
+  return new DexWithClasses(){
+    @Override public int getSizeEstimate(){
+      return 0;
+    }
+    @Override public Path getPathToDexFile(){
+      return scratchDirectoryForCanaryClass;
+    }
+    @Override public ImmutableSet<String> getClassNames(){
+      return ImmutableSet.of(className);
+    }
+  }
+;
+}
