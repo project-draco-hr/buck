@@ -1,0 +1,31 @@
+{
+  IntEnumerator enumerator=reenumerate ? new IntEnumerator(0x7f01001) : null;
+  SortedSetMultimap<String,Resource> rDotJavaPackageToSymbolsFiles=TreeMultimap.create();
+  for (  Map.Entry<Path,String> entry : symbolsFileToRDotJavaPackage.entrySet()) {
+    Path symbolsFile=entry.getKey();
+    List<String> linesInSymbolsFile;
+    try {
+      linesInSymbolsFile=FluentIterable.from(filesystem.readLines(symbolsFile)).filter(MoreStrings.NON_EMPTY).toList();
+    }
+ catch (    IOException e) {
+      throw new RuntimeException(e);
+    }
+    String packageName=entry.getValue();
+    for (    String line : linesInSymbolsFile) {
+      Matcher matcher=TEXT_SYMBOLS_LINE.matcher(line);
+      boolean isMatch=matcher.matches();
+      Preconditions.checkState(isMatch,"Should be able to match '%s'.",line);
+      String idType=matcher.group(1);
+      String type=matcher.group(2);
+      String name=matcher.group(3);
+      String idValue=matcher.group(4);
+      String idValueToUse=idValue;
+      if (reenumerate && idValue.startsWith("0x7f")) {
+        idValueToUse=String.format("0x%08x",enumerator.next());
+      }
+      Resource resource=new Resource(idType,type,name,idValue,idValueToUse);
+      rDotJavaPackageToSymbolsFiles.put(packageName,resource);
+    }
+  }
+  return rDotJavaPackageToSymbolsFiles;
+}
