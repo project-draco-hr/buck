@@ -1,13 +1,17 @@
 {
-  return String.format("java -classpath $ANDROID_HOME/tools/lib/sdklib.jar %s %s -v -u %s -z %s %s %s -f %s","com.android.sdklib.build.ApkBuilderMain",pathToOutputApkFile,Joiner.on(' ').join(Iterables.transform(nativeLibraryDirectories,new Function<Path,String>(){
-    @Override public String apply(    Path s){
-      return "-nf " + s;
+  ImmutableList.Builder<String> args=ImmutableList.builder();
+  args.add("java","-classpath","$ANDROID_HOME/tools/lib/sdklib.jar","com.android.sdklib.build.ApkBuilderMain");
+  args.add(String.valueOf(pathToOutputApkFile));
+  args.add("-v");
+  if (debugMode) {
+    args.add("-d");
+  }
+  Multimap<String,Collection<Path>> groups=ImmutableMultimap.<String,Collection<Path>>builder().put("-z",ImmutableList.of(resourceApk)).put("-f",ImmutableList.of(dexFile)).put("-rf",assetDirectories).put("-nf",nativeLibraryDirectories).put("-z",zipFiles).put("-rj",jarFilesThatMayContainResources).build();
+  for (  Map.Entry<String,Collection<Path>> group : groups.entries()) {
+    String prefix=group.getKey();
+    for (    Path path : group.getValue()) {
+      args.add(prefix,String.valueOf(path));
     }
   }
-)),Joiner.on(' ').join(Iterables.transform(zipFiles,Functions.toStringFunction())),resourceApk,Joiner.on(' ').join(Iterables.transform(assetDirectories,new Function<String,String>(){
-    @Override public String apply(    String s){
-      return "-rf " + s;
-    }
-  }
-)),dexFile);
+  return Joiner.on(' ').join(args.build());
 }
