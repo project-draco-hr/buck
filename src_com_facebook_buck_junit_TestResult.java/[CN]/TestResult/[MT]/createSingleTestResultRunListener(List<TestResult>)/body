@@ -4,6 +4,7 @@
     private ByteArrayOutputStream rawStdOutBytes, rawStdErrBytes;
     private Result result;
     private RunListener resultListener;
+    private final List<Failure> assumptionFailures=new ArrayList<>();
     private long startTime=System.currentTimeMillis();
     @Override public void testStarted(    Description description) throws Exception {
       originalOut=System.out;
@@ -33,12 +34,31 @@
       if (numFailures < 0) {
         throw new IllegalStateException(String.format("Unexpected number of failures while testing %s#%s(): %d (%s)",className,methodName,numFailures,result.getFailures()));
       }
-      Failure failure=numFailures == 0 ? null : result.getFailures().get(0);
+      Failure failure;
+      ResultType type;
+      if (assumptionFailures.size() > 0) {
+        failure=assumptionFailures.get(0);
+        type=ResultType.ASSUMPTION_VIOLATION;
+      }
+ else       if (numFailures == 0) {
+        failure=null;
+        type=ResultType.SUCCESS;
+      }
+ else {
+        failure=result.getFailures().get(0);
+        type=ResultType.FAILURE;
+      }
       String stdOut=rawStdOutBytes.size() == 0 ? null : rawStdOutBytes.toString(ENCODING);
       String stdErr=rawStdErrBytes.size() == 0 ? null : rawStdErrBytes.toString(ENCODING);
-      results.add(new TestResult(className,methodName,result.getRunTime(),failure,stdOut,stdErr));
+      results.add(new TestResult(className,methodName,result.getRunTime(),type,failure,stdOut,stdErr));
     }
+    /** 
+ * The regular listener we created from the singular result, in this class, will not by
+ * default treat assumption failures as regular failures, and will not store them.  As a
+ * consequence, we store them ourselves!
+ */
     @Override public void testAssumptionFailure(    Failure failure){
+      assumptionFailures.add(failure);
       if (resultListener != null) {
         resultListener.testAssumptionFailure(failure);
       }
@@ -67,7 +87,7 @@
     private void recordUnpairedFailure(    Failure failure){
       long runtime=System.currentTimeMillis() - startTime;
       Description description=failure.getDescription();
-      results.add(new TestResult(description.getClassName(),description.getMethodName(),runtime,failure,null,null));
+      results.add(new TestResult(description.getClassName(),description.getMethodName(),runtime,ResultType.FAILURE,failure,null,null));
     }
   }
 ;
