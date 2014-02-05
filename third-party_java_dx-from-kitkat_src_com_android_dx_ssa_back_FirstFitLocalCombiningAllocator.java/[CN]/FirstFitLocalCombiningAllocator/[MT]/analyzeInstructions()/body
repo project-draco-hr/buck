@@ -1,0 +1,55 @@
+{
+  ssaMeth.forEachInsn(new SsaInsn.Visitor(){
+    /** 
+ * {@inheritDoc} 
+ */
+    public void visitMoveInsn(    NormalSsaInsn insn){
+      processInsn(insn);
+    }
+    /** 
+ * {@inheritDoc} 
+ */
+    public void visitPhiInsn(    PhiInsn insn){
+      processInsn(insn);
+    }
+    /** 
+ * {@inheritDoc} 
+ */
+    public void visitNonMoveInsn(    NormalSsaInsn insn){
+      processInsn(insn);
+    }
+    /** 
+ * This method collects three types of instructions:
+ * 1) Adds a local variable assignment to the{@code localVariables} map.
+ * 2) Add move-result-pseudo to the{@code moveResultPseudoInsns} list.
+ * 3) Add invoke-range to the{@code invokeRangeInsns} list.
+ * @param insn {@code non-null;} insn that may represent a
+ * local variable assignment
+ */
+    private void processInsn(    SsaInsn insn){
+      RegisterSpec assignment;
+      assignment=insn.getLocalAssignment();
+      if (assignment != null) {
+        LocalItem local=assignment.getLocalItem();
+        ArrayList<RegisterSpec> regList=localVariables.get(local);
+        if (regList == null) {
+          regList=new ArrayList<RegisterSpec>();
+          localVariables.put(local,regList);
+        }
+        regList.add(assignment);
+      }
+      if (insn instanceof NormalSsaInsn) {
+        if (insn.getOpcode().getOpcode() == RegOps.MOVE_RESULT_PSEUDO) {
+          moveResultPseudoInsns.add((NormalSsaInsn)insn);
+        }
+ else         if (Optimizer.getAdvice().requiresSourcesInOrder(insn.getOriginalRopInsn().getOpcode(),insn.getSources())) {
+          invokeRangeInsns.add((NormalSsaInsn)insn);
+        }
+      }
+ else       if (insn instanceof PhiInsn) {
+        phiInsns.add((PhiInsn)insn);
+      }
+    }
+  }
+);
+}

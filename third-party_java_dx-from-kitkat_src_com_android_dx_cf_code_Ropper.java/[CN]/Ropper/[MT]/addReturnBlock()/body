@@ -1,0 +1,33 @@
+{
+  Rop returnOp=machine.getReturnOp();
+  if (returnOp == null) {
+    return;
+  }
+  SourcePosition returnPos=machine.getReturnPosition();
+  int label=getSpecialLabel(RETURN);
+  if (isSynchronized()) {
+    InsnList insns=new InsnList(1);
+    Insn insn=new ThrowingInsn(Rops.MONITOR_EXIT,returnPos,RegisterSpecList.make(getSynchReg()),StdTypeList.EMPTY);
+    insns.set(0,insn);
+    insns.setImmutable();
+    int nextLabel=getSpecialLabel(SYNCH_RETURN);
+    BasicBlock bb=new BasicBlock(label,insns,IntList.makeImmutable(nextLabel),nextLabel);
+    addBlock(bb,IntList.EMPTY);
+    label=nextLabel;
+  }
+  InsnList insns=new InsnList(1);
+  TypeList sourceTypes=returnOp.getSources();
+  RegisterSpecList sources;
+  if (sourceTypes.size() == 0) {
+    sources=RegisterSpecList.EMPTY;
+  }
+ else {
+    RegisterSpec source=RegisterSpec.make(0,sourceTypes.getType(0));
+    sources=RegisterSpecList.make(source);
+  }
+  Insn insn=new PlainInsn(returnOp,returnPos,null,sources);
+  insns.set(0,insn);
+  insns.setImmutable();
+  BasicBlock bb=new BasicBlock(label,insns,IntList.EMPTY,-1);
+  addBlock(bb,IntList.EMPTY);
+}

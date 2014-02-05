@@ -1,0 +1,45 @@
+{
+  for (  NormalSsaInsn insn : moveResultPseudoInsns) {
+    RegisterSpec moveRegSpec=insn.getResult();
+    int moveReg=moveRegSpec.getReg();
+    BitSet predBlocks=insn.getBlock().getPredecessors();
+    if (predBlocks.cardinality() != 1) {
+      continue;
+    }
+    SsaBasicBlock predBlock=ssaMeth.getBlocks().get(predBlocks.nextSetBit(0));
+    ArrayList<SsaInsn> insnList=predBlock.getInsns();
+    SsaInsn checkCastInsn=insnList.get(insnList.size() - 1);
+    if (checkCastInsn.getOpcode().getOpcode() != RegOps.CHECK_CAST) {
+      continue;
+    }
+    RegisterSpec checkRegSpec=checkCastInsn.getSources().get(0);
+    int checkReg=checkRegSpec.getReg();
+    int category=checkRegSpec.getCategory();
+    boolean moveMapped=ssaRegsMapped.get(moveReg);
+    boolean checkMapped=ssaRegsMapped.get(checkReg);
+    if (moveMapped & !checkMapped) {
+      int moveRopReg=mapper.oldToNew(moveReg);
+      checkMapped=tryMapReg(checkRegSpec,moveRopReg,category);
+    }
+    if (checkMapped & !moveMapped) {
+      int checkRopReg=mapper.oldToNew(checkReg);
+      moveMapped=tryMapReg(moveRegSpec,checkRopReg,category);
+    }
+    if (!moveMapped || !checkMapped) {
+      int ropReg=findNextUnreservedRopReg(paramRangeEnd,category);
+      ArrayList<RegisterSpec> ssaRegs=new ArrayList<RegisterSpec>(2);
+      ssaRegs.add(moveRegSpec);
+      ssaRegs.add(checkRegSpec);
+      while (!tryMapRegs(ssaRegs,ropReg,category,false)) {
+        ropReg=findNextUnreservedRopReg(ropReg + 1,category);
+      }
+    }
+    boolean hasExceptionHandlers=checkCastInsn.getOriginalRopInsn().getCatches().size() != 0;
+    int moveRopReg=mapper.oldToNew(moveReg);
+    int checkRopReg=mapper.oldToNew(checkReg);
+    if (moveRopReg != checkRopReg && !hasExceptionHandlers) {
+      ((NormalSsaInsn)checkCastInsn).changeOneSource(0,insertMoveBefore(checkCastInsn,checkRegSpec));
+      addMapping(checkCastInsn.getSources().get(0),moveRopReg);
+    }
+  }
+}

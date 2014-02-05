@@ -1,0 +1,33 @@
+{
+  if (!args.coreLibrary) {
+    checkClassName(name);
+  }
+  DirectClassFile cf=new DirectClassFile(bytes,name,args.cfOptions.strictNameCheck);
+  cf.setAttributeFactory(StdAttributeFactory.THE_ONE);
+  cf.getMagic();
+  int numMethodIds=outputDex.getMethodIds().items().size();
+  int numFieldIds=outputDex.getFieldIds().items().size();
+  int numTypeIds=outputDex.getTypeIds().items().size();
+  int constantPoolSize=cf.getConstantPool().size();
+  if (args.multiDex && ((numMethodIds + constantPoolSize > args.maxNumberOfIdxPerDex) || (numFieldIds + constantPoolSize > args.maxNumberOfIdxPerDex) || (numTypeIds + constantPoolSize + AnnotationUtils.DALVIK_ANNOTATION_NUMBER > args.maxNumberOfIdxPerDex))) {
+    createDexFile();
+  }
+  try {
+    ClassDefItem clazz=CfTranslator.translate(cf,bytes,args.cfOptions,args.dexOptions,outputDex);
+synchronized (outputDex) {
+      outputDex.add(clazz);
+    }
+    return true;
+  }
+ catch (  ParseException ex) {
+    DxConsole.err.println("\ntrouble processing:");
+    if (args.debug) {
+      ex.printStackTrace(DxConsole.err);
+    }
+ else {
+      ex.printContext(DxConsole.err);
+    }
+  }
+  errors++;
+  return false;
+}

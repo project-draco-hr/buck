@@ -1,0 +1,26 @@
+{
+  SourcePosition pos=insn.getPosition();
+  IntList cases=insn.getCases();
+  IntList successors=block.getSuccessors();
+  int casesSz=cases.size();
+  int succSz=successors.size();
+  int primarySuccessor=block.getPrimarySuccessor();
+  if ((casesSz != (succSz - 1)) || (primarySuccessor != successors.get(casesSz))) {
+    throw new RuntimeException("shouldn't happen");
+  }
+  CodeAddress[] switchTargets=new CodeAddress[casesSz];
+  for (int i=0; i < casesSz; i++) {
+    int label=successors.get(i);
+    switchTargets[i]=addresses.getStart(label);
+  }
+  CodeAddress dataAddress=new CodeAddress(pos);
+  CodeAddress switchAddress=new CodeAddress(lastAddress.getPosition(),true);
+  SwitchData dataInsn=new SwitchData(pos,switchAddress,cases,switchTargets);
+  Dop opcode=dataInsn.isPacked() ? Dops.PACKED_SWITCH : Dops.SPARSE_SWITCH;
+  TargetInsn switchInsn=new TargetInsn(opcode,pos,getRegs(insn),dataAddress);
+  addOutput(switchAddress);
+  addOutput(switchInsn);
+  addOutputSuffix(new OddSpacer(pos));
+  addOutputSuffix(dataAddress);
+  addOutputSuffix(dataInsn);
+}

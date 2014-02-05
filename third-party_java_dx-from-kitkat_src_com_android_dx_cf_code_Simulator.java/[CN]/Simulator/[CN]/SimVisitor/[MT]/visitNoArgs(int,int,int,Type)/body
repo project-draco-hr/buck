@@ -1,0 +1,273 @@
+{
+switch (opcode) {
+case ByteOps.NOP:
+{
+      machine.clearArgs();
+      break;
+    }
+case ByteOps.INEG:
+{
+    machine.popArgs(frame,type);
+    break;
+  }
+case ByteOps.I2L:
+case ByteOps.I2F:
+case ByteOps.I2D:
+case ByteOps.I2B:
+case ByteOps.I2C:
+case ByteOps.I2S:
+{
+  machine.popArgs(frame,Type.INT);
+  break;
+}
+case ByteOps.L2I:
+case ByteOps.L2F:
+case ByteOps.L2D:
+{
+machine.popArgs(frame,Type.LONG);
+break;
+}
+case ByteOps.F2I:
+case ByteOps.F2L:
+case ByteOps.F2D:
+{
+machine.popArgs(frame,Type.FLOAT);
+break;
+}
+case ByteOps.D2I:
+case ByteOps.D2L:
+case ByteOps.D2F:
+{
+machine.popArgs(frame,Type.DOUBLE);
+break;
+}
+case ByteOps.RETURN:
+{
+machine.clearArgs();
+checkReturnType(Type.VOID);
+break;
+}
+case ByteOps.IRETURN:
+{
+Type checkType=type;
+if (type == Type.OBJECT) {
+checkType=frame.getStack().peekType(0);
+}
+machine.popArgs(frame,type);
+checkReturnType(checkType);
+break;
+}
+case ByteOps.POP:
+{
+Type peekType=frame.getStack().peekType(0);
+if (peekType.isCategory2()) {
+throw illegalTos();
+}
+machine.popArgs(frame,1);
+break;
+}
+case ByteOps.ARRAYLENGTH:
+{
+Type arrayType=frame.getStack().peekType(0);
+if (!arrayType.isArrayOrKnownNull()) {
+throw new SimException("type mismatch: expected " + "array type but encountered " + arrayType.toHuman());
+}
+machine.popArgs(frame,Type.OBJECT);
+break;
+}
+case ByteOps.ATHROW:
+case ByteOps.MONITORENTER:
+case ByteOps.MONITOREXIT:
+{
+machine.popArgs(frame,Type.OBJECT);
+break;
+}
+case ByteOps.IALOAD:
+{
+Type foundArrayType=frame.getStack().peekType(1);
+Type requiredArrayType=requiredArrayTypeFor(type,foundArrayType);
+type=requiredArrayType.getComponentType();
+machine.popArgs(frame,requiredArrayType,Type.INT);
+break;
+}
+case ByteOps.IADD:
+case ByteOps.ISUB:
+case ByteOps.IMUL:
+case ByteOps.IDIV:
+case ByteOps.IREM:
+case ByteOps.IAND:
+case ByteOps.IOR:
+case ByteOps.IXOR:
+{
+machine.popArgs(frame,type,type);
+break;
+}
+case ByteOps.ISHL:
+case ByteOps.ISHR:
+case ByteOps.IUSHR:
+{
+machine.popArgs(frame,type,Type.INT);
+break;
+}
+case ByteOps.LCMP:
+{
+machine.popArgs(frame,Type.LONG,Type.LONG);
+break;
+}
+case ByteOps.FCMPL:
+case ByteOps.FCMPG:
+{
+machine.popArgs(frame,Type.FLOAT,Type.FLOAT);
+break;
+}
+case ByteOps.DCMPL:
+case ByteOps.DCMPG:
+{
+machine.popArgs(frame,Type.DOUBLE,Type.DOUBLE);
+break;
+}
+case ByteOps.IASTORE:
+{
+ExecutionStack stack=frame.getStack();
+int peekDepth=type.isCategory1() ? 2 : 3;
+Type foundArrayType=stack.peekType(peekDepth);
+boolean foundArrayLocal=stack.peekLocal(peekDepth);
+Type requiredArrayType=requiredArrayTypeFor(type,foundArrayType);
+if (foundArrayLocal) {
+type=requiredArrayType.getComponentType();
+}
+machine.popArgs(frame,requiredArrayType,Type.INT,type);
+break;
+}
+case ByteOps.POP2:
+case ByteOps.DUP2:
+{
+ExecutionStack stack=frame.getStack();
+int pattern;
+if (stack.peekType(0).isCategory2()) {
+machine.popArgs(frame,1);
+pattern=0x11;
+}
+ else if (stack.peekType(1).isCategory1()) {
+machine.popArgs(frame,2);
+pattern=0x2121;
+}
+ else {
+throw illegalTos();
+}
+if (opcode == ByteOps.DUP2) {
+machine.auxIntArg(pattern);
+}
+break;
+}
+case ByteOps.DUP:
+{
+Type peekType=frame.getStack().peekType(0);
+if (peekType.isCategory2()) {
+throw illegalTos();
+}
+machine.popArgs(frame,1);
+machine.auxIntArg(0x11);
+break;
+}
+case ByteOps.DUP_X1:
+{
+ExecutionStack stack=frame.getStack();
+if (!(stack.peekType(0).isCategory1() && stack.peekType(1).isCategory1())) {
+throw illegalTos();
+}
+machine.popArgs(frame,2);
+machine.auxIntArg(0x212);
+break;
+}
+case ByteOps.DUP_X2:
+{
+ExecutionStack stack=frame.getStack();
+if (stack.peekType(0).isCategory2()) {
+throw illegalTos();
+}
+if (stack.peekType(1).isCategory2()) {
+machine.popArgs(frame,2);
+machine.auxIntArg(0x212);
+}
+ else if (stack.peekType(2).isCategory1()) {
+machine.popArgs(frame,3);
+machine.auxIntArg(0x3213);
+}
+ else {
+throw illegalTos();
+}
+break;
+}
+case ByteOps.DUP2_X1:
+{
+ExecutionStack stack=frame.getStack();
+if (stack.peekType(0).isCategory2()) {
+if (stack.peekType(2).isCategory2()) {
+throw illegalTos();
+}
+machine.popArgs(frame,2);
+machine.auxIntArg(0x212);
+}
+ else {
+if (stack.peekType(1).isCategory2() || stack.peekType(2).isCategory2()) {
+throw illegalTos();
+}
+machine.popArgs(frame,3);
+machine.auxIntArg(0x32132);
+}
+break;
+}
+case ByteOps.DUP2_X2:
+{
+ExecutionStack stack=frame.getStack();
+if (stack.peekType(0).isCategory2()) {
+if (stack.peekType(2).isCategory2()) {
+machine.popArgs(frame,2);
+machine.auxIntArg(0x212);
+}
+ else if (stack.peekType(3).isCategory1()) {
+machine.popArgs(frame,3);
+machine.auxIntArg(0x3213);
+}
+ else {
+throw illegalTos();
+}
+}
+ else if (stack.peekType(1).isCategory1()) {
+if (stack.peekType(2).isCategory2()) {
+machine.popArgs(frame,3);
+machine.auxIntArg(0x32132);
+}
+ else if (stack.peekType(3).isCategory1()) {
+machine.popArgs(frame,4);
+machine.auxIntArg(0x432143);
+}
+ else {
+throw illegalTos();
+}
+}
+ else {
+throw illegalTos();
+}
+break;
+}
+case ByteOps.SWAP:
+{
+ExecutionStack stack=frame.getStack();
+if (!(stack.peekType(0).isCategory1() && stack.peekType(1).isCategory1())) {
+throw illegalTos();
+}
+machine.popArgs(frame,2);
+machine.auxIntArg(0x12);
+break;
+}
+default :
+{
+visitInvalid(opcode,offset,length);
+return;
+}
+}
+machine.auxType(type);
+machine.run(frame,offset,opcode);
+}

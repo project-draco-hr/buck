@@ -1,0 +1,51 @@
+{
+  LocalVariableList localVariables=method.getLocalVariables();
+  SourcePosition pos=method.makeSourcePosistion(0);
+  Prototype desc=method.getEffectiveDescriptor();
+  StdTypeList params=desc.getParameterTypes();
+  int sz=params.size();
+  InsnList insns=new InsnList(sz + 1);
+  int at=0;
+  for (int i=0; i < sz; i++) {
+    Type one=params.get(i);
+    LocalVariableList.Item local=localVariables.pcAndIndexToLocal(0,at);
+    RegisterSpec result=(local == null) ? RegisterSpec.make(at,one) : RegisterSpec.makeLocalOptional(at,one,local.getLocalItem());
+    Insn insn=new PlainCstInsn(Rops.opMoveParam(one),pos,result,RegisterSpecList.EMPTY,CstInteger.make(at));
+    insns.set(i,insn);
+    at+=one.getCategory();
+  }
+  insns.set(sz,new PlainInsn(Rops.GOTO,pos,null,RegisterSpecList.EMPTY));
+  insns.setImmutable();
+  boolean synch=isSynchronized();
+  int label=synch ? getSpecialLabel(SYNCH_SETUP_1) : 0;
+  BasicBlock bb=new BasicBlock(getSpecialLabel(PARAM_ASSIGNMENT),insns,IntList.makeImmutable(label),label);
+  addBlock(bb,IntList.EMPTY);
+  if (synch) {
+    RegisterSpec synchReg=getSynchReg();
+    Insn insn;
+    if (isStatic()) {
+      insn=new ThrowingCstInsn(Rops.CONST_OBJECT,pos,RegisterSpecList.EMPTY,StdTypeList.EMPTY,method.getDefiningClass());
+      insns=new InsnList(1);
+      insns.set(0,insn);
+    }
+ else {
+      insns=new InsnList(2);
+      insn=new PlainCstInsn(Rops.MOVE_PARAM_OBJECT,pos,synchReg,RegisterSpecList.EMPTY,CstInteger.VALUE_0);
+      insns.set(0,insn);
+      insns.set(1,new PlainInsn(Rops.GOTO,pos,null,RegisterSpecList.EMPTY));
+    }
+    int label2=getSpecialLabel(SYNCH_SETUP_2);
+    insns.setImmutable();
+    bb=new BasicBlock(label,insns,IntList.makeImmutable(label2),label2);
+    addBlock(bb,IntList.EMPTY);
+    insns=new InsnList(isStatic() ? 2 : 1);
+    if (isStatic()) {
+      insns.set(0,new PlainInsn(Rops.opMoveResultPseudo(synchReg),pos,synchReg,RegisterSpecList.EMPTY));
+    }
+    insn=new ThrowingInsn(Rops.MONITOR_ENTER,pos,RegisterSpecList.make(synchReg),StdTypeList.EMPTY);
+    insns.set(isStatic() ? 1 : 0,insn);
+    insns.setImmutable();
+    bb=new BasicBlock(label2,insns,IntList.makeImmutable(0),0);
+    addBlock(bb,IntList.EMPTY);
+  }
+}

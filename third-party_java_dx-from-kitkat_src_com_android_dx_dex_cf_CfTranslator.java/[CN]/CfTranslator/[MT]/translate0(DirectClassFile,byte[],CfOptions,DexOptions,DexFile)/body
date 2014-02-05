@@ -1,0 +1,37 @@
+{
+  OptimizerOptions.loadOptimizeLists(cfOptions.optimizeListFile,cfOptions.dontOptimizeListFile);
+  CstType thisClass=cf.getThisClass();
+  int classAccessFlags=cf.getAccessFlags() & ~AccessFlags.ACC_SUPER;
+  CstString sourceFile=(cfOptions.positionInfo == PositionList.NONE) ? null : cf.getSourceFile();
+  ClassDefItem out=new ClassDefItem(thisClass,classAccessFlags,cf.getSuperclass(),cf.getInterfaces(),sourceFile);
+  Annotations classAnnotations=AttributeTranslator.getClassAnnotations(cf,cfOptions);
+  if (classAnnotations.size() != 0) {
+    out.setClassAnnotations(classAnnotations);
+  }
+  FieldIdsSection fieldIdsSection=dexFile.getFieldIds();
+  MethodIdsSection methodIdsSection=dexFile.getMethodIds();
+  TypeIdsSection typeIdsSection=dexFile.getTypeIds();
+  processFields(cf,out,fieldIdsSection);
+  processMethods(cf,cfOptions,dexOptions,out,methodIdsSection);
+  ConstantPool constantPool=cf.getConstantPool();
+  int constantPoolSize=constantPool.size();
+  for (int i=0; i < constantPoolSize; i++) {
+    Constant constant=constantPool.getOrNull(i);
+    if (constant instanceof CstMethodRef) {
+      methodIdsSection.intern((CstBaseMethodRef)constant);
+    }
+ else     if (constant instanceof CstInterfaceMethodRef) {
+      methodIdsSection.intern(((CstInterfaceMethodRef)constant).toMethodRef());
+    }
+ else     if (constant instanceof CstFieldRef) {
+      fieldIdsSection.intern((CstFieldRef)constant);
+    }
+ else     if (constant instanceof CstEnumRef) {
+      fieldIdsSection.intern(((CstEnumRef)constant).getFieldRef());
+    }
+ else     if (constant instanceof CstType) {
+      typeIdsSection.intern((CstType)constant);
+    }
+  }
+  return out;
+}

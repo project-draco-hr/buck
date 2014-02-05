@@ -1,0 +1,34 @@
+{
+  final TranslationAdvice advice=Optimizer.getAdvice();
+  ssaMeth.forEachInsn(new SsaInsn.Visitor(){
+    public void visitMoveInsn(    NormalSsaInsn insn){
+    }
+    public void visitPhiInsn(    PhiInsn insn){
+    }
+    public void visitNonMoveInsn(    NormalSsaInsn insn){
+      Insn originalRopInsn=insn.getOriginalRopInsn();
+      Rop opcode=originalRopInsn.getOpcode();
+      RegisterSpecList sources=insn.getSources();
+      if (tryReplacingWithConstant(insn))       return;
+      if (sources.size() != 2) {
+        return;
+      }
+      if (opcode.getBranchingness() == Rop.BRANCH_IF) {
+        if (isConstIntZeroOrKnownNull(sources.get(0))) {
+          replacePlainInsn(insn,sources.withoutFirst(),RegOps.flippedIfOpcode(opcode.getOpcode()),null);
+        }
+ else         if (isConstIntZeroOrKnownNull(sources.get(1))) {
+          replacePlainInsn(insn,sources.withoutLast(),opcode.getOpcode(),null);
+        }
+      }
+ else       if (advice.hasConstantOperation(opcode,sources.get(0),sources.get(1))) {
+        insn.upgradeToLiteral();
+      }
+ else       if (opcode.isCommutative() && advice.hasConstantOperation(opcode,sources.get(1),sources.get(0))) {
+        insn.setNewSources(RegisterSpecList.make(sources.get(1),sources.get(0)));
+        insn.upgradeToLiteral();
+      }
+    }
+  }
+);
+}

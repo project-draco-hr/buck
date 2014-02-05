@@ -1,0 +1,26 @@
+{
+  RegisterSpec ropResult=insn.getResult();
+  int ropResultReg=ropResult.getReg();
+  int ropSourceReg=insn.getSources().get(0).getReg();
+  insn.mapSourceRegisters(mapper);
+  int ssaSourceReg=insn.getSources().get(0).getReg();
+  LocalItem sourceLocal=currentMapping[ropSourceReg].getLocalItem();
+  LocalItem resultLocal=ropResult.getLocalItem();
+  LocalItem newLocal=(resultLocal == null) ? sourceLocal : resultLocal;
+  LocalItem associatedLocal=getLocalForNewReg(ssaSourceReg);
+  boolean onlyOneAssociatedLocal=associatedLocal == null || newLocal == null || newLocal.equals(associatedLocal);
+  RegisterSpec ssaReg=RegisterSpec.makeLocalOptional(ssaSourceReg,ropResult.getType(),newLocal);
+  if (!Optimizer.getPreserveLocals() || (onlyOneAssociatedLocal && equalsHandlesNulls(newLocal,sourceLocal)) && threshold == 0) {
+    addMapping(ropResultReg,ssaReg);
+  }
+ else   if (onlyOneAssociatedLocal && sourceLocal == null && threshold == 0) {
+    RegisterSpecList ssaSources=RegisterSpecList.make(RegisterSpec.make(ssaReg.getReg(),ssaReg.getType(),newLocal));
+    SsaInsn newInsn=SsaInsn.makeFromRop(new PlainInsn(Rops.opMarkLocal(ssaReg),SourcePosition.NO_INFO,null,ssaSources),block);
+    insnsToReplace.put(insn,newInsn);
+    addMapping(ropResultReg,ssaReg);
+  }
+ else {
+    processResultReg(insn);
+    movesToKeep.add(insn);
+  }
+}

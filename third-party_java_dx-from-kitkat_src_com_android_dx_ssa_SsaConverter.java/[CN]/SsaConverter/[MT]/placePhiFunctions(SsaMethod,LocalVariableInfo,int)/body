@@ -1,0 +1,69 @@
+{
+  ArrayList<SsaBasicBlock> ssaBlocks;
+  int regCount;
+  int blockCount;
+  ssaBlocks=ssaMeth.getBlocks();
+  blockCount=ssaBlocks.size();
+  regCount=ssaMeth.getRegCount() - threshold;
+  DomFront df=new DomFront(ssaMeth);
+  DomFront.DomInfo[] domInfos=df.run();
+  BitSet[] defsites=new BitSet[regCount];
+  BitSet[] phisites=new BitSet[regCount];
+  for (int i=0; i < regCount; i++) {
+    defsites[i]=new BitSet(blockCount);
+    phisites[i]=new BitSet(blockCount);
+  }
+  for (int bi=0, s=ssaBlocks.size(); bi < s; bi++) {
+    SsaBasicBlock b=ssaBlocks.get(bi);
+    for (    SsaInsn insn : b.getInsns()) {
+      RegisterSpec rs=insn.getResult();
+      if (rs != null && rs.getReg() - threshold >= 0) {
+        defsites[rs.getReg() - threshold].set(bi);
+      }
+    }
+  }
+  if (DEBUG) {
+    System.out.println("defsites");
+    for (int i=0; i < regCount; i++) {
+      StringBuilder sb=new StringBuilder();
+      sb.append('v').append(i).append(": ");
+      sb.append(defsites[i].toString());
+      System.out.println(sb);
+    }
+  }
+  BitSet worklist;
+  for (int reg=0, s=regCount; reg < s; reg++) {
+    int workBlockIndex;
+    worklist=(BitSet)(defsites[reg].clone());
+    while (0 <= (workBlockIndex=worklist.nextSetBit(0))) {
+      worklist.clear(workBlockIndex);
+      IntIterator dfIterator=domInfos[workBlockIndex].dominanceFrontiers.iterator();
+      while (dfIterator.hasNext()) {
+        int dfBlockIndex=dfIterator.next();
+        if (!phisites[reg].get(dfBlockIndex)) {
+          phisites[reg].set(dfBlockIndex);
+          int tReg=reg + threshold;
+          RegisterSpec rs=localInfo.getStarts(dfBlockIndex).get(tReg);
+          if (rs == null) {
+            ssaBlocks.get(dfBlockIndex).addPhiInsnForReg(tReg);
+          }
+ else {
+            ssaBlocks.get(dfBlockIndex).addPhiInsnForReg(rs);
+          }
+          if (!defsites[reg].get(dfBlockIndex)) {
+            worklist.set(dfBlockIndex);
+          }
+        }
+      }
+    }
+  }
+  if (DEBUG) {
+    System.out.println("phisites");
+    for (int i=0; i < regCount; i++) {
+      StringBuilder sb=new StringBuilder();
+      sb.append('v').append(i).append(": ");
+      sb.append(phisites[i].toString());
+      System.out.println(sb);
+    }
+  }
+}

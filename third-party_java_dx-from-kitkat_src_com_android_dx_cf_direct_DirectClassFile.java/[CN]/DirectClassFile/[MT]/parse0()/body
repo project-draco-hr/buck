@@ -1,0 +1,65 @@
+{
+  if (bytes.size() < 10) {
+    throw new ParseException("severely truncated class file");
+  }
+  if (observer != null) {
+    observer.parsed(bytes,0,0,"begin classfile");
+    observer.parsed(bytes,0,4,"magic: " + Hex.u4(getMagic0()));
+    observer.parsed(bytes,4,2,"minor_version: " + Hex.u2(getMinorVersion0()));
+    observer.parsed(bytes,6,2,"major_version: " + Hex.u2(getMajorVersion0()));
+  }
+  if (strictParse) {
+    if (!isGoodVersion(getMagic0(),getMinorVersion0(),getMajorVersion0())) {
+      throw new ParseException("bad class file magic (" + Hex.u4(getMagic0()) + ") or version ("+ Hex.u2(getMajorVersion0())+ "."+ Hex.u2(getMinorVersion0())+ ")");
+    }
+  }
+  ConstantPoolParser cpParser=new ConstantPoolParser(bytes);
+  cpParser.setObserver(observer);
+  pool=cpParser.getPool();
+  pool.setImmutable();
+  int at=cpParser.getEndOffset();
+  int accessFlags=bytes.getUnsignedShort(at);
+  int cpi=bytes.getUnsignedShort(at + 2);
+  thisClass=(CstType)pool.get(cpi);
+  cpi=bytes.getUnsignedShort(at + 4);
+  superClass=(CstType)pool.get0Ok(cpi);
+  int count=bytes.getUnsignedShort(at + 6);
+  if (observer != null) {
+    observer.parsed(bytes,at,2,"access_flags: " + AccessFlags.classString(accessFlags));
+    observer.parsed(bytes,at + 2,2,"this_class: " + thisClass);
+    observer.parsed(bytes,at + 4,2,"super_class: " + stringOrNone(superClass));
+    observer.parsed(bytes,at + 6,2,"interfaces_count: " + Hex.u2(count));
+    if (count != 0) {
+      observer.parsed(bytes,at + 8,0,"interfaces:");
+    }
+  }
+  at+=8;
+  interfaces=makeTypeList(at,count);
+  at+=count * 2;
+  if (strictParse) {
+    String thisClassName=thisClass.getClassType().getClassName();
+    if (!(filePath.endsWith(".class") && filePath.startsWith(thisClassName) && (filePath.length() == (thisClassName.length() + 6)))) {
+      throw new ParseException("class name (" + thisClassName + ") does not match path ("+ filePath+ ")");
+    }
+  }
+  this.accessFlags=accessFlags;
+  FieldListParser flParser=new FieldListParser(this,thisClass,at,attributeFactory);
+  flParser.setObserver(observer);
+  fields=flParser.getList();
+  at=flParser.getEndOffset();
+  MethodListParser mlParser=new MethodListParser(this,thisClass,at,attributeFactory);
+  mlParser.setObserver(observer);
+  methods=mlParser.getList();
+  at=mlParser.getEndOffset();
+  AttributeListParser alParser=new AttributeListParser(this,AttributeFactory.CTX_CLASS,at,attributeFactory);
+  alParser.setObserver(observer);
+  attributes=alParser.getList();
+  attributes.setImmutable();
+  at=alParser.getEndOffset();
+  if (at != bytes.size()) {
+    throw new ParseException("extra bytes at end of class file, " + "at offset " + Hex.u4(at));
+  }
+  if (observer != null) {
+    observer.parsed(bytes,at,0,"end classfile");
+  }
+}

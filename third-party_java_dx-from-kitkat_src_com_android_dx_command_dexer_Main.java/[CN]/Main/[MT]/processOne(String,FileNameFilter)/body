@@ -1,0 +1,36 @@
+{
+  ClassPathOpener opener;
+  opener=new ClassPathOpener(pathname,false,filter,new ClassPathOpener.Consumer(){
+    public boolean processFileBytes(    String name,    long lastModified,    byte[] bytes){
+      if (args.numThreads > 1) {
+        threadPool.execute(new ParallelProcessor(name,lastModified,bytes));
+        return false;
+      }
+ else {
+        return Main.processFileBytes(name,lastModified,bytes);
+      }
+    }
+    public void onException(    Exception ex){
+      if (ex instanceof StopProcessing) {
+        throw (StopProcessing)ex;
+      }
+ else       if (ex instanceof SimException) {
+        DxConsole.err.println("\nEXCEPTION FROM SIMULATION:");
+        DxConsole.err.println(ex.getMessage() + "\n");
+        DxConsole.err.println(((SimException)ex).getContext());
+      }
+ else {
+        DxConsole.err.println("\nUNEXPECTED TOP-LEVEL EXCEPTION:");
+        ex.printStackTrace(DxConsole.err);
+      }
+      errors++;
+    }
+    public void onProcessArchiveStart(    File file){
+      if (args.verbose) {
+        DxConsole.out.println("processing archive " + file + "...");
+      }
+    }
+  }
+);
+  return opener.process();
+}

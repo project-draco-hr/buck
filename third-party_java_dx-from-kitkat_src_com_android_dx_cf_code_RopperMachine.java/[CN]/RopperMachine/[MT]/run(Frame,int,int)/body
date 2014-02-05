@@ -1,0 +1,195 @@
+{
+  int stackPointer=maxLocals + frame.getStack().size();
+  RegisterSpecList sources=getSources(opcode,stackPointer);
+  int sourceCount=sources.size();
+  super.run(frame,offset,opcode);
+  SourcePosition pos=method.makeSourcePosistion(offset);
+  RegisterSpec localTarget=getLocalTarget(opcode == ByteOps.ISTORE);
+  int destCount=resultCount();
+  RegisterSpec dest;
+  if (destCount == 0) {
+    dest=null;
+switch (opcode) {
+case ByteOps.POP:
+case ByteOps.POP2:
+{
+        return;
+      }
+  }
+}
+ else if (localTarget != null) {
+  dest=localTarget;
+}
+ else if (destCount == 1) {
+  dest=RegisterSpec.make(stackPointer,result(0));
+}
+ else {
+  int scratchAt=ropper.getFirstTempStackReg();
+  RegisterSpec[] scratchRegs=new RegisterSpec[sourceCount];
+  for (int i=0; i < sourceCount; i++) {
+    RegisterSpec src=sources.get(i);
+    TypeBearer type=src.getTypeBearer();
+    RegisterSpec scratch=src.withReg(scratchAt);
+    insns.add(new PlainInsn(Rops.opMove(type),pos,scratch,src));
+    scratchRegs[i]=scratch;
+    scratchAt+=src.getCategory();
+  }
+  for (int pattern=getAuxInt(); pattern != 0; pattern>>=4) {
+    int which=(pattern & 0x0f) - 1;
+    RegisterSpec scratch=scratchRegs[which];
+    TypeBearer type=scratch.getTypeBearer();
+    insns.add(new PlainInsn(Rops.opMove(type),pos,scratch.withReg(stackPointer),scratch));
+    stackPointer+=type.getType().getCategory();
+  }
+  return;
+}
+TypeBearer destType=(dest != null) ? dest : Type.VOID;
+Constant cst=getAuxCst();
+int ropOpcode;
+Rop rop;
+Insn insn;
+if (opcode == ByteOps.MULTIANEWARRAY) {
+  blockCanThrow=true;
+  extraBlockCount=6;
+  RegisterSpec dimsReg=RegisterSpec.make(dest.getNextReg(),Type.INT_ARRAY);
+  rop=Rops.opFilledNewArray(Type.INT_ARRAY,sourceCount);
+  insn=new ThrowingCstInsn(rop,pos,sources,catches,CstType.INT_ARRAY);
+  insns.add(insn);
+  rop=Rops.opMoveResult(Type.INT_ARRAY);
+  insn=new PlainInsn(rop,pos,dimsReg,RegisterSpecList.EMPTY);
+  insns.add(insn);
+  Type componentType=((CstType)cst).getClassType();
+  for (int i=0; i < sourceCount; i++) {
+    componentType=componentType.getComponentType();
+  }
+  RegisterSpec classReg=RegisterSpec.make(dest.getReg(),Type.CLASS);
+  if (componentType.isPrimitive()) {
+    CstFieldRef typeField=CstFieldRef.forPrimitiveType(componentType);
+    insn=new ThrowingCstInsn(Rops.GET_STATIC_OBJECT,pos,RegisterSpecList.EMPTY,catches,typeField);
+  }
+ else {
+    insn=new ThrowingCstInsn(Rops.CONST_OBJECT,pos,RegisterSpecList.EMPTY,catches,new CstType(componentType));
+  }
+  insns.add(insn);
+  rop=Rops.opMoveResultPseudo(classReg.getType());
+  insn=new PlainInsn(rop,pos,classReg,RegisterSpecList.EMPTY);
+  insns.add(insn);
+  RegisterSpec objectReg=RegisterSpec.make(dest.getReg(),Type.OBJECT);
+  insn=new ThrowingCstInsn(Rops.opInvokeStatic(MULTIANEWARRAY_METHOD.getPrototype()),pos,RegisterSpecList.make(classReg,dimsReg),catches,MULTIANEWARRAY_METHOD);
+  insns.add(insn);
+  rop=Rops.opMoveResult(MULTIANEWARRAY_METHOD.getPrototype().getReturnType());
+  insn=new PlainInsn(rop,pos,objectReg,RegisterSpecList.EMPTY);
+  insns.add(insn);
+  opcode=ByteOps.CHECKCAST;
+  sources=RegisterSpecList.make(objectReg);
+}
+ else if (opcode == ByteOps.JSR) {
+  hasJsr=true;
+  return;
+}
+ else if (opcode == ByteOps.RET) {
+  try {
+    returnAddress=(ReturnAddress)arg(0);
+  }
+ catch (  ClassCastException ex) {
+    throw new RuntimeException("Argument to RET was not a ReturnAddress",ex);
+  }
+  return;
+}
+ropOpcode=jopToRopOpcode(opcode,cst);
+rop=Rops.ropFor(ropOpcode,destType,sources,cst);
+Insn moveResult=null;
+if (dest != null && rop.isCallLike()) {
+  extraBlockCount++;
+  moveResult=new PlainInsn(Rops.opMoveResult(((CstMethodRef)cst).getPrototype().getReturnType()),pos,dest,RegisterSpecList.EMPTY);
+  dest=null;
+}
+ else if (dest != null && rop.canThrow()) {
+  extraBlockCount++;
+  moveResult=new PlainInsn(Rops.opMoveResultPseudo(dest.getTypeBearer()),pos,dest,RegisterSpecList.EMPTY);
+  dest=null;
+}
+if (ropOpcode == RegOps.NEW_ARRAY) {
+  cst=CstType.intern(rop.getResult());
+}
+ else if ((cst == null) && (sourceCount == 2)) {
+  TypeBearer firstType=sources.get(0).getTypeBearer();
+  TypeBearer lastType=sources.get(1).getTypeBearer();
+  if ((lastType.isConstant() || firstType.isConstant()) && advice.hasConstantOperation(rop,sources.get(0),sources.get(1))) {
+    if (lastType.isConstant()) {
+      cst=(Constant)lastType;
+      sources=sources.withoutLast();
+      if (rop.getOpcode() == RegOps.SUB) {
+        ropOpcode=RegOps.ADD;
+        CstInteger cstInt=(CstInteger)lastType;
+        cst=CstInteger.make(-cstInt.getValue());
+      }
+    }
+ else {
+      cst=(Constant)firstType;
+      sources=sources.withoutFirst();
+    }
+    rop=Rops.ropFor(ropOpcode,destType,sources,cst);
+  }
+}
+SwitchList cases=getAuxCases();
+ArrayList<Constant> initValues=getInitValues();
+boolean canThrow=rop.canThrow();
+blockCanThrow|=canThrow;
+if (cases != null) {
+  if (cases.size() == 0) {
+    insn=new PlainInsn(Rops.GOTO,pos,null,RegisterSpecList.EMPTY);
+    primarySuccessorIndex=0;
+  }
+ else {
+    IntList values=cases.getValues();
+    insn=new SwitchInsn(rop,pos,dest,sources,values);
+    primarySuccessorIndex=values.size();
+  }
+}
+ else if (ropOpcode == RegOps.RETURN) {
+  if (sources.size() != 0) {
+    RegisterSpec source=sources.get(0);
+    TypeBearer type=source.getTypeBearer();
+    if (source.getReg() != 0) {
+      insns.add(new PlainInsn(Rops.opMove(type),pos,RegisterSpec.make(0,type),source));
+    }
+  }
+  insn=new PlainInsn(Rops.GOTO,pos,null,RegisterSpecList.EMPTY);
+  primarySuccessorIndex=0;
+  updateReturnOp(rop,pos);
+  returns=true;
+}
+ else if (cst != null) {
+  if (canThrow) {
+    insn=new ThrowingCstInsn(rop,pos,sources,catches,cst);
+    catchesUsed=true;
+    primarySuccessorIndex=catches.size();
+  }
+ else {
+    insn=new PlainCstInsn(rop,pos,dest,sources,cst);
+  }
+}
+ else if (canThrow) {
+  insn=new ThrowingInsn(rop,pos,sources,catches);
+  catchesUsed=true;
+  if (opcode == ByteOps.ATHROW) {
+    primarySuccessorIndex=-1;
+  }
+ else {
+    primarySuccessorIndex=catches.size();
+  }
+}
+ else {
+  insn=new PlainInsn(rop,pos,dest,sources);
+}
+insns.add(insn);
+if (moveResult != null) {
+  insns.add(moveResult);
+}
+if (initValues != null) {
+  extraBlockCount++;
+  insn=new FillArrayDataInsn(Rops.FILL_ARRAY_DATA,pos,RegisterSpecList.make(moveResult.getResult()),initValues,cst);
+  insns.add(insn);
+}
+}

@@ -1,0 +1,32 @@
+{
+  contentsOut.codes.size++;
+  codeOut.assertFourByteAligned();
+  codeOut.writeUnsignedShort(code.getRegistersSize());
+  codeOut.writeUnsignedShort(code.getInsSize());
+  codeOut.writeUnsignedShort(code.getOutsSize());
+  Code.Try[] tries=code.getTries();
+  Code.CatchHandler[] catchHandlers=code.getCatchHandlers();
+  codeOut.writeUnsignedShort(tries.length);
+  int debugInfoOffset=code.getDebugInfoOffset();
+  if (debugInfoOffset != 0) {
+    codeOut.writeInt(debugInfoOut.getPosition());
+    transformDebugInfoItem(in.open(debugInfoOffset),indexMap);
+  }
+ else {
+    codeOut.writeInt(0);
+  }
+  short[] instructions=code.getInstructions();
+  InstructionTransformer transformer=(in == dexA) ? aInstructionTransformer : bInstructionTransformer;
+  short[] newInstructions=transformer.transform(instructions);
+  codeOut.writeInt(newInstructions.length);
+  codeOut.write(newInstructions);
+  if (tries.length > 0) {
+    if (newInstructions.length % 2 == 1) {
+      codeOut.writeShort((short)0);
+    }
+    Dex.Section triesSection=dexOut.open(codeOut.getPosition());
+    codeOut.skip(tries.length * SizeOf.TRY_ITEM);
+    int[] offsets=transformCatchHandlers(indexMap,catchHandlers);
+    transformTries(triesSection,tries,offsets);
+  }
+}

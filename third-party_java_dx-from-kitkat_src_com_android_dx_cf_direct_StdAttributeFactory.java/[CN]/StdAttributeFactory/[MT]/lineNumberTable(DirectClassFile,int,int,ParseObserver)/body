@@ -1,0 +1,27 @@
+{
+  if (length < 2) {
+    return throwSeverelyTruncated();
+  }
+  ByteArray bytes=cf.getBytes();
+  int count=bytes.getUnsignedShort(offset);
+  if (observer != null) {
+    observer.parsed(bytes,offset,2,"line_number_table_length: " + Hex.u2(count));
+  }
+  offset+=2;
+  length-=2;
+  if (length != (count * 4)) {
+    throwBadLength((count * 4) + 2);
+  }
+  LineNumberList list=new LineNumberList(count);
+  for (int i=0; i < count; i++) {
+    int startPc=bytes.getUnsignedShort(offset);
+    int lineNumber=bytes.getUnsignedShort(offset + 2);
+    list.set(i,startPc,lineNumber);
+    if (observer != null) {
+      observer.parsed(bytes,offset,4,Hex.u2(startPc) + " " + lineNumber);
+    }
+    offset+=4;
+  }
+  list.setImmutable();
+  return new AttLineNumberTable(list);
+}

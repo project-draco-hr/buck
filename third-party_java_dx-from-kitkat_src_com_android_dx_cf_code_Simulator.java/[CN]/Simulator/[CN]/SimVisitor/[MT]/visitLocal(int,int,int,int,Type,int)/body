@@ -1,0 +1,49 @@
+{
+  int localOffset=(opcode == ByteOps.ISTORE) ? (offset + length) : offset;
+  LocalVariableList.Item local=localVariables.pcAndIndexToLocal(localOffset,idx);
+  Type localType;
+  if (local != null) {
+    localType=local.getType();
+    if (localType.getBasicFrameType() != type.getBasicFrameType()) {
+      BaseMachine.throwLocalMismatch(type,localType);
+      return;
+    }
+  }
+ else {
+    localType=type;
+  }
+switch (opcode) {
+case ByteOps.ILOAD:
+case ByteOps.RET:
+{
+      machine.localArg(frame,idx);
+      machine.localInfo(local != null);
+      machine.auxType(type);
+      break;
+    }
+case ByteOps.ISTORE:
+{
+    LocalItem item=(local == null) ? null : local.getLocalItem();
+    machine.popArgs(frame,type);
+    machine.auxType(type);
+    machine.localTarget(idx,localType,item);
+    break;
+  }
+case ByteOps.IINC:
+{
+  LocalItem item=(local == null) ? null : local.getLocalItem();
+  machine.localArg(frame,idx);
+  machine.localTarget(idx,localType,item);
+  machine.auxType(type);
+  machine.auxIntArg(value);
+  machine.auxCstArg(CstInteger.make(value));
+  break;
+}
+default :
+{
+visitInvalid(opcode,offset,length);
+return;
+}
+}
+machine.run(frame,offset,opcode);
+}

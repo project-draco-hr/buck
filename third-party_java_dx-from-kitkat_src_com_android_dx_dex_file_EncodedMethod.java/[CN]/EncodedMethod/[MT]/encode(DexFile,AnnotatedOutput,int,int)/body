@@ -1,0 +1,21 @@
+{
+  int methodIdx=file.getMethodIds().indexOf(method);
+  int diff=methodIdx - lastIndex;
+  int accessFlags=getAccessFlags();
+  int codeOff=OffsettedItem.getAbsoluteOffsetOr0(code);
+  boolean hasCode=(codeOff != 0);
+  boolean shouldHaveCode=(accessFlags & (AccessFlags.ACC_ABSTRACT | AccessFlags.ACC_NATIVE)) == 0;
+  if (hasCode != shouldHaveCode) {
+    throw new UnsupportedOperationException("code vs. access_flags mismatch");
+  }
+  if (out.annotates()) {
+    out.annotate(0,String.format("  [%x] %s",dumpSeq,method.toHuman()));
+    out.annotate(Leb128.unsignedLeb128Size(diff),"    method_idx:   " + Hex.u4(methodIdx));
+    out.annotate(Leb128.unsignedLeb128Size(accessFlags),"    access_flags: " + AccessFlags.methodString(accessFlags));
+    out.annotate(Leb128.unsignedLeb128Size(codeOff),"    code_off:     " + Hex.u4(codeOff));
+  }
+  out.writeUleb128(diff);
+  out.writeUleb128(accessFlags);
+  out.writeUleb128(codeOff);
+  return methodIdx;
+}

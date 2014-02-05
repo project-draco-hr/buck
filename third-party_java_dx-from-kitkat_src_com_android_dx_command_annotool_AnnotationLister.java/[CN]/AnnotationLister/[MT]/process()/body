@@ -1,0 +1,53 @@
+{
+  for (  String path : args.files) {
+    ClassPathOpener opener;
+    opener=new ClassPathOpener(path,true,new ClassPathOpener.Consumer(){
+      public boolean processFileBytes(      String name,      long lastModified,      byte[] bytes){
+        if (!name.endsWith(".class")) {
+          return true;
+        }
+        ByteArray ba=new ByteArray(bytes);
+        DirectClassFile cf=new DirectClassFile(ba,name,true);
+        cf.setAttributeFactory(StdAttributeFactory.THE_ONE);
+        AttributeList attributes=cf.getAttributes();
+        Attribute att;
+        String cfClassName=cf.getThisClass().getClassType().getClassName();
+        if (cfClassName.endsWith(PACKAGE_INFO)) {
+          att=attributes.findFirst(AttRuntimeInvisibleAnnotations.ATTRIBUTE_NAME);
+          for (; att != null; att=attributes.findNext(att)) {
+            BaseAnnotations ann=(BaseAnnotations)att;
+            visitPackageAnnotation(cf,ann);
+          }
+          att=attributes.findFirst(AttRuntimeVisibleAnnotations.ATTRIBUTE_NAME);
+          for (; att != null; att=attributes.findNext(att)) {
+            BaseAnnotations ann=(BaseAnnotations)att;
+            visitPackageAnnotation(cf,ann);
+          }
+        }
+ else         if (isMatchingInnerClass(cfClassName) || isMatchingPackage(cfClassName)) {
+          printMatch(cf);
+        }
+ else {
+          att=attributes.findFirst(AttRuntimeInvisibleAnnotations.ATTRIBUTE_NAME);
+          for (; att != null; att=attributes.findNext(att)) {
+            BaseAnnotations ann=(BaseAnnotations)att;
+            visitClassAnnotation(cf,ann);
+          }
+          att=attributes.findFirst(AttRuntimeVisibleAnnotations.ATTRIBUTE_NAME);
+          for (; att != null; att=attributes.findNext(att)) {
+            BaseAnnotations ann=(BaseAnnotations)att;
+            visitClassAnnotation(cf,ann);
+          }
+        }
+        return true;
+      }
+      public void onException(      Exception ex){
+        throw new RuntimeException(ex);
+      }
+      public void onProcessArchiveStart(      File file){
+      }
+    }
+);
+    opener.process();
+  }
+}

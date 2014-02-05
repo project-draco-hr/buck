@@ -1,0 +1,24 @@
+{
+  if (!synchNeedsExceptionHandler) {
+    return;
+  }
+  SourcePosition pos=method.makeSourcePosistion(0);
+  RegisterSpec exReg=RegisterSpec.make(0,Type.THROWABLE);
+  BasicBlock bb;
+  Insn insn;
+  InsnList insns=new InsnList(2);
+  insn=new PlainInsn(Rops.opMoveException(Type.THROWABLE),pos,exReg,RegisterSpecList.EMPTY);
+  insns.set(0,insn);
+  insn=new ThrowingInsn(Rops.MONITOR_EXIT,pos,RegisterSpecList.make(getSynchReg()),StdTypeList.EMPTY);
+  insns.set(1,insn);
+  insns.setImmutable();
+  int label2=getSpecialLabel(SYNCH_CATCH_2);
+  bb=new BasicBlock(getSpecialLabel(SYNCH_CATCH_1),insns,IntList.makeImmutable(label2),label2);
+  addBlock(bb,IntList.EMPTY);
+  insns=new InsnList(1);
+  insn=new ThrowingInsn(Rops.THROW,pos,RegisterSpecList.make(exReg),StdTypeList.EMPTY);
+  insns.set(0,insn);
+  insns.setImmutable();
+  bb=new BasicBlock(label2,insns,IntList.EMPTY,-1);
+  addBlock(bb,IntList.EMPTY);
+}

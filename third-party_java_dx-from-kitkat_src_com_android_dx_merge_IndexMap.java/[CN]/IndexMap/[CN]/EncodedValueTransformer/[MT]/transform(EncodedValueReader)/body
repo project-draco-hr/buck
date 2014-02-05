@@ -1,0 +1,59 @@
+{
+switch (reader.peek()) {
+case ENCODED_BYTE:
+    EncodedValueCodec.writeSignedIntegralValue(out,ENCODED_BYTE,reader.readByte());
+  break;
+case ENCODED_SHORT:
+EncodedValueCodec.writeSignedIntegralValue(out,ENCODED_SHORT,reader.readShort());
+break;
+case ENCODED_INT:
+EncodedValueCodec.writeSignedIntegralValue(out,ENCODED_INT,reader.readInt());
+break;
+case ENCODED_LONG:
+EncodedValueCodec.writeSignedIntegralValue(out,ENCODED_LONG,reader.readLong());
+break;
+case ENCODED_CHAR:
+EncodedValueCodec.writeUnsignedIntegralValue(out,ENCODED_CHAR,reader.readChar());
+break;
+case ENCODED_FLOAT:
+long longBits=((long)Float.floatToIntBits(reader.readFloat())) << 32;
+EncodedValueCodec.writeRightZeroExtendedValue(out,ENCODED_FLOAT,longBits);
+break;
+case ENCODED_DOUBLE:
+EncodedValueCodec.writeRightZeroExtendedValue(out,ENCODED_DOUBLE,Double.doubleToLongBits(reader.readDouble()));
+break;
+case ENCODED_STRING:
+EncodedValueCodec.writeUnsignedIntegralValue(out,ENCODED_STRING,adjustString(reader.readString()));
+break;
+case ENCODED_TYPE:
+EncodedValueCodec.writeUnsignedIntegralValue(out,ENCODED_TYPE,adjustType(reader.readType()));
+break;
+case ENCODED_FIELD:
+EncodedValueCodec.writeUnsignedIntegralValue(out,ENCODED_FIELD,adjustField(reader.readField()));
+break;
+case ENCODED_ENUM:
+EncodedValueCodec.writeUnsignedIntegralValue(out,ENCODED_ENUM,adjustField(reader.readEnum()));
+break;
+case ENCODED_METHOD:
+EncodedValueCodec.writeUnsignedIntegralValue(out,ENCODED_METHOD,adjustMethod(reader.readMethod()));
+break;
+case ENCODED_ARRAY:
+writeTypeAndArg(ENCODED_ARRAY,0);
+transformArray(reader);
+break;
+case ENCODED_ANNOTATION:
+writeTypeAndArg(ENCODED_ANNOTATION,0);
+transformAnnotation(reader);
+break;
+case ENCODED_NULL:
+reader.readNull();
+writeTypeAndArg(ENCODED_NULL,0);
+break;
+case ENCODED_BOOLEAN:
+boolean value=reader.readBoolean();
+writeTypeAndArg(ENCODED_BOOLEAN,value ? 1 : 0);
+break;
+default :
+throw new DexException("Unexpected type: " + Integer.toHexString(reader.peek()));
+}
+}

@@ -1,0 +1,46 @@
+{
+  int len=order.length;
+  BasicBlockList blocks=method.getBlocks();
+  ArrayList<CatchTable.Entry> resultList=new ArrayList<CatchTable.Entry>(len);
+  CatchHandlerList currentHandlers=CatchHandlerList.EMPTY;
+  BasicBlock currentStartBlock=null;
+  BasicBlock currentEndBlock=null;
+  for (int i=0; i < len; i++) {
+    BasicBlock block=blocks.labelToBlock(order[i]);
+    if (!block.canThrow()) {
+      continue;
+    }
+    CatchHandlerList handlers=handlersFor(block,addresses);
+    if (currentHandlers.size() == 0) {
+      currentStartBlock=block;
+      currentEndBlock=block;
+      currentHandlers=handlers;
+      continue;
+    }
+    if (currentHandlers.equals(handlers) && rangeIsValid(currentStartBlock,block,addresses)) {
+      currentEndBlock=block;
+      continue;
+    }
+    if (currentHandlers.size() != 0) {
+      CatchTable.Entry entry=makeEntry(currentStartBlock,currentEndBlock,currentHandlers,addresses);
+      resultList.add(entry);
+    }
+    currentStartBlock=block;
+    currentEndBlock=block;
+    currentHandlers=handlers;
+  }
+  if (currentHandlers.size() != 0) {
+    CatchTable.Entry entry=makeEntry(currentStartBlock,currentEndBlock,currentHandlers,addresses);
+    resultList.add(entry);
+  }
+  int resultSz=resultList.size();
+  if (resultSz == 0) {
+    return CatchTable.EMPTY;
+  }
+  CatchTable result=new CatchTable(resultSz);
+  for (int i=0; i < resultSz; i++) {
+    result.set(i,resultList.get(i));
+  }
+  result.setImmutable();
+  return result;
+}

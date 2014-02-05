@@ -1,0 +1,36 @@
+{
+  determineOffsets();
+  if (observer != null) {
+    observer.parsed(bytes,8,2,"constant_pool_count: " + Hex.u2(offsets.length));
+    observer.parsed(bytes,10,0,"\nconstant_pool:");
+    observer.changeIndent(1);
+  }
+  BitSet wasUtf8=new BitSet(offsets.length);
+  for (int i=1; i < offsets.length; i++) {
+    int offset=offsets[i];
+    if ((offset != 0) && (pool.getOrNull(i) == null)) {
+      parse0(i,wasUtf8);
+    }
+  }
+  if (observer != null) {
+    for (int i=1; i < offsets.length; i++) {
+      Constant cst=pool.getOrNull(i);
+      if (cst == null) {
+        continue;
+      }
+      int offset=offsets[i];
+      int nextOffset=endOffset;
+      for (int j=i + 1; j < offsets.length; j++) {
+        int off=offsets[j];
+        if (off != 0) {
+          nextOffset=off;
+          break;
+        }
+      }
+      String human=wasUtf8.get(i) ? Hex.u2(i) + ": utf8{\"" + cst.toHuman()+ "\"}" : Hex.u2(i) + ": " + cst.toString();
+      observer.parsed(bytes,offset,nextOffset - offset,human);
+    }
+    observer.changeIndent(-1);
+    observer.parsed(bytes,endOffset,0,"end constant_pool");
+  }
+}

@@ -1,0 +1,35 @@
+{
+  LocalsArray resultLocals;
+  ExecutionStack resultStack;
+  resultLocals=getLocals().mergeWithSubroutineCaller(other.getLocals(),predLabel);
+  resultStack=getStack().merge(other.getStack());
+  IntList newOtherSubroutines=other.subroutines.mutableCopy();
+  newOtherSubroutines.add(subLabel);
+  newOtherSubroutines.setImmutable();
+  if ((resultLocals == getLocals()) && (resultStack == getStack()) && subroutines.equals(newOtherSubroutines)) {
+    return this;
+  }
+  IntList resultSubroutines;
+  if (subroutines.equals(newOtherSubroutines)) {
+    resultSubroutines=subroutines;
+  }
+ else {
+    IntList nonResultSubroutines;
+    if (subroutines.size() > newOtherSubroutines.size()) {
+      resultSubroutines=subroutines;
+      nonResultSubroutines=newOtherSubroutines;
+    }
+ else {
+      resultSubroutines=newOtherSubroutines;
+      nonResultSubroutines=subroutines;
+    }
+    int szResult=resultSubroutines.size();
+    int szNonResult=nonResultSubroutines.size();
+    for (int i=szNonResult - 1; i >= 0; i--) {
+      if (nonResultSubroutines.get(i) != resultSubroutines.get(i + (szResult - szNonResult))) {
+        throw new RuntimeException("Incompatible merged subroutines");
+      }
+    }
+  }
+  return new Frame(resultLocals,resultStack,resultSubroutines);
+}

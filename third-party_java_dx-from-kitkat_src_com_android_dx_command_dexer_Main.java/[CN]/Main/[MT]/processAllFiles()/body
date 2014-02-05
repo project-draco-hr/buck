@@ -1,0 +1,65 @@
+{
+  createDexFile();
+  if (args.jarOutput) {
+    outputResources=new TreeMap<String,byte[]>();
+  }
+  anyFilesProcessed=false;
+  String[] fileNames=args.fileNames;
+  if (args.numThreads > 1) {
+    threadPool=Executors.newFixedThreadPool(args.numThreads);
+  }
+  try {
+    if (args.mainDexListFile != null) {
+      FileNameFilter mainPassFilter=args.strictNameCheck ? new MainDexListFilter() : new BestEffortMainDexListFilter();
+      for (int i=0; i < fileNames.length; i++) {
+        if (processOne(fileNames[i],mainPassFilter)) {
+          anyFilesProcessed=true;
+        }
+      }
+      if (dexOutputArrays.size() > 1) {
+        throw new DexException("Too many classes in " + Arguments.MAIN_DEX_LIST_OPTION + ", main dex capacity exceeded");
+      }
+      if (args.minimalMainDex) {
+        createDexFile();
+      }
+      for (int i=0; i < fileNames.length; i++) {
+        if (processOne(fileNames[i],new NotFilter(mainPassFilter))) {
+          anyFilesProcessed=true;
+        }
+      }
+    }
+ else {
+      for (int i=0; i < fileNames.length; i++) {
+        if (processOne(fileNames[i],ClassPathOpener.acceptAll)) {
+          anyFilesProcessed=true;
+        }
+      }
+    }
+  }
+ catch (  StopProcessing ex) {
+  }
+  if (args.numThreads > 1) {
+    try {
+      threadPool.shutdown();
+      threadPool.awaitTermination(600L,TimeUnit.SECONDS);
+    }
+ catch (    InterruptedException ex) {
+      throw new RuntimeException("Timed out waiting for threads.");
+    }
+  }
+  if (errors != 0) {
+    DxConsole.err.println(errors + " error" + ((errors == 1) ? "" : "s")+ "; aborting");
+    return false;
+  }
+  if (args.incremental && !anyFilesProcessed) {
+    return true;
+  }
+  if (!(anyFilesProcessed || args.emptyOk)) {
+    DxConsole.err.println("no classfiles specified");
+    return false;
+  }
+  if (args.optimize && args.statistics) {
+    CodeStatistics.dumpStatistics(DxConsole.out);
+  }
+  return true;
+}

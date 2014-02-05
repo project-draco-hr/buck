@@ -1,0 +1,103 @@
+{
+  Rop opcode=insn.getOpcode();
+  RegisterSpecList sources=insn.getSources();
+  boolean constantBranch=false;
+  boolean constantSuccessor=false;
+  if (opcode.getBranchingness() == Rop.BRANCH_IF) {
+    Constant cA=null;
+    Constant cB=null;
+    RegisterSpec specA=sources.get(0);
+    int regA=specA.getReg();
+    if (!ssaMeth.isRegALocal(specA) && latticeValues[regA] == CONSTANT) {
+      cA=latticeConstants[regA];
+    }
+    if (sources.size() == 2) {
+      RegisterSpec specB=sources.get(1);
+      int regB=specB.getReg();
+      if (!ssaMeth.isRegALocal(specB) && latticeValues[regB] == CONSTANT) {
+        cB=latticeConstants[regB];
+      }
+    }
+    if (cA != null && sources.size() == 1) {
+switch (((TypedConstant)cA).getBasicType()) {
+case Type.BT_INT:
+        constantBranch=true;
+      int vA=((CstInteger)cA).getValue();
+switch (opcode.getOpcode()) {
+case RegOps.IF_EQ:
+      constantSuccessor=(vA == 0);
+    break;
+case RegOps.IF_NE:
+  constantSuccessor=(vA != 0);
+break;
+case RegOps.IF_LT:
+constantSuccessor=(vA < 0);
+break;
+case RegOps.IF_GE:
+constantSuccessor=(vA >= 0);
+break;
+case RegOps.IF_LE:
+constantSuccessor=(vA <= 0);
+break;
+case RegOps.IF_GT:
+constantSuccessor=(vA > 0);
+break;
+default :
+throw new RuntimeException("Unexpected op");
+}
+break;
+default :
+}
+}
+ else if (cA != null && cB != null) {
+switch (((TypedConstant)cA).getBasicType()) {
+case Type.BT_INT:
+constantBranch=true;
+int vA=((CstInteger)cA).getValue();
+int vB=((CstInteger)cB).getValue();
+switch (opcode.getOpcode()) {
+case RegOps.IF_EQ:
+constantSuccessor=(vA == vB);
+break;
+case RegOps.IF_NE:
+constantSuccessor=(vA != vB);
+break;
+case RegOps.IF_LT:
+constantSuccessor=(vA < vB);
+break;
+case RegOps.IF_GE:
+constantSuccessor=(vA >= vB);
+break;
+case RegOps.IF_LE:
+constantSuccessor=(vA <= vB);
+break;
+case RegOps.IF_GT:
+constantSuccessor=(vA > vB);
+break;
+default :
+throw new RuntimeException("Unexpected op");
+}
+break;
+default :
+}
+}
+}
+SsaBasicBlock block=insn.getBlock();
+if (constantBranch) {
+int successorBlock;
+if (constantSuccessor) {
+successorBlock=block.getSuccessorList().get(1);
+}
+ else {
+successorBlock=block.getSuccessorList().get(0);
+}
+addBlockToWorklist(ssaMeth.getBlocks().get(successorBlock));
+branchWorklist.add(insn);
+}
+ else {
+for (int i=0; i < block.getSuccessorList().size(); i++) {
+int successorBlock=block.getSuccessorList().get(i);
+addBlockToWorklist(ssaMeth.getBlocks().get(successorBlock));
+}
+}
+}

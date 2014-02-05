@@ -1,0 +1,117 @@
+{
+  ByteInput bs=new ByteArrayByteInput(encoded);
+  line=Leb128.readUnsignedLeb128(bs);
+  int szParams=Leb128.readUnsignedLeb128(bs);
+  StdTypeList params=desc.getParameterTypes();
+  int curReg=getParamBase();
+  if (szParams != params.size()) {
+    throw new RuntimeException("Mismatch between parameters_size and prototype");
+  }
+  if (!isStatic) {
+    LocalEntry thisEntry=new LocalEntry(0,true,curReg,thisStringIdx,0,0);
+    locals.add(thisEntry);
+    lastEntryForReg[curReg]=thisEntry;
+    curReg++;
+  }
+  for (int i=0; i < szParams; i++) {
+    Type paramType=params.getType(i);
+    LocalEntry le;
+    int nameIdx=readStringIndex(bs);
+    if (nameIdx == -1) {
+      le=new LocalEntry(0,true,curReg,-1,0,0);
+    }
+ else {
+      le=new LocalEntry(0,true,curReg,nameIdx,0,0);
+    }
+    locals.add(le);
+    lastEntryForReg[curReg]=le;
+    curReg+=paramType.getCategory();
+  }
+  for (; ; ) {
+    int opcode=bs.readByte() & 0xff;
+switch (opcode) {
+case DBG_START_LOCAL:
+{
+        int reg=Leb128.readUnsignedLeb128(bs);
+        int nameIdx=readStringIndex(bs);
+        int typeIdx=readStringIndex(bs);
+        LocalEntry le=new LocalEntry(address,true,reg,nameIdx,typeIdx,0);
+        locals.add(le);
+        lastEntryForReg[reg]=le;
+      }
+    break;
+case DBG_START_LOCAL_EXTENDED:
+{
+    int reg=Leb128.readUnsignedLeb128(bs);
+    int nameIdx=readStringIndex(bs);
+    int typeIdx=readStringIndex(bs);
+    int sigIdx=readStringIndex(bs);
+    LocalEntry le=new LocalEntry(address,true,reg,nameIdx,typeIdx,sigIdx);
+    locals.add(le);
+    lastEntryForReg[reg]=le;
+  }
+break;
+case DBG_RESTART_LOCAL:
+{
+int reg=Leb128.readUnsignedLeb128(bs);
+LocalEntry prevle;
+LocalEntry le;
+try {
+  prevle=lastEntryForReg[reg];
+  if (prevle.isStart) {
+    throw new RuntimeException("nonsensical " + "RESTART_LOCAL on live register v" + reg);
+  }
+  le=new LocalEntry(address,true,reg,prevle.nameIndex,prevle.typeIndex,0);
+}
+ catch (NullPointerException ex) {
+  throw new RuntimeException("Encountered RESTART_LOCAL on new v" + reg);
+}
+locals.add(le);
+lastEntryForReg[reg]=le;
+}
+break;
+case DBG_END_LOCAL:
+{
+int reg=Leb128.readUnsignedLeb128(bs);
+LocalEntry prevle;
+LocalEntry le;
+try {
+prevle=lastEntryForReg[reg];
+if (!prevle.isStart) {
+throw new RuntimeException("nonsensical " + "END_LOCAL on dead register v" + reg);
+}
+le=new LocalEntry(address,false,reg,prevle.nameIndex,prevle.typeIndex,prevle.signatureIndex);
+}
+ catch (NullPointerException ex) {
+throw new RuntimeException("Encountered END_LOCAL on new v" + reg);
+}
+locals.add(le);
+lastEntryForReg[reg]=le;
+}
+break;
+case DBG_END_SEQUENCE:
+return;
+case DBG_ADVANCE_PC:
+address+=Leb128.readUnsignedLeb128(bs);
+break;
+case DBG_ADVANCE_LINE:
+line+=Leb128.readSignedLeb128(bs);
+break;
+case DBG_SET_PROLOGUE_END:
+break;
+case DBG_SET_EPILOGUE_BEGIN:
+break;
+case DBG_SET_FILE:
+break;
+default :
+if (opcode < DBG_FIRST_SPECIAL) {
+throw new RuntimeException("Invalid extended opcode encountered " + opcode);
+}
+int adjopcode=opcode - DBG_FIRST_SPECIAL;
+address+=adjopcode / DBG_LINE_RANGE;
+line+=DBG_LINE_BASE + (adjopcode % DBG_LINE_RANGE);
+positions.add(new PositionEntry(address,line));
+break;
+}
+}
+}
