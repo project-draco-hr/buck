@@ -1,0 +1,29 @@
+{
+  ImmutableList.Builder<BuildRule> initialRules=ImmutableList.builder();
+  for (  BuildTarget target : initialTargets) {
+    BuildRule rule=graph.getDependencyGraph().findBuildRuleByTarget(target);
+    initialRules.add(rule);
+  }
+  final ImmutableList.Builder<BuildRule> buildRules=ImmutableList.builder();
+  AbstractAcyclicDepthFirstPostOrderTraversal<BuildRule> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildRule>(){
+    @Override protected Iterator<BuildRule> findChildren(    BuildRule node) throws IOException {
+      return node.getDeps().iterator();
+    }
+    @Override protected void onNodeExplored(    BuildRule node){
+    }
+    @Override protected void onTraversalComplete(    Iterable<BuildRule> nodesInExplorationOrder){
+      buildRules.addAll(nodesInExplorationOrder);
+    }
+  }
+;
+  try {
+    traversal.traverse(initialRules.build());
+  }
+ catch (  AbstractAcyclicDepthFirstPostOrderTraversal.CycleException e) {
+    throw new HumanReadableException(e,"Cycle detected while gathering build rule dependencies for project generation:\n " + e.getMessage());
+  }
+catch (  IOException e) {
+    throw new RuntimeException(e);
+  }
+  return buildRules.build();
+}

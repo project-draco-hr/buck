@@ -1,0 +1,16 @@
+{
+  Path outputConfigurationDirectory=outputDirectory.resolve("Configurations");
+  projectFilesystem.mkdirs(outputConfigurationDirectory);
+  Path originalProjectPath=projectFilesystem.getPathForRelativePath(Paths.get(buildTarget.getBasePathWithSlash()));
+  ImmutableMap<String,String> extraConfigs=ImmutableMap.<String,String>builder().putAll(extraBuildSettings).put("TARGET_NAME",getProductName(buildTarget)).put("SRCROOT",relativizeBuckRelativePathToGeneratedProject(buildTarget,"").toString()).put("GCC_PREFIX_HEADER","$(SRCROOT)/$(inherited)").build();
+  PBXGroup configurationsGroup=targetGroup.getOrCreateChildGroupByName("Configurations");
+  ImmutableList<Path> searchPaths=ImmutableList.of(originalProjectPath);
+  for (  XcodeRuleConfiguration configuration : configurations) {
+    Path configurationFilePath=outputConfigurationDirectory.resolve(mangledBuildTargetName(buildTarget) + "-" + configuration.getName()+ ".xcconfig");
+    String serializedConfiguration=serializeBuildConfiguration(configuration,searchPaths,extraConfigs);
+    projectFilesystem.writeContentsToPath(serializedConfiguration,configurationFilePath);
+    PBXFileReference fileReference=configurationsGroup.getOrCreateFileReferenceBySourceTreePath(SourceTreePath.absolute(configurationFilePath));
+    XCBuildConfiguration outputConfiguration=target.getBuildConfigurationList().getBuildConfigurationsByName().getUnchecked(configuration.getName());
+    outputConfiguration.setBaseConfigurationReference(fileReference);
+  }
+}

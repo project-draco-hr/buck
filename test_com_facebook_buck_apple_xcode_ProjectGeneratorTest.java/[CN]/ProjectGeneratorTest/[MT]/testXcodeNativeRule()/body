@@ -1,0 +1,20 @@
+{
+  BuildRule rule=createXcodeNativeRule(new BuildTarget("//foo","rule"),ImmutableSortedSet.<BuildRule>of());
+  BuildRuleResolver buildRuleResolver=new BuildRuleResolver(ImmutableSet.of(rule));
+  ProjectGenerator projectGenerator=createProjectGenerator(buildRuleResolver,ImmutableList.of(rule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXProject project=projectGenerator.getGeneratedProject();
+  assertThat(project.getTargets(),hasSize(1));
+  PBXTarget target=project.getTargets().get(0);
+  assertThat(target.getName(),equalTo("//foo:rule"));
+  assertThat(target.isa(),equalTo("PBXAggregateTarget"));
+  assertThat(target.getDependencies(),hasSize(1));
+  PBXTargetDependency dependency=target.getDependencies().get(0);
+  PBXContainerItemProxy proxy=dependency.getTargetProxy();
+  assertThat(proxy.getContainerPortal().getSourceTree(),equalTo(PBXFileReference.SourceTree.ABSOLUTE));
+  assertThat(proxy.getContainerPortal().getPath(),endsWith("foo.xcodeproj"));
+  assertThat(proxy.getRemoteGlobalIDString(),equalTo("00DEADBEEF"));
+  PBXGroup projectReferenceGroup=project.getMainGroup().getOrCreateChildGroupByName("Project References");
+  assertThat(projectReferenceGroup.getChildren(),hasSize(1));
+  assertThat(projectReferenceGroup.getChildren(),hasItem(sameInstance(proxy.getContainerPortal())));
+}
