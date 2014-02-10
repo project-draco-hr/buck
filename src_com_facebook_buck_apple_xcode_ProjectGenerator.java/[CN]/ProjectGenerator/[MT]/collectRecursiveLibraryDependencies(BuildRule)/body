@@ -1,32 +1,18 @@
 {
-  final ImmutableSet.Builder<PBXFileReference> result=ImmutableSet.builder();
-  AbstractAcyclicDepthFirstPostOrderTraversal<BuildRule> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildRule>(){
-    @Override protected Iterator<BuildRule> findChildren(    BuildRule node) throws IOException {
-      return node.getDeps().iterator();
-    }
-    @Override protected void onNodeExplored(    BuildRule node){
-      if (node == rule) {
-        return;
+  return FluentIterable.from(getRecursiveRuleDependenciesOfType(rule,IosLibraryDescription.TYPE,XcodeNativeDescription.TYPE)).transform(new Function<BuildRule,PBXFileReference>(){
+    @Override public PBXFileReference apply(    BuildRule input){
+      if (input.getType().equals(IosLibraryDescription.TYPE)) {
+        PBXNativeTarget target=(PBXNativeTarget)buildRuleToXcodeTarget.getUnchecked(input).get();
+        return target.getProductReference();
       }
-      if (node.getType().equals(IosLibraryDescription.TYPE)) {
-        PBXNativeTarget target=(PBXNativeTarget)buildRuleToXcodeTarget.getUnchecked(node).get();
-        result.add(target.getProductReference());
+ else       if (input.getType().equals(XcodeNativeDescription.TYPE)) {
+        XcodeNative xcodeNative=(XcodeNative)input.getBuildable();
+        return project.getMainGroup().getOrCreateChildGroupByName("Frameworks").getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.BUILT_PRODUCTS_DIR,Paths.get(xcodeNative.getProduct())));
       }
- else       if (node.getType().equals(XcodeNativeDescription.TYPE)) {
-        XcodeNative xcodeNative=(XcodeNative)Preconditions.checkNotNull(node.getBuildable());
-        PBXFileReference reference=project.getMainGroup().getOrCreateChildGroupByName("Frameworks").getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.BUILT_PRODUCTS_DIR,Paths.get(xcodeNative.getProduct())));
-        result.add(reference);
+ else {
+        throw new RuntimeException("Unexpected type: " + input.getType());
       }
     }
-    @Override protected void onTraversalComplete(    Iterable<BuildRule> nodesInExplorationOrder){
-    }
   }
-;
-  try {
-    traversal.traverse(ImmutableList.of(rule));
-  }
- catch (  AbstractAcyclicDepthFirstPostOrderTraversal.CycleException|IOException e) {
-    throw new HumanReadableException(e,e.getMessage());
-  }
-  return result.build();
+).toSet();
 }

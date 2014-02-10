@@ -1,0 +1,21 @@
+{
+  BuildRule resourceRule=createBuildRuleWithDefaults(new BuildTarget("//foo","res"),ImmutableSortedSet.<BuildRule>of(),iosResourceDescription,new Function<AppleResourceDescriptionArg,AppleResourceDescriptionArg>(){
+    @Override public AppleResourceDescriptionArg apply(    AppleResourceDescriptionArg input){
+      input.files=ImmutableSet.<SourcePath>of(new FileSourcePath("foo.png"));
+      input.dirs=ImmutableSet.<Path>of(Paths.get("foodir"));
+      return input;
+    }
+  }
+);
+  BuildRule libraryRule=createBuildRuleWithDefaults(new BuildTarget("//foo","lib"),ImmutableSortedSet.of(resourceRule),iosLibraryDescription);
+  BuildRule testRule=createBuildRuleWithDefaults(new BuildTarget("//foo","test"),ImmutableSortedSet.of(libraryRule),iosTestDescription);
+  BuildRule binaryRule=createBuildRuleWithDefaults(new BuildTarget("//foo","bin"),ImmutableSortedSet.of(libraryRule),iosBinaryDescription);
+  BuildRuleResolver resolver=new BuildRuleResolver(ImmutableSet.of(resourceRule,libraryRule,testRule,binaryRule));
+  ProjectGenerator projectGenerator=createProjectGenerator(resolver,ImmutableList.of(testRule.getBuildTarget(),binaryRule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXProject generatedProject=projectGenerator.getGeneratedProject();
+  PBXTarget testTarget=assertTargetExistsAndReturnTarget(generatedProject,"//foo:test");
+  assertHasSingletonResourcesPhaseWithEntries(testTarget,"foo.png","foodir");
+  PBXTarget binTarget=assertTargetExistsAndReturnTarget(generatedProject,"//foo:bin");
+  assertHasSingletonResourcesPhaseWithEntries(binTarget,"foo.png","foodir");
+}
