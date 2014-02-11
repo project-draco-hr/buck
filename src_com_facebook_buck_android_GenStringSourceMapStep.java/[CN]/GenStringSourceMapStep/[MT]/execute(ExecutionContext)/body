@@ -1,0 +1,27 @@
+{
+  Path rDotTxtPath=rDotJavaSrcDir.resolve("R.txt");
+  try {
+    ProjectFilesystem filesystem=context.getProjectFilesystem();
+    CompileStringsStep.buildResourceNameToIdMap(filesystem,rDotTxtPath,mapResNameToResId);
+  }
+ catch (  FileNotFoundException ex) {
+    context.logError(ex,"The '%s' file is not present.",rDotTxtPath);
+    return 1;
+  }
+catch (  IOException ex) {
+    context.logError(ex,"Failure parsing R.txt file.");
+    return 1;
+  }
+  Map<String,NativeStringInfo> nativeStrings=parseStringFiles(context);
+  Path outputPath=destinationPath.resolve("strings.json");
+  try {
+    ObjectMapper mapper=new ObjectMapper();
+    ProjectFilesystem filesystem=context.getProjectFilesystem();
+    mapper.writeValue(filesystem.getFileForRelativePath(outputPath),nativeStrings);
+  }
+ catch (  IOException ex) {
+    context.logError(ex,"Failed when trying to save the output file: '%s'",outputPath.toString());
+    return 1;
+  }
+  return 0;
+}

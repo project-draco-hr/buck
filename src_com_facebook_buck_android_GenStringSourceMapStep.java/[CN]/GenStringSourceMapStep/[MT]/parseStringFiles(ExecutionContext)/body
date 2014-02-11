@@ -1,0 +1,23 @@
+{
+  ProjectFilesystem filesystem=context.getProjectFilesystem();
+  HashMap<String,NativeStringInfo> nativeStrings=new HashMap<String,NativeStringInfo>();
+  for (  String resDir : resDirectories) {
+    Path stringsPath=Paths.get(resDir,"values","strings.xml");
+    File stringsFile=filesystem.getFileForRelativePath(stringsPath);
+    if (stringsFile.exists()) {
+      try {
+        Document dom=XmlDomParser.parse(stringsFile);
+        NodeList stringNodes=dom.getElementsByTagName("string");
+        scrapeNodes(stringNodes,stringsPath.toString(),nativeStrings);
+        NodeList pluralNodes=dom.getElementsByTagName("plurals");
+        scrapeNodes(pluralNodes,stringsPath.toString(),nativeStrings);
+        NodeList arrayNodes=dom.getElementsByTagName("string-array");
+        scrapeNodes(arrayNodes,stringsPath.toString(),nativeStrings);
+      }
+ catch (      IOException ex) {
+        context.logError(ex,"Failed to parse strings file: '%s'",stringsPath);
+      }
+    }
+  }
+  return nativeStrings;
+}
