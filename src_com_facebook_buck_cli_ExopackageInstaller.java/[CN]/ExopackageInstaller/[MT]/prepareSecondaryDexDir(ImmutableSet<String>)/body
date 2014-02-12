@@ -1,0 +1,21 @@
+{
+  try (TraceEventLogger ignored=TraceEventLogger.start(eventBus,"prepare_dex_dir")){
+    final ImmutableSet.Builder<String> foundHashes=ImmutableSet.builder();
+    AdbHelper.executeCommandWithErrorChecking(device,"run-as " + packageName + " mkdir -p app_exopackage/secondary-dex");
+    String output=AdbHelper.executeCommandWithErrorChecking(device,"run-as " + packageName + " ls app_exopackage/secondary-dex");
+    ImmutableSet.Builder<String> toDeleteBuilder=ImmutableSet.builder();
+    scanSecondaryDexDir(output,requiredHashes,foundHashes,toDeleteBuilder);
+    ImmutableList<String> filesToDelete=FluentIterable.from(toDeleteBuilder.build()).transform(new Function<String,String>(){
+      @Override public String apply(      @Nullable String input){
+        return "app_exopackage/secondary-dex/" + input;
+      }
+    }
+).toList();
+    if (!filesToDelete.isEmpty()) {
+      String command="run-as " + packageName + " rm "+ Joiner.on(' ').join(filesToDelete);
+      logFine("Running: %s",command);
+      AdbHelper.executeCommandWithErrorChecking(device,command);
+    }
+    return foundHashes.build();
+  }
+ }

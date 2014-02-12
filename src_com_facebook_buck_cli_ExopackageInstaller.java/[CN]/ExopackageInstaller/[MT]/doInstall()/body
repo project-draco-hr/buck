@@ -1,0 +1,22 @@
+{
+  if (!installAgentIfNecessary()) {
+    return false;
+  }
+  final File apk=apkRule.getApkPath().toFile();
+  final boolean installViaSd=false;
+  if (shouldAppBeInstalled()) {
+    try (TraceEventLogger ignored=TraceEventLogger.start(eventBus,"install_exo_apk")){
+      boolean success=adbHelper.installApkOnDevice(device,apk,installViaSd);
+      if (!success) {
+        return false;
+      }
+    }
+   }
+  final ImmutableMap<String,String> hashToBasename=getRequiredDexFiles();
+  final ImmutableSet<String> requiredHashes=hashToBasename.keySet();
+  final ImmutableSet<String> presentHashes=prepareSecondaryDexDir(requiredHashes);
+  final Set<String> hashesToInstall=Sets.difference(requiredHashes,presentHashes);
+  installSecondaryDexFiles(hashesToInstall,hashToBasename);
+  AdbHelper.executeCommandWithErrorChecking(device,"am force-stop " + packageName);
+  return true;
+}

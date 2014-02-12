@@ -1,0 +1,32 @@
+{
+  File tempfile=File.createTempFile(AgentUtil.TEMP_PREFIX + path.getName() + "-",".tmp",path.getParentFile());
+  FileOutputStream output=new FileOutputStream(tempfile);
+  long receiveStartMs=TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+  long totalSize=0;
+  try {
+    final int bufferSize=128 * 1024;
+    byte[] buf=new byte[bufferSize];
+    while (true) {
+      long currentTimeMs=TimeUnit.NANOSECONDS.toMillis(System.nanoTime());
+      if (currentTimeMs - receiveStartMs > RECEIVE_TIMEOUT_MS) {
+        throw new RuntimeException("Receive failed to complete before timeout.");
+      }
+      int got=clientInput.read(buf);
+      if (got == -1) {
+        break;
+      }
+      output.write(buf,0,got);
+      totalSize+=got;
+    }
+  }
+  finally {
+    output.close();
+  }
+  if (totalSize != size) {
+    throw new RuntimeException("Received only " + totalSize + " of "+ size+ " bytes.");
+  }
+  boolean success=tempfile.renameTo(path);
+  if (!success) {
+    throw new RuntimeException("Failed to rename temp file.");
+  }
+}

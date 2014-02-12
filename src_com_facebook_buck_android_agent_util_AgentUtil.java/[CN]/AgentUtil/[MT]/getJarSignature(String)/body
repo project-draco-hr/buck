@@ -1,0 +1,21 @@
+{
+  Pattern signatureFilePattern=Pattern.compile("META-INF/[A-Z]+\\.SF");
+  ZipFile packageZip=new ZipFile(packagePath);
+  for (  ZipEntry entry : Collections.list(packageZip.entries())) {
+    if (!signatureFilePattern.matcher(entry.getName()).matches()) {
+      continue;
+    }
+    BufferedReader sigContents=new BufferedReader(new InputStreamReader(packageZip.getInputStream(entry)));
+    while (true) {
+      String line=sigContents.readLine();
+      if (line == null || line.equals("")) {
+        throw new IllegalArgumentException("Failed to find manifest digest in " + entry.getName());
+      }
+      String prefix="SHA1-Digest-Manifest: ";
+      if (line.startsWith(prefix)) {
+        return line.substring(prefix.length());
+      }
+    }
+  }
+  throw new IllegalArgumentException("Failed to find signature file.");
+}

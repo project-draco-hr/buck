@@ -1,0 +1,61 @@
+{
+  CollectingOutputReceiver receiver=new CollectingOutputReceiver(){
+    private boolean sentPayload=false;
+    @Override public void addOutput(    byte[] data,    int offset,    int length){
+      super.addOutput(data,offset,length);
+      if (!sentPayload && getOutput().length() >= AgentUtil.TEXT_SECRET_KEY_SIZE) {
+        logFiner("Got key: %s",getOutput());
+        sentPayload=true;
+        try {
+          try (Socket clientSocket=new Socket("localhost",port)){
+            logFiner("Connected");
+            OutputStream outToDevice=clientSocket.getOutputStream();
+            outToDevice.write(getOutput().substring(0,AgentUtil.TEXT_SECRET_KEY_SIZE).getBytes());
+            logFiner("Wrote key");
+            com.google.common.io.Files.asByteSource(source.toFile()).copyTo(outToDevice);
+            logFiner("Wrote file");
+          }
+         }
+ catch (        IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+  }
+;
+  String runAsPrefix;
+  String dataDirPrefix;
+  if (!device.isEmulator()) {
+    runAsPrefix="run-as " + packageName + " ";
+    dataDirPrefix="";
+  }
+ else {
+    runAsPrefix="";
+    dataDirPrefix="/data/data/" + packageName + "/";
+  }
+  String targetFileName=dataDirPrefix + "app_exopackage/secondary-dex/" + basename;
+  String command=runAsPrefix + AGENT_INVOKE + "receive-file "+ port+ " "+ Files.size(source)+ " "+ targetFileName+ " ; echo -n :$?";
+  logFine("Executing %s",command);
+  Exception shellException=null;
+  try {
+    device.executeShellCommand(command,receiver);
+  }
+ catch (  Exception e) {
+    shellException=e;
+  }
+  try {
+    AdbHelper.checkReceiverOutput(command,receiver);
+  }
+ catch (  Exception e) {
+    if (shellException != null) {
+      e.addSuppressed(shellException);
+    }
+    throw e;
+  }
+  if (shellException != null) {
+    throw shellException;
+  }
+  if (device.isEmulator()) {
+    AdbHelper.executeCommandWithErrorChecking(device,"chmod 644 " + targetFileName);
+  }
+}
