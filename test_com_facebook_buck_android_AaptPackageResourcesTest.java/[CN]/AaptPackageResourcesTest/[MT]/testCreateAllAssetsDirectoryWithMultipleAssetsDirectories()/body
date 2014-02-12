@@ -9,22 +9,7 @@
   AndroidResourceRule resourceTwo=(AndroidResourceRule)ruleResolver.get(BuildTargetFactory.newInstance("//facebook/base:libraryTwo_resources"));
   Set<Path> assetsDirectories=ImmutableSet.of(resourceOne.getAssets(),resourceTwo.getAssets());
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
-  DirectoryTraverser traverser=new DirectoryTraverser(){
-    @Override public void traverse(    DirectoryTraversal traversal) throws IOException {
-      String rootPath=MorePaths.newPathInstance(traversal.getRoot()).toString();
-      if ("facebook/base/assets1".equals(rootPath)) {
-        traversal.visit(new File("facebook/base/assets1","guava-10.0.1-fork.dex.1.jar"),"guava-10.0.1-fork.dex.1.jar");
-      }
- else       if ("facebook/base/assets2".equals(rootPath)) {
-        traversal.visit(new File("facebook/base/assets2","fonts/Theinhardt-Medium.otf"),"fonts/Theinhardt-Medium.otf");
-        traversal.visit(new File("facebook/base/assets2","fonts/Theinhardt-Regular.otf"),"fonts/Theinhardt-Regular.otf");
-      }
- else {
-        throw new RuntimeException("Unexpected path: " + rootPath);
-      }
-    }
-  }
-;
+  DirectoryTraverser traverser=new FakeDirectoryTraverser(ImmutableMap.<String,Collection<FakeDirectoryTraverser.Entry>>of("facebook/base/assets1",ImmutableList.of(new FakeDirectoryTraverser.Entry(new File("facebook/base/assets1","guava-10.0.1-fork.dex.1.jar"),"guava-10.0.1-fork.dex.1.jar")),"facebook/base/assets2",ImmutableList.of(new FakeDirectoryTraverser.Entry(new File("facebook/base/assets2","fonts/Theinhardt-Medium.otf"),"fonts/Theinhardt-Medium.otf"),new FakeDirectoryTraverser.Entry(new File("facebook/base/assets2","fonts/Theinhardt-Regular.otf"),"fonts/Theinhardt-Regular.otf"))));
   Optional<Path> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(assetsDirectories,commands,traverser);
   EasyMock.verify(uberRDotJava);
   assertTrue(allAssetsDirectory.isPresent());
