@@ -32,19 +32,21 @@
     CommandEvent commandEvent=CommandEvent.started(commandName,remainingArgs,isDaemon);
     buildEventBus.post(commandEvent);
     ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(buildEventBus);
+    AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(projectFilesystem);
+    Optional<Path> ndkDir=androidDirectoryResolver.findAndroidNdkDir();
+    Optional<String> ndkVersion=Optional.absent();
+    if (ndkDir.isPresent()) {
+      ndkVersion=Optional.of(androidDirectoryResolver.getNdkVersion(ndkDir.get()));
+      config.validateNdkVersion(ndkDir.get(),ndkVersion.get());
+    }
     Parser parser;
-    KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.getConfigured(config,new ProcessExecutor(console));
+    KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.getConfigured(config,new ProcessExecutor(console),ndkVersion);
     if (isDaemon) {
       parser=getParserFromDaemon(context,projectFilesystem,config,console,commandEvent);
     }
  else {
       JavaUtilsLoggingBuildListener.ensureLogFileIsWritten();
       parser=new Parser(projectFilesystem,buildRuleTypes,console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
-    }
-    AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(projectFilesystem);
-    Optional<Path> ndkDir=androidDirectoryResolver.findAndroidNdkDir();
-    if (ndkDir.isPresent()) {
-      config.validateNdkVersion(ndkDir.get(),androidDirectoryResolver.getNdkVersion(ndkDir.get()));
     }
     exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,androidDirectoryResolver,buildRuleTypes,artifactCacheFactory,buildEventBus,parser,platform));
     artifactCacheFactory.closeCreatedArtifactCaches(ARTIFACT_CACHE_TIMEOUT_IN_SECONDS);
