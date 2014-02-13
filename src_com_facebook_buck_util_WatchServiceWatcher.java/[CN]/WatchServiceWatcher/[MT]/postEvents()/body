@@ -8,13 +8,14 @@
     for (    final WatchEvent<?> event : key.pollEvents()) {
       if (filesystem.isPathChangeEvent(event)) {
         Path name=(Path)event.context();
-        final Path child=dir.resolve(name);
-        if (shouldIgnore(child)) {
+        Path absolutePath=dir.resolve(name);
+        final Path projectRelativePath=filesystem.getRootPath().relativize(absolutePath);
+        if (shouldIgnore(projectRelativePath)) {
           continue;
         }
-        if (filesystem.isDirectory(child,LinkOption.NOFOLLOW_LINKS)) {
+        if (filesystem.isDirectory(absolutePath,LinkOption.NOFOLLOW_LINKS)) {
           if (event.kind() == StandardWatchEventKinds.ENTRY_CREATE) {
-            registerAll(child);
+            registerAll(absolutePath);
           }
           continue;
         }
@@ -26,7 +27,7 @@
             return event.count();
           }
           @Override public Path context(){
-            return child;
+            return projectRelativePath;
           }
         }
 );
