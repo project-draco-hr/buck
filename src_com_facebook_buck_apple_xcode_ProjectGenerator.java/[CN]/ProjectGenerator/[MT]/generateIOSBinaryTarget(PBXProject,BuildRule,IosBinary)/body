@@ -1,0 +1,19 @@
+{
+  PBXNativeTarget target=new PBXNativeTarget(rule.getFullyQualifiedName());
+  target.setProductType(PBXTarget.ProductType.IOS_BINARY);
+  PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(rule.getFullyQualifiedName());
+  Path infoPlistPath=this.repoRootRelativeToOutputDirectory.resolve(buildable.getInfoPlist());
+  setTargetConfigurations(rule.getBuildTarget(),target,targetGroup,buildable.getConfigurations(),ImmutableMap.of("INFOPLIST_FILE",infoPlistPath.toString()));
+  addSourcesBuildPhase(target,targetGroup,buildable.getSrcs(),buildable.getPerFileCompilerFlags());
+  addFrameworksBuildPhase(rule.getBuildTarget(),target,project.getMainGroup().getOrCreateChildGroupByName("Frameworks"),buildable.getFrameworks(),collectRecursiveLibraryDependencies(rule));
+  addResourcesBuildPhase(target,targetGroup,buildable.getResources());
+  PBXGroup productsGroup=project.getMainGroup().getOrCreateChildGroupByName("Products");
+  String productName=getProductName(rule.getBuildTarget());
+  String productOutputName=productName + ".app";
+  PBXFileReference productReference=new PBXFileReference(productOutputName,productOutputName,PBXReference.SourceTree.BUILT_PRODUCTS_DIR);
+  productsGroup.getChildren().add(productReference);
+  target.setProductName(productName);
+  target.setProductReference(productReference);
+  project.getTargets().add(target);
+  return target;
+}
