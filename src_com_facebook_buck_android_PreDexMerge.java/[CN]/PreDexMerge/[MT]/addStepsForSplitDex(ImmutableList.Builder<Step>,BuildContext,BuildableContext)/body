@@ -1,25 +1,19 @@
 {
   ImmutableList<DexWithClasses> dexFilesToMerge=FluentIterable.from(preDexDeps).transform(DexWithClasses.TO_DEX_WITH_CLASSES).filter(Predicates.notNull()).toList();
-  Path workDir=BuildTargets.getBinPath(buildTarget,"_%s_output");
-  Path metadataDir=workDir.resolve("metadata");
-  Path jarfilesDir=workDir.resolve("jarfiles");
-  Path scratchDir=workDir.resolve("scratch");
-  Path successDir=workDir.resolve("success");
-  final ImmutableSet<Path> secondaryDexDirectories=ImmutableSet.of(metadataDir,jarfilesDir);
-  final Path secondaryDexMetadataDir=metadataDir.resolve(AndroidBinaryRule.SECONDARY_DEX_SUBDIR);
-  final Path secondaryDexJarFilesDir=jarfilesDir.resolve(AndroidBinaryRule.SECONDARY_DEX_SUBDIR);
-  steps.add(new MkdirStep(secondaryDexJarFilesDir));
-  steps.add(new MkdirStep(successDir));
-  steps.add(new MakeCleanDirectoryStep(secondaryDexMetadataDir));
-  steps.add(new MakeCleanDirectoryStep(scratchDir));
+  final SplitDexPaths paths=new SplitDexPaths();
+  final ImmutableSet<Path> secondaryDexDirectories=ImmutableSet.of(paths.metadataDir,paths.jarfilesDir);
+  steps.add(new MkdirStep(paths.jarfilesSubdir));
+  steps.add(new MkdirStep(paths.successDir));
+  steps.add(new MakeCleanDirectoryStep(paths.metadataSubdir));
+  steps.add(new MakeCleanDirectoryStep(paths.scratchDir));
   buildableContext.addMetadata(SECONDARY_DEX_DIRECTORIES_KEY,Iterables.transform(secondaryDexDirectories,Functions.toStringFunction()));
   buildableContext.recordArtifact(primaryDexPath);
-  buildableContext.recordArtifactsInDirectory(secondaryDexJarFilesDir);
-  buildableContext.recordArtifactsInDirectory(secondaryDexMetadataDir);
-  buildableContext.recordArtifactsInDirectory(successDir);
-  PreDexedFilesSorter preDexedFilesSorter=new PreDexedFilesSorter(uberRDotJava.getRDotJavaDexWithClasses(),dexFilesToMerge,dexSplitMode.getPrimaryDexPatterns(),scratchDir,dexSplitMode.getLinearAllocHardLimit(),dexSplitMode.getDexStore(),secondaryDexJarFilesDir);
+  buildableContext.recordArtifactsInDirectory(paths.jarfilesSubdir);
+  buildableContext.recordArtifactsInDirectory(paths.metadataSubdir);
+  buildableContext.recordArtifactsInDirectory(paths.successDir);
+  PreDexedFilesSorter preDexedFilesSorter=new PreDexedFilesSorter(uberRDotJava.getRDotJavaDexWithClasses(),dexFilesToMerge,dexSplitMode.getPrimaryDexPatterns(),paths.scratchDir,dexSplitMode.getLinearAllocHardLimit(),dexSplitMode.getDexStore(),paths.jarfilesSubdir);
   final PreDexedFilesSorter.Result sortResult=preDexedFilesSorter.sortIntoPrimaryAndSecondaryDexes(context,steps);
-  steps.add(new SmartDexingStep(primaryDexPath,Suppliers.ofInstance(sortResult.primaryDexInputs),Optional.of(secondaryDexJarFilesDir),Optional.of(Suppliers.ofInstance(sortResult.secondaryOutputToInputs)),successDir,Optional.<Integer>absent(),AndroidBinaryRule.DX_MERGE_OPTIONS));
+  steps.add(new SmartDexingStep(primaryDexPath,Suppliers.ofInstance(sortResult.primaryDexInputs),Optional.of(paths.jarfilesSubdir),Optional.of(Suppliers.ofInstance(sortResult.secondaryOutputToInputs)),paths.successDir,Optional.<Integer>absent(),AndroidBinaryRule.DX_MERGE_OPTIONS));
   steps.add(new RecordFileSha1Step(primaryDexPath,PRIMARY_DEX_HASH_KEY,buildableContext));
   steps.add(new AbstractExecutionStep("write_metadata_txt"){
     @Override public int execute(    ExecutionContext executionContext){
@@ -34,7 +28,7 @@
           String hash=filesystem.computeSha1(pathToSecondaryDex);
           lines.add(String.format("%s %s %s",pathToSecondaryDex.getFileName(),hash,containedClass));
         }
-        filesystem.writeLinesToPath(lines,secondaryDexMetadataDir.resolve("metadata.txt"));
+        filesystem.writeLinesToPath(lines,paths.metadataFile);
       }
  catch (      IOException e) {
         executionContext.logError(e,"Failed when writing metadata.txt multi-dex.");
