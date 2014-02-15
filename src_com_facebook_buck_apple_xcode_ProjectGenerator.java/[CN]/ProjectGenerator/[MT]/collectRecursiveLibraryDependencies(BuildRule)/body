@@ -1,0 +1,32 @@
+{
+  final ImmutableSet.Builder<PBXFileReference> result=ImmutableSet.builder();
+  AbstractAcyclicDepthFirstPostOrderTraversal<BuildRule> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildRule>(){
+    @Override protected Iterator<BuildRule> findChildren(    BuildRule node) throws IOException {
+      return node.getDeps().iterator();
+    }
+    @Override protected void onNodeExplored(    BuildRule node){
+      if (node == rule) {
+        return;
+      }
+      if (node.getType().equals(IosLibraryDescription.TYPE)) {
+        PBXNativeTarget target=(PBXNativeTarget)buildRuleToXcodeTarget.getUnchecked(node);
+        result.add(target.getProductReference());
+      }
+ else       if (node.getType().equals(XcodeNativeDescription.TYPE)) {
+        XcodeNative xcodeNative=(XcodeNative)node.getBuildable();
+        PBXFileReference reference=project.getMainGroup().getOrCreateChildGroupByName("Frameworks").getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.BUILT_PRODUCTS_DIR,Paths.get(xcodeNative.getProduct())));
+        result.add(reference);
+      }
+    }
+    @Override protected void onTraversalComplete(    Iterable<BuildRule> nodesInExplorationOrder){
+    }
+  }
+;
+  try {
+    traversal.traverse(ImmutableList.of(rule));
+  }
+ catch (  AbstractAcyclicDepthFirstPostOrderTraversal.CycleException|IOException e) {
+    throw new HumanReadableException(e,e.getMessage());
+  }
+  return result.build();
+}

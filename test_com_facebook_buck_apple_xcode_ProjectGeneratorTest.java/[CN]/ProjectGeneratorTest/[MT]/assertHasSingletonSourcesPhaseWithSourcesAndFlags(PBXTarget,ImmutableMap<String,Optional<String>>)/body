@@ -1,0 +1,24 @@
+{
+  PBXSourcesBuildPhase sourcesBuildPhase=getSingletonPhaseByType(target,PBXSourcesBuildPhase.class);
+  assertEquals("Sources build phase should have correct number of sources",sourcesAndFlags.size(),sourcesBuildPhase.getFiles().size());
+  ImmutableMap.Builder<String,Optional<String>> absolutePathFlagMapBuilder=ImmutableMap.builder();
+  for (  Map.Entry<String,Optional<String>> name : sourcesAndFlags.entrySet()) {
+    absolutePathFlagMapBuilder.put(projectFilesystem.getRootPath().resolve(name.getKey()).toAbsolutePath().toString(),name.getValue());
+  }
+  ImmutableMap<String,Optional<String>> absolutePathFlagMap=absolutePathFlagMapBuilder.build();
+  for (  PBXBuildFile file : sourcesBuildPhase.getFiles()) {
+    Optional<String> flags=absolutePathFlagMap.get(file.getFileRef().getPath());
+    assertNotNull("source file is expected",flags);
+    if (flags.isPresent()) {
+      assertEquals("build file path should be absolute",PBXFileReference.SourceTree.ABSOLUTE,file.getFileRef().getSourceTree());
+      assertTrue("build file should have settings dictionary",file.getSettings().isPresent());
+      NSDictionary buildFileSettings=file.getSettings().get();
+      NSString compilerFlags=(NSString)buildFileSettings.get("COMPILER_FLAGS");
+      assertNotNull("build file settings should have COMPILER_FLAGS entry",compilerFlags);
+      assertEquals("build file settings should be expected value",flags.get(),compilerFlags.getContent());
+    }
+ else {
+      assertFalse("build file should not have settings dictionary",file.getSettings().isPresent());
+    }
+  }
+}

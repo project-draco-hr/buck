@@ -3,43 +3,20 @@
   IosLibraryDescription.Arg arg=iosLibraryDescription.createUnpopulatedConstructorArg();
   arg.configs=ImmutableMap.of("Debug",ImmutableList.<Either<Path,ImmutableMap<String,String>>>of());
   arg.headers=ImmutableSortedSet.of((SourcePath)new FileSourcePath("foo.h"));
-  arg.srcs=ImmutableList.of(Either.<SourcePath,Pair<SourcePath,String>>ofRight(new Pair<SourcePath,String>(new FileSourcePath("foo.m"),"-foo")));
+  arg.srcs=ImmutableList.of(Either.<SourcePath,Pair<SourcePath,String>>ofRight(new Pair<SourcePath,String>(new FileSourcePath("foo.m"),"-foo")),Either.<SourcePath,Pair<SourcePath,String>>ofLeft(new FileSourcePath("bar.m")));
   arg.frameworks=ImmutableSortedSet.of();
   BuildRule rule=new DescribedRule(IosLibraryDescription.TYPE,iosLibraryDescription.createBuildable(params,arg),params);
   BuildRuleResolver buildRuleResolver=new BuildRuleResolver(ImmutableSet.of(rule));
   ProjectGenerator projectGenerator=createProjectGenerator(buildRuleResolver,ImmutableList.of(rule.getBuildTarget()));
   projectGenerator.createXcodeProjects();
-  PBXProject project=projectGenerator.getGeneratedProject();
-  assertThat(project.getTargets(),hasSize(1));
-  PBXTarget target=project.getTargets().get(0);
+  PBXTarget target=getGeneratedTarget(projectGenerator.getGeneratedProject(),"//foo:lib");
   assertThat(target.isa(),equalTo("PBXNativeTarget"));
   assertThat(target.getProductType(),equalTo(PBXTarget.ProductType.IOS_LIBRARY));
+  assertHasConfigurations(target,"Debug");
+  assertEquals("Should have exact number of build phases",2,target.getBuildPhases().size());
+  assertHasSingletonSourcesPhaseWithSourcesAndFlags(target,ImmutableMap.of("foo.m",Optional.of("-foo"),"bar.m",Optional.<String>absent()));
 {
-    Map<String,XCBuildConfiguration> buildConfigurationMap=target.getBuildConfigurationList().getBuildConfigurationsByName().asMap();
-    assertThat(buildConfigurationMap,hasKey("Debug"));
-    XCBuildConfiguration configuration=buildConfigurationMap.get("Debug");
-    assertEquals("Debug",configuration.getName());
-    assertThat(configuration.getBaseConfigurationReference().getPath(),endsWith(".xcconfig"));
-  }
-  Collection<PBXBuildPhase> buildPhases=target.getBuildPhases();
-  assertThat(buildPhases,hasSize(2));
-{
-    PBXBuildPhase sourcesBuildPhase=Iterables.find(buildPhases,new Predicate<PBXBuildPhase>(){
-      @Override public boolean apply(      PBXBuildPhase input){
-        return input instanceof PBXSourcesBuildPhase;
-      }
-    }
-);
-    PBXBuildFile sourceBuildFile=Iterables.getOnlyElement(sourcesBuildPhase.getFiles());
-    NSDictionary flags=sourceBuildFile.getSettings().get();
-    assertEquals(flags.count(),1);
-    assertTrue(flags.containsKey("COMPILER_FLAGS"));
-    assertEquals("-foo",((NSString)flags.get("COMPILER_FLAGS")).getContent());
-    assertEquals(PBXFileReference.SourceTree.ABSOLUTE,sourceBuildFile.getFileRef().getSourceTree());
-    assertEquals(projectFilesystem.getRootPath().resolve("foo.m").toAbsolutePath().toString(),sourceBuildFile.getFileRef().getPath());
-  }
-{
-    PBXBuildPhase headersBuildPhase=Iterables.find(buildPhases,new Predicate<PBXBuildPhase>(){
+    PBXBuildPhase headersBuildPhase=Iterables.find(target.getBuildPhases(),new Predicate<PBXBuildPhase>(){
       @Override public boolean apply(      PBXBuildPhase input){
         return input instanceof PBXHeadersBuildPhase;
       }

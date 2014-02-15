@@ -1,0 +1,21 @@
+{
+  BuildRuleParams params=new FakeBuildRuleParams(new BuildTarget("//foo","test"),ImmutableSortedSet.<BuildRule>of());
+  IosTestDescription.Arg arg=iosTestDescription.createUnpopulatedConstructorArg();
+  arg.infoPlist=Paths.get("Info.plist");
+  arg.configs=ImmutableMap.of("Debug",ImmutableList.<Either<Path,ImmutableMap<String,String>>>of());
+  arg.headers=ImmutableSortedSet.of((SourcePath)new FileSourcePath("foo.h"));
+  arg.srcs=ImmutableList.of(Either.<SourcePath,Pair<SourcePath,String>>ofRight(new Pair<SourcePath,String>(new FileSourcePath("foo.m"),"-foo")));
+  arg.resources=ImmutableSortedSet.<SourcePath>of(new FileSourcePath("resource.png"));
+  arg.frameworks=ImmutableSortedSet.of("$SDKROOT/Foo.framework");
+  BuildRule rule=new DescribedRule(IosTestDescription.TYPE,iosTestDescription.createBuildable(params,arg),params);
+  BuildRuleResolver buildRuleResolver=new BuildRuleResolver(ImmutableSet.of(rule));
+  ProjectGenerator projectGenerator=createProjectGenerator(buildRuleResolver,ImmutableList.of(rule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXTarget target=getGeneratedTarget(projectGenerator.getGeneratedProject(),"//foo:test");
+  assertEquals("PBXNativeTarget",target.isa());
+  assertEquals(PBXTarget.ProductType.IOS_TEST,target.getProductType());
+  assertHasConfigurations(target,"Debug");
+  assertEquals("Should have exact number of build phases",3,target.getBuildPhases().size());
+  assertHasSingletonSourcesPhaseWithSourcesAndFlags(target,ImmutableMap.of("foo.m",Optional.of("-foo")));
+  assertHasSingletonFrameworksPhaseWithFrameworkEntries(target,ImmutableList.of("$SDKROOT/Foo.framework"));
+}
