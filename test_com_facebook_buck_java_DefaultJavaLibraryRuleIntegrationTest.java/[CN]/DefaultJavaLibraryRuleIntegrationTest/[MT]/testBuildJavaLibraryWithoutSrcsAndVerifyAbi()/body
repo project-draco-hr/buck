@@ -2,7 +2,7 @@
   workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"abi",tmp);
   workspace.setUp();
   ProcessResult buildResult=workspace.runBuckCommand("build","//:no_srcs");
-  buildResult.assertExitCode("Successful build should exit with 0.",0);
+  buildResult.assertSuccess("Successful build should exit with 0.");
   File outputFile=workspace.getFile("buck-out/gen/lib__no_srcs__output/no_srcs.jar");
   assertTrue(outputFile.exists());
   long sizeOfOriginalJar=outputFile.length();
@@ -15,19 +15,19 @@
   Path abiKeyEntry=zipFs.getPath("/buck-out/bin/.no_srcs/metadata/ABI_KEY");
   assertEquals(AbiWriterProtocol.EMPTY_ABI_KEY,new String(java.nio.file.Files.readAllBytes(abiKeyEntry)));
   ProcessResult cleanResult=workspace.runBuckCommand("clean");
-  cleanResult.assertExitCode("Successful clean should exit with 0.",0);
+  cleanResult.assertSuccess("Successful clean should exit with 0.");
   assertEquals("The build cache should still exist.",1,buildCache.listFiles().length);
   Path outputInZip=zipFs.getPath("/buck-out/gen/lib__no_srcs__output/no_srcs.jar");
   java.nio.file.Files.write(outputInZip,"Hello world!".getBytes(),WRITE);
   zipFs.close();
   ProcessResult buildResult2=workspace.runBuckCommand("build","//:no_srcs");
-  buildResult2.assertExitCode("Successful build should exit with 0.",0);
+  buildResult2.assertSuccess("Successful build should exit with 0.");
   assertTrue(outputFile.isFile());
   assertEquals("The content of the output file will be 'Hello World!' if it is read from the build cache.","Hello world!",Files.toString(outputFile,Charsets.UTF_8));
   ProcessResult cleanResult2=workspace.runBuckCommand("clean");
-  cleanResult2.assertExitCode("Successful clean should exit with 0.",0);
+  cleanResult2.assertSuccess("Successful clean should exit with 0.");
   ProcessResult buildResult3=workspace.runBuckCommand("build","--no-cache","//:no_srcs");
-  buildResult3.assertExitCode(0);
+  buildResult3.assertSuccess();
   assertNotEquals("The contents of the file should no longer be pulled from the corrupted build cache.","Hello world!",Files.toString(outputFile,Charsets.UTF_8));
   assertEquals("We cannot do a byte-for-byte comparision with the original JAR because timestamps might " + "have changed, but we verify that they are the same size, as a proxy.",sizeOfOriginalJar,outputFile.length());
 }

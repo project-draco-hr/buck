@@ -2,17 +2,17 @@
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"timeouts",temporaryFolder);
   workspace.setUp();
   ProcessResult exceedsAnnotationTimeoutTestResult=workspace.runBuckCommand("test","//:ExceedsAnnotationTimeoutTest");
-  exceedsAnnotationTimeoutTestResult.assertExitCode("Test should fail due to timeout",1);
+  exceedsAnnotationTimeoutTestResult.assertTestFailure("Test should fail due to timeout");
   assertThat(exceedsAnnotationTimeoutTestResult.getStderr(),containsString("FAILURE testShouldFailDueToExpiredTimeout: test timed out after 1000 milliseconds"));
   ProcessResult timeoutTestWithoutTimeout=workspace.runBuckCommand("test","//:TimeoutChangesBehaviorTest");
-  timeoutTestWithoutTimeout.assertExitCode(0);
+  timeoutTestWithoutTimeout.assertSuccess();
   modifyTimeoutInTestAnnotation(PATH_TO_TIMEOUT_BEHAVIOR_TEST,true);
   ProcessResult timeoutTestWithTimeoutOnAnnotation=workspace.runBuckCommand("test","//:TimeoutChangesBehaviorTest");
-  timeoutTestWithTimeoutOnAnnotation.assertExitCode(1);
+  timeoutTestWithTimeoutOnAnnotation.assertTestFailure();
   assertThat(timeoutTestWithTimeoutOnAnnotation.getStderr(),containsString("FAILURE testTimeoutDictatesTheSuccessOfThisTest: " + "Database should have an open transaction due to setUp()."));
   modifyTimeoutInTestAnnotation(PATH_TO_TIMEOUT_BEHAVIOR_TEST,false);
   insertTimeoutRule(PATH_TO_TIMEOUT_BEHAVIOR_TEST);
   ProcessResult timeoutTestWithTimeoutRule=workspace.runBuckCommand("test","//:TimeoutChangesBehaviorTest");
-  timeoutTestWithTimeoutRule.assertExitCode(0);
+  timeoutTestWithTimeoutRule.assertSuccess();
   workspace.verify();
 }
