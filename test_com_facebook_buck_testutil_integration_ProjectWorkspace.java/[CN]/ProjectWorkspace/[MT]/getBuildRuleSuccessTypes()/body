@@ -1,0 +1,20 @@
+{
+  List<String> buildLogLines=Files.readLines(getFile("buck-out/bin/build.log"),Charsets.UTF_8);
+  ImmutableMap.Builder<BuildTarget,Optional<BuildRuleSuccess.Type>> builder=ImmutableMap.builder();
+  for (  String line : buildLogLines) {
+    Matcher matcher=BUILD_LOG_FINISHED_RULE_REGEX.matcher(line);
+    if (!matcher.matches()) {
+      continue;
+    }
+    String successTypeRaw=matcher.group("SuccessType");
+    BuildRuleSuccess.Type successType=null;
+    try {
+      successType=BuildRuleSuccess.Type.valueOf(successTypeRaw);
+    }
+ catch (    IllegalArgumentException e) {
+    }
+    String ruleName=matcher.group("RuleName");
+    builder.put(BuildTargetFactory.newInstance(ruleName),Optional.fromNullable(successType));
+  }
+  return builder.build();
+}
