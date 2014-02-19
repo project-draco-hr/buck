@@ -1,13 +1,12 @@
 {
-  BuildRule barLib=createXcodeNativeRule(new BuildTarget("//bar","lib"),ImmutableSortedSet.<BuildRule>of());
-  BuildRule fooLib=createXcodeNativeRule(new BuildTarget("//foo","lib"),ImmutableSortedSet.of(barLib));
-  BuildRule fooBin=createXcodeNativeRule(new BuildTarget("//foo","bin"),ImmutableSortedSet.of(fooLib));
-  BuildRule bazLib=createXcodeNativeRule(new BuildTarget("//baz","lib"),ImmutableSortedSet.of(fooLib));
+  BuildRule barLib=createBuildRuleWithDefaults(new BuildTarget("//bar","lib"),ImmutableSortedSet.<BuildRule>of(),iosLibraryDescription);
+  BuildRule fooLib=createBuildRuleWithDefaults(new BuildTarget("//foo","lib"),ImmutableSortedSet.of(barLib),iosLibraryDescription);
+  BuildRule fooBin=createBuildRuleWithDefaults(new BuildTarget("//foo","bin"),ImmutableSortedSet.of(fooLib),iosBinaryDescription);
+  BuildRule bazLib=createBuildRuleWithDefaults(new BuildTarget("//baz","lib"),ImmutableSortedSet.of(fooLib),iosLibraryDescription);
   BuildRule bazLibTest=createIosTestRule(new BuildTarget("//baz","test"),ImmutableSortedSet.of(bazLib),ImmutableSortedSet.of(bazLib));
   BuildRule fooLibTest=createIosTestRule(new BuildTarget("//foo","lib-test"),ImmutableSortedSet.of(fooLib),ImmutableSortedSet.of(fooLib,bazLib));
   BuildRule fooBinTest=createIosTestRule(new BuildTarget("//foo","bin-test"),ImmutableSortedSet.of(fooBin),ImmutableSortedSet.of(fooBin));
-  BuildRuleResolver buildRuleResolver=new BuildRuleResolver(ImmutableSet.of(barLib,fooLib,fooBin,bazLib,bazLibTest,fooLibTest,fooBinTest));
-  ProjectGenerator projectGenerator=createProjectGenerator(buildRuleResolver,ImmutableSet.of(fooBin.getBuildTarget()));
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(barLib,fooLib,fooBin,bazLib,bazLibTest,fooLibTest,fooBinTest),ImmutableSet.of(fooBin.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:bin");
   assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:lib");
