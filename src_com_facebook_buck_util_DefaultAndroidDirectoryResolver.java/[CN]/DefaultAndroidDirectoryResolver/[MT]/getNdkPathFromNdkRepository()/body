@@ -1,0 +1,28 @@
+{
+  Optional<Path> repositoryPathOptional=propertyFinder.findDirectoryByPropertiesThenEnvironmentVariable("ndk.repository","ANDROID_NDK_REPOSITORY");
+  Optional<Path> path=Optional.absent();
+  if (repositoryPathOptional.isPresent()) {
+    Path repositoryPath=repositoryPathOptional.get();
+    String newestVersion="";
+    for (    Path potentialNdkPath : projectFilesystem.getDirectoryContents(repositoryPath)) {
+      if (potentialNdkPath.toFile().isDirectory()) {
+        Optional<String> ndkVersion=findNdkVersionFromPath(potentialNdkPath);
+        if (ndkVersion.isPresent()) {
+          if (targetNdkVersion.isPresent()) {
+            if (targetNdkVersion.get().equals(ndkVersion.get())) {
+              return Optional.of(potentialNdkPath);
+            }
+          }
+ else           if (ndkVersion.get().compareTo(newestVersion) > 0) {
+            path=Optional.of(potentialNdkPath);
+            newestVersion=ndkVersion.get();
+          }
+        }
+      }
+    }
+    if (!path.isPresent()) {
+      throw new HumanReadableException("Couldn't find a valid NDK under %s",repositoryPath);
+    }
+  }
+  return path;
+}
