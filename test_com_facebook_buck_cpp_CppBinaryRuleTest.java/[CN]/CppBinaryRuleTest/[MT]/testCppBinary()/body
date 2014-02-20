@@ -1,0 +1,20 @@
+{
+  BuildRule library=makeCppLibraryBuildRule(new BuildTarget("//lib","bla"),ImmutableSortedSet.<SourcePath>of(new FileSourcePath("libsource1.c"),new FileSourcePath("libsource2.c")),ImmutableSortedSet.<SourcePath>of(),ImmutableSortedSet.<BuildRule>of());
+  Buildable binary=makeCppBinaryBuildRule(new BuildTarget("//foo","bar"),ImmutableSortedSet.<SourcePath>of(new FileSourcePath("source1.c"),new FileSourcePath("source2.c")),ImmutableSortedSet.<BuildRule>of(library)).getBuildable();
+  assertThat(binary.getInputsToCompareToOutput(),hasItems(Paths.get("source1.c"),Paths.get("source2.c")));
+  List<Step> buildSteps=null;
+  try {
+    buildSteps=binary.getBuildSteps(context,buildableContext);
+  }
+ catch (  IOException e) {
+    fail();
+  }
+  assertNotNull(buildSteps);
+  List<String> descriptions=Lists.transform(buildSteps,new Function<Step,String>(){
+    @Override public String apply(    Step input){
+      return input.getDescription(executionContext);
+    }
+  }
+);
+  assertThat(descriptions,hasItems("mkdir -p buck-out/bin/foo","mkdir -p buck-out/gen","g++ -c -I . source1.c -o buck-out/gen/source1.o","g++ -c -I . source2.c -o buck-out/gen/source2.o","g++ -I . buck-out/bin/lib/libbla.a buck-out/gen/source1.o " + "buck-out/gen/source2.o -o buck-out/bin/foo/bar"));
+}
