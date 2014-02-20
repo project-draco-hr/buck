@@ -1,21 +1,24 @@
 {
-  AndroidDebugBridge adb=createAdb(context);
-  if (adb == null) {
-    console.printBuildFailure("Failed to create adb connection.");
-    return false;
-  }
-  List<IDevice> devices=filterDevices(adb.getDevices());
-  if (devices == null) {
-    if (buckConfig.getRestartAdbOnFailure()) {
-      console.printErrorText("No devices found with adb, restarting adb-server.");
-      adb.restart();
-      devices=filterDevices(adb.getDevices());
-    }
-    if (devices == null) {
+  List<IDevice> devices;
+  try (TraceEventLogger ignored=TraceEventLogger.start(buckEventBus,"set_up_adb_call")){
+    AndroidDebugBridge adb=createAdb(context);
+    if (adb == null) {
+      console.printBuildFailure("Failed to create adb connection.");
       return false;
     }
+    devices=filterDevices(adb.getDevices());
+    if (devices == null) {
+      if (buckConfig.getRestartAdbOnFailure()) {
+        console.printErrorText("No devices found with adb, restarting adb-server.");
+        adb.restart();
+        devices=filterDevices(adb.getDevices());
+      }
+      if (devices == null) {
+        return false;
+      }
+    }
   }
-  int adbThreadCount=options.getAdbThreadCount();
+   int adbThreadCount=options.getAdbThreadCount();
   if (adbThreadCount <= 0) {
     adbThreadCount=devices.size();
   }
