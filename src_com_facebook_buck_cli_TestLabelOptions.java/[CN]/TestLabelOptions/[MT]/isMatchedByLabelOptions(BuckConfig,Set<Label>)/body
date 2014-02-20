@@ -1,17 +1,20 @@
 {
-  ImmutableList<LabelSetSelector> labelSetSelectors=supplier.get();
-  for (  LabelSetSelector labelSetSelector : labelSetSelectors) {
-    if (rawLabels.containsAll(labelSetSelector.labels)) {
-      return labelSetSelector.isInclusive;
+  ImmutableList<LabelSelector> labelSelectors=supplier.get();
+  for (  LabelSelector labelSelector : labelSelectors) {
+    if (labelSelector.matches(rawLabels)) {
+      return labelSelector.isInclusive();
     }
   }
-  Set<Label> defaultExcludedLabels=buckConfig.getDefaultExcludedLabels();
-  if (!defaultExcludedLabels.isEmpty() && rawLabels.containsAll(defaultExcludedLabels)) {
-    return false;
+  List<String> defaultRawExcludedLabelSelectors=buckConfig.getDefaultRawExcludedLabelSelectors();
+  for (  String raw : defaultRawExcludedLabelSelectors) {
+    LabelSelector labelSelector=LabelSelector.fromString(raw).invert();
+    if (labelSelector.matches(rawLabels)) {
+      return labelSelector.isInclusive();
+    }
   }
   boolean defaultResult=true;
-  for (  LabelSetSelector labelSetSelector : labelSetSelectors) {
-    if (labelSetSelector.isInclusive) {
+  for (  LabelSelector labelSelector : labelSelectors) {
+    if (labelSelector.isInclusive()) {
       defaultResult=false;
     }
   }
