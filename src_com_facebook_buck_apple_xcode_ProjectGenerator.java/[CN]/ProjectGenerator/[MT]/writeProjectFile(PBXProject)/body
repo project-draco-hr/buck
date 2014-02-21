@@ -4,6 +4,15 @@
   Path xcodeprojDir=outputDirectory.resolve(projectName + ".xcodeproj");
   projectFilesystem.mkdirs(xcodeprojDir);
   Path serializedProject=xcodeprojDir.resolve("project.pbxproj");
-  projectFilesystem.writeContentsToPath(rootObject.toXMLPropertyList(),serializedProject);
+  String unsignedXmlProject=rootObject.toXMLPropertyList();
+  Optional<String> signedXmlProject=SourceSigner.sign(unsignedXmlProject);
+  String contentsToWrite;
+  if (signedXmlProject.isPresent()) {
+    contentsToWrite=signedXmlProject.get();
+  }
+ else {
+    contentsToWrite=unsignedXmlProject;
+  }
+  projectFilesystem.writeContentsToPath(contentsToWrite,serializedProject);
   return xcodeprojDir;
 }
