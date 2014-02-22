@@ -2,15 +2,16 @@
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
   AndroidBinaryRuleTest.createAndroidLibraryRule("//java/src/com/facebook/base:libraryOne",ruleResolver,null,null,null);
   AndroidBinaryRuleTest.createAndroidLibraryRule("//java/src/com/facebook/base:libraryTwo",ruleResolver,null,"java/src/com/facebook/base/assets2",null);
+  ResourcesFilter resourcesFilter=EasyMock.createMock(ResourcesFilter.class);
   UberRDotJava uberRDotJava=EasyMock.createMock(UberRDotJava.class);
-  EasyMock.replay(uberRDotJava);
+  EasyMock.replay(resourcesFilter,uberRDotJava);
   AndroidResourceRule resourceOne=(AndroidResourceRule)ruleResolver.get(BuildTargetFactory.newInstance("//java/src/com/facebook/base:libraryTwo_resources"));
-  AaptPackageResources aaptPackageResources=new AaptPackageResources(new BuildTarget("//java/src/com/facebook/base","apk","aapt_package"),new FileSourcePath("java/src/com/facebook/base/AndroidManifest.xml"),uberRDotJava,PackageType.DEBUG,ImmutableSet.<TargetCpuType>of());
+  AaptPackageResources aaptPackageResources=new AaptPackageResources(new BuildTarget("//java/src/com/facebook/base","apk","aapt_package"),new FileSourcePath("java/src/com/facebook/base/AndroidManifest.xml"),resourcesFilter,uberRDotJava,PackageType.DEBUG,ImmutableSet.<TargetCpuType>of());
   Set<Path> assetsDirectories=ImmutableSet.of(resourceOne.getAssets());
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
   DirectoryTraverser traverser=new FakeDirectoryTraverser(ImmutableMap.<String,Collection<FakeDirectoryTraverser.Entry>>of("java/src/com/facebook/base/assets2",ImmutableList.of(new FakeDirectoryTraverser.Entry(new File("java/src/com/facebook/base/assets2","fonts/Theinhardt-Medium.otf"),"fonts/Theinhardt-Medium.otf"),new FakeDirectoryTraverser.Entry(new File("java/src/com/facebook/base/assets2","fonts/Theinhardt-Regular.otf"),"fonts/Theinhardt-Regular.otf"))));
   Optional<Path> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(assetsDirectories,commands,traverser);
-  EasyMock.verify(uberRDotJava);
+  EasyMock.verify(resourcesFilter,uberRDotJava);
   assertTrue(allAssetsDirectory.isPresent());
   assertEquals("Even though there is only one assets directory, the one in " + BIN_DIR + " should be used.",aaptPackageResources.getPathToAllAssetsDirectory(),allAssetsDirectory.get());
 }

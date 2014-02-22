@@ -1,2 +1,24 @@
 {
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  AndroidResourceDetails androidResourceDetails=androidResourceDepsFinder.getAndroidResourceDetails();
+  ImmutableSet<String> rDotJavaPackages=androidResourceDetails.rDotJavaPackages;
+  ImmutableSet<Path> resDirectories=resourcesFilter.getResDirectories();
+  if (!resDirectories.isEmpty()) {
+    generateAndCompileRDotJavaFiles(resDirectories,rDotJavaPackages,steps,buildableContext);
+  }
+  final Optional<DexRDotJavaStep> dexRDotJava=rDotJavaNeedsDexing && !resDirectories.isEmpty() ? Optional.of(DexRDotJavaStep.create(buildTarget,getPathToCompiledRDotJavaFiles())) : Optional.<DexRDotJavaStep>absent();
+  if (dexRDotJava.isPresent()) {
+    steps.add(dexRDotJava.get());
+    buildableContext.recordArtifact(DexRDotJavaStep.getPathToDexFile(buildTarget));
+  }
+  steps.add(new AbstractExecutionStep("record_build_output"){
+    @Override public int execute(    ExecutionContext context){
+      if (dexRDotJava.isPresent()) {
+        buildableContext.addMetadata(R_DOT_JAVA_LINEAR_ALLOC_SIZE,dexRDotJava.get().getLinearAllocSizeEstimate().toString());
+      }
+      return 0;
+    }
+  }
+);
+  return steps.build();
 }
