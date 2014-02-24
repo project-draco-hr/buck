@@ -1,0 +1,16 @@
+{
+  Path proguardConfigFile=Paths.get("the/configuration.txt");
+  Path proguardMappingFile=Paths.get("the/mapping.txt");
+  List<String> linesInMappingFile=ImmutableList.of("foo.bar.MappedPrimary -> foo.bar.a:","foo.bar.UnmappedPrimary -> foo.bar.UnmappedPrimary:","foo.primary.MappedPackage -> x.a:");
+  ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
+  EasyMock.expect(projectFilesystem.readLines(proguardConfigFile)).andReturn(ImmutableList.<String>of());
+  EasyMock.expect(projectFilesystem.readLines(proguardMappingFile)).andReturn(linesInMappingFile);
+  ExecutionContext context=EasyMock.createMock(ExecutionContext.class);
+  EasyMock.expect(context.getProjectFilesystem()).andReturn(projectFilesystem).anyTimes();
+  EasyMock.replay(projectFilesystem,context);
+  ProguardTranslatorFactory translatorFactory=ProguardTranslatorFactory.create(context,Optional.of(proguardConfigFile),Optional.of(proguardMappingFile));
+  checkMapping(translatorFactory,"foo/bar/MappedPrimary","foo/bar/a");
+  checkMapping(translatorFactory,"foo/bar/UnmappedPrimary","foo/bar/UnmappedPrimary");
+  checkMapping(translatorFactory,"foo/primary/MappedPackage","x/a");
+  EasyMock.verify(projectFilesystem,context);
+}
