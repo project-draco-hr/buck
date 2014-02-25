@@ -1,5 +1,16 @@
 {
-  this.inputResolver=new InputResolver(primaryOutputPath,primaryInputsToDex,secondaryOutputDir,secondaryInputsToDex);
+  this.outputToInputsSupplier=Suppliers.memoize(new Supplier<Multimap<Path,Path>>(){
+    @Override public Multimap<Path,Path> get(){
+      final ImmutableMultimap.Builder<Path,Path> map=ImmutableMultimap.builder();
+      map.putAll(primaryOutputPath,primaryInputsToDex.get());
+      if (secondaryInputsToDex.isPresent()) {
+        map.putAll(secondaryInputsToDex.get().get());
+      }
+      return map.build();
+    }
+  }
+);
+  this.secondaryOutputDir=Preconditions.checkNotNull(secondaryOutputDir);
   this.successDir=Preconditions.checkNotNull(successDir);
   this.numThreads=Preconditions.checkNotNull(numThreads);
   this.dxOptions=Preconditions.checkNotNull(dxOptions);
