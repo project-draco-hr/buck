@@ -1,10 +1,11 @@
 {
   final ImmutableSet<String> contacts=getContacts();
+  final ProjectFilesystem filesystem=context.getProjectFilesystem();
   return new Callable<TestResults>(){
     @Override public TestResults call() throws Exception {
-      File resultsFile=new File(getPathToTestOutputResult());
+      Optional<String> resultsFileContents=filesystem.readFileIfItExists(getPathToTestOutputResult());
       ObjectMapper mapper=new ObjectMapper();
-      TestResultSummary testResultSummary=mapper.readValue(resultsFile,TestResultSummary.class);
+      TestResultSummary testResultSummary=mapper.readValue(resultsFileContents.get(),TestResultSummary.class);
       TestCaseSummary testCaseSummary=new TestCaseSummary(getFullyQualifiedName(),ImmutableList.of(testResultSummary));
       return new TestResults(getBuildTarget(),ImmutableList.of(testCaseSummary),contacts);
     }
