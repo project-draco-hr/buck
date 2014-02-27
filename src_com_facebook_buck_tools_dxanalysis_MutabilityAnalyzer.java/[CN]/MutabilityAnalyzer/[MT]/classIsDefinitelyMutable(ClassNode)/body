@@ -1,0 +1,39 @@
+{
+  if (superClassIsDefinitelyMutable(klass.superName)) {
+    log.add("Mutable parent: " + klass.name + " < "+ klass.superName);
+    return true;
+  }
+  for (  FieldNode field : klass.fields) {
+    if ((field.access & Opcodes.ACC_STATIC) != 0) {
+      continue;
+    }
+    if ((field.access & Opcodes.ACC_FINAL) == 0) {
+      log.add("Non-final field: " + klass.name + "#"+ field.name+ ":"+ field.desc);
+      return true;
+    }
+    if (field.name.contains("$")) {
+      continue;
+    }
+    Type type=Type.getType(field.desc);
+    if (IMMUTABLE_TYPE_SORTS.contains(type.getSort())) {
+      continue;
+    }
+    if (type.getSort() != Type.OBJECT) {
+      log.add("Odd sort: " + klass.name + "#"+ field.name+ ":"+ field.desc);
+      return true;
+    }
+    if (allClasses.keySet().contains(type.getInternalName())) {
+      if (classesWithMutableDescendents.contains(type.getInternalName())) {
+        log.add("Internal mutable field: " + klass.name + "#"+ field.name+ ":"+ field.desc);
+        return true;
+      }
+    }
+ else {
+      if (!EXTERNAL_IMMUTABLE_CLASSES.contains(type.getInternalName())) {
+        log.add("External mutable field: " + klass.name + "#"+ field.name+ ":"+ field.desc);
+        return true;
+      }
+    }
+  }
+  return false;
+}

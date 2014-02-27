@@ -1,0 +1,18 @@
+{
+  ImmutableMap.Builder<String,ClassNode> allClassesBuilder=ImmutableMap.builder();
+  try (ZipFile inJar=new ZipFile(zipFileName)){
+    for (    ZipEntry entry : Collections.list(inJar.entries())) {
+      if (!entry.getName().endsWith(".class")) {
+        continue;
+      }
+      if (entry.getName().startsWith("junit/") || entry.getName().startsWith("org/junit/") || entry.getName().startsWith("com/google/common/")) {
+        continue;
+      }
+      byte[] rawClass=ByteStreams.toByteArray(inJar.getInputStream(entry));
+      ClassNode klass=new ClassNode();
+      new ClassReader(rawClass).accept(klass,ClassReader.EXPAND_FRAMES);
+      allClassesBuilder.put(klass.name,klass);
+    }
+  }
+   return allClassesBuilder.build();
+}

@@ -1,0 +1,29 @@
+{
+  boolean isSafe=true;
+  for (  FieldNode field : klass.fields) {
+    if ((field.access & Opcodes.ACC_STATIC) == 0) {
+      continue;
+    }
+    if ((field.access & Opcodes.ACC_FINAL) == 0) {
+      log.add("Non-final static field: " + describe(klass,field));
+      isSafe=false;
+      continue;
+    }
+    if (!mutabilityAnalyzer.isTypeImmutable(field.desc)) {
+      log.add("Mut-final static field: " + describe(klass,field));
+      isSafe=false;
+      continue;
+    }
+  }
+  for (  MethodNode method : klass.methods) {
+    if ((method.access & Opcodes.ACC_STATIC) == 0) {
+      continue;
+    }
+    if ((method.access & Opcodes.ACC_SYNCHRONIZED) != 0) {
+      log.add("Synchronized static method: " + describe(klass,method));
+      isSafe=false;
+      continue;
+    }
+  }
+  return isSafe;
+}
