@@ -1,16 +1,13 @@
 {
-  List<Predicate<File>> filePredicates=Lists.newArrayList();
+  List<Predicate<Path>> pathPredicates=Lists.newArrayList();
   final boolean canDownscale=imageScaler != null && imageScaler.isAvailable(context);
   if (filterDrawables) {
     Set<Path> drawables=drawableFinder.findDrawables(inResDirToOutResDirMap.keySet());
-    filePredicates.add(Filters.createImageDensityFilter(drawables,targetDensities,canDownscale));
+    pathPredicates.add(Filters.createImageDensityFilter(drawables,targetDensities,canDownscale));
   }
   if (filterStrings) {
-    final ProjectFilesystem filesystem=context.getProjectFilesystem();
-    filePredicates.add(new Predicate<File>(){
-      @Override public boolean apply(      File input){
-        String inputPath=input.getAbsolutePath();
-        Path pathRelativeToProjectRoot=filesystem.getRootPath().toAbsolutePath().normalize().relativize(Paths.get(inputPath));
+    pathPredicates.add(new Predicate<Path>(){
+      @Override public boolean apply(      Path pathRelativeToProjectRoot){
         if (!NON_ENGLISH_STRING_PATH.matcher(pathRelativeToProjectRoot.toString()).matches()) {
           return true;
         }
@@ -25,7 +22,7 @@
     }
 );
   }
-  filteredDirectoryCopier.copyDirs(inResDirToOutResDirMap,Predicates.and(filePredicates));
+  filteredDirectoryCopier.copyDirs(context.getProjectFilesystem(),inResDirToOutResDirMap,Predicates.and(pathPredicates));
   if (canDownscale && filterDrawables) {
     scaleUnmatchedDrawables(context);
   }

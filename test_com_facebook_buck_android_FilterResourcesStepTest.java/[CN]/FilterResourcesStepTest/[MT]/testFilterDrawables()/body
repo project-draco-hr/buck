@@ -22,10 +22,10 @@
   FilterResourcesStep.DrawableFinder finder=EasyMock.createMock(FilterResourcesStep.DrawableFinder.class);
   FilteredDirectoryCopier copier=EasyMock.createMock(FilteredDirectoryCopier.class);
   Capture<Map<Path,Path>> dirMapCapture=new Capture<>();
-  Capture<Predicate<File>> predCapture=new Capture<>();
-  copier.copyDirs(EasyMock.capture(dirMapCapture),EasyMock.capture(predCapture));
+  Capture<Predicate<Path>> predCapture=new Capture<>();
+  copier.copyDirs(EasyMock.<ProjectFilesystem>anyObject(),EasyMock.capture(dirMapCapture),EasyMock.capture(predCapture));
   EasyMock.replay(copier);
-  ImageScaler scaler=EasyMock.createMock(FilterResourcesStep.ImageScaler.class);
+  ImageScaler scaler=EasyMock.createMock(ImageScaler.class);
   scaler.scale(0.5,scaleSource,scaleDest,context);
   EasyMock.expect(scaler.isAvailable(context)).andReturn(true);
   EasyMock.replay(scaler);
@@ -65,11 +65,10 @@
   command.execute(context);
   assertEquals(dirMapBuilder.build(),dirMapCapture.getValue());
   Set<Path> drawables=finder.findDrawables(inResDirToOutResDirMap.keySet());
-  Predicate<File> expectedPred=Filters.createImageDensityFilter(drawables,ImmutableSet.of(targetDensity),false);
-  Predicate<File> capturedPred=predCapture.getValue();
+  Predicate<Path> expectedPred=Filters.createImageDensityFilter(drawables,ImmutableSet.of(targetDensity),false);
+  Predicate<Path> capturedPred=predCapture.getValue();
   for (  Path drawablePath : drawables) {
-    File drawableFile=drawablePath.toFile();
-    assertEquals(expectedPred.apply(drawableFile),capturedPred.apply(drawableFile));
+    assertEquals(expectedPred.apply(drawablePath),capturedPred.apply(drawablePath));
   }
   EasyMock.verify(copier,context,finder,filesystem,scaler);
 }
