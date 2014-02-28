@@ -1,0 +1,12 @@
+{
+  BuildRule depRule=createBuildRuleWithDefaults(new BuildTarget("//elsewhere","somedep"),ImmutableSortedSet.<BuildRule>of(),iosLibraryDescription);
+  BuildRule rule=createBuildRuleWithDefaults(new BuildTarget("//foo/bar","somelib"),ImmutableSortedSet.of(depRule),iosLibraryDescription);
+  BuildRule configRule=createXcodeProjectConfigRule("//foo/bar","fooproject",ImmutableSet.of(rule));
+  PartialGraph partialGraph=createPartialGraphFromBuildRules(ImmutableSet.of(rule,configRule));
+  SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(projectFilesystem,partialGraph,executionContext,ImmutableSet.of(configRule.getBuildTarget()));
+  generator.generateProjects();
+  PBXProject project=Preconditions.checkNotNull(generator.getProjectGenerators()).get(configRule.getBuildTarget()).getGeneratedProject();
+  assertThat("Has only two targets",project.getTargets(),hasSize(2));
+  assertThat("One of the targets is the named target",project.getTargets(),hasItem(isTargetWithName("//foo/bar:somelib")));
+  assertThat("Only other target is signed-source target",project.getTargets(),hasItem(isA(PBXAggregateTarget.class)));
+}
