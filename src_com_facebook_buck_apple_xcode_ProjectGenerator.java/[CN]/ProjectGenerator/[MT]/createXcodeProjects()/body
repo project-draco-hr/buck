@@ -3,16 +3,22 @@
     Iterable<BuildRule> allRules=RuleDependencyFinder.getAllRules(partialGraph,initialTargets);
     ImmutableMap.Builder<BuildRule,PBXTarget> ruleToTargetMapBuilder=ImmutableMap.builder();
     for (    BuildRule rule : allRules) {
-      Optional<PBXTarget> target=buildRuleToXcodeTarget.getUnchecked(rule);
-      if (target.isPresent()) {
-        ruleToTargetMapBuilder.put(rule,target.get());
+      if (isBuiltByCurrentProject(rule)) {
+        Optional<PBXTarget> target=buildRuleToXcodeTarget.getUnchecked(rule);
+        if (target.isPresent()) {
+          ruleToTargetMapBuilder.put(rule,target.get());
+        }
       }
     }
     addGeneratedSignedSourceTarget(project);
     writeProjectFile(project);
-    scheme=SchemeGenerator.createScheme(partialGraph,projectPath,ruleToTargetMapBuilder.build());
-    writeWorkspace(projectPath);
-    SchemeGenerator.writeScheme(projectFilesystem,scheme,projectPath);
+    if (options.contains(Option.GENERATE_WORKSPACE)) {
+      writeWorkspace(projectPath);
+    }
+    if (options.contains(Option.GENERATE_SCHEME)) {
+      scheme=SchemeGenerator.createScheme(partialGraph,projectPath,ruleToTargetMapBuilder.build());
+      SchemeGenerator.writeScheme(projectFilesystem,scheme,projectPath);
+    }
   }
  catch (  UncheckedExecutionException e) {
     if (e.getCause() instanceof HumanReadableException) {
