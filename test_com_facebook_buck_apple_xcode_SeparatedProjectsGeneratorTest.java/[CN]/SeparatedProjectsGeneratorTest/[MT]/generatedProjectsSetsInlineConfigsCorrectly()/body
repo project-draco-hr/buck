@@ -1,0 +1,43 @@
+{
+  BuildRule rule1=createBuildRuleWithDefaults(new BuildTarget("//foo","rule1"),ImmutableSortedSet.<BuildRule>of(),iosLibraryDescription,new Function<IosLibraryDescription.Arg,IosLibraryDescription.Arg>(){
+    @Override public IosLibraryDescription.Arg apply(    IosLibraryDescription.Arg input){
+      input.configs=ImmutableMap.of("Debug",ImmutableList.of(Either.<Path,ImmutableMap<String,String>>ofLeft(Paths.get("project.xcconfig")),Either.<Path,ImmutableMap<String,String>>ofRight(ImmutableMap.of("PROJECT_FLAG1","p1","PROJECT_FLAG2","p2")),Either.<Path,ImmutableMap<String,String>>ofLeft(Paths.get("target.xcconfig")),Either.<Path,ImmutableMap<String,String>>ofRight(ImmutableMap.of("TARGET_FLAG1","t1","TARGET_FLAG2","t2"))));
+      return input;
+    }
+  }
+);
+  BuildRule rule2=createBuildRuleWithDefaults(new BuildTarget("//foo","rule2"),ImmutableSortedSet.<BuildRule>of(),iosLibraryDescription,new Function<IosLibraryDescription.Arg,IosLibraryDescription.Arg>(){
+    @Override public IosLibraryDescription.Arg apply(    IosLibraryDescription.Arg input){
+      input.configs=ImmutableMap.of("Debug",ImmutableList.of(Either.<Path,ImmutableMap<String,String>>ofLeft(Paths.get("project.xcconfig")),Either.<Path,ImmutableMap<String,String>>ofRight(ImmutableMap.of("PROJECT_FLAG1","p1","PROJECT_FLAG2","p2")),Either.<Path,ImmutableMap<String,String>>ofLeft(Paths.get("target.xcconfig")),Either.<Path,ImmutableMap<String,String>>ofRight(ImmutableMap.of("TARGET_FLAG3","t3","TARGET_FLAG4","t4"))));
+      return input;
+    }
+  }
+);
+  BuildRule configRule=createXcodeProjectConfigRule("//foo","fooproject",ImmutableSet.of(rule1,rule2));
+  SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(projectFilesystem,createPartialGraphFromBuildRules(ImmutableSet.of(configRule,rule1,rule2)),executionContext,ImmutableSet.of(configRule.getBuildTarget()));
+  generator.generateProjects();
+  PBXProject project=getGeneratedProjectOfConfigRule(generator,configRule);
+{
+    XCBuildConfiguration projectLevelConfig=project.getBuildConfigurationList().getBuildConfigurationsByName().asMap().get("Debug");
+    assertNotNull("should have project level Debug config",projectLevelConfig);
+    assertEquals(2,projectLevelConfig.getBuildSettings().count());
+    assertEquals(new NSString("p1"),projectLevelConfig.getBuildSettings().get("PROJECT_FLAG1"));
+    assertEquals(new NSString("p2"),projectLevelConfig.getBuildSettings().get("PROJECT_FLAG2"));
+  }
+{
+    XCBuildConfiguration targetLevelConfig=ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(project,"//foo:rule1").getBuildConfigurationList().getBuildConfigurationsByName().asMap().get("Debug");
+    assertNotNull("should have target level Debug config",targetLevelConfig);
+    assertEquals(new NSString("t1"),targetLevelConfig.getBuildSettings().get("TARGET_FLAG1"));
+    assertEquals(new NSString("t2"),targetLevelConfig.getBuildSettings().get("TARGET_FLAG2"));
+    assertFalse(targetLevelConfig.getBuildSettings().containsKey("TARGET_FLAG3"));
+    assertFalse(targetLevelConfig.getBuildSettings().containsKey("TARGET_FLAG4"));
+  }
+{
+    XCBuildConfiguration targetLevelConfig=ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(project,"//foo:rule2").getBuildConfigurationList().getBuildConfigurationsByName().asMap().get("Debug");
+    assertNotNull("should have target level Debug config",targetLevelConfig);
+    assertEquals(new NSString("t3"),targetLevelConfig.getBuildSettings().get("TARGET_FLAG3"));
+    assertEquals(new NSString("t4"),targetLevelConfig.getBuildSettings().get("TARGET_FLAG4"));
+    assertFalse(targetLevelConfig.getBuildSettings().containsKey("TARGET_FLAG1"));
+    assertFalse(targetLevelConfig.getBuildSettings().containsKey("TARGET_FLAG2"));
+  }
+}
