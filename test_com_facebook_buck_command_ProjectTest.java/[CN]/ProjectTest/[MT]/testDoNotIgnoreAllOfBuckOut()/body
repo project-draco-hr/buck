@@ -1,0 +1,13 @@
+{
+  ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
+  ImmutableSet<Path> ignorePaths=ImmutableSet.of(Paths.get("buck-out"),Paths.get(".git"));
+  EasyMock.expect(projectFilesystem.getIgnorePaths()).andReturn(ignorePaths);
+  EasyMock.replay(projectFilesystem);
+  BuildTarget buildTarget=new BuildTarget("//","base");
+  BuildRule buildRule=new FakeBuildRule(BuildRuleType.JAVA_LIBRARY,buildTarget);
+  Module module=new Module(buildRule,buildTarget);
+  Project.addRootExcludes(module,buildRule,projectFilesystem);
+  ImmutableSortedSet<SourceFolder> expectedExcludeFolders=ImmutableSortedSet.orderedBy(Module.ALPHABETIZER).add(new SourceFolder("file://$MODULE_DIR$/.git",false)).add(new SourceFolder("file://$MODULE_DIR$/buck-out/bin",false)).add(new SourceFolder("file://$MODULE_DIR$/buck-out/log",false)).build();
+  assertEquals("Specific subfolders of buck-out should be excluded rather than all of buck-out.",expectedExcludeFolders,module.excludeFolders);
+  EasyMock.verify(projectFilesystem);
+}
