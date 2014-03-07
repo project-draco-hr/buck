@@ -1,0 +1,19 @@
+{
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  filesystem.touch(Paths.get("root/A.txt"));
+  filesystem.touch(Paths.get("root/A/B/C.txt"));
+  filesystem.touch(Paths.get("root/A/B.txt"));
+  final List<Path> filesVisited=Lists.newArrayList();
+  FileVisitor<Path> fileVisitor=new SimpleFileVisitor<Path>(){
+    @Override public FileVisitResult visitFile(    Path path,    BasicFileAttributes attrs){
+      filesVisited.add(path);
+      return FileVisitResult.CONTINUE;
+    }
+  }
+;
+  filesystem.walkRelativeFileTree(Paths.get("root"),fileVisitor);
+  assertThat(filesVisited,containsInAnyOrder(Paths.get("root/A.txt"),Paths.get("root/A/B/C.txt"),Paths.get("root/A/B.txt")));
+  filesVisited.clear();
+  filesystem.walkRelativeFileTree(Paths.get("root/A"),fileVisitor);
+  assertThat(filesVisited,containsInAnyOrder(Paths.get("root/A/B/C.txt"),Paths.get("root/A/B.txt")));
+}
