@@ -1,13 +1,13 @@
 {
   Path primaryDexClassesFile=Paths.get("the/manifest.txt");
-  SplitZipStep splitZipStep=new SplitZipStep(ImmutableSet.<Path>of(),Paths.get(""),Paths.get(""),Paths.get(""),"",Optional.<Path>absent(),Optional.<Path>absent(),ImmutableSet.of("List"),Optional.of(primaryDexClassesFile),ZipSplitter.DexSplitStrategy.MAXIMIZE_PRIMARY_DEX_SIZE,DexStore.JAR,Paths.get(""),true,4 * 1024 * 1024);
+  SplitZipStep splitZipStep=new SplitZipStep(ImmutableSet.<Path>of(),Paths.get(""),Paths.get(""),Paths.get(""),"",Optional.<Path>absent(),Optional.<Path>absent(),ImmutableSet.of("List"),Optional.of(primaryDexClassesFile),Optional.<Path>absent(),false,ZipSplitter.DexSplitStrategy.MAXIMIZE_PRIMARY_DEX_SIZE,DexStore.JAR,Paths.get(""),true,4 * 1024 * 1024);
   List<String> linesInManifestFile=ImmutableList.of("com/google/common/collect/ImmutableSortedSet","  com/google/common/collect/ImmutableSet","# com/google/common/collect/ImmutableMap");
   ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
   EasyMock.expect(projectFilesystem.readLines(primaryDexClassesFile)).andReturn(linesInManifestFile);
   ExecutionContext context=EasyMock.createMock(ExecutionContext.class);
   EasyMock.expect(context.getProjectFilesystem()).andReturn(projectFilesystem);
   EasyMock.replay(projectFilesystem,context);
-  Predicate<String> requiredInPrimaryZipPredicate=splitZipStep.createRequiredInPrimaryZipPredicate(context);
+  Predicate<String> requiredInPrimaryZipPredicate=splitZipStep.createRequiredInPrimaryZipPredicate(context,ProguardTranslatorFactory.createForTest(Optional.<Map<String,String>>absent()),Suppliers.ofInstance(ImmutableList.<ClassNode>of()));
   assertTrue("All non-.class files should be accepted.",requiredInPrimaryZipPredicate.apply("apples.txt"));
   assertTrue("com/google/common/collect/ImmutableSortedSet.class is listed in the manifest verbatim.",requiredInPrimaryZipPredicate.apply("com/google/common/collect/ImmutableSortedSet.class"));
   assertTrue("com/google/common/collect/ImmutableSet.class is in the manifest with whitespace.",requiredInPrimaryZipPredicate.apply("com/google/common/collect/ImmutableSet.class"));

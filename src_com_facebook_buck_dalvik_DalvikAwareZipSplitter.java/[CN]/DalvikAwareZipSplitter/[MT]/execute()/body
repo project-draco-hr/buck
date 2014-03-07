@@ -2,14 +2,26 @@
   ClasspathTraverser classpathTraverser=new DefaultClasspathTraverser();
   primaryOut=newZipOutput(outPrimary);
   secondaryDexWriter.reset();
+  final ImmutableMap.Builder<String,FileLike> entriesBuilder=ImmutableMap.builder();
   classpathTraverser.traverse(new ClasspathTraversal(inFiles,filesystem){
     @Override public void visit(    FileLike entry) throws IOException {
-      if (requiredInPrimaryZip.apply(entry.getRelativePath())) {
+      String relativePath=entry.getRelativePath();
+      if (requiredInPrimaryZip.apply(relativePath)) {
         primaryOut.putEntry(entry);
+      }
+ else       if (wantedInPrimaryZip.contains(relativePath)) {
+        entriesBuilder.put(relativePath,entry);
       }
     }
   }
 );
+  ImmutableMap<String,FileLike> entries=entriesBuilder.build();
+  for (  String wanted : wantedInPrimaryZip) {
+    FileLike entry=entries.get(wanted);
+    if ((entry != null) && !primaryOut.containsEntry(entry) && primaryOut.canPutEntry(entry)) {
+      primaryOut.putEntry(entry);
+    }
+  }
   classpathTraverser.traverse(new ClasspathTraversal(inFiles,filesystem){
     @Override public void visit(    FileLike entry) throws IOException {
       if (primaryOut.containsEntry(entry)) {

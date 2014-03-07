@@ -2,7 +2,7 @@
   Path proguardConfigFile=Paths.get("the/configuration.txt");
   Path proguardMappingFile=Paths.get("the/mapping.txt");
   Path primaryDexClassesFile=Paths.get("the/manifest.txt");
-  SplitZipStep splitZipStep=new SplitZipStep(ImmutableSet.<Path>of(),Paths.get(""),Paths.get(""),Paths.get(""),"",Optional.of(proguardConfigFile),Optional.of(proguardMappingFile),ImmutableSet.of("/primary/","x/"),Optional.of(primaryDexClassesFile),ZipSplitter.DexSplitStrategy.MAXIMIZE_PRIMARY_DEX_SIZE,DexStore.JAR,Paths.get(""),true,4 * 1024 * 1024);
+  SplitZipStep splitZipStep=new SplitZipStep(ImmutableSet.<Path>of(),Paths.get(""),Paths.get(""),Paths.get(""),"",Optional.of(proguardConfigFile),Optional.of(proguardMappingFile),ImmutableSet.of("/primary/","x/"),Optional.of(primaryDexClassesFile),Optional.<Path>absent(),false,ZipSplitter.DexSplitStrategy.MAXIMIZE_PRIMARY_DEX_SIZE,DexStore.JAR,Paths.get(""),true,4 * 1024 * 1024);
   List<String> linesInMappingFile=ImmutableList.of("foo.bar.MappedPrimary -> foo.bar.a:","foo.bar.MappedSecondary -> foo.bar.b:","foo.bar.UnmappedPrimary -> foo.bar.UnmappedPrimary:","foo.bar.UnmappedSecondary -> foo.bar.UnmappedSecondary:","foo.primary.MappedPackage -> x.a:","foo.secondary.MappedPackage -> x.b:","foo.primary.UnmappedPackage -> foo.primary.UnmappedPackage:");
   List<String> linesInManifestFile=ImmutableList.of("foo/bar/MappedPrimary","foo/bar/UnmappedPrimary","foo/bar/b","x/b");
   ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
@@ -12,7 +12,8 @@
   ExecutionContext context=EasyMock.createMock(ExecutionContext.class);
   EasyMock.expect(context.getProjectFilesystem()).andReturn(projectFilesystem).anyTimes();
   EasyMock.replay(projectFilesystem,context);
-  Predicate<String> requiredInPrimaryZipPredicate=splitZipStep.createRequiredInPrimaryZipPredicate(context);
+  ProguardTranslatorFactory translatorFactory=ProguardTranslatorFactory.create(context,Optional.of(proguardConfigFile),Optional.of(proguardMappingFile));
+  Predicate<String> requiredInPrimaryZipPredicate=splitZipStep.createRequiredInPrimaryZipPredicate(context,translatorFactory,Suppliers.ofInstance(ImmutableList.<ClassNode>of()));
   assertTrue("Mapped class from primary list should be in primary.",requiredInPrimaryZipPredicate.apply("foo/bar/a.class"));
   assertTrue("Unmapped class from primary list should be in primary.",requiredInPrimaryZipPredicate.apply("foo/bar/UnmappedPrimary.class"));
   assertTrue("Mapped class from substring should be in primary.",requiredInPrimaryZipPredicate.apply("x/a.class"));
