@@ -1,0 +1,29 @@
+{
+  int magic=buffer.getInt();
+  short version=buffer.getShort();
+  if (magic != HEADER_MAGIC || version != HEADER_VERSION) {
+    return false;
+  }
+  buffer.getShort();
+  int stringOffset=buffer.getInt();
+  numEntries=buffer.getInt();
+  numBuckets=buffer.getInt();
+  maxValueLength=buffer.getInt();
+  stringBytesActualLength=buffer.capacity() - HEADER_SIZE - numBuckets * BUCKET_SIZE;
+  buckets=new Bucket[numBuckets];
+  int actualOffset=HEADER_SIZE + numBuckets * BUCKET_SIZE - stringOffset;
+  for (int i=0; i < numBuckets; i++) {
+    int keyRawOffset=buffer.getInt();
+    int prefixRawOffset=buffer.getInt();
+    int suffixRawOffset=buffer.getInt();
+    if (keyRawOffset == EMPTY_BUCKET_KEY) {
+      buckets[i]=null;
+    }
+ else {
+      buckets[i]=new Bucket(keyRawOffset - actualOffset,prefixRawOffset - actualOffset,suffixRawOffset - actualOffset);
+    }
+  }
+  stringBytes=new byte[stringBytesActualLength];
+  buffer.get(stringBytes);
+  return true;
+}
