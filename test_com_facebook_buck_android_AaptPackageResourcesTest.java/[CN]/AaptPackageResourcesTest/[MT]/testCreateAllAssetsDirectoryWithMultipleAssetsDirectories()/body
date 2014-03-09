@@ -10,11 +10,17 @@
   AndroidResourceRule resourceTwo=(AndroidResourceRule)ruleResolver.get(BuildTargetFactory.newInstance("//facebook/base:libraryTwo_resources"));
   Set<Path> assetsDirectories=ImmutableSet.of(resourceOne.getAssets(),resourceTwo.getAssets());
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
-  DirectoryTraverser traverser=new FakeDirectoryTraverser(ImmutableMap.<String,Collection<FakeDirectoryTraverser.Entry>>of("facebook/base/assets1",ImmutableList.of(new FakeDirectoryTraverser.Entry(new File("facebook/base/assets1","guava-10.0.1-fork.dex.1.jar"),"guava-10.0.1-fork.dex.1.jar")),"facebook/base/assets2",ImmutableList.of(new FakeDirectoryTraverser.Entry(new File("facebook/base/assets2","fonts/Theinhardt-Medium.otf"),"fonts/Theinhardt-Medium.otf"),new FakeDirectoryTraverser.Entry(new File("facebook/base/assets2","fonts/Theinhardt-Regular.otf"),"fonts/Theinhardt-Regular.otf"))));
-  Optional<Path> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(assetsDirectories,commands,traverser);
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  filesystem.touch(Paths.get("facebook/base/assets1/guava-10.0.1-fork.dex.1.jar"));
+  filesystem.touch(Paths.get("facebook/base/assets2/fonts/Theinhardt-Medium.otf"));
+  filesystem.touch(Paths.get("facebook/base/assets2/fonts/Theinhardt-Regular.otf"));
+  Optional<Path> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(assetsDirectories,commands,filesystem);
   EasyMock.verify(resourcesFilter,uberRDotJava);
   assertTrue(allAssetsDirectory.isPresent());
   assertEquals(BIN_PATH.resolve("facebook/base/__assets_apk#aapt_package__"),allAssetsDirectory.get());
-  List<? extends Step> expectedCommands=ImmutableList.of(new MakeCleanDirectoryStep(BIN_PATH.resolve("facebook/base/__assets_apk#aapt_package__")),new MkdirAndSymlinkFileStep(Paths.get("facebook/base/assets1/guava-10.0.1-fork.dex.1.jar"),BIN_PATH.resolve("facebook/base/__assets_apk#aapt_package__/guava-10.0.1-fork.dex.1.jar")),new MkdirAndSymlinkFileStep(Paths.get("facebook/base/assets2/fonts/Theinhardt-Medium.otf"),BIN_PATH.resolve("facebook/base/__assets_apk#aapt_package__/fonts/Theinhardt-Medium.otf")),new MkdirAndSymlinkFileStep(Paths.get("facebook/base/assets2/fonts/Theinhardt-Regular.otf"),BIN_PATH.resolve("facebook/base/__assets_apk#aapt_package__/fonts/Theinhardt-Regular.otf")));
-  MoreAsserts.assertListEquals(expectedCommands,commands.build());
+  List<? extends Step> observedCommands=commands.build();
+  assertEquals(4,observedCommands.size());
+  assertEquals(new MakeCleanDirectoryStep(BIN_PATH.resolve("facebook/base/__assets_apk#aapt_package__")),observedCommands.get(0));
+  ImmutableSet<Step> remainingCommands=ImmutableSet.copyOf(observedCommands.subList(1,4));
+  MoreAsserts.assertSetEquals(ImmutableSet.<Step>of(new MkdirAndSymlinkFileStep(Paths.get("facebook/base/assets1/guava-10.0.1-fork.dex.1.jar"),BIN_PATH.resolve("facebook/base/__assets_apk#aapt_package__/guava-10.0.1-fork.dex.1.jar")),new MkdirAndSymlinkFileStep(Paths.get("facebook/base/assets2/fonts/Theinhardt-Medium.otf"),BIN_PATH.resolve("facebook/base/__assets_apk#aapt_package__/fonts/Theinhardt-Medium.otf")),new MkdirAndSymlinkFileStep(Paths.get("facebook/base/assets2/fonts/Theinhardt-Regular.otf"),BIN_PATH.resolve("facebook/base/__assets_apk#aapt_package__/fonts/Theinhardt-Regular.otf"))),remainingCommands);
 }

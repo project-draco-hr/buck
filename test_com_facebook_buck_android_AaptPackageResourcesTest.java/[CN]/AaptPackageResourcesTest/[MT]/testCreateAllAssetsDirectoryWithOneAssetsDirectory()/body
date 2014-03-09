@@ -9,8 +9,10 @@
   AaptPackageResources aaptPackageResources=new AaptPackageResources(new BuildTarget("//java/src/com/facebook/base","apk","aapt_package"),new FileSourcePath("java/src/com/facebook/base/AndroidManifest.xml"),resourcesFilter,uberRDotJava,PackageType.DEBUG,ImmutableSet.<TargetCpuType>of());
   Set<Path> assetsDirectories=ImmutableSet.of(resourceOne.getAssets());
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
-  DirectoryTraverser traverser=new FakeDirectoryTraverser(ImmutableMap.<String,Collection<FakeDirectoryTraverser.Entry>>of("java/src/com/facebook/base/assets2",ImmutableList.of(new FakeDirectoryTraverser.Entry(new File("java/src/com/facebook/base/assets2","fonts/Theinhardt-Medium.otf"),"fonts/Theinhardt-Medium.otf"),new FakeDirectoryTraverser.Entry(new File("java/src/com/facebook/base/assets2","fonts/Theinhardt-Regular.otf"),"fonts/Theinhardt-Regular.otf"))));
-  Optional<Path> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(assetsDirectories,commands,traverser);
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  filesystem.touch(Paths.get("java/src/com/facebook/base/assets2/fonts/Theinhardt-Medium.otf"));
+  filesystem.touch(Paths.get("java/src/com/facebook/base/assets2/fonts/Theinhardt-Regular.otf"));
+  Optional<Path> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(assetsDirectories,commands,filesystem);
   EasyMock.verify(resourcesFilter,uberRDotJava);
   assertTrue(allAssetsDirectory.isPresent());
   assertEquals("Even though there is only one assets directory, the one in " + BIN_DIR + " should be used.",aaptPackageResources.getPathToAllAssetsDirectory(),allAssetsDirectory.get());
