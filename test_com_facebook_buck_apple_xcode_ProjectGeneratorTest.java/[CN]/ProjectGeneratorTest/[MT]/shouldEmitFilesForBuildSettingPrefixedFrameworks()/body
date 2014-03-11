@@ -1,0 +1,14 @@
+{
+  BuildRule rule=createBuildRuleWithDefaults(new BuildTarget("//foo","rule"),ImmutableSortedSet.<BuildRule>of(),iosTestDescription,new Function<IosTestDescription.Arg,IosTestDescription.Arg>(){
+    @Override public IosTestDescription.Arg apply(    IosTestDescription.Arg input){
+      input.frameworks=ImmutableSortedSet.of("$BUILT_PRODUCTS_DIR/libfoo.a","$SDKROOT/libfoo.a","$SOURCE_ROOT/libfoo.a");
+      return input;
+    }
+  }
+);
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(rule),ImmutableSet.of(rule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXProject generatedProject=projectGenerator.getGeneratedProject();
+  PBXTarget target=assertTargetExistsAndReturnTarget(generatedProject,"//foo:rule");
+  assertHasSingletonFrameworksPhaseWithFrameworkEntries(target,ImmutableList.of("$BUILT_PRODUCTS_DIR/libfoo.a","$SDKROOT/libfoo.a","$SOURCE_ROOT/libfoo.a"));
+}
