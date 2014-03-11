@@ -1,24 +1,43 @@
 {
-  List<String> argumentsAsBuildTargets=options.getArgumentsFormattedAsBuildTargets();
   PartialGraph partialGraph;
-  ImmutableSet<BuildTarget> targets;
   try {
     partialGraph=PartialGraph.createFullGraph(getProjectFilesystem(),options.getDefaultIncludes(),getParser(),getBuckEventBus());
-    targets=ImmutableSet.copyOf(getBuildTargets(argumentsAsBuildTargets));
   }
  catch (  BuildTargetException|BuildFileParseException e) {
     throw new HumanReadableException(e);
   }
+  ImmutableSet<BuildTarget> passedInTargetsSet;
+  try {
+    List<String> argumentsAsBuildTargets=options.getArgumentsFormattedAsBuildTargets();
+    passedInTargetsSet=ImmutableSet.copyOf(getBuildTargets(argumentsAsBuildTargets));
+  }
+ catch (  NoSuchBuildTargetException e) {
+    throw new HumanReadableException(e);
+  }
   ExecutionContext executionContext=createExecutionContext(options,partialGraph.getDependencyGraph());
   if (options.getCombinedProject() != null) {
-    ProjectGenerator projectGenerator=new ProjectGenerator(partialGraph,targets,getProjectFilesystem(),executionContext,getProjectFilesystem().getPathForRelativePath(Paths.get("_gen")),"GeneratedProject",ProjectGenerator.COMBINED_PROJECT_OPTIONS);
+    ProjectGenerator projectGenerator=new ProjectGenerator(partialGraph,passedInTargetsSet,getProjectFilesystem(),executionContext,getProjectFilesystem().getPathForRelativePath(Paths.get("_gen")),"GeneratedProject",ProjectGenerator.COMBINED_PROJECT_OPTIONS);
     projectGenerator.createXcodeProjects();
+    console.getStdOut().println(projectGenerator.getProjectPath());
   }
  else {
+    ImmutableSet<BuildTarget> targets;
+    if (passedInTargetsSet.isEmpty()) {
+      ImmutableSet.Builder<BuildTarget> targetsBuilder=ImmutableSet.builder();
+      for (      BuildRule node : partialGraph.getDependencyGraph().getNodes()) {
+        if (node.getType() == XcodeProjectConfigDescription.TYPE) {
+          targetsBuilder.add(node.getBuildTarget());
+        }
+      }
+      targets=targetsBuilder.build();
+    }
+ else {
+      targets=passedInTargetsSet;
+    }
     SeparatedProjectsGenerator projectGenerator=new SeparatedProjectsGenerator(getProjectFilesystem(),partialGraph,executionContext,targets);
     ImmutableSet<Path> generatedProjectPaths=projectGenerator.generateProjects();
     for (    Path path : generatedProjectPaths) {
-      console.getStdOut().println(path.toAbsolutePath().toString());
+      console.getStdOut().println(path.toString());
     }
   }
   return 0;
