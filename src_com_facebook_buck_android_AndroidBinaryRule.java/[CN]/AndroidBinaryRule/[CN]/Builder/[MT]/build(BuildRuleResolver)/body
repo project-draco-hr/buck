@@ -7,7 +7,6 @@
   ImmutableSortedSet<BuildRule> classpathDeps=getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build());
   AndroidTransitiveDependencyGraph androidTransitiveDependencyGraph=new AndroidTransitiveDependencyGraph(classpathDeps);
   BuildRuleParams originalParams=createBuildRuleParams(ruleResolver);
-  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,javacOptions);
   final ImmutableSortedSet<BuildRule> originalDeps=originalParams.getDeps();
   ImmutableSet<BuildTarget> buildTargetsToExcludeFromDex=buildTargetsToExcludeFromDexBuilder.build();
   boolean shouldPreDex=!disablePreDex && PackageType.DEBUG.equals(packageType) && !preprocessJavaClassesBash.isPresent();
@@ -19,17 +18,10 @@
     }
   }
 ;
-  AndroidBinaryGraphEnhancer.AaptEnhancementResult aaptEnhancementResult=graphEnhancer.addBuildablesToCreateAaptResources(ruleResolver,resourceCompressionMode,resourceFilter,androidResourceDepsFinder,manifest,packageType,cpuFilters.build(),shouldPreDex,this.buildStringSourceMap);
   Path primaryDexPath=BuildTargets.getBinPath(getBuildTarget(),".dex/%s/classes.dex");
-  AndroidBinaryGraphEnhancer.DexEnhancementResult dexEnhancementResult;
-  if (shouldPreDex) {
-    dexEnhancementResult=graphEnhancer.createDepsForPreDexing(ruleResolver,primaryDexPath,dexSplitMode,buildTargetsToExcludeFromDex,aaptEnhancementResult.getUberRDotJava());
-  }
- else {
-    dexEnhancementResult=new AndroidBinaryGraphEnhancer.DexEnhancementResult(Optional.<PreDexMerge>absent());
-  }
-  AndroidBinaryGraphEnhancer.AbiEnhancementResult abiEnhancementResult=graphEnhancer.createDepsForAbiCalculation(ruleResolver,exopackage,(Keystore)keystore,androidResourceDepsFinder,aaptEnhancementResult,dexEnhancementResult);
-  ImmutableSortedSet<BuildRule> finalDeps=abiEnhancementResult.getFinalExopackageDeps();
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,ruleResolver,resourceCompressionMode,resourceFilter,androidResourceDepsFinder,manifest,packageType,cpuFilters.build(),buildStringSourceMap,shouldPreDex,primaryDexPath,dexSplitMode,buildTargetsToExcludeFromDex,javacOptions,exopackage,(Keystore)keystore);
+  AndroidBinaryGraphEnhancer.EnhancementResult result=graphEnhancer.createAdditionalBuildables();
+  ImmutableSortedSet<BuildRule> finalDeps=result.getFinalDeps();
   BuildRuleParams newParams=originalParams.copyWithChangedDeps(finalDeps);
-  return new AndroidBinaryRule(newParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build()),(Keystore)keystore,packageType,buildRulesToExcludeFromDex,dexSplitMode,useAndroidProguardConfigWithOptimizations,optimizationPasses,proguardConfig,resourceCompressionMode,cpuFilters.build(),primaryDexPath,aaptEnhancementResult.getResourcesFilter(),aaptEnhancementResult.getUberRDotJava(),aaptEnhancementResult.getAaptPackageResources(),dexEnhancementResult.getPreDexMerge(),abiEnhancementResult.computeExopackageDepsAbi(),exopackage,getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash,androidResourceDepsFinder);
+  return new AndroidBinaryRule(newParams,manifest,target,getBuildTargetsAsBuildRules(ruleResolver,classpathDepsBuilder.build()),(Keystore)keystore,packageType,buildRulesToExcludeFromDex,dexSplitMode,useAndroidProguardConfigWithOptimizations,optimizationPasses,proguardConfig,resourceCompressionMode,cpuFilters.build(),primaryDexPath,result.getResourcesFilter(),result.getUberRDotJava(),result.getAaptPackageResources(),result.getPreDexMerge(),result.getComputeExopackageDepsAbi(),exopackage,getBuildTargetsAsBuildRules(ruleResolver,preprocessJavaClassesDeps.build()),preprocessJavaClassesBash,androidResourceDepsFinder);
 }

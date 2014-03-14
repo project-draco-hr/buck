@@ -10,7 +10,6 @@
   final ImmutableSortedSet<BuildRule> originalDeps=originalParams.getDeps();
   final AndroidBinaryRule apkUnderTest=getUnderlyingApk((InstallableApk)apkRule.getBuildable());
   ImmutableSet<BuildRule> buildRulesToExcludeFromDex=ImmutableSet.<BuildRule>builder().addAll(apkUnderTest.getBuildRulesToExcludeFromDex()).addAll(Classpaths.getClasspathEntries(apkUnderTest.getClasspathDeps()).keySet()).build();
-  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,JavacOptions.DEFAULTS);
   ImmutableSortedSet<BuildRule> classpathDepsForInstrumentationApk=getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build());
   AndroidTransitiveDependencyGraph androidTransitiveDependencyGraph=new AndroidTransitiveDependencyGraph(classpathDepsForInstrumentationApk);
   AndroidResourceDepsFinder androidResourceDepsFinder=new AndroidResourceDepsFinder(androidTransitiveDependencyGraph,buildRulesToExcludeFromDex){
@@ -27,7 +26,9 @@
     }
   }
 ;
-  AndroidBinaryGraphEnhancer.AaptEnhancementResult aaptEnhancementResult=graphEnhancer.addBuildablesToCreateAaptResources(ruleResolver,ResourceCompressionMode.DISABLED,ResourceFilter.EMPTY_FILTER,androidResourceDepsFinder,manifest,PackageType.INSTRUMENTED,apkUnderTest.getCpuFilters(),false,false);
-  BuildRuleParams newParams=originalParams.copyWithChangedDeps(graphEnhancer.getTotalDeps());
-  return new AndroidInstrumentationApk(newParams,manifest,apkUnderTest,buildRulesToExcludeFromDex,aaptEnhancementResult.getResourcesFilter(),aaptEnhancementResult.getUberRDotJava(),aaptEnhancementResult.getAaptPackageResources(),androidResourceDepsFinder,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()));
+  Path primaryDexPath=BuildTargets.getBinPath(getBuildTarget(),".dex/%s/classes.dex");
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,ruleResolver,ResourceCompressionMode.DISABLED,ResourceFilter.EMPTY_FILTER,androidResourceDepsFinder,manifest,PackageType.INSTRUMENTED,apkUnderTest.getCpuFilters(),false,false,primaryDexPath,DexSplitMode.NO_SPLIT,ImmutableSortedSet.<BuildTarget>of(),JavacOptions.DEFAULTS,false,apkUnderTest.getKeystore());
+  AndroidBinaryGraphEnhancer.EnhancementResult result=graphEnhancer.createAdditionalBuildables();
+  BuildRuleParams newParams=originalParams.copyWithChangedDeps(result.getFinalDeps());
+  return new AndroidInstrumentationApk(newParams,manifest,apkUnderTest,buildRulesToExcludeFromDex,result.getResourcesFilter(),result.getUberRDotJava(),result.getAaptPackageResources(),androidResourceDepsFinder,getBuildTargetsAsBuildRules(ruleResolver,classpathDeps.build()));
 }
