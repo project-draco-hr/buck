@@ -1,7 +1,6 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   steps.add(new MkdirAndSymlinkFileStep(manifest.resolve(context),getAndroidManifestXml()));
-  final AndroidTransitiveDependencies transitiveDependencies=resourcesFilter.getAndroidTransitiveDependencies();
   final ImmutableSet<Path> resDirectories=resourcesFilter.getResDirectories();
   if (!resDirectories.isEmpty() && isStoreStringsAsAssets()) {
     Path tmpStringsDirPath=getPathForTmpStringAssetsDirectory();
@@ -12,7 +11,7 @@
     @Override public int execute(    ExecutionContext context){
       ImmutableList.Builder<Step> commands=ImmutableList.builder();
       try {
-        createAllAssetsDirectory(transitiveDependencies.assetsDirectories,commands,context.getProjectFilesystem());
+        createAllAssetsDirectory(androidTransitiveDependencies.assetsDirectories,commands,context.getProjectFilesystem());
       }
  catch (      IOException e) {
         context.logError(e,"Error creating all assets directory in %s.",buildTarget);
@@ -36,16 +35,16 @@
 ;
   steps.add(collectAssets);
   Optional<Path> assetsDirectory;
-  if (transitiveDependencies.assetsDirectories.isEmpty() && transitiveDependencies.nativeLibAssetsDirectories.isEmpty() && !isStoreStringsAsAssets()) {
+  if (androidTransitiveDependencies.assetsDirectories.isEmpty() && androidTransitiveDependencies.nativeLibAssetsDirectories.isEmpty() && !isStoreStringsAsAssets()) {
     assetsDirectory=Optional.absent();
   }
  else {
     assetsDirectory=Optional.of(getPathToAllAssetsDirectory());
   }
-  if (!transitiveDependencies.nativeLibAssetsDirectories.isEmpty()) {
+  if (!androidTransitiveDependencies.nativeLibAssetsDirectories.isEmpty()) {
     Path nativeLibAssetsDir=assetsDirectory.get().resolve("lib");
     steps.add(new MakeCleanDirectoryStep(nativeLibAssetsDir));
-    for (    Path nativeLibDir : transitiveDependencies.nativeLibAssetsDirectories) {
+    for (    Path nativeLibDir : androidTransitiveDependencies.nativeLibAssetsDirectories) {
       AndroidBinaryRule.copyNativeLibrary(nativeLibDir,nativeLibAssetsDir,cpuFilters,steps);
     }
   }
