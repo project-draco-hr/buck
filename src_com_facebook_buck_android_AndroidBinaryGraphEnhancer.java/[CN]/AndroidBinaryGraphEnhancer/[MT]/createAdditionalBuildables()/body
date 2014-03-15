@@ -2,15 +2,30 @@
   ImmutableSortedSet.Builder<BuildRule> enhancedDeps=ImmutableSortedSet.naturalOrder();
   enhancedDeps.addAll(originalDeps);
   BuildTarget buildTargetForFilterResources=createBuildTargetWithFlavor(RESOURCES_FILTER_FLAVOR);
-  BuildRule resourcesFilterBuildRule=ruleResolver.buildAndAddToIndex(ResourcesFilter.newResourcesFilterBuilder(buildRuleBuilderParams).setBuildTarget(buildTargetForFilterResources).setResourceCompressionMode(resourceCompressionMode).setResourceFilter(resourceFilter).setAndroidResourceDepsFinder(androidResourceDepsFinder));
-  ResourcesFilter resourcesFilter=(ResourcesFilter)resourcesFilterBuildRule.getBuildable();
-  enhancedDeps.add(resourcesFilterBuildRule);
+  FilteredResourcesProvider filteredResourcesProvider;
+  boolean needsResourceFiltering=resourceFilter.isEnabled() || resourceCompressionMode.isStoreStringsAsAssets();
+  if (needsResourceFiltering) {
+    BuildRule resourcesFilterBuildRule=ruleResolver.buildAndAddToIndex(ResourcesFilter.newResourcesFilterBuilder(buildRuleBuilderParams).setBuildTarget(buildTargetForFilterResources).setResourceCompressionMode(resourceCompressionMode).setResourceFilter(resourceFilter).setAndroidResourceDepsFinder(androidResourceDepsFinder));
+    filteredResourcesProvider=(ResourcesFilter)resourcesFilterBuildRule.getBuildable();
+    enhancedDeps.add(resourcesFilterBuildRule);
+  }
+ else {
+    filteredResourcesProvider=new IdentityResourcesProvider(androidResourceDepsFinder);
+  }
   BuildTarget buildTargetForUberRDotJava=createBuildTargetWithFlavor(UBER_R_DOT_JAVA_FLAVOR);
-  BuildRule uberRDotJavaBuildRule=ruleResolver.buildAndAddToIndex(UberRDotJava.newUberRDotJavaBuilder(buildRuleBuilderParams).setBuildTarget(buildTargetForUberRDotJava).setResourcesFilter(resourcesFilter).setAndroidResourceDepsFinder(androidResourceDepsFinder).setJavacOptions(javacOptions).setRDotJavaNeedsDexing(shouldPreDex).setBuildStringSourceMap(shouldBuildStringSourceMap));
+  UberRDotJava.Builder uberRDotJavaBuilder=UberRDotJava.newUberRDotJavaBuilder(buildRuleBuilderParams).setBuildTarget(buildTargetForUberRDotJava).setFilteredResourcesProvider(filteredResourcesProvider).setAndroidResourceDepsFinder(androidResourceDepsFinder).setJavacOptions(javacOptions).setRDotJavaNeedsDexing(shouldPreDex).setBuildStringSourceMap(shouldBuildStringSourceMap);
+  if (needsResourceFiltering) {
+    uberRDotJavaBuilder.addDep(buildTargetForFilterResources);
+  }
+  BuildRule uberRDotJavaBuildRule=ruleResolver.buildAndAddToIndex(uberRDotJavaBuilder);
   UberRDotJava uberRDotJava=(UberRDotJava)uberRDotJavaBuildRule.getBuildable();
   enhancedDeps.add(uberRDotJavaBuildRule);
   BuildTarget buildTargetForAapt=createBuildTargetWithFlavor(AAPT_PACKAGE_FLAVOR);
-  BuildRule aaptPackageResourcesBuildRule=ruleResolver.buildAndAddToIndex(AaptPackageResources.newAaptPackageResourcesBuildableBuilder(buildRuleBuilderParams).setBuildTarget(buildTargetForAapt).setAllParams(manifest,resourcesFilter,uberRDotJava,androidResourceDepsFinder.getAndroidTransitiveDependencies(),packageType,cpuFilters));
+  AaptPackageResources.Builder aaptPackageResourcesBuilder=AaptPackageResources.newAaptPackageResourcesBuildableBuilder(buildRuleBuilderParams).setBuildTarget(buildTargetForAapt).setAllParams(manifest,filteredResourcesProvider,uberRDotJava,androidResourceDepsFinder.getAndroidTransitiveDependencies(),packageType,cpuFilters);
+  if (needsResourceFiltering) {
+    aaptPackageResourcesBuilder.addDep(buildTargetForFilterResources);
+  }
+  BuildRule aaptPackageResourcesBuildRule=ruleResolver.buildAndAddToIndex(aaptPackageResourcesBuilder);
   AaptPackageResources aaptPackageResources=(AaptPackageResources)aaptPackageResourcesBuildRule.getBuildable();
   enhancedDeps.add(aaptPackageResourcesBuildRule);
   Optional<PreDexMerge> preDexMerge=Optional.absent();
@@ -30,5 +45,5 @@
  else {
     finalDeps=enhancedDeps.build();
   }
-  return new EnhancementResult(resourcesFilter,uberRDotJava,aaptPackageResources,preDexMerge,computeExopackageDepsAbi,finalDeps);
+  return new EnhancementResult(filteredResourcesProvider,uberRDotJava,aaptPackageResources,preDexMerge,computeExopackageDepsAbi,finalDeps);
 }
