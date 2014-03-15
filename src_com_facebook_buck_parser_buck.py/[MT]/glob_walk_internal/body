@@ -1,0 +1,23 @@
+def glob_walk_internal(normpath, iglob, isresult, visited, tokens, path):
+    "\n  Recursive routine for glob_walk\n\n  'visited' is initially the empty set.\n  'tokens' is the list of glob elements yet to be traversed, e.g. ['**', '*.java'].\n  'path', initially None, is the path being constructed.\n  'normpath(path)' should normalize and resolve symlinks of 'path' (for symlink loop detection)\n  'iglob(pattern)' should behave like glob.iglob if 'path' were relative to the current directory\n  'isresult(path)' should verify that path is valid as a result (typically calls os.path.isfile)\n  "
+    key = (tuple(tokens), normpath(path))
+    if (key in visited):
+        return
+    else:
+        visited.add(key)
+    if (not tokens):
+        if isresult(path):
+            yield path
+        return
+    token = tokens[0]
+    next_tokens = tokens[1:]
+    if (token == '**'):
+        for x in glob_walk_internal(normpath, iglob, isresult, visited, next_tokens, path):
+            yield x
+        for child in iglob(path_join(path, '*')):
+            for x in glob_walk_internal(normpath, iglob, isresult, visited, tokens, child):
+                yield x
+    else:
+        for child in iglob(path_join(path, token)):
+            for x in glob_walk_internal(normpath, iglob, isresult, visited, next_tokens, child):
+                yield x

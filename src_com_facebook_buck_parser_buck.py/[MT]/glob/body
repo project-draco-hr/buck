@@ -1,25 +1,16 @@
 @provide_for_build
-def glob(includes, excludes=[], build_env=None):
+def glob(includes, excludes=[], wantdots=True, build_env=None):
     search_base = build_env['BUILD_FILE_DIRECTORY']
     assert (not isinstance(includes, basestring)), 'The first argument to glob() must be a list of strings.'
     assert (not isinstance(excludes, basestring)), 'The excludes argument must be a list of strings.'
-    inclusions = [pattern_to_regex(p) for p in includes]
-    exclusions = [pattern_to_regex(p) for p in excludes]
-    paths = []
+    paths = set()
+    for pattern in includes:
+        for path in glob_walk(pattern, search_base, wantdots=wantdots):
+            paths.add(path)
 
-    def check_path(path):
-        if passes_glob_filter(path, inclusions, exclusions):
-            paths.append(path)
-    for (root, dirs, files) in symlink_aware_walk(search_base):
-        if (len(files) == 0):
-            continue
-        relative_root = relpath(root, search_base)
-        if (relative_root == '.'):
-            for file_path in files:
-                check_path(file_path)
-        else:
-            relative_root += '/'
-            for file_path in files:
-                relative_path = (relative_root + file_path)
-                check_path(relative_path)
+    def exclusion(path):
+        exclusions = (e for e in excludes if glob_match(e, path, wantdots=wantdots))
+        return next(exclusions, None)
+    paths = [p for p in paths if (not exclusion(p))]
+    paths.sort()
     return paths

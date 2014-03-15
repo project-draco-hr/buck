@@ -1,0 +1,22 @@
+def glob_match_internal(wantdots, tokens, chunks):
+    '\n  Recursive routine for glob_match\n\n  Works as glob_walk_internal but on a linear path instead of some filesystem.\n  '
+    if (not tokens):
+        return (True if (not chunks) else False)
+    token = tokens[0]
+    next_tokens = tokens[1:]
+    if (not chunks):
+        return (glob_match_internal(wantdots, next_tokens, chunks) if (token == '**') else False)
+    chunk = chunks[0]
+    next_chunks = chunks[1:]
+    if (not glob_module.has_magic(token)):
+        return ((token == chunk) and glob_match_internal(wantdots, next_tokens, next_chunks))
+    elif (token == '**'):
+        if glob_match_internal(wantdots, next_tokens, chunks):
+            return True
+        if ((not wantdots) and chunk and (chunk[0] == '.')):
+            return False
+        return glob_match_internal(wantdots, tokens, next_chunks)
+    else:
+        if ((not wantdots) and (token[0] != '.') and chunk and (chunk[0] == '.')):
+            return False
+        return (fnmatch.fnmatch(chunk, token) and glob_match_internal(wantdots, next_tokens, next_chunks))
