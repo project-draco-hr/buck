@@ -1,9 +1,19 @@
 {
-  try {
-    return Optional.of(keyspaceAndTtlFuture.get());
+  if (isKilled.get()) {
+    return Optional.absent();
   }
- catch (  ExecutionException|InterruptedException e) {
+  try {
+    return Optional.of(keyspaceAndTtlFuture.get(timeoutSeconds,TimeUnit.SECONDS));
+  }
+ catch (  TimeoutException e) {
+    keyspaceAndTtlFuture.cancel(true);
+    isKilled.set(true);
+  }
+catch (  ExecutionException|InterruptedException e) {
     buckEventBus.post(ThrowableLogEvent.create(e,"Unexpected error when fetching keyspace and ttl: %s.",e.getMessage()));
+  }
+catch (  CancellationException e) {
+    return Optional.absent();
   }
   return Optional.absent();
 }

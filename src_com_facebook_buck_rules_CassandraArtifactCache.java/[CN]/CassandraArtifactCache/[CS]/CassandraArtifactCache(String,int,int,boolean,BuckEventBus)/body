@@ -2,6 +2,7 @@
   this.doStore=doStore;
   this.buckEventBus=Preconditions.checkNotNull(buckEventBus);
   this.numConnectionExceptionReports=new AtomicInteger(0);
+  this.timeoutSeconds=timeoutSeconds;
   final AstyanaxContext<Keyspace> context=new AstyanaxContext.Builder().forCluster(CLUSTER_NAME).forKeyspace(KEYSPACE_NAME).withAstyanaxConfiguration(new AstyanaxConfigurationImpl().setCqlVersion("3.0.0").setTargetCassandraVersion("1.2").setDiscoveryType(NodeDiscoveryType.RING_DESCRIBE)).withConnectionPoolConfiguration(new ConnectionPoolConfigurationImpl(POOL_NAME).setSeeds(hosts).setPort(port).setMaxConnsPerHost(1)).withConnectionPoolMonitor(new CountingConnectionPoolMonitor()).buildKeyspace(ThriftFamilyFactory.getInstance());
   ExecutorService connectionService=MoreExecutors.getExitingExecutorService((ThreadPoolExecutor)Executors.newFixedThreadPool(1),0,TimeUnit.SECONDS);
   this.keyspaceAndTtlFuture=connectionService.submit(new Callable<KeyspaceAndTtl>(){
@@ -22,4 +23,5 @@
 );
   this.futures=Sets.newSetFromMap(new ConcurrentHashMap<ListenableFuture<OperationResult<Void>>,Boolean>());
   this.isWaitingToClose=new AtomicBoolean(false);
+  this.isKilled=new AtomicBoolean(false);
 }
