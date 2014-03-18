@@ -1,5 +1,8 @@
-def write_modules(modules):
+def write_modules(modules, generate_minimum_project):
     'Writes one XML file for each module.'
+    additional_excludes = defaultdict(list)
+    if generate_minimum_project:
+        additional_excludes = create_additional_excludes(modules)
     for module in modules:
         module_type = 'JAVA_MODULE'
         if (('isIntelliJPlugin' in module) and module['isIntelliJPlugin']):
@@ -30,6 +33,9 @@ def write_modules(modules):
             xml += ('\n      <sourceFolder url="%(url)s" isTestSource="%(is_test_source)s" %(package_prefix)s/>' % {'url': source_folder['url'], 'is_test_source': str(source_folder['isTestSource']).lower(), 'package_prefix': package_prefix, })
         for exclude_folder in module['excludeFolders']:
             xml += ('\n      <excludeFolder url="%s" />' % exclude_folder['url'])
+        for exclude_folder in additional_excludes[module['pathToImlFile']]:
+            normalized_dir = os.path.dirname(os.path.normpath(module['pathToImlFile']))
+            xml += ('\n      <excludeFolder url="file://$MODULE_DIR$/%s" />' % os.path.relpath(exclude_folder, normalized_dir))
         xml += '\n    </content>'
         xml = add_annotation_generated_source_folder(xml, module)
         if (num_source_folders <= 1):

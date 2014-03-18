@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import sys
+from collections import defaultdict
 MODULE_XML_START = '<?xml version="1.0" encoding="UTF-8"?>\n<module type="%(type)s" version="4">'
 MODULE_XML_END = '\n</module>\n'
 ANDROID_FACET = '\n  <component name="FacetManager">\n    <facet type="android" name="Android">\n      <configuration>\n        <option name="GEN_FOLDER_RELATIVE_PATH_APT" value="%(module_gen_path)s" />\n        <option name="GEN_FOLDER_RELATIVE_PATH_AIDL" value="%(module_gen_path)s" />\n        <option name="MANIFEST_FILE_RELATIVE_PATH" value="%(android_manifest)s" />\n        <option name="RES_FOLDER_RELATIVE_PATH" value="%(res)s" />\n        <option name="ASSETS_FOLDER_RELATIVE_PATH" value="/assets" />\n        <option name="LIBS_FOLDER_RELATIVE_PATH" value="%(libs_path)s" />\n        <option name="USE_CUSTOM_APK_RESOURCE_FOLDER" value="false" />\n        <option name="CUSTOM_APK_RESOURCE_FOLDER" value="" />\n        <option name="USE_CUSTOM_COMPILER_MANIFEST" value="false" />\n        <option name="CUSTOM_COMPILER_MANIFEST" value="" />\n        <option name="APK_PATH" value="" />\n        <option name="LIBRARY_PROJECT" value="%(is_android_library_project)s" />\n        <option name="RUN_PROCESS_RESOURCES_MAVEN_TASK" value="true" />\n        <option name="GENERATE_UNSIGNED_APK" value="false" />\n        <option name="CUSTOM_DEBUG_KEYSTORE_PATH" value="%(keystore)s" />\n        <option name="PACK_TEST_CODE" value="false" />\n        <option name="RUN_PROGUARD" value="%(run_proguard)s" />\n        <option name="PROGUARD_CFG_PATH" value="%(proguard_config)s" />\n        <resOverlayFolders />\n        <includeSystemProguardFile>false</includeSystemProguardFile>\n        <includeAssetsFromLibraries>true</includeAssetsFromLibraries>\n        <additionalNativeLibs />\n      </configuration>\n    </facet>\n  </component>'
@@ -21,13 +22,17 @@ RUN_CONFIG_XML_END = '</component>'
 REMOTE_RUN_CONFIG_XML = '\n  <configuration default="false" name="%(name)s" type="Remote" factoryName="Remote">\n    <option name="USE_SOCKET_TRANSPORT" value="true" />\n    <option name="SERVER_MODE" value="false" />\n    <option name="SHMEM_ADDRESS" value="javadebug" />\n    <option name="HOST" value="localhost" />\n    <option name="PORT" value="5005" />\n    <RunnerSettings RunnerId="Debug">\n      <option name="DEBUG_PORT" value="5005" />\n      <option name="TRANSPORT" value="0" />\n      <option name="LOCAL" value="false" />\n    </RunnerSettings>\n    <ConfigurationWrapper RunnerId="Debug" />\n    <method />\n  </configuration>\n'
 MODIFIED_FILES = []
 PROJECT_FILES = set()
+CONTAINS_IML_MARKER = '/*contains_iml*/'
 if (__name__ == '__main__'):
     json_file = sys.argv[1]
+    generate_minimum_project = False
+    if (len(sys.argv) == 3):
+        generate_minimum_project = (sys.argv[2] == '--generate_minimum_project')
     parsed_json = json.load(open(json_file, 'r'))
     libraries = parsed_json['libraries']
     write_libraries(libraries)
     modules = parsed_json['modules']
-    write_modules(modules)
+    write_modules(modules, generate_minimum_project)
     write_all_modules(modules)
     write_run_configs()
     for path in MODIFIED_FILES:

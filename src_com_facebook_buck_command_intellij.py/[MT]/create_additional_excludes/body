@@ -1,0 +1,28 @@
+def create_additional_excludes(modules):
+    'Create set of directories to also be excluded.'
+    module_tree = tree()
+    additional_excludes = defaultdict(list)
+    for module in modules:
+        normalized_iml = os.path.dirname(os.path.normpath(module['pathToImlFile']))
+        current_directory = module_tree
+        if normalized_iml:
+            for part in normalized_iml.split(os.path.sep):
+                current_directory = current_directory[part]
+        current_directory[CONTAINS_IML_MARKER] = module['pathToImlFile']
+    for (root, dirs, _files) in os.walk('.', topdown=True, followlinks=True):
+        current_directory = module_tree
+        normalized_root = os.path.normpath(root)
+        if (normalized_root == '.'):
+            continue
+        highest_iml_file = None
+        for part in normalized_root.split(os.path.sep):
+            if (CONTAINS_IML_MARKER in current_directory):
+                highest_iml_file = current_directory[CONTAINS_IML_MARKER]
+            if (part not in current_directory):
+                if ((part != 'res') and highest_iml_file):
+                    additional_excludes[highest_iml_file].append(normalized_root)
+                dirs[:] = []
+                break
+            else:
+                current_directory = current_directory[part]
+    return additional_excludes
