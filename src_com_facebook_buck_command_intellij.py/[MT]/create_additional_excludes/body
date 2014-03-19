@@ -8,7 +8,7 @@ def create_additional_excludes(modules):
         if normalized_iml:
             for part in normalized_iml.split(os.path.sep):
                 current_directory = current_directory[part]
-        current_directory[CONTAINS_IML_MARKER] = module['pathToImlFile']
+        current_directory[CONTAINS_IML_MARKER] = module
     for (root, dirs, _files) in os.walk('.', topdown=True, followlinks=True):
         current_directory = module_tree
         normalized_root = os.path.normpath(root)
@@ -17,7 +17,15 @@ def create_additional_excludes(modules):
         highest_iml_file = None
         for part in normalized_root.split(os.path.sep):
             if (CONTAINS_IML_MARKER in current_directory):
-                highest_iml_file = current_directory[CONTAINS_IML_MARKER]
+                module = current_directory[CONTAINS_IML_MARKER]
+                found_relevant_source_folder = False
+                for source_folder in module['sourceFolders']:
+                    if (source_folder['url'] != 'file://$MODULE_DIR$/gen'):
+                        found_relevant_source_folder = True
+                        break
+                if found_relevant_source_folder:
+                    break
+                highest_iml_file = module['pathToImlFile']
             if (part not in current_directory):
                 if ((part != 'res') and highest_iml_file):
                     additional_excludes[highest_iml_file].append(normalized_root)
