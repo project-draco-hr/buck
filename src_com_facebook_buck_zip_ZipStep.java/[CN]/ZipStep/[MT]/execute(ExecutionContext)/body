@@ -1,33 +1,33 @@
 {
-  File original=new File(absolutePathToZipFile);
-  if (original.exists()) {
-    context.getBuckEventBus().post(LogEvent.create(SEVERE,"Attempting to overwrite an existing zip: %s",original));
+  final ProjectFilesystem filesystem=context.getProjectFilesystem();
+  if (filesystem.exists(pathToZipFile)) {
+    context.postEvent(LogEvent.severe("Attempting to overwrite an existing zip: %s",pathToZipFile));
     return 1;
   }
-  try (BufferedOutputStream baseOut=new BufferedOutputStream(new FileOutputStream(absolutePathToZipFile));CustomZipOutputStream out=ZipOutputStreams.newOutputStream(baseOut,OVERWRITE_EXISTING)){
-    DirectoryTraversal traversal=new DirectoryTraversal(baseDir){
-      @Override public void visit(      File file,      String relativePath) throws IOException {
-        if (!paths.isEmpty() && !paths.contains(relativePath)) {
-          return;
+  try (BufferedOutputStream baseOut=new BufferedOutputStream(filesystem.newFileOutputStream(pathToZipFile));final CustomZipOutputStream out=ZipOutputStreams.newOutputStream(baseOut,OVERWRITE_EXISTING)){
+    final FileVisitor<Path> pathFileVisitor=new SimpleFileVisitor<Path>(){
+      @Override public FileVisitResult visitFile(      Path file,      BasicFileAttributes attributes) throws IOException {
+        if (!paths.isEmpty() && !paths.contains(file)) {
+          return FileVisitResult.CONTINUE;
         }
-        String name=junkPaths ? file.getName() : relativePath;
-        if (file.isDirectory()) {
-          name+="/";
-        }
-        CustomZipEntry entry=new CustomZipEntry(name);
-        entry.setTime(file.lastModified());
-        entry.setSize(file.length());
+        Path relativePath=junkPaths ? file.getFileName() : baseDir.relativize(file);
+        String entryName=relativePath.toString();
+        CustomZipEntry entry=new CustomZipEntry(entryName);
+        entry.setTime(attributes.lastModifiedTime().toMillis());
+        entry.setSize(attributes.size());
         entry.setCompressionLevel(compressionLevel);
         out.putNextEntry(entry);
-        Files.copy(file.toPath(),out);
+        Files.copy(filesystem.resolve(file),out);
         out.closeEntry();
+        return FileVisitResult.CONTINUE;
       }
     }
 ;
-    traversal.traverse();
-    return 0;
+    filesystem.walkRelativeFileTree(baseDir,pathFileVisitor);
   }
  catch (  IOException e) {
+    context.logError(e,"Error creating zip file %s",pathToZipFile);
     return 1;
   }
+  return 0;
 }
