@@ -23,8 +23,11 @@
   String buildId=MoreStrings.createRandomString();
   Clock clock=new DefaultClock();
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment();
+  PropertyFinder propertyFinder=new DefaultPropertyFinder(projectFilesystem);
+  AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(projectFilesystem,config.getNdkVersion(),propertyFinder);
+  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.getConfigured(config,new ProcessExecutor(console),androidDirectoryResolver);
   try (AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
-    Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,console);
+    Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console);
     eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,webServer,consoleListener);
     ImmutableList<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
     Command executingCommand=commandParseResult.getCommand().get();
@@ -32,12 +35,9 @@
     CommandEvent commandEvent=CommandEvent.started(commandName,remainingArgs,isDaemon);
     buildEventBus.post(commandEvent);
     ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(buildEventBus);
-    PropertyFinder propertyFinder=new DefaultPropertyFinder(projectFilesystem);
-    AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(projectFilesystem,config.getNdkVersion(),propertyFinder);
     Parser parser;
-    KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.getConfigured(config,new ProcessExecutor(console),androidDirectoryResolver);
     if (isDaemon) {
-      parser=getParserFromDaemon(context,projectFilesystem,config,console,commandEvent,buildEventBus);
+      parser=getParserFromDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console,commandEvent,buildEventBus);
     }
  else {
       JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(projectFilesystem);
