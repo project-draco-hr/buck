@@ -18,14 +18,15 @@
   if (!commandSemaphore.tryAcquire()) {
     return BUSY_EXIT_CODE;
   }
+  ProcessExecutor processExecutor=new ProcessExecutor(console);
   int exitCode;
   ImmutableList<BuckEventListener> eventListeners;
   String buildId=MoreStrings.createRandomString();
   Clock clock=new DefaultClock();
-  ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment();
+  ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(processExecutor);
   PropertyFinder propertyFinder=new DefaultPropertyFinder(projectFilesystem);
   AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(projectFilesystem,config.getNdkVersion(),propertyFinder);
-  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.getConfigured(config,new ProcessExecutor(console),androidDirectoryResolver);
+  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.getConfigured(config,processExecutor,androidDirectoryResolver);
   try (AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
     Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console);
     eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,webServer,consoleListener);
@@ -34,7 +35,7 @@
     String commandName=executingCommand.name().toLowerCase();
     CommandEvent commandEvent=CommandEvent.started(commandName,remainingArgs,isDaemon);
     buildEventBus.post(commandEvent);
-    ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(buildEventBus);
+    ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
     Parser parser;
     if (isDaemon) {
       parser=getParserFromDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console,commandEvent,buildEventBus);

@@ -1,0 +1,21 @@
+{
+  if (getPlatform().equals(Platform.MACOS)) {
+    try {
+      ProcessExecutor.Result allNetworksResult=this.processExecutor.execute(Runtime.getRuntime().exec("networksetup -listallhardwareports"));
+      if (allNetworksResult.getExitCode() == 0) {
+        String allNetworks=allNetworksResult.getStdout();
+        Optional<String> wifiNetwork=parseNetworksetupOutputForWifi(allNetworks);
+        if (wifiNetwork.isPresent()) {
+          ProcessExecutor.Result wifiNameResult=this.processExecutor.execute(Runtime.getRuntime().exec("networksetup -getairportnetwork " + wifiNetwork.get()));
+          if (wifiNameResult.getExitCode() == 0) {
+            return parseWifiSsid(wifiNameResult.getStdout());
+          }
+        }
+      }
+    }
+ catch (    IOException e) {
+      return Optional.absent();
+    }
+  }
+  return Optional.absent();
+}
