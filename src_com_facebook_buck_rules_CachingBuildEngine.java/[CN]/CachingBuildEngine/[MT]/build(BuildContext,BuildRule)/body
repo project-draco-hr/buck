@@ -1,0 +1,114 @@
+{
+  if (!isRegistered.get()) {
+    context.getEventBus().register(this);
+    isRegistered.set(true);
+  }
+  SettableFuture<BuildRuleSuccess> theFuture=results.get(rule.getBuildTarget());
+  if (theFuture != null) {
+    return theFuture;
+  }
+synchronized (results) {
+    theFuture=results.get(rule.getBuildTarget());
+    if (theFuture != null) {
+      return theFuture;
+    }
+ else {
+      SettableFuture<BuildRuleSuccess> result=SettableFuture.create();
+      results.put(rule.getBuildTarget(),result);
+    }
+  }
+  try {
+    List<ListenableFuture<BuildRuleSuccess>> builtDeps=Lists.newArrayListWithCapacity(rule.getDeps().size());
+    for (    BuildRule dep : rule.getDeps()) {
+      builtDeps.add(dep.build(context));
+    }
+    ListenableFuture<List<BuildRuleSuccess>> allBuiltDeps=Futures.allAsList(builtDeps);
+    context.getStepRunner().addCallback(allBuiltDeps,new FutureCallback<List<BuildRuleSuccess>>(){
+      private final BuckEventBus eventBus=context.getEventBus();
+      private final OnDiskBuildInfo onDiskBuildInfo=context.createOnDiskBuildInfoFor(rule.getBuildTarget());
+      /** 
+ * It is imperative that:
+ * <ol>
+ * <li>The {@link BuildInfoRecorder} is not constructed until all of the{@link Buildable}'s {@code deps} are guaranteed to be built. This ensures that
+ * the {@link RuleKey} will be available before the {@link BuildInfoRecorder} is
+ * constructed.
+ * <p>
+ * This is why a {@link Supplier} is used.
+ * <li>Only one {@link BuildInfoRecorder} is created per {@link Buildable}. This
+ * ensures that all build-related information for a {@link Buildable} goes though
+ * a single recorder, whose data will be persisted in {@link #onSuccess(List)}.
+ * <p>
+ * This is why {@link Suppliers#memoize(Supplier)} is used.
+ * </ol>
+ */
+      private final Supplier<BuildInfoRecorder> buildInfoRecorder=Suppliers.memoize(new Supplier<BuildInfoRecorder>(){
+        @Override public BuildInfoRecorder get(){
+          RuleKey ruleKey;
+          RuleKey ruleKeyWithoutDeps;
+          try {
+            ruleKey=rule.getRuleKey();
+            ruleKeyWithoutDeps=rule.getRuleKeyWithoutDeps();
+          }
+ catch (          IOException e) {
+            throw new RuntimeException(e);
+          }
+          return context.createBuildInfoRecorder(rule.getBuildTarget(),ruleKey,ruleKeyWithoutDeps);
+        }
+      }
+);
+      private boolean startOfBuildWasRecordedOnTheEventBus=false;
+      @Override public void onSuccess(      List<BuildRuleSuccess> deps){
+        eventBus.post(BuildRuleEvent.started(rule));
+        startOfBuildWasRecordedOnTheEventBus=true;
+        try {
+          BuildResult result=buildOnceDepsAreBuilt(rule,context,onDiskBuildInfo,buildInfoRecorder.get(),shouldTryToFetchFromCache(deps));
+          if (result.getStatus() == BuildRuleStatus.SUCCESS) {
+            recordBuildRuleSuccess(result);
+          }
+ else {
+            recordBuildRuleFailure(result);
+          }
+        }
+ catch (        IOException e) {
+          onFailure(e);
+        }
+      }
+      private void recordBuildRuleSuccess(      BuildResult result){
+        BuildRuleSuccess.Type success=result.getSuccess();
+        if (success.shouldWriteRecordedMetadataToDiskAfterBuilding()) {
+          try {
+            boolean clearExistingMetadata=success.shouldClearAndOverwriteMetadataOnDisk();
+            buildInfoRecorder.get().writeMetadataToDisk(clearExistingMetadata);
+          }
+ catch (          IOException e) {
+            onFailure(e);
+          }
+        }
+        doHydrationAfterBuildStepsFinish(rule,result,onDiskBuildInfo);
+        logBuildRuleFinished(result);
+        BuildRuleSuccess buildRuleSuccess=new BuildRuleSuccess(rule,result.getSuccess());
+        results.get(rule.getBuildTarget()).set(buildRuleSuccess);
+        if (result.getSuccess().shouldUploadResultingArtifact()) {
+          buildInfoRecorder.get().performUploadToArtifactCache(context.getArtifactCache(),eventBus);
+        }
+      }
+      @Override public void onFailure(      Throwable failure){
+        recordBuildRuleFailure(new BuildResult(failure));
+      }
+      private void recordBuildRuleFailure(      BuildResult result){
+        if (startOfBuildWasRecordedOnTheEventBus) {
+          logBuildRuleFinished(result);
+        }
+        results.get(rule.getBuildTarget()).setException(result.getFailure());
+      }
+      private void logBuildRuleFinished(      BuildResult result){
+        eventBus.post(BuildRuleEvent.finished(rule,result.getStatus(),result.getCacheResult(),Optional.fromNullable(result.getSuccess())));
+      }
+    }
+);
+  }
+ catch (  Throwable failure) {
+    results.get(rule.getBuildTarget()).setException(failure);
+  }
+  return results.get(rule.getBuildTarget());
+}

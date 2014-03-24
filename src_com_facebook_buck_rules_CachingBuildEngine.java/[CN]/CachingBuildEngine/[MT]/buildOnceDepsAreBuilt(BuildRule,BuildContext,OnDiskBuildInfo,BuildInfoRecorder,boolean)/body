@@ -1,13 +1,13 @@
 {
-  RuleKey ruleKey=getRuleKey();
+  RuleKey ruleKey=rule.getRuleKey();
   Optional<RuleKey> cachedRuleKey=onDiskBuildInfo.getRuleKey();
   if (ruleKey.equals(cachedRuleKey.orNull())) {
-    context.logBuildInfo("[UNCHANGED %s]",getFullyQualifiedName());
+    context.logBuildInfo("[UNCHANGED %s]",rule.getFullyQualifiedName());
     return new BuildResult(BuildRuleSuccess.Type.MATCHING_RULE_KEY,CacheResult.LOCAL_KEY_UNCHANGED_HIT);
   }
-  AbiRule abiRule=checkIfRuleOrBuildableIsAbiRule();
+  AbiRule abiRule=checkIfRuleOrBuildableIsAbiRule(rule);
   if (abiRule != null) {
-    RuleKey ruleKeyNoDeps=getRuleKeyWithoutDeps();
+    RuleKey ruleKeyNoDeps=rule.getRuleKeyWithoutDeps();
     Optional<RuleKey> cachedRuleKeyNoDeps=onDiskBuildInfo.getRuleKeyWithoutDeps();
     if (ruleKeyNoDeps.equals(cachedRuleKeyNoDeps.orNull())) {
       Sha1HashCode abiKeyForDeps=abiRule.getAbiKeyForDeps();
@@ -19,7 +19,7 @@
   }
   CacheResult cacheResult;
   if (shouldTryToFetchFromCache) {
-    cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(buildInfoRecorder,context.getArtifactCache(),context.getProjectRoot(),context);
+    cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,buildInfoRecorder,context.getArtifactCache(),context.getProjectRoot(),context);
   }
  else {
     cacheResult=CacheResult.SKIP;
@@ -28,7 +28,7 @@
     return new BuildResult(BuildRuleSuccess.Type.FETCHED_FROM_CACHE,cacheResult);
   }
   try {
-    executeCommandsNowThatDepsAreBuilt(context,onDiskBuildInfo,buildInfoRecorder);
+    executeCommandsNowThatDepsAreBuilt(rule,context,onDiskBuildInfo,buildInfoRecorder);
   }
  catch (  Exception e) {
     return new BuildResult(e);

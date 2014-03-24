@@ -15,13 +15,14 @@
   expect(buildContext.createBuildInfoRecorder(eq(buildTarget),anyObject(RuleKey.class),anyObject(RuleKey.class))).andReturn(buildInfoRecorder);
   expect(buildInfoRecorder.fetchArtifactForBuildable(anyObject(File.class),eq(artifactCache))).andReturn(CacheResult.MISS);
   OnDiskBuildInfo onDiskBuildInfo=new FakeOnDiskBuildInfo();
-  buildInfoRecorder.addMetadata(AbstractCachingBuildRule.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,TestAbstractCachingBuildRule.ABI_KEY_FOR_DEPS_HASH);
+  buildInfoRecorder.addMetadata(CachingBuildEngine.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,TestAbstractCachingBuildRule.ABI_KEY_FOR_DEPS_HASH);
   buildInfoRecorder.writeMetadataToDisk(true);
   expect(buildContext.createOnDiskBuildInfoFor(buildTarget)).andReturn(onDiskBuildInfo);
   expect(buildContext.getStepRunner()).andReturn(createSameThreadStepRunner());
   expect(buildContext.getEventBus()).andReturn(buckEventBus).anyTimes();
   replayAll();
   ListenableFuture<BuildRuleSuccess> result=buildRule.build(buildContext);
+  buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
   assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(result));
   BuildRuleSuccess success=result.get();
   assertEquals(BuildRuleSuccess.Type.BUILT_LOCALLY,success.getType());
