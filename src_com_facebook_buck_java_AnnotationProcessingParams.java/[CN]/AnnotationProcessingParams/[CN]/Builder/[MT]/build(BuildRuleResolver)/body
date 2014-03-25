@@ -9,15 +9,15 @@
     BuildRule rule=ruleResolver.get(target);
     String type=rule.getType().getName();
     rules.add(rule);
+    HasClasspathEntries hasClasspathEntries=getRuleAsHasClasspathEntries(rule);
     if ("java_binary".equals(type) || "prebuilt_jar".equals(type)) {
       Path pathToOutput=rule.getBuildable().getPathToOutputFile();
       if (pathToOutput != null) {
         searchPathElements.add(pathToOutput);
       }
     }
- else     if (rule instanceof HasClasspathEntries) {
-      HasClasspathEntries javaLibraryRule=(HasClasspathEntries)rule;
-      searchPathElements.addAll(FluentIterable.from(javaLibraryRule.getTransitiveClasspathEntries().values()).transform(MorePaths.TO_PATH).toSet());
+ else     if (hasClasspathEntries != null) {
+      searchPathElements.addAll(FluentIterable.from(hasClasspathEntries.getTransitiveClasspathEntries().values()).transform(MorePaths.TO_PATH).toSet());
     }
  else {
       throw new HumanReadableException("%1$s: Error adding '%2$s' to annotation_processing_deps: " + "must refer only to prebuilt jar, java binary, or java library targets.",ownerTarget,target.getFullyQualifiedName());
