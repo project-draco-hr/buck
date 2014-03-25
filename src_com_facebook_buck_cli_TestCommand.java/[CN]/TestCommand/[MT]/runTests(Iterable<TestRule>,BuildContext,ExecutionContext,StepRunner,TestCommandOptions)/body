@@ -21,7 +21,7 @@
  else {
     rulesUnderTest=ImmutableSet.of();
   }
-  getBuckEventBus().post(TestRunEvent.started(options.isRunAllTests(),options.getTestSelectorListOptional(),options.shouldExplainTestSelectorList(),options.getArgumentsFormattedAsBuildTargets()));
+  getBuckEventBus().post(TestRunEvent.started(options.isRunAllTests(),options.getTestSelectorList(),options.shouldExplainTestSelectorList(),options.getArgumentsFormattedAsBuildTargets()));
   List<ListenableFuture<TestResults>> results=Lists.newArrayList();
   Verbosity verbosity=console.getVerbosity();
   final boolean printTestResults=(verbosity != Verbosity.SILENT);
@@ -32,11 +32,11 @@
   TestRuleKeyFileHelper testRuleKeyFileHelper=new TestRuleKeyFileHelper(executionContext.getProjectFilesystem());
   for (  TestRule test : tests) {
     List<Step> steps;
-    boolean isTestRunRequired=isTestRunRequiredForTest(test,executionContext,testRuleKeyFileHelper,options.isResultsCacheEnabled(),options.getTestSelectorListOptional().isPresent());
+    boolean isTestRunRequired=isTestRunRequiredForTest(test,executionContext,testRuleKeyFileHelper,options.isResultsCacheEnabled(),!options.getTestSelectorList().isEmpty());
     if (isTestRunRequired) {
       getBuckEventBus().post(IndividualTestEvent.started(options.getArgumentsFormattedAsBuildTargets()));
       ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
-      List<Step> testSteps=test.runTests(buildContext,executionContext,options.getTestSelectorListOptional());
+      List<Step> testSteps=test.runTests(buildContext,executionContext,options.getTestSelectorList());
       if (!testSteps.isEmpty()) {
         stepsBuilder.addAll(testSteps);
         stepsBuilder.add(testRuleKeyFileHelper.createRuleKeyInDirStep(test));
@@ -46,7 +46,7 @@
  else {
       steps=ImmutableList.of();
     }
-    ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext,options.getTestSelectorListOptional().isPresent())),test.getBuildTarget());
+    ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext,!options.getTestSelectorList().isEmpty())),test.getBuildTarget());
     FutureCallback<TestResults> onTestFinishedCallback=getFutureCallback(grouper,test,options,printTestResults);
     Futures.addCallback(testResults,onTestFinishedCallback);
     results.add(testResults);
