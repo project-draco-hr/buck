@@ -1,28 +1,22 @@
 {
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
-  Function<Path,Path> pathRelativizer=new Function<Path,Path>(){
-    @Override public Path apply(    Path input){
-      return input;
-    }
-  }
-;
   RuleKeyBuilderFactory ruleKeyBuilderFactory=new FakeRuleKeyBuilderFactory();
   BuildTarget javaDep1BuildTarget=new BuildTarget("//java/com/example","dep1");
-  ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new DefaultBuildRuleBuilderParams(pathRelativizer,ruleKeyBuilderFactory)).setBuildTarget(javaDep1BuildTarget).addSrc(Paths.get("java/com/example/Dep1.java")));
+  ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams(ruleKeyBuilderFactory)).setBuildTarget(javaDep1BuildTarget).addSrc(Paths.get("java/com/example/Dep1.java")));
   BuildTarget javaDep2BuildTarget=new BuildTarget("//java/com/example","dep2");
-  ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new DefaultBuildRuleBuilderParams(pathRelativizer,ruleKeyBuilderFactory)).setBuildTarget(javaDep2BuildTarget).addSrc(Paths.get("java/com/example/Dep2.java")));
+  ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams(ruleKeyBuilderFactory)).setBuildTarget(javaDep2BuildTarget).addSrc(Paths.get("java/com/example/Dep2.java")));
   BuildTarget javaLibBuildTarget=new BuildTarget("//java/com/example","lib");
-  DefaultJavaLibraryRule javaLib=ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new DefaultBuildRuleBuilderParams(pathRelativizer,ruleKeyBuilderFactory)).setBuildTarget(javaLibBuildTarget).addSrc(Paths.get("java/com/example/Lib.java")).addDep(javaDep1BuildTarget).addDep(javaDep2BuildTarget));
+  DefaultJavaLibraryRule javaLib=ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams(ruleKeyBuilderFactory)).setBuildTarget(javaLibBuildTarget).addSrc(Paths.get("java/com/example/Lib.java")).addDep(javaDep1BuildTarget).addDep(javaDep2BuildTarget));
   ImmutableSortedSet<BuildRule> originalDeps=ImmutableSortedSet.<BuildRule>of(javaLib);
   ImmutableSet<BuildTarget> buildRulesToExcludeFromDex=ImmutableSet.of(javaDep2BuildTarget);
   BuildTarget apkTarget=new BuildTarget("//java/com/example","apk");
-  BuildRuleParams originalParams=new BuildRuleParams(apkTarget,originalDeps,ImmutableSet.<BuildTargetPattern>of(),pathRelativizer,ruleKeyBuilderFactory);
+  BuildRuleParams originalParams=new BuildRuleParams(apkTarget,originalDeps,ImmutableSet.<BuildTargetPattern>of(),new FakeProjectFilesystem(),ruleKeyBuilderFactory);
   AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,ruleResolver,ResourcesFilter.ResourceCompressionMode.DISABLED,FilterResourcesStep.ResourceFilter.EMPTY_FILTER,createStrictMock(AndroidResourceDepsFinder.class),createStrictMock(FileSourcePath.class),AndroidBinaryRule.PackageType.DEBUG,ImmutableSet.<AndroidBinaryRule.TargetCpuType>of(),false,true,BuildTargets.getBinPath(apkTarget,"%s/classes.dex"),DexSplitMode.NO_SPLIT,buildRulesToExcludeFromDex,JavacOptions.DEFAULTS,false,createStrictMock(Keystore.class));
   UberRDotJava uberRDotJava=createMock(UberRDotJava.class);
   BuildTarget uberRDotJavaTarget=new BuildTarget("//java/com/example","apk","uber_r_dot_java");
   expect(uberRDotJava.getBuildTarget()).andStubReturn(uberRDotJavaTarget);
   replay(uberRDotJava);
-  BuildRule uberRDotJavaRule=new AbstractBuildable.AnonymousBuildRule(BuildRuleType.UBER_R_DOT_JAVA,uberRDotJava,new BuildRuleParams(uberRDotJavaTarget,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.of(BuildTargetPattern.MATCH_ALL),pathRelativizer,ruleKeyBuilderFactory));
+  BuildRule uberRDotJavaRule=new AbstractBuildable.AnonymousBuildRule(BuildRuleType.UBER_R_DOT_JAVA,uberRDotJava,new BuildRuleParams(uberRDotJavaTarget,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.of(BuildTargetPattern.MATCH_ALL),new FakeProjectFilesystem(),ruleKeyBuilderFactory));
   ruleResolver.addToIndex(uberRDotJavaTarget,uberRDotJavaRule);
   BuildRule preDexMergeRule=graphEnhancer.createPreDexMergeRule(uberRDotJava);
   BuildTarget dexMergeTarget=new BuildTarget("//java/com/example","apk","dex_merge");
