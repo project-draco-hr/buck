@@ -26,7 +26,13 @@
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(processExecutor);
   PropertyFinder propertyFinder=new DefaultPropertyFinder(projectFilesystem);
   AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(projectFilesystem,config.getNdkVersion(),propertyFinder);
-  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.getConfigured(config,processExecutor,androidDirectoryResolver);
+  Optional<Path> javac=config.getJavac();
+  Optional<JavacVersion> javacVersion=Optional.absent();
+  if (javac.isPresent()) {
+    javacVersion=Optional.of(getJavacVersion(processExecutor,javac.get()));
+  }
+  JavaCompilerEnvironment javacEnv=new JavaCompilerEnvironment(javac,javacVersion);
+  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.getConfigured(config,androidDirectoryResolver,javacEnv);
   try (AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
     Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console);
     eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,webServer,consoleListener);
