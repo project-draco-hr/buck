@@ -3,10 +3,11 @@
   AndroidPlatformTarget android=EasyMock.createNiceMock(AndroidPlatformTarget.class);
   EasyMock.expect(android.getDxExecutable()).andStubReturn(fakeDx);
   EasyMock.replay(android);
-  Genrule rule=Genrule.newGenruleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//example:genrule")).setBash(Optional.of("true")).setOut("/dev/null").build(new BuildRuleResolver());
+  BuildTarget target=BuildTargetFactory.newInstance("//example:genrule");
+  Genrule genrule=(Genrule)GenruleBuilder.createGenrule(target).setBash("true").setOut("/dev/null").build().getBuildable();
   ExecutionContext context=ExecutionContext.builder().setConsole(new TestConsole()).setProjectFilesystem(new ProjectFilesystem(new File("."))).setAndroidPlatformTarget(Optional.of(android)).setEventBus(BuckEventBusFactory.newInstance()).setPlatform(Platform.detect()).build();
   ImmutableMap.Builder<String,String> builder=ImmutableMap.builder();
-  rule.addEnvironmentVariables(context,builder);
+  genrule.addEnvironmentVariables(context,builder);
   ImmutableMap<String,String> env=builder.build();
   assertEquals(fakeDx.getAbsolutePath(),env.get("DX"));
   EasyMock.verify(android);

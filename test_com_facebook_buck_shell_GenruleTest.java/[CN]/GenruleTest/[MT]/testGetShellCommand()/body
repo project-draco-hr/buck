@@ -5,25 +5,27 @@
   String genruleName="//example:genrule";
   ExecutionContext linuxExecutionContext=newEmptyExecutionContext(Platform.LINUX);
   ExecutionContext windowsExecutionContext=newEmptyExecutionContext(Platform.WINDOWS);
-  Genrule rule=Genrule.newGenruleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance(genruleName)).setBash(Optional.of(bash)).setCmdExe(Optional.of(cmdExe)).setOut("out.txt").build(new BuildRuleResolver());
-  ImmutableList<String> command=rule.createGenruleStep().getShellCommand(linuxExecutionContext);
+  BuildTarget target=BuildTargetFactory.newInstance(genruleName);
+  Genrule genrule=(Genrule)GenruleBuilder.createGenrule(target).setBash(bash).setCmdExe(cmdExe).setOut("out.txt").build().getBuildable();
+  ImmutableList<String> command=genrule.createGenruleStep().getShellCommand(linuxExecutionContext);
   assertEquals(ImmutableList.of("/bin/bash","-e","-c",bash),command);
-  command=rule.createGenruleStep().getShellCommand(windowsExecutionContext);
+  command=genrule.createGenruleStep().getShellCommand(windowsExecutionContext);
   assertEquals(ImmutableList.of("cmd.exe","/c",cmdExe),command);
-  rule=Genrule.newGenruleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//example:genrule")).setCmd(Optional.of(cmd)).setOut("out.txt").build(new BuildRuleResolver());
-  command=rule.createGenruleStep().getShellCommand(linuxExecutionContext);
+  BuildTarget fallbackTarget=target;
+  genrule=(Genrule)GenruleBuilder.createGenrule(fallbackTarget).setCmd(cmd).setOut("out.txt").build().getBuildable();
+  command=genrule.createGenruleStep().getShellCommand(linuxExecutionContext);
   assertEquals(ImmutableList.of("/bin/bash","-e","-c",cmd),command);
-  command=rule.createGenruleStep().getShellCommand(windowsExecutionContext);
+  command=genrule.createGenruleStep().getShellCommand(windowsExecutionContext);
   assertEquals(ImmutableList.of("cmd.exe","/c",cmd),command);
-  rule=Genrule.newGenruleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//example:genrule")).setOut("out.txt").build(new BuildRuleResolver());
+  genrule=(Genrule)GenruleBuilder.createGenrule(target).setOut("out.txt").build().getBuildable();
   try {
-    rule.createGenruleStep().getShellCommand(linuxExecutionContext);
+    genrule.createGenruleStep().getShellCommand(linuxExecutionContext);
   }
  catch (  HumanReadableException e) {
     assertEquals(String.format("You must specify either bash or cmd for genrule %s.",genruleName),e.getHumanReadableErrorMessage());
   }
   try {
-    rule.createGenruleStep().getShellCommand(windowsExecutionContext);
+    genrule.createGenruleStep().getShellCommand(windowsExecutionContext);
   }
  catch (  HumanReadableException e) {
     assertEquals(String.format("You must specify either cmd_exe or cmd for genrule %s.",genruleName),e.getHumanReadableErrorMessage());

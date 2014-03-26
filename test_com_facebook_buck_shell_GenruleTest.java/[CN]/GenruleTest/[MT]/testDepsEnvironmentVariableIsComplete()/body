@@ -6,15 +6,8 @@
     }
   }
 ;
-  BuildRuleResolver ruleResolver=new BuildRuleResolver(ImmutableMap.of(depTarget,dep));
-  AbstractBuildRuleBuilderParams params=new FakeAbstractBuildRuleBuilderParams();
-  Builder builder=Genrule.newGenruleBuilder(params);
-  builder.setBuildTarget(new BuildTarget("//foo","baz"));
-  builder.setBash(Optional.of("cat $DEPS > $OUT"));
-  builder.setOut("deps.txt");
-  builder.addDep(depTarget);
-  Genrule genrule=builder.build(ruleResolver);
-  AbstractGenruleStep genruleStep=genrule.createGenruleStep();
+  BuildRule genrule=GenruleBuilder.createGenrule(new BuildTarget("//foo","baz")).setBash("cat $DEPS > $OUT").setOut("deps.txt").addDep(dep).build();
+  AbstractGenruleStep genruleStep=((Genrule)genrule.getBuildable()).createGenruleStep();
   ExecutionContext context=newEmptyExecutionContext(Platform.LINUX);
   Map<String,String> environmentVariables=genruleStep.getEnvironmentVariables(context);
   assertEquals("Make sure that the use of $DEPS pulls in $GEN_DIR, as well.",ImmutableMap.of("DEPS","$GEN_DIR/foo/bar.jar","GEN_DIR","buck-out/gen","OUT","buck-out/gen/foo/deps.txt"),environmentVariables);
