@@ -1,9 +1,13 @@
 {
   ExecutionContext executionContext=createMock(ExecutionContext.class);
   expect(executionContext.isDebugEnabled()).andReturn(false);
-  TestRule testRule=createMock(TestRule.class);
-  expect(testRule.getBuildResultType()).andReturn(BuildRuleSuccess.Type.FETCHED_FROM_CACHE);
-  replay(executionContext,testRule);
+  FakeTestRule testRule=new FakeTestRule(BuildRuleType.JAVA_TEST,ImmutableSet.of(new Label("windows")),BuildTargetFactory.newInstance("//:lulz"),ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of()){
+    @Override public BuildRuleSuccess.Type getBuildResultType(){
+      return BuildRuleSuccess.Type.FETCHED_FROM_CACHE;
+    }
+  }
+;
+  replay(executionContext);
   assertTrue("A cache hit updates the build artifact but not the test results. " + "Therefore, the test should be re-run to ensure the test results are up to date.",TestCommand.isTestRunRequiredForTest(testRule,executionContext,createMock(TestRuleKeyFileHelper.class),true,false));
-  verify(executionContext,testRule);
+  verify(executionContext);
 }

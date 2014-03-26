@@ -1,12 +1,18 @@
 {
   ExecutionContext executionContext=createMock(ExecutionContext.class);
   expect(executionContext.isDebugEnabled()).andReturn(false);
-  TestRule testRule=createNiceMock(TestRule.class);
-  expect(testRule.getBuildResultType()).andReturn(BuildRuleSuccess.Type.MATCHING_RULE_KEY);
-  expect(testRule.hasTestResultFiles(executionContext)).andReturn(true);
+  FakeTestRule testRule=new FakeTestRule(BuildRuleType.JAVA_TEST,ImmutableSet.of(new Label("windows")),BuildTargetFactory.newInstance("//:lulz"),ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of()){
+    @Override public BuildRuleSuccess.Type getBuildResultType(){
+      return BuildRuleSuccess.Type.MATCHING_RULE_KEY;
+    }
+    @Override public boolean hasTestResultFiles(    ExecutionContext context){
+      return true;
+    }
+  }
+;
   TestRuleKeyFileHelper testRuleKeyFileHelper=createNiceMock(TestRuleKeyFileHelper.class);
   expect(testRuleKeyFileHelper.isRuleKeyInDir(testRule)).andReturn(false);
-  replay(executionContext,testRule,testRuleKeyFileHelper);
+  replay(executionContext,testRuleKeyFileHelper);
   assertTrue("A cached build should run the tests if the test output directory\'s rule key is not " + "present or does not matche the rule key for the test.",TestCommand.isTestRunRequiredForTest(testRule,executionContext,testRuleKeyFileHelper,true,false));
-  verify(executionContext,testRule,testRuleKeyFileHelper);
+  verify(executionContext,testRuleKeyFileHelper);
 }
