@@ -1,0 +1,12 @@
+{
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  BuildRule resourceRule1=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res1")).setRDotJavaPackage("com.facebook").setRes(Paths.get("android_res/com/example/res1")).build());
+  setAndroidResourceBuildOutput(resourceRule1,"a");
+  BuildRule resourceRule2=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res2")).setRDotJavaPackage("com.facebook").setRes(Paths.get("android_res/com/example/res2")).build());
+  setAndroidResourceBuildOutput(resourceRule2,"b");
+  BuildRule resourceRule3=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res3")).setDeps(ImmutableSortedSet.of(resourceRule1,resourceRule2)).build());
+  FakeBuildableContext buildableContext=new FakeBuildableContext();
+  assertTrue(resourceRule3.getBuildable().getBuildSteps(EasyMock.createMock(BuildContext.class),buildableContext).isEmpty());
+  Sha1HashCode expectedSha1=HasAndroidResourceDeps.ABI_HASHER.apply(ImmutableList.of((HasAndroidResourceDeps)resourceRule1.getBuildable(),(HasAndroidResourceDeps)resourceRule2.getBuildable()));
+  buildableContext.assertContainsMetadataMapping(AndroidResource.METADATA_KEY_FOR_ABI,expectedSha1.getHash());
+}

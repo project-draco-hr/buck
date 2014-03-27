@@ -1,19 +1,19 @@
 {
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
-  AndroidResourceRule resourceRule1=ruleResolver.buildAndAddToIndex(AndroidResourceRule.newAndroidResourceRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res1")).setRDotJavaPackage("com.facebook").setRes(Paths.get("android_res/com/example/res1")));
-  resourceRule1.getBuildOutputInitializer().setBuildOutput(new AndroidResourceRule.BuildOutput(new Sha1HashCode(RESOURCE_RULE1_KEY)));
-  AndroidResourceRule resourceRule2=ruleResolver.buildAndAddToIndex(AndroidResourceRule.newAndroidResourceRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res2")).setRDotJavaPackage("com.facebook").setRes(Paths.get("android_res/com/example/res2")));
-  resourceRule2.getBuildOutputInitializer().setBuildOutput(new AndroidResourceRule.BuildOutput(new Sha1HashCode(RESOURCE_RULE2_KEY)));
-  DummyRDotJava dummyRDotJava=new DummyRDotJava(ImmutableList.<HasAndroidResourceDeps>of(resourceRule1,resourceRule2),BuildTargetFactory.newInstance("//java/base:rule"),JavacOptions.DEFAULTS);
+  BuildRule resourceRule1=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res1")).setRDotJavaPackage("com.facebook").setRes(Paths.get("android_res/com/example/res1")).build());
+  setAndroidResourceBuildOutput(resourceRule1,RESOURCE_RULE1_KEY);
+  BuildRule resourceRule2=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res2")).setRDotJavaPackage("com.facebook").setRes(Paths.get("android_res/com/example/res2")).build());
+  setAndroidResourceBuildOutput(resourceRule2,RESOURCE_RULE2_KEY);
+  DummyRDotJava dummyRDotJava=new DummyRDotJava(ImmutableList.of((HasAndroidResourceDeps)resourceRule1.getBuildable(),(HasAndroidResourceDeps)resourceRule2.getBuildable()),BuildTargetFactory.newInstance("//java/base:rule"),JavacOptions.DEFAULTS);
   FakeBuildableContext buildableContext=new FakeBuildableContext();
   List<Step> steps=dummyRDotJava.getBuildSteps(EasyMock.createMock(BuildContext.class),buildableContext);
   assertEquals("DummyRDotJava returns an incorrect number of Steps.",6,steps.size());
   String rDotJavaSrcFolder="buck-out/bin/java/base/__rule_rdotjava_src__";
   String rDotJavaBinFolder="buck-out/bin/java/base/__rule_rdotjava_bin__";
   String rDotJavaAbiFolder="buck-out/gen/java/base/__rule_dummyrdotjava_abi__";
-  List<String> expectedStepDescriptions=Lists.newArrayList(makeCleanDirDescription(rDotJavaSrcFolder),mergeAndroidResourcesDescription(ImmutableList.of(resourceRule1,resourceRule2),rDotJavaSrcFolder),makeCleanDirDescription(rDotJavaBinFolder),makeCleanDirDescription(rDotJavaAbiFolder),javacInMemoryDescription(rDotJavaBinFolder,rDotJavaAbiFolder + "/abi"),"record_abi_key");
+  List<String> expectedStepDescriptions=Lists.newArrayList(makeCleanDirDescription(rDotJavaSrcFolder),mergeAndroidResourcesDescription(ImmutableList.of((AndroidResource)resourceRule1.getBuildable(),(AndroidResource)resourceRule2.getBuildable()),rDotJavaSrcFolder),makeCleanDirDescription(rDotJavaBinFolder),makeCleanDirDescription(rDotJavaAbiFolder),javacInMemoryDescription(rDotJavaBinFolder,rDotJavaAbiFolder + "/abi"),"record_abi_key");
   MoreAsserts.assertSteps("DummyRDotJava.getBuildSteps() must return these exact steps.",expectedStepDescriptions,steps,TestExecutionContext.newInstance());
   assertEquals(ImmutableSet.of(Paths.get(rDotJavaBinFolder)),buildableContext.getRecordedArtifactDirectories());
-  Sha1HashCode expectedSha1=AndroidResourceRule.ABI_HASHER.apply(ImmutableList.<HasAndroidResourceDeps>of(resourceRule1,resourceRule2));
+  Sha1HashCode expectedSha1=AndroidResource.ABI_HASHER.apply(ImmutableList.of((HasAndroidResourceDeps)resourceRule1.getBuildable(),(HasAndroidResourceDeps)resourceRule2.getBuildable()));
   assertEquals(expectedSha1,dummyRDotJava.getAbiKeyForDeps());
 }
