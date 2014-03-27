@@ -3,10 +3,10 @@
   BuildTarget javaLibraryTargetName=BuildTargetFactory.newInstance("//javasrc:java-library");
   DefaultJavaLibraryRule javaLibraryRule=ruleResolver.buildAndAddToIndex(DefaultJavaLibraryRule.newJavaLibraryRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(javaLibraryTargetName).addSrc(Paths.get("javasrc/JavaLibrary.java")));
   String projectConfigTargetName="//javasrc:project-config";
-  ProjectConfigRule ruleConfig=ruleResolver.buildAndAddToIndex(ProjectConfigRule.newProjectConfigRuleBuilder(new FakeAbstractBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance(projectConfigTargetName)).setSrcTarget(Optional.of(javaLibraryTargetName)));
+  BuildRule ruleConfig=ruleResolver.addToIndex(ProjectConfigBuilder.newProjectConfigRuleBuilder().setBuildTarget(BuildTargetFactory.newInstance(projectConfigTargetName)).setSrcRule(javaLibraryRule).build());
   BuckConfig buckConfig=createBuckConfig(Joiner.on("\n").join("[project]","initial_targets = " + javaLibraryTargetName));
   ProjectCommandForTest command=new ProjectCommandForTest();
-  command.createPartialGraphCallReturnValues.push(createGraphFromBuildRules(ImmutableList.<BuildRule>of(ruleConfig)));
+  command.createPartialGraphCallReturnValues.push(createGraphFromBuildRules(ImmutableList.of(ruleConfig)));
   command.runCommandWithOptions(createOptions(buckConfig));
   assertTrue(command.createPartialGraphCallReturnValues.isEmpty());
   RawRulePredicate projectConfigPredicate=command.createPartialGraphCallPredicates.get(0);
