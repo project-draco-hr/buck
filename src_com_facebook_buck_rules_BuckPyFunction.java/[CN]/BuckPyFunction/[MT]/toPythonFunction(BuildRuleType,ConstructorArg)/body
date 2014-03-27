@@ -15,11 +15,21 @@
       mandatory.add(param);
     }
   }
-  builder.append("@provide_for_build\n").append("def ").append(type.getName()).append("(name, ");
+  @Nullable TargetName defaultName=dto.getClass().getAnnotation(TargetName.class);
+  builder.append("@provide_for_build\n").append("def ").append(type.getName()).append("(");
+  if (defaultName == null) {
+    builder.append("name, ");
+  }
   for (  ParamInfo param : Iterables.concat(mandatory,optional)) {
     appendPythonParameter(builder,param);
   }
-  builder.append("visibility=[], build_env=None):\n").append("  add_rule({\n").append("    'type' : '").append(type.getName()).append("',\n").append("    'name' : name,\n");
+  builder.append("visibility=[], build_env=None):\n").append("  add_rule({\n").append("    'type' : '").append(type.getName()).append("',\n");
+  if (defaultName != null) {
+    builder.append("    'name' : '").append(defaultName.name()).append("',\n");
+  }
+ else {
+    builder.append("    'name' : name,\n");
+  }
   for (  ParamInfo param : Iterables.concat(mandatory,optional)) {
     builder.append("    '").append(param.getName()).append("' : ").append(param.getPythonName()).append(",\n");
   }
