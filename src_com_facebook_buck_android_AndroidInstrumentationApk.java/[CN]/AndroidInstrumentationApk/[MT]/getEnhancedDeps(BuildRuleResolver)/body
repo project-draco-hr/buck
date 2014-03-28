@@ -1,0 +1,24 @@
+{
+  final ImmutableSortedSet<BuildRule> originalDepsAndApk=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalDeps).add(apkUnderTestAsRule).build();
+  rulesToExcludeFromDex=FluentIterable.from(ImmutableSet.<JavaLibrary>builder().addAll(apkUnderTest.getRulesToExcludeFromDex()).addAll(Classpaths.getClasspathEntries(apkUnderTest.getClasspathDeps()).keySet()).build()).toSortedSet(HasBuildTarget.BUILD_TARGET_COMPARATOR);
+  AndroidTransitiveDependencyGraph androidTransitiveDependencyGraph=new AndroidTransitiveDependencyGraph(originalDepsAndApk);
+  androidResourceDepsFinder=new AndroidResourceDepsFinder(androidTransitiveDependencyGraph,rulesToExcludeFromDex){
+    @Override protected ImmutableList<HasAndroidResourceDeps> findMyAndroidResourceDeps(){
+      ImmutableSet<HasAndroidResourceDeps> originalResources=ImmutableSet.copyOf(UberRDotJavaUtil.getAndroidResourceDeps(apkUnderTestAsRule));
+      ImmutableList<HasAndroidResourceDeps> instrumentationResources=UberRDotJavaUtil.getAndroidResourceDeps(originalDepsAndApk);
+      ImmutableList.Builder<HasAndroidResourceDeps> allResources=ImmutableList.builder();
+      for (      HasAndroidResourceDeps resource : instrumentationResources) {
+        if (!originalResources.contains(resource)) {
+          allResources.add(resource);
+        }
+      }
+      return allResources.build();
+    }
+  }
+;
+  Path primaryDexPath=AndroidBinary.getPrimaryDexPath(getBuildTarget());
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(params,ruleResolver,ResourceCompressionMode.DISABLED,ResourceFilter.EMPTY_FILTER,androidResourceDepsFinder,manifest,PackageType.INSTRUMENTED,apkUnderTest.getCpuFilters(),false,false,primaryDexPath,DexSplitMode.NO_SPLIT,ImmutableSortedSet.<BuildTarget>of(),JavacOptions.DEFAULTS,false,apkUnderTest.getKeystore());
+  AndroidBinaryGraphEnhancer.EnhancementResult result=graphEnhancer.createAdditionalBuildables();
+  setGraphEnhancementResult(result);
+  return result.getFinalDeps();
+}

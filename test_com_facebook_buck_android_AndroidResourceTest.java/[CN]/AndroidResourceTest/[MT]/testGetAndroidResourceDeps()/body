@@ -15,8 +15,9 @@
   ImmutableList<Buildable> validResult2=FluentIterable.from(ImmutableList.of(a,d,b,c)).transform(ruleToBuildable).toList();
   assertTrue(String.format("Topological sort %s should be either %s or %s",deps,validResult1,validResult2),deps.equals(validResult1) || deps.equals(validResult2));
   BuildTarget keystoreTarget=BuildTargetFactory.newInstance("//keystore:debug");
-  KeystoreBuilder.createBuilder(keystoreTarget).setStore(Paths.get("keystore/debug.keystore")).setProperties(Paths.get("keystore/debug.keystore.properties")).build(ruleResolver);
-  AndroidBinaryRule e=ruleResolver.buildAndAddToIndex(AndroidBinaryRule.newAndroidBinaryRuleBuilder(new FakeBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//:e")).setManifest(new FileSourcePath("AndroidManfiest.xml")).setTarget("Google Inc.:Google APIs:16").setKeystore(keystoreTarget).addDep(BuildTargetFactory.newInstance("//:a")).addDep(BuildTargetFactory.newInstance("//:c")));
+  Keystore keystore=(Keystore)KeystoreBuilder.createBuilder(keystoreTarget).setStore(Paths.get("keystore/debug.keystore")).setProperties(Paths.get("keystore/debug.keystore.properties")).build(ruleResolver).getBuildable();
+  BuildRule e=AndroidBinaryBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//:e")).setManifest(new FileSourcePath("AndroidManfiest.xml")).setTarget("Google Inc.:Google APIs:16").setKeystore(keystore).setOriginalDeps(ImmutableSortedSet.of(a,c)).build(ruleResolver);
+  e.getBuildable().getEnhancedDeps(ruleResolver);
   ImmutableList<HasAndroidResourceDeps> deps2=UberRDotJavaUtil.getAndroidResourceDeps(e);
   assertTrue(String.format("Topological sort %s should be either %s or %s",deps,validResult1,validResult2),deps2.equals(validResult1) || deps2.equals(validResult2));
 }

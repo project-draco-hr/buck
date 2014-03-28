@@ -1,0 +1,28 @@
+{
+  final ImmutableSortedSet<BuildRule> enhancedDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalDeps).addAll(preprocessJavaClassesDeps).add(resolver.get(keystore.getBuildTarget())).build();
+  AndroidTransitiveDependencyGraph androidTransitiveDependencyGraph=new AndroidTransitiveDependencyGraph(getClasspathDeps());
+  boolean allowNonExistentRule=false;
+  ImmutableSortedSet<BuildRule> buildRulesToExcludeFromDex=BuildRules.toBuildRulesFor(getBuildTarget(),resolver,buildTargetsToExcludeFromDex,allowNonExistentRule);
+  rulesToExcludeFromDex=FluentIterable.from(buildRulesToExcludeFromDex).filter(new Predicate<BuildRule>(){
+    @Override public boolean apply(    BuildRule input){
+      return input.getBuildable() instanceof JavaLibrary;
+    }
+  }
+).transform(new Function<BuildRule,JavaLibrary>(){
+    @Override public JavaLibrary apply(    BuildRule input){
+      return (JavaLibrary)input.getBuildable();
+    }
+  }
+).toSortedSet(HasBuildTarget.BUILD_TARGET_COMPARATOR);
+  androidResourceDepsFinder=new AndroidResourceDepsFinder(androidTransitiveDependencyGraph,rulesToExcludeFromDex){
+    @Override protected ImmutableList<HasAndroidResourceDeps> findMyAndroidResourceDeps(){
+      return UberRDotJavaUtil.getAndroidResourceDeps(enhancedDeps);
+    }
+  }
+;
+  boolean shouldPreDex=!disablePreDex && PackageType.DEBUG.equals(packageType) && !preprocessJavaClassesBash.isPresent();
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalBuildRuleParams.copyWithChangedDeps(enhancedDeps),resolver,resourceCompressionMode,resourceFilter,androidResourceDepsFinder,manifest,packageType,cpuFilters,buildStringSourceMap,shouldPreDex,primaryDexPath,dexSplitMode,buildTargetsToExcludeFromDex,javacOptions,exopackage,keystore);
+  AndroidBinaryGraphEnhancer.EnhancementResult result=graphEnhancer.createAdditionalBuildables();
+  setGraphEnhancementResult(result);
+  return result.getFinalDeps();
+}
