@@ -11,7 +11,18 @@
   ImmutableSet<BuildTarget> buildTargetsToExcludeFromDex=buildTargetsToExcludeFromDexBuilder.build();
   boolean shouldPreDex=!disablePreDex && PackageType.DEBUG.equals(packageType) && !preprocessJavaClassesBash.isPresent();
   boolean allowNonExistentRule=false;
-  ImmutableSortedSet<BuildRule> buildRulesToExcludeFromDex=getBuildTargetsAsBuildRules(ruleResolver,buildTargetsToExcludeFromDex,allowNonExistentRule);
+  ImmutableSortedSet<BuildRule> allRules=getBuildTargetsAsBuildRules(ruleResolver,buildTargetsToExcludeFromDex,allowNonExistentRule);
+  ImmutableSortedSet<JavaLibraryRule> buildRulesToExcludeFromDex=FluentIterable.from(allRules).filter(new Predicate<BuildRule>(){
+    @Override public boolean apply(    BuildRule input){
+      return input.getBuildable() instanceof JavaLibraryRule;
+    }
+  }
+).transform(new Function<BuildRule,JavaLibraryRule>(){
+    @Override public JavaLibraryRule apply(    BuildRule input){
+      return (JavaLibraryRule)input.getBuildable();
+    }
+  }
+).toSortedSet(HasBuildTarget.BUILD_TARGET_COMPARATOR);
   AndroidResourceDepsFinder androidResourceDepsFinder=new AndroidResourceDepsFinder(androidTransitiveDependencyGraph,buildRulesToExcludeFromDex){
     @Override protected ImmutableList<HasAndroidResourceDeps> findMyAndroidResourceDeps(){
       return UberRDotJavaUtil.getAndroidResourceDeps(originalDeps);
