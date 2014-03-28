@@ -4,17 +4,11 @@
   Multimap<String,String> targetClasspaths=TreeMultimap.create();
   for (  BuildTarget target : targets) {
     BuildRule rule=graph.findBuildRuleByTarget(target);
-    HasClasspathEntries classpathEntries;
-    if (rule instanceof HasClasspathEntries) {
-      classpathEntries=(HasClasspathEntries)rule;
-    }
- else     if (rule.getBuildable() instanceof HasClasspathEntries) {
-      classpathEntries=(HasClasspathEntries)rule.getBuildable();
-    }
- else {
+    HasClasspathEntries hasClasspathEntries=getHasClasspathEntriesFrom(rule);
+    if (hasClasspathEntries == null) {
       continue;
     }
-    targetClasspaths.putAll(target.getFullyQualifiedName(),classpathEntries.getTransitiveClasspathEntries().values());
+    targetClasspaths.putAll(target.getFullyQualifiedName(),hasClasspathEntries.getTransitiveClasspathEntries().values());
   }
   ObjectMapper mapper=new ObjectMapper();
   mapper.writeValue(console.getStdOut(),targetClasspaths.asMap());
