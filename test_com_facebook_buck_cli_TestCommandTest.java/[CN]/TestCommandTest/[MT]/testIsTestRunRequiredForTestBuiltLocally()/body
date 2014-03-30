@@ -1,13 +1,10 @@
 {
   ExecutionContext executionContext=createMock(ExecutionContext.class);
   expect(executionContext.isDebugEnabled()).andReturn(false);
-  FakeTestRule testRule=new FakeTestRule(BuildRuleType.JAVA_TEST,ImmutableSet.of(new Label("windows")),BuildTargetFactory.newInstance("//:lulz"),ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of()){
-    @Override public BuildRuleSuccess.Type getBuildResultType(){
-      return BuildRuleSuccess.Type.BUILT_LOCALLY;
-    }
-  }
-;
-  replay(executionContext);
-  assertTrue("A test built locally should always run regardless of any cached result. ",TestCommand.isTestRunRequiredForTest(testRule,executionContext,createMock(TestRuleKeyFileHelper.class),true,false));
-  verify(executionContext);
+  FakeTestRule testRule=new FakeTestRule(BuildRuleType.JAVA_TEST,ImmutableSet.of(new Label("windows")),BuildTargetFactory.newInstance("//:lulz"),ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<BuildTargetPattern>of());
+  CachingBuildEngine cachingBuildEngine=createMock(CachingBuildEngine.class);
+  expect(cachingBuildEngine.getBuildRuleResult(BuildTargetFactory.newInstance("//:lulz"))).andReturn(new BuildRuleSuccess(testRule,BuildRuleSuccess.Type.BUILT_LOCALLY));
+  replay(executionContext,cachingBuildEngine);
+  assertTrue("A test built locally should always run regardless of any cached result. ",TestCommand.isTestRunRequiredForTest(testRule,cachingBuildEngine,executionContext,createMock(TestRuleKeyFileHelper.class),true,false));
+  verify(executionContext,cachingBuildEngine);
 }

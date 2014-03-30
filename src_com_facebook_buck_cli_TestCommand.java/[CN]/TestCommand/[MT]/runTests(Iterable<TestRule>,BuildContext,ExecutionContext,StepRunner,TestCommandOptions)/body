@@ -31,11 +31,20 @@
   }
   TestRuleKeyFileHelper testRuleKeyFileHelper=new TestRuleKeyFileHelper(executionContext.getProjectFilesystem());
   for (  TestRule test : tests) {
+    boolean isTestRunRequired;
+    try {
+      isTestRunRequired=isTestRunRequiredForTest(test,getBuildEngine(),executionContext,testRuleKeyFileHelper,options.isResultsCacheEnabled(),!options.getTestSelectorList().isEmpty());
+    }
+ catch (    InterruptedException e) {
+      e.printStackTrace(getStdErr());
+      return 1;
+    }
     List<Step> steps;
-    boolean isTestRunRequired=isTestRunRequiredForTest(test,executionContext,testRuleKeyFileHelper,options.isResultsCacheEnabled(),!options.getTestSelectorList().isEmpty());
     if (isTestRunRequired) {
       getBuckEventBus().post(IndividualTestEvent.started(options.getArgumentsFormattedAsBuildTargets()));
       ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
+      BuildEngine cachingBuildEngine=getBuildEngine();
+      Preconditions.checkState(cachingBuildEngine.isRuleBuilt(test.getBuildTarget()));
       List<Step> testSteps=test.runTests(buildContext,executionContext,options.getTestSelectorList());
       if (!testSteps.isEmpty()) {
         stepsBuilder.addAll(testSteps);
