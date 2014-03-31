@@ -1,4 +1,8 @@
 {
+  Optional<String> ndkVersion=config.getNdkVersion();
+  if (!ndkVersion.isPresent()) {
+    ndkVersion=androidDirectoryResolver.getNdkVersion();
+  }
   Builder builder=builder();
   builder.register(new AndroidManifestDescription());
   builder.register(new AndroidResourceDescription());
@@ -15,7 +19,7 @@
   builder.register(new IosResourceDescription());
   builder.register(new IosTestDescription());
   builder.register(new JavaBinaryDescription());
-  builder.register(new NdkLibraryDescription(Optional.<String>absent()));
+  builder.register(new NdkLibraryDescription(ndkVersion));
   builder.register(new PrebuiltJarDescription());
   builder.register(new PrebuiltNativeLibraryDescription());
   builder.register(new ProjectConfigDescription());
@@ -23,10 +27,11 @@
   builder.register(new PythonLibraryDescription());
   builder.register(new XcodeNativeDescription());
   builder.register(new XcodeProjectConfigDescription());
-  builder.register(BuildRuleType.ANDROID_BINARY,new AndroidBinaryBuildRuleFactory());
+  JavacOptions androidBinaryOptions=JavacOptions.builder(JavacOptions.DEFAULTS).setJavaCompilerEnviornment(javacEnv).build();
+  builder.register(BuildRuleType.ANDROID_BINARY,new AndroidBinaryBuildRuleFactory(androidBinaryOptions,config.getProguardJarOverride()));
   builder.register(BuildRuleType.ANDROID_INSTRUMENTATION_APK,new AndroidInstrumentationApkRuleFactory());
-  builder.register(BuildRuleType.ANDROID_LIBRARY,new AndroidLibraryBuildRuleFactory());
-  builder.register(BuildRuleType.JAVA_LIBRARY,new JavaLibraryBuildRuleFactory());
+  builder.register(BuildRuleType.ANDROID_LIBRARY,new AndroidLibraryBuildRuleFactory(javacEnv.getJavacPath(),javacEnv.getJavacVersion()));
+  builder.register(BuildRuleType.JAVA_LIBRARY,new JavaLibraryBuildRuleFactory(javacEnv.getJavacPath(),javacEnv.getJavacVersion()));
   builder.register(BuildRuleType.JAVA_TEST,new JavaTestBuildRuleFactory());
   builder.register(BuildRuleType.ROBOLECTRIC_TEST,new RobolectricTestBuildRuleFactory());
   builder.register(BuildRuleType.SH_BINARY,new ShBinaryBuildRuleFactory());
