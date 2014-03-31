@@ -3,16 +3,17 @@
   AndroidBinaryTest.createAndroidLibraryRule("//java/src/com/facebook/base:libraryOne",ruleResolver,null,null,null);
   AndroidBinaryTest.createAndroidLibraryRule("//java/src/com/facebook/base:libraryTwo",ruleResolver,null,"java/src/com/facebook/base/assets2",null);
   ResourcesFilter resourcesFilter=EasyMock.createMock(ResourcesFilter.class);
-  EasyMock.replay(resourcesFilter);
+  UberRDotJava uberRDotJava=EasyMock.createMock(UberRDotJava.class);
+  EasyMock.replay(resourcesFilter,uberRDotJava);
   AndroidResource resourceOne=(AndroidResource)ruleResolver.get(BuildTargetFactory.newInstance("//java/src/com/facebook/base:libraryTwo_resources")).getBuildable();
-  AaptPackageResources aaptPackageResources=new AaptPackageResources(new BuildTarget("//java/src/com/facebook/base","apk","aapt_package"),new FileSourcePath("java/src/com/facebook/base/AndroidManifest.xml"),resourcesFilter,AndroidTransitiveDependencies.EMPTY,PackageType.DEBUG,ImmutableSet.<TargetCpuType>of());
+  AaptPackageResources aaptPackageResources=new AaptPackageResources(new BuildTarget("//java/src/com/facebook/base","apk","aapt_package"),new FileSourcePath("java/src/com/facebook/base/AndroidManifest.xml"),resourcesFilter,uberRDotJava,AndroidTransitiveDependencies.EMPTY,PackageType.DEBUG,ImmutableSet.<TargetCpuType>of());
   Set<Path> assetsDirectories=ImmutableSet.of(resourceOne.getAssets());
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   filesystem.touch(Paths.get("java/src/com/facebook/base/assets2/fonts/Theinhardt-Medium.otf"));
   filesystem.touch(Paths.get("java/src/com/facebook/base/assets2/fonts/Theinhardt-Regular.otf"));
   Optional<Path> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(assetsDirectories,commands,filesystem);
-  EasyMock.verify(resourcesFilter);
+  EasyMock.verify(resourcesFilter,uberRDotJava);
   assertTrue(allAssetsDirectory.isPresent());
   assertEquals("Even though there is only one assets directory, the one in " + BIN_DIR + " should be used.",aaptPackageResources.getPathToAllAssetsDirectory(),allAssetsDirectory.get());
 }

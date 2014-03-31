@@ -1,6 +1,12 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   steps.add(new MkdirAndSymlinkFileStep(manifest.resolve(context),getAndroidManifestXml()));
+  final ImmutableSet<Path> resDirectories=filteredResourcesProvider.getResDirectories();
+  if (!resDirectories.isEmpty() && isStoreStringsAsAssets()) {
+    Path tmpStringsDirPath=getPathForTmpStringAssetsDirectory();
+    steps.add(new MakeCleanDirectoryStep(tmpStringsDirPath));
+    steps.add(new CompileStringsStep(filteredResourcesProvider.getNonEnglishStringFiles(),uberRDotJava.getPathToGeneratedRDotJavaSrcFiles(),tmpStringsDirPath));
+  }
   Step collectAssets=new Step(){
     @Override public int execute(    ExecutionContext context){
       ImmutableList.Builder<Step> commands=ImmutableList.builder();
@@ -29,7 +35,7 @@
 ;
   steps.add(collectAssets);
   Optional<Path> assetsDirectory;
-  if (androidTransitiveDependencies.assetsDirectories.isEmpty() && androidTransitiveDependencies.nativeLibAssetsDirectories.isEmpty()) {
+  if (androidTransitiveDependencies.assetsDirectories.isEmpty() && androidTransitiveDependencies.nativeLibAssetsDirectories.isEmpty() && !isStoreStringsAsAssets()) {
     assetsDirectory=Optional.absent();
   }
  else {
@@ -42,8 +48,13 @@
       AndroidBinary.copyNativeLibrary(nativeLibDir,nativeLibAssetsDir,cpuFilters,steps);
     }
   }
+  if (isStoreStringsAsAssets()) {
+    Path stringAssetsDir=assetsDirectory.get().resolve("strings");
+    steps.add(new MakeCleanDirectoryStep(stringAssetsDir));
+    steps.add(CopyStep.forDirectory(getPathForTmpStringAssetsDirectory(),stringAssetsDir,CopyStep.DirectoryMode.CONTENTS_ONLY));
+  }
   steps.add(new MkdirStep(getResourceApkPath().getParent()));
-  steps.add(new AaptStep(getAndroidManifestXml(),filteredResourcesProvider.getResDirectories(),assetsDirectory,getResourceApkPath(),packageType.isCrunchPngFiles()));
+  steps.add(new AaptStep(getAndroidManifestXml(),resDirectories,assetsDirectory,getResourceApkPath(),packageType.isCrunchPngFiles()));
   buildableContext.recordArtifact(getAndroidManifestXml());
   buildableContext.recordArtifact(getResourceApkPath());
   steps.add(new RecordFileSha1Step(getResourceApkPath(),RESOURCE_PACKAGE_HASH_KEY,buildableContext));
