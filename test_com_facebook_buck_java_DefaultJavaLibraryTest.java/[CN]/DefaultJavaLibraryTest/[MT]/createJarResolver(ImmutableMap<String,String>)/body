@@ -1,0 +1,21 @@
+{
+  ImmutableSetMultimap.Builder<Path,String> resolveMapBuilder=ImmutableSetMultimap.builder();
+  for (  Map.Entry<String,String> entry : classToSymbols.entrySet()) {
+    String fullyQualified=entry.getValue();
+    String packageName=fullyQualified.substring(0,fullyQualified.lastIndexOf('.'));
+    String className=fullyQualified.substring(fullyQualified.lastIndexOf('.'));
+    resolveMapBuilder.putAll(Paths.get(entry.getKey()),fullyQualified,packageName,className);
+  }
+  final ImmutableSetMultimap<Path,String> resolveMap=resolveMapBuilder.build();
+  return new DefaultJavaLibrary.JarResolver(){
+    @Override public ImmutableSet<String> resolve(    ProjectFilesystem filesystem,    Path relativeClassPath){
+      if (resolveMap.containsKey(relativeClassPath)) {
+        return resolveMap.get(relativeClassPath);
+      }
+ else {
+        return ImmutableSet.of();
+      }
+    }
+  }
+;
+}
