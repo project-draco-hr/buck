@@ -1,0 +1,28 @@
+{
+  Step step=new AbstractExecutionStep("exploding step"){
+    @Override public int execute(    ExecutionContext context){
+      throw new UnsupportedOperationException("build step should not be executed");
+    }
+  }
+;
+  BuildableAbstractCachingBuildRule buildRule=createRule(ImmutableSet.<BuildRule>of(),ImmutableList.<Path>of(),ImmutableList.of(step),null);
+  StepRunner stepRunner=createSameThreadStepRunner();
+  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
+  expect(projectFilesystem.readFileIfItExists(Paths.get("buck-out/bin/src/com/facebook/orca/.orca/metadata/RULE_KEY"))).andReturn(Optional.<String>absent());
+  expect(projectFilesystem.getRootPath()).andReturn(tmp.getRoot().toPath());
+  ArtifactCache artifactCache=createMock(ArtifactCache.class);
+  Map<String,String> desiredZipEntries=ImmutableMap.of("buck-out/gen/src/com/facebook/orca/orca.jar","Imagine this is the contents of a valid JAR file.");
+  expect(artifactCache.fetch(eq(buildRule.getRuleKey()),capture(new CaptureThatWritesAZipFile(desiredZipEntries)))).andReturn(CacheResult.DIR_HIT);
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
+  BuildContext buildContext=BuildContext.builder().setDependencyGraph(RuleMap.createGraphFromSingleRule(buildRule)).setStepRunner(stepRunner).setProjectFilesystem(projectFilesystem).setArtifactCache(artifactCache).setJavaPackageFinder(createMock(JavaPackageFinder.class)).setEventBus(buckEventBus).build();
+  replayAll();
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine();
+  ListenableFuture<BuildRuleSuccess> result=cachingBuildEngine.build(buildContext,buildRule);
+  buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
+  verifyAll();
+  assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(result));
+  BuildRuleSuccess success=result.get();
+  assertEquals(BuildRuleSuccess.Type.FETCHED_FROM_CACHE,success.getType());
+  assertTrue(buildRule.isInitializedFromDisk());
+  assertTrue("The entries in the zip should be extracted as a result of building the rule.",new File(tmp.getRoot(),"buck-out/gen/src/com/facebook/orca/orca.jar").isFile());
+}

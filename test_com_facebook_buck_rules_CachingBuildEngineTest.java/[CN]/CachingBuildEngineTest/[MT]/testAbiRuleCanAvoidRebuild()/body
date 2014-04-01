@@ -1,0 +1,27 @@
+{
+  BuildRuleParams buildRuleParams=new FakeBuildRuleParams(buildTarget);
+  TestAbstractCachingBuildRule buildRule=new TestAbstractCachingBuildRule(buildRuleParams);
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
+  FakeBuckEventListener listener=new FakeBuckEventListener();
+  buckEventBus.register(listener);
+  BuildContext buildContext=createMock(BuildContext.class);
+  BuildInfoRecorder buildInfoRecorder=createMock(BuildInfoRecorder.class);
+  expect(buildContext.createBuildInfoRecorder(eq(buildTarget),anyObject(RuleKey.class),anyObject(RuleKey.class))).andReturn(buildInfoRecorder);
+  OnDiskBuildInfo onDiskBuildInfo=new FakeOnDiskBuildInfo().setRuleKey(reverse(buildRule.getRuleKey())).setRuleKeyWithoutDeps(new RuleKey(TestAbstractCachingBuildRule.RULE_KEY_WITHOUT_DEPS_HASH)).putMetadata(CachingBuildEngine.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,TestAbstractCachingBuildRule.ABI_KEY_FOR_DEPS_HASH).putMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,"At some point, this method call should go away.");
+  buildInfoRecorder.writeMetadataToDisk(false);
+  expect(buildContext.createOnDiskBuildInfoFor(buildTarget)).andReturn(onDiskBuildInfo);
+  expect(buildContext.getStepRunner()).andReturn(createSameThreadStepRunner());
+  expect(buildContext.getEventBus()).andReturn(buckEventBus).anyTimes();
+  replayAll();
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine();
+  ListenableFuture<BuildRuleSuccess> result=cachingBuildEngine.build(buildContext,buildRule);
+  assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(result));
+  buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
+  BuildRuleSuccess success=result.get();
+  assertEquals(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,success.getType());
+  assertTrue(buildRule.isAbiLoadedFromDisk());
+  List<BuckEvent> events=listener.getEvents();
+  assertEquals(events.get(0),configureTestEvent(BuildRuleEvent.started(buildRule),buckEventBus));
+  assertEquals(events.get(1),configureTestEvent(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.LOCAL_KEY_UNCHANGED_HIT,Optional.of(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS)),buckEventBus));
+  verifyAll();
+}
