@@ -1,17 +1,8 @@
 {
-  SettableFuture<BuildRuleSuccess> theFuture=results.get(rule.getBuildTarget());
-  if (theFuture != null) {
-    return theFuture;
-  }
-synchronized (results) {
-    theFuture=results.get(rule.getBuildTarget());
-    if (theFuture != null) {
-      return theFuture;
-    }
- else {
-      SettableFuture<BuildRuleSuccess> result=SettableFuture.create();
-      results.put(rule.getBuildTarget(),result);
-    }
+  final SettableFuture<BuildRuleSuccess> newFuture=SettableFuture.create();
+  SettableFuture<BuildRuleSuccess> existingFuture=results.putIfAbsent(rule.getBuildTarget(),newFuture);
+  if (existingFuture != null) {
+    return existingFuture;
   }
   try {
     List<ListenableFuture<BuildRuleSuccess>> builtDeps=Lists.newArrayListWithCapacity(rule.getDeps().size());
@@ -84,7 +75,7 @@ synchronized (results) {
         doHydrationAfterBuildStepsFinish(rule,result,onDiskBuildInfo);
         logBuildRuleFinished(result);
         BuildRuleSuccess buildRuleSuccess=new BuildRuleSuccess(rule,result.getSuccess());
-        results.get(rule.getBuildTarget()).set(buildRuleSuccess);
+        newFuture.set(buildRuleSuccess);
         if (result.getSuccess().shouldUploadResultingArtifact()) {
           buildInfoRecorder.get().performUploadToArtifactCache(context.getArtifactCache(),eventBus);
         }
@@ -96,7 +87,7 @@ synchronized (results) {
         if (startOfBuildWasRecordedOnTheEventBus) {
           logBuildRuleFinished(result);
         }
-        results.get(rule.getBuildTarget()).setException(result.getFailure());
+        newFuture.setException(result.getFailure());
       }
       private void logBuildRuleFinished(      BuildResult result){
         eventBus.post(BuildRuleEvent.finished(rule,result.getStatus(),result.getCacheResult(),Optional.fromNullable(result.getSuccess())));
@@ -105,7 +96,7 @@ synchronized (results) {
 );
   }
  catch (  Throwable failure) {
-    results.get(rule.getBuildTarget()).setException(failure);
+    newFuture.setException(failure);
   }
-  return results.get(rule.getBuildTarget());
+  return newFuture;
 }
