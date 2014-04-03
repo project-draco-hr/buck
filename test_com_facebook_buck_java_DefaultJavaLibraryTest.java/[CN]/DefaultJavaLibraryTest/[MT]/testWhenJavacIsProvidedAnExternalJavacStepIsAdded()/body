@@ -1,10 +1,10 @@
 {
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
   BuildTarget libraryOneTarget=BuildTargetFactory.newInstance("//:libone");
-  DefaultJavaLibrary rule=ruleResolver.buildAndAddToIndex(DefaultJavaLibrary.newJavaLibraryRuleBuilder(new FakeBuildRuleBuilderParams()).setBuildTarget(libraryOneTarget).addSrc(Paths.get("java/src/com/libone/Bar.java")));
+  BuildRule rule=JavaLibraryBuilder.createBuilder(libraryOneTarget).addSrc(Paths.get("java/src/com/libone/Bar.java")).build(ruleResolver);
   ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
   JavacOptions javacOptions=JavacOptions.builder(JavacOptions.DEFAULTS).setJavaCompilerEnviornment(new JavaCompilerEnvironment(Optional.of(Paths.get("javac")),Optional.<JavacVersion>absent())).build();
-  rule.createCommandsForJavac(rule.getPathToOutputFile(),ImmutableSet.copyOf(rule.getTransitiveClasspathEntries().values()),ImmutableSet.copyOf(rule.getDeclaredClasspathEntries().values()),javacOptions,BuildDependencies.FIRST_ORDER_ONLY,Optional.<JavacStep.SuggestBuildRules>absent(),stepsBuilder,libraryOneTarget);
+  ((DefaultJavaLibrary)rule.getBuildable()).createCommandsForJavac(rule.getBuildable().getPathToOutputFile(),ImmutableSet.copyOf(((HasClasspathEntries)rule.getBuildable()).getTransitiveClasspathEntries().values()),ImmutableSet.copyOf(((JavaLibrary)rule.getBuildable()).getDeclaredClasspathEntries().values()),javacOptions,BuildDependencies.FIRST_ORDER_ONLY,Optional.<JavacStep.SuggestBuildRules>absent(),stepsBuilder,libraryOneTarget);
   List<Step> steps=stepsBuilder.build();
   assertEquals(steps.size(),3);
   assertTrue(steps.get(2) instanceof ExternalJavacStep);

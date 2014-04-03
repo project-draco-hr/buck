@@ -1,21 +1,13 @@
 {
   BuildRuleResolver ruleResolver1=new BuildRuleResolver();
   BuildRuleResolver ruleResolver2=new BuildRuleResolver();
-  ProjectFilesystem projectFilesystem=new ProjectFilesystem(new File("."));
-  final FileHashCache fileHashCache=new DefaultFileHashCache(projectFilesystem,new TestConsole());
-  BuildRuleBuilderParams builderParams=new BuildRuleBuilderParams(projectFilesystem,new RuleKeyBuilderFactory(){
-    @Override public Builder newInstance(    BuildRule buildRule){
-      return RuleKey.builder(buildRule,fileHashCache);
-    }
-  }
-);
-  DefaultJavaLibrary.Builder commonJavaLibraryRuleBuilder=DefaultJavaLibrary.newJavaLibraryRuleBuilder(builderParams).setBuildTarget(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:common"));
-  ruleResolver1.buildAndAddToIndex(commonJavaLibraryRuleBuilder);
-  ruleResolver2.buildAndAddToIndex(commonJavaLibraryRuleBuilder);
-  DefaultJavaLibrary.Builder javaLibraryBuilder=DefaultJavaLibrary.newJavaLibraryRuleBuilder(builderParams).setBuildTarget(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:cli")).addSrc(Paths.get("src/com/facebook/buck/cli/Main.java"));
-  DefaultJavaLibrary libraryNoCommon=ruleResolver1.buildAndAddToIndex(javaLibraryBuilder);
-  javaLibraryBuilder.addDep(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:common"));
-  DefaultJavaLibrary libraryWithCommon=ruleResolver2.buildAndAddToIndex(javaLibraryBuilder);
+  JavaLibraryBuilder builder=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:common"));
+  BuildRule commonJavaLibrary=builder.build(ruleResolver1);
+  builder.build(ruleResolver2);
+  JavaLibraryBuilder javaLibraryBuilder=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:cli")).addSrc(Paths.get("src/com/facebook/buck/cli/Main.java"));
+  BuildRule libraryNoCommon=javaLibraryBuilder.build(ruleResolver1);
+  javaLibraryBuilder.addDep(commonJavaLibrary);
+  BuildRule libraryWithCommon=javaLibraryBuilder.build(ruleResolver2);
   RuleKey r1=libraryNoCommon.getRuleKey();
   RuleKey r2=libraryWithCommon.getRuleKey();
   assertThat("Rule keys should be distinct because the deps of the rules are different.",r1,not(equalTo(r2)));

@@ -1,16 +1,16 @@
 {
   BuildTarget libraryOnebuildTarget=BuildTargetFactory.newInstance(buildTarget);
-  AndroidLibrary.Builder androidLibraryRuleBuilder=AndroidLibrary.newAndroidLibraryRuleBuilder(new FakeBuildRuleBuilderParams()).addSrc(Paths.get(buildTarget.split(":")[1] + ".java")).setBuildTarget(libraryOnebuildTarget);
+  AndroidLibraryBuilder androidLibraryRuleBuilder=AndroidLibraryBuilder.createBuilder(libraryOnebuildTarget).addSrc(Paths.get(buildTarget.split(":")[1] + ".java"));
   if (!Strings.isNullOrEmpty(resDirectory) || !Strings.isNullOrEmpty(assetDirectory)) {
     BuildTarget resourceOnebuildTarget=BuildTargetFactory.newInstance(buildTarget + "_resources");
     BuildRule androidResourceRule=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setAssets(Paths.get(assetDirectory)).setRes(resDirectory == null ? null : Paths.get(resDirectory)).setBuildTarget(resourceOnebuildTarget).build());
-    androidLibraryRuleBuilder.addDep(androidResourceRule.getBuildTarget());
+    androidLibraryRuleBuilder.addDep(androidResourceRule);
   }
   if (!Strings.isNullOrEmpty(nativeLibsDirectory)) {
     BuildTarget nativeLibOnebuildTarget=BuildTargetFactory.newInstance(buildTarget + "_native_libs");
     BuildRule nativeLibsRule=PrebuiltNativeLibraryBuilder.newBuilder(nativeLibOnebuildTarget).setNativeLibs(Paths.get(nativeLibsDirectory)).build();
     ruleResolver.addToIndex(nativeLibOnebuildTarget,nativeLibsRule);
-    androidLibraryRuleBuilder.addDep(nativeLibsRule.getBuildTarget());
+    androidLibraryRuleBuilder.addDep(nativeLibsRule);
   }
-  return ruleResolver.buildAndAddToIndex(androidLibraryRuleBuilder);
+  return androidLibraryRuleBuilder.build(ruleResolver);
 }

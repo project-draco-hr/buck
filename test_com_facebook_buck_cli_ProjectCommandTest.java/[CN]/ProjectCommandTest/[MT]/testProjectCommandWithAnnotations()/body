@@ -3,12 +3,12 @@
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
   BuckConfig buckConfig=new FakeBuckConfig();
   String targetNameWithout="//javasrc:java-library-without-processor";
-  DefaultJavaLibrary ruleWithout=ruleResolver.buildAndAddToIndex(DefaultJavaLibrary.newJavaLibraryRuleBuilder(new FakeBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance(targetNameWithout)).addSrc(Paths.get("javasrc/JavaLibrary.java")));
+  BuildRule ruleWithout=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance(targetNameWithout)).addSrc(Paths.get("javasrc/JavaLibrary.java")).build(ruleResolver);
   BuildTarget targetNameWith=BuildTargetFactory.newInstance("//javasrc:java-library-with-processor");
-  DefaultJavaLibrary.Builder builderWith=DefaultJavaLibrary.newJavaLibraryRuleBuilder(new FakeBuildRuleBuilderParams()).setBuildTarget(targetNameWith).addSrc(Paths.get("javasrc/JavaLibrary.java"));
-  builderWith.getAnnotationProcessingBuilder().addAllProcessors(processorNames);
-  BuildRule ruleWith=ruleResolver.buildAndAddToIndex(builderWith);
-  ImmutableMap<String,Object> annotationParseData=ImmutableMap.<String,Object>of(JavaLibraryBuildRuleFactory.ANNOTATION_PROCESSORS,processorNames);
+  JavaLibraryBuilder builderWith=JavaLibraryBuilder.createBuilder(targetNameWith).addSrc(Paths.get("javasrc/JavaLibrary.java"));
+  builderWith.addAllAnnotationProcessors(processorNames);
+  BuildRule ruleWith=builderWith.build(ruleResolver);
+  ImmutableMap<String,Object> annotationParseData=ImmutableMap.<String,Object>of(JavaLibraryDescription.ANNOTATION_PROCESSORS,processorNames);
   String projectConfigName="//javasrc:project-config";
   BuildRule ruleConfig=ProjectConfigBuilder.newProjectConfigRuleBuilder(BuildTargetFactory.newInstance(projectConfigName)).setSrcRule(ruleWith).build(ruleResolver);
   ProjectCommandForTest command=new ProjectCommandForTest();

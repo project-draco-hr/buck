@@ -5,12 +5,12 @@
   auditClasspathCommand.printClasspath(partialGraph1);
   assertEquals("",console.getTextWrittenToStdOut());
   assertEquals("",console.getTextWrittenToStdErr());
-  BuildRule javaLibraryRule=ruleResolver.buildAndAddToIndex(DefaultJavaLibrary.newJavaLibraryRuleBuilder(new FakeBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//:test-java-library")).addSrc(Paths.get("src/com/facebook/TestJavaLibrary.java")));
-  BuildRule androidRule=ruleResolver.buildAndAddToIndex(DefaultJavaLibrary.newJavaLibraryRuleBuilder(new FakeBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//:test-android-library")).addSrc(Paths.get("src/com/facebook/TestAndroidLibrary.java")).addDep(BuildTargetFactory.newInstance("//:test-java-library")));
+  BuildRule javaLibrary=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:test-java-library")).addSrc(Paths.get("src/com/facebook/TestJavaLibrary.java")).build(ruleResolver);
+  BuildRule androidLibrary=AndroidLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:test-android-library")).addSrc(Paths.get("src/com/facebook/TestAndroidLibrary.java")).addDep(javaLibrary).build(ruleResolver);
   BuildTarget keystoreBuildTarget=BuildTargetFactory.newInstance("//:keystore");
   Keystore keystore=(Keystore)KeystoreBuilder.createBuilder(keystoreBuildTarget).setStore(Paths.get("debug.keystore")).setProperties(Paths.get("keystore.properties")).build(ruleResolver).getBuildable();
-  AndroidBinaryBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//:test-android-binary")).setManifest(new FileSourcePath("AndroidManifest.xml")).setTarget("Google Inc.:Google APIs:16").setKeystore(keystore).setOriginalDeps(ImmutableSortedSet.of(androidRule,javaLibraryRule)).build(ruleResolver);
-  ruleResolver.buildAndAddToIndex(JavaTest.newJavaTestRuleBuilder(new FakeBuildRuleBuilderParams()).setBuildTarget(BuildTargetFactory.newInstance("//:project-tests")).addDep(BuildTargetFactory.newInstance("//:test-java-library")).setSourceUnderTest(ImmutableSet.of(BuildTargetFactory.newInstance("//:test-java-library"))).addSrc(Paths.get("src/com/facebook/test/ProjectTests.java")));
+  AndroidBinaryBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//:test-android-binary")).setManifest(new FileSourcePath("AndroidManifest.xml")).setTarget("Google Inc.:Google APIs:16").setKeystore(keystore).setOriginalDeps(ImmutableSortedSet.of(androidLibrary,javaLibrary)).build(ruleResolver);
+  JavaTestBuilder.createBuilder(BuildTargetFactory.newInstance("//:project-tests")).addDep(javaLibrary).setSourceUnderTest(ImmutableSet.of(javaLibrary.getBuildTarget())).addSrc(Paths.get("src/com/facebook/test/ProjectTests.java")).build(ruleResolver);
   PartialGraph partialGraph2=createGraphFromBuildRules(ruleResolver,targets);
   auditClasspathCommand.printClasspath(partialGraph2);
   assertEquals("",console.getTextWrittenToStdOut());
