@@ -1,0 +1,31 @@
+{
+  Object result;
+  if (value == null) {
+    if (isOptional) {
+      result=typeCoercer.getOptionalValue();
+    }
+ else {
+      throw new IllegalArgumentException(String.format("Field '%s' of object '%s' cannot be null. Build file can be found in %s.",name,dto,pathRelativeToProjectRoot));
+    }
+  }
+ else   if (isOptional && isDefaultPrimitiveValue(value)) {
+    result=Optional.absent();
+  }
+ else {
+    try {
+      result=typeCoercer.coerce(ruleResolver,filesystem,pathRelativeToProjectRoot,value);
+    }
+ catch (    CoerceFailedException e) {
+      throw new RuntimeException(String.format("Failed to coerce field named: %s",name),e);
+    }
+    if (isOptional) {
+      result=Optional.of(result);
+    }
+  }
+  try {
+    field.set(dto,result);
+  }
+ catch (  ReflectiveOperationException e) {
+    throw new RuntimeException(e);
+  }
+}
