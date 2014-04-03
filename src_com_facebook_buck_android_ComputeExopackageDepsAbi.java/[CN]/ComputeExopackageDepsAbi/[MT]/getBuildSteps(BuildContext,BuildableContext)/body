@@ -8,14 +8,11 @@
         final Hasher hasher=Hashing.sha1().newHasher();
         hasher.putUnencodedChars(aaptPackageResources.getResourcePackageHash().toString());
         hasher.putUnencodedChars(preDexMerge.get().getPrimaryDexHash().toString());
-        final ImmutableSortedMap.Builder<Path,String> filesToHash=ImmutableSortedMap.naturalOrder();
+        ImmutableSortedMap.Builder<Path,String> filesToHash=ImmutableSortedMap.naturalOrder();
         for (        final Path libDir : transitiveDependencies.nativeLibsDirectories) {
-          new DirectoryTraversal(filesystem.resolve(libDir).toFile()){
-            @Override public void visit(            File file,            String relativePath) throws IOException {
-              filesToHash.put(libDir.resolve(relativePath),"native lib");
-            }
+          for (          Path nativeFile : filesystem.getFilesUnderPath(libDir)) {
+            filesToHash.put(nativeFile,"native_lib");
           }
-.traverse();
         }
         for (        String jar : dexTransitiveDependencies.pathsToThirdPartyJars) {
           filesToHash.put(Paths.get(jar),"third-party jar");
