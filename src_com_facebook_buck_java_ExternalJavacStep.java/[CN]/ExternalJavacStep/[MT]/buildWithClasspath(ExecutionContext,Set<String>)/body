@@ -2,9 +2,16 @@
   ImmutableList.Builder<String> command=ImmutableList.builder();
   command.add(pathToJavac.toString());
   command.addAll(getOptions(context,buildClasspathEntries));
+  ImmutableList<Path> expandedSources;
+  try {
+    expandedSources=getExpandedSourcePaths(context);
+  }
+ catch (  IOException e) {
+    throw new HumanReadableException("Unable to expand sources for %s into %s",target,workingDirectory);
+  }
   if (pathToSrcsList.isPresent()) {
     try {
-      context.getProjectFilesystem().writeLinesToPath(Iterables.transform(javaSourceFilePaths,Functions.toStringFunction()),pathToSrcsList.get());
+      context.getProjectFilesystem().writeLinesToPath(Iterables.transform(expandedSources,Functions.toStringFunction()),pathToSrcsList.get());
       command.add("@" + pathToSrcsList.get());
     }
  catch (    IOException e) {
@@ -13,19 +20,20 @@
     }
   }
  else {
-    for (    Path source : getSrcs()) {
+    for (    Path source : expandedSources) {
       command.add(source.toString());
     }
   }
-  ProcessBuilder pb=new ProcessBuilder(command.build());
-  Map<String,String> env=pb.environment();
+  ProcessBuilder processBuilder=new ProcessBuilder(command.build());
+  Map<String,String> env=processBuilder.environment();
   env.put("BUCK_INVOKING_RULE",invokingRule.or(""));
   env.put("BUCK_TARGET",target.toString());
   env.put("BUCK_DIRECTORY_ROOT",context.getProjectDirectoryRoot().toString());
   env.put("BUCK_OUTPUT_ABI_FILE",pathToOutputAbiFile.or(new File("").toPath()).toString());
+  processBuilder.directory(context.getProjectDirectoryRoot());
   int exitCode=-1;
   try {
-    ProcessExecutor.Result result=context.getProcessExecutor().execute(pb.start());
+    ProcessExecutor.Result result=context.getProcessExecutor().execute(processBuilder.start());
     exitCode=result.getExitCode();
   }
  catch (  IOException e) {
