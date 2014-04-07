@@ -1,5 +1,5 @@
 {
-  ImmutableSet.Builder<IntermediateDexRule> preDexDeps=ImmutableSet.builder();
+  ImmutableSet.Builder<DexProducedFromJavaLibrary> preDexDeps=ImmutableSet.builder();
   ImmutableSet<JavaLibrary> transitiveJavaDeps=Classpaths.getClasspathEntries(originalDeps).keySet();
   for (  JavaLibrary javaLibrary : transitiveJavaDeps) {
     if (javaLibrary.getPathToOutputFile() == null) {
@@ -10,15 +10,15 @@
     }
     BuildTarget originalTarget=javaLibrary.getBuildTarget();
     BuildTarget preDexTarget=new BuildTarget(originalTarget.getBaseName(),originalTarget.getShortName(),DEX_FLAVOR);
-    IntermediateDexRule preDexRule=(IntermediateDexRule)ruleResolver.get(preDexTarget);
+    BuildRule preDexRule=ruleResolver.get(preDexTarget);
     if (preDexRule != null) {
-      preDexDeps.add(preDexRule);
+      preDexDeps.add((DexProducedFromJavaLibrary)preDexRule.getBuildable());
       continue;
     }
-    IntermediateDexRule preDex=ruleResolver.buildAndAddToIndex(IntermediateDexRule.newPreDexBuilder(buildRuleBuilderParams).setBuildTarget(preDexTarget).setJavaLibraryToDex(javaLibrary).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
-    preDexDeps.add(preDex);
+    preDexRule=ruleResolver.buildAndAddToIndex(DexProducedFromJavaLibrary.newBuilder(buildRuleBuilderParams).setBuildTarget(preDexTarget).setJavaLibraryToDex(javaLibrary).addVisibilityPattern(BuildTargetPattern.MATCH_ALL));
+    preDexDeps.add((DexProducedFromJavaLibrary)preDexRule.getBuildable());
   }
-  ImmutableSet<IntermediateDexRule> allPreDexDeps=preDexDeps.build();
+  ImmutableSet<DexProducedFromJavaLibrary> allPreDexDeps=preDexDeps.build();
   BuildTarget buildTargetForDexMerge=createBuildTargetWithFlavor(DEX_MERGE_FLAVOR);
   BuildRule preDexMergeBuildRule=ruleResolver.buildAndAddToIndex(PreDexMerge.newPreDexMergeBuilder(buildRuleBuilderParams).setBuildTarget(buildTargetForDexMerge).setPrimaryDexPath(primaryDexPath).setDexSplitMode(dexSplitMode).setPreDexDeps(allPreDexDeps).setUberRDotJava(uberRDotJava));
   return preDexMergeBuildRule;
