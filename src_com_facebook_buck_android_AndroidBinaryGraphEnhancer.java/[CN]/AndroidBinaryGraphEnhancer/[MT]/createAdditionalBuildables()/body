@@ -10,7 +10,7 @@
     BuildRule resourcesFilterBuildRule=buildRuleAndAddToIndex(resourcesFilter,BuildRuleType.RESOURCES_FILTER,buildTargetForFilterResources,resourceRules);
     filteredResourcesProvider=resourcesFilter;
     enhancedDeps.add(resourcesFilterBuildRule);
-    resourceRules=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(resourceRules).add(resourcesFilterBuildRule).build();
+    resourceRules=ImmutableSortedSet.of(resourcesFilterBuildRule);
   }
  else {
     filteredResourcesProvider=new IdentityResourcesProvider(androidResourceDepsFinder);
@@ -19,9 +19,16 @@
   UberRDotJava uberRDotJava=new UberRDotJava(buildTargetForUberRDotJava,filteredResourcesProvider,javacOptions,androidResourceDepsFinder,shouldPreDex,shouldBuildStringSourceMap);
   BuildRule uberRDotJavaBuildRule=buildRuleAndAddToIndex(uberRDotJava,BuildRuleType.UBER_R_DOT_JAVA,buildTargetForUberRDotJava,resourceRules);
   enhancedDeps.add(uberRDotJavaBuildRule);
+  Optional<PackageStringAssets> packageStringAssets=Optional.absent();
+  if (resourceCompressionMode.isStoreStringsAsAssets()) {
+    BuildTarget buildTargetForPackageStringAssets=createBuildTargetWithFlavor(PACKAGE_STRING_ASSETS_FLAVOR);
+    packageStringAssets=Optional.of(new PackageStringAssets(buildTargetForPackageStringAssets,filteredResourcesProvider,uberRDotJava));
+    BuildRule packageStringAssetsRule=buildRuleAndAddToIndex(packageStringAssets.get(),BuildRuleType.PACKAGE_STRING_ASSETS,buildTargetForPackageStringAssets,ImmutableSortedSet.of(uberRDotJavaBuildRule));
+    enhancedDeps.add(packageStringAssetsRule);
+  }
   BuildTarget buildTargetForAapt=createBuildTargetWithFlavor(AAPT_PACKAGE_FLAVOR);
-  AaptPackageResources aaptPackageResources=new AaptPackageResources(buildTargetForAapt,manifest,filteredResourcesProvider,uberRDotJava,androidResourceDepsFinder.getAndroidTransitiveDependencies(),packageType,cpuFilters);
-  BuildRule aaptPackageResourcesBuildRule=buildRuleAndAddToIndex(aaptPackageResources,BuildRuleType.AAPT_PACKAGE,buildTargetForAapt,getAdditionalAaptDeps(uberRDotJavaBuildRule));
+  AaptPackageResources aaptPackageResources=new AaptPackageResources(buildTargetForAapt,manifest,filteredResourcesProvider,androidResourceDepsFinder.getAndroidTransitiveDependencies(),packageType,cpuFilters);
+  BuildRule aaptPackageResourcesBuildRule=buildRuleAndAddToIndex(aaptPackageResources,BuildRuleType.AAPT_PACKAGE,buildTargetForAapt,getAdditionalAaptDeps(resourceRules));
   enhancedDeps.add(aaptPackageResourcesBuildRule);
   Optional<PreDexMerge> preDexMerge=Optional.absent();
   if (shouldPreDex) {
@@ -33,12 +40,12 @@
   Optional<ComputeExopackageDepsAbi> computeExopackageDepsAbi=Optional.absent();
   if (exopackage) {
     BuildTarget buildTargetForAbiCalculation=createBuildTargetWithFlavor(CALCULATE_ABI_FLAVOR);
-    computeExopackageDepsAbi=Optional.of(new ComputeExopackageDepsAbi(buildTargetForAbiCalculation,androidResourceDepsFinder,uberRDotJava,aaptPackageResources,preDexMerge,keystore));
+    computeExopackageDepsAbi=Optional.of(new ComputeExopackageDepsAbi(buildTargetForAbiCalculation,androidResourceDepsFinder,uberRDotJava,aaptPackageResources,packageStringAssets,preDexMerge,keystore));
     BuildRule computeExopackageDepsAbiRule=buildRuleAndAddToIndex(computeExopackageDepsAbi.get(),BuildRuleType.EXOPACKAGE_DEPS_ABI,buildTargetForAbiCalculation,enhancedDeps.build());
     finalDeps=ImmutableSortedSet.of(computeExopackageDepsAbiRule);
   }
  else {
     finalDeps=enhancedDeps.build();
   }
-  return new EnhancementResult(filteredResourcesProvider,uberRDotJava,aaptPackageResources,preDexMerge,computeExopackageDepsAbi,finalDeps);
+  return new EnhancementResult(filteredResourcesProvider,uberRDotJava,aaptPackageResources,packageStringAssets,preDexMerge,computeExopackageDepsAbi,finalDeps);
 }
