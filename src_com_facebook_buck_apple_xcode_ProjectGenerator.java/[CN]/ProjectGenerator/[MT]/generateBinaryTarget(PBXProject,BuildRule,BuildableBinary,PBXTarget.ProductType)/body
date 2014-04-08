@@ -1,8 +1,9 @@
 {
   PBXNativeTarget target=new PBXNativeTarget(getXcodeTargetName(rule));
-  target.setProductType(PBXTarget.ProductType.MACOSX_FRAMEWORK);
+  target.setProductType(productType);
   PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(target.getName());
-  setTargetBuildConfigurations(rule.getBuildTarget(),target,targetGroup,buildable.getConfigurations(),ImmutableMap.<String,String>of());
+  Path infoPlistPath=this.repoRootRelativeToOutputDirectory.resolve(buildable.getInfoPlist());
+  setTargetBuildConfigurations(rule.getBuildTarget(),target,targetGroup,buildable.getConfigurations(),ImmutableMap.of("INFOPLIST_FILE",infoPlistPath.toString()));
   addRunScriptBuildPhasesForDependencies(rule,target);
   addSourcesAndHeadersBuildPhases(target,targetGroup,buildable.getSrcs(),buildable.getPerFileFlags());
   ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
@@ -11,10 +12,11 @@
   addFrameworksBuildPhase(rule.getBuildTarget(),target,project.getMainGroup().getOrCreateChildGroupByName("Frameworks"),frameworksBuilder.build(),collectRecursiveLibraryDependencies(rule));
   addResourcesBuildPhase(target,targetGroup,collectRecursiveResources(rule));
   PBXGroup productsGroup=project.getMainGroup().getOrCreateChildGroupByName("Products");
-  String frameworkName=getProductName(rule.getBuildTarget()) + ".framework";
-  PBXFileReference productReference=new PBXFileReference(frameworkName,frameworkName,PBXReference.SourceTree.BUILT_PRODUCTS_DIR);
+  String productName=getProductName(rule.getBuildTarget());
+  String productOutputName=productName + ".app";
+  PBXFileReference productReference=new PBXFileReference(productOutputName,productOutputName,PBXReference.SourceTree.BUILT_PRODUCTS_DIR);
   productsGroup.getChildren().add(productReference);
+  target.setProductName(productName);
   target.setProductReference(productReference);
-  project.getTargets().add(target);
   return target;
 }

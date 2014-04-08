@@ -1,0 +1,20 @@
+{
+  BuildRule depRule=createBuildRuleWithDefaults(new BuildTarget("//dep","dep"),ImmutableSortedSet.<BuildRule>of(),iosLibraryDescription);
+  BuildRuleParams params=new FakeBuildRuleParams(new BuildTarget("//foo","binary"),ImmutableSortedSet.of(depRule));
+  MacosxBinaryDescription.Arg arg=macosxBinaryDescription.createUnpopulatedConstructorArg();
+  arg.infoPlist=Paths.get("Info.plist");
+  arg.configs=ImmutableMap.of("Debug",ImmutableList.<Either<Path,ImmutableMap<String,String>>>of());
+  arg.srcs=ImmutableList.of(AppleSource.ofSourcePathWithFlags(new Pair<SourcePath,String>(new FileSourcePath("foo.m"),"-foo")),AppleSource.ofSourcePath(new FileSourcePath("foo.h")));
+  arg.frameworks=ImmutableSortedSet.of("$SDKROOT/SystemFramework.framework","$BUILT_PRODUCTS_DIR/LocalFramework.framework");
+  BuildRule rule=new DescribedRule(MacosxBinaryDescription.TYPE,macosxBinaryDescription.createBuildable(params,arg),params);
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(rule),ImmutableSet.of(rule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:binary");
+  assertHasConfigurations(target,"Debug");
+  assertEquals("Should have exact number of build phases",5,target.getBuildPhases().size());
+  assertHasSingletonSourcesPhaseWithSourcesAndFlags(target,ImmutableMap.of("foo.m",Optional.of("-foo")));
+  ProjectGeneratorTestUtils.assertHasSingletonFrameworksPhaseWithFrameworkEntries(target,ImmutableList.of("$SDKROOT/SystemFramework.framework","$BUILT_PRODUCTS_DIR/LocalFramework.framework","$BUILT_PRODUCTS_DIR/libdep.a"));
+  PBXCopyFilesBuildPhase copyFrameworksBuildPhase=ProjectGeneratorTestUtils.getSingletonPhaseByType(target,PBXCopyFilesBuildPhase.class);
+  PBXBuildFile frameworkFile=Iterables.getOnlyElement(copyFrameworksBuildPhase.getFiles());
+  assertEquals("LocalFramework.framework",frameworkFile.getFileRef().getName());
+}

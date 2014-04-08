@@ -1,0 +1,20 @@
+{
+  PBXCopyFilesBuildPhase copyFrameworksBuildPhase=new PBXCopyFilesBuildPhase(PBXCopyFilesBuildPhase.Destination.PRODUCTS,"Frameworks");
+  target.getBuildPhases().add(copyFrameworksBuildPhase);
+  for (  String framework : frameworks) {
+    Path path=Paths.get(framework);
+    String firstElement=Preconditions.checkNotNull(Iterables.getFirst(path,Paths.get(""))).toString();
+    if (firstElement.startsWith("$")) {
+      Optional<PBXReference.SourceTree> sourceTree=PBXReference.SourceTree.fromBuildSetting(firstElement);
+      if (sourceTree.isPresent() && (sourceTree.get() == PBXReference.SourceTree.BUILT_PRODUCTS_DIR || sourceTree.get() == PBXReference.SourceTree.ABSOLUTE)) {
+        Path sdkRootRelativePath=path.subpath(1,path.getNameCount());
+        PBXFileReference fileReference=sharedFrameworksGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(sourceTree.get(),sdkRootRelativePath));
+        copyFrameworksBuildPhase.getFiles().add(new PBXBuildFile(fileReference));
+      }
+    }
+ else {
+      PBXFileReference fileReference=sharedFrameworksGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.GROUP,relativizeBuckRelativePathToGeneratedProject(buildTarget,path.toString())));
+      copyFrameworksBuildPhase.getFiles().add(new PBXBuildFile(fileReference));
+    }
+  }
+}
