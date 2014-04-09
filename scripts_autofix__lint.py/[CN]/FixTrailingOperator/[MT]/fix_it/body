@@ -1,0 +1,22 @@
+def fix_it(self, problem):
+    'Inserts missing whitespace after a token.\n        '
+    result = []
+    line_count = 1
+    problem = apply_offsets(problem)
+    operator = FixTrailingOperator.OPERATOR_REGEX.match(problem.message).group('operator')
+    line_len_delta = 0
+    with open(problem.file_name, 'r') as file:
+        for line in file.readlines():
+            new_line = line
+            if (line_count == (problem.line - 1)):
+                new_line = (((line.rstrip() + ' ') + operator) + '\n')
+            elif (line_count == problem.line):
+                oldlen = len(line)
+                new_line = re.sub((re.escape(operator) + '\\s*'), '', line, count=1)
+                line_len_delta = (oldlen - len(new_line))
+            result.append(new_line)
+            line_count += 1
+    with open(problem.file_name, 'w') as file:
+        file.write(''.join(result))
+        file.truncate()
+    return {'line': problem.line, 'column': problem.column, 'line_len_delta': line_len_delta, }
