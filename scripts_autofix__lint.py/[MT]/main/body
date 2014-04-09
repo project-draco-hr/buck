@@ -1,0 +1,16 @@
+def main():
+    parser = argparse.ArgumentParser(description='Automatically fix some lint problems')
+    parser.add_argument('--checkstyle_output_xml', action='store', help='The path to the XML output from a checkstyle run.')
+    args = parser.parse_args()
+    tree = ET.parse(args.checkstyle_output_xml)
+    root = tree.getroot()
+    for file in root.findall('file'):
+        file_name = file.get('name')
+        for error in file.findall('error'):
+            problem = LintProblem(file_name, int(error.get('line')), int(error.get('column')), error.get('severity'), error.get('message'), error.get('source'))
+            for fixer in FIXERS:
+                if fixer.matches(problem):
+                    translate_metadata = fixer.fix_it(apply_offsets(problem))
+                    offset_function = fixer.get_translate_function(translate_metadata)
+                    if offset_function:
+                        OFFSET_FUNCTIONS[problem.file_name].append(offset_function)
