@@ -1,0 +1,61 @@
+{
+  if (val == null) {
+    set(key,(String)null);
+    return this;
+  }
+  if (val instanceof Boolean) {
+    return set(key,(boolean)val);
+  }
+ else   if (val instanceof BuildRule) {
+    return set(key,(BuildRule)val);
+  }
+ else   if (val instanceof Long) {
+    return set(key,(long)val);
+  }
+ else   if (val instanceof Path) {
+    return setInput(key,(Path)val);
+  }
+ else   if (val instanceof RuleKey) {
+    return set(key,(RuleKey)val);
+  }
+  if (val instanceof Optional) {
+    Object o=((Optional<?>)val).orNull();
+    return setReflectively(key,o);
+  }
+  if (val instanceof List) {
+    Object determinant=((List<?>)val).isEmpty() ? null : ((List<?>)val).get(0);
+    if (determinant instanceof SourceRoot) {
+      return set(key,ImmutableList.copyOf((List<SourceRoot>)val));
+    }
+ else     if (determinant instanceof String) {
+      return set(key,(List<String>)val);
+    }
+ else {
+      setKey(key);
+      for (      Object item : (List<?>)val) {
+        setVal(item == null ? null : String.valueOf(item));
+      }
+      return separate();
+    }
+  }
+ else   if (val instanceof Set) {
+    Object determinant=((Set<?>)val).isEmpty() ? null : ((Set<?>)val).iterator().next();
+    if (determinant instanceof BuildRule) {
+      return set(key,ImmutableSortedSet.copyOf((Set<BuildRule>)val));
+    }
+ else     if (determinant instanceof SourcePath) {
+      return setSourcePaths(key,ImmutableSortedSet.copyOf((Set<SourcePath>)val));
+    }
+ else {
+      setKey(key);
+      for (      Object item : (Set<?>)val) {
+        setVal(item == null ? null : String.valueOf(item));
+      }
+      return separate();
+    }
+  }
+  if (val instanceof Iterator) {
+    return setInputs(key,(Iterator<Path>)val);
+  }
+  return set(key,String.valueOf(val));
+}
