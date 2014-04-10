@@ -1,0 +1,38 @@
+{
+  PBXGroup resourcesGroup=targetGroup.getOrCreateChildGroupByName("Resources");
+  ImmutableList.Builder<String> commonAssetCatalogsBuilder=ImmutableList.builder();
+  ImmutableList.Builder<String> assetCatalogsToSplitIntoBundlesBuilder=ImmutableList.builder();
+  for (  AppleAssetCatalog assetCatalog : assetCatalogs) {
+    List<String> scriptArguments=Lists.newArrayList();
+    for (    Path dir : assetCatalog.getDirs()) {
+      resourcesGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,this.repoRootRelativeToOutputDirectory.resolve(dir)));
+      Path pathRelativeToProjectRoot=outputDirectory.relativize(dir);
+      scriptArguments.add("$PROJECT_DIR/" + pathRelativeToProjectRoot.toString());
+    }
+    if (assetCatalog.getCopyToBundles()) {
+      assetCatalogsToSplitIntoBundlesBuilder.addAll(scriptArguments);
+    }
+ else {
+      commonAssetCatalogsBuilder.addAll(scriptArguments);
+    }
+  }
+  ImmutableList<String> commonAssetCatalogs=commonAssetCatalogsBuilder.build();
+  ImmutableList<String> assetCatalogsToSplitIntoBundles=assetCatalogsToSplitIntoBundlesBuilder.build();
+  if (commonAssetCatalogs.size() == 0 && assetCatalogsToSplitIntoBundles.size() == 0) {
+    return;
+  }
+  shouldPlaceAssetCatalogCompiler=true;
+  Path assetCatalogBuildPhaseScriptRelativeToProjectRoot=outputDirectory.relativize(placedAssetCatalogBuildPhaseScript);
+  String combinedAssetCatalogsToBeSplitIntoBundlesScriptArguments=Joiner.on(' ').join(assetCatalogsToSplitIntoBundles);
+  String combinedCommonAssetCatalogsScriptArguments=Joiner.on(' ').join(commonAssetCatalogs);
+  PBXShellScriptBuildPhase phase=new PBXShellScriptBuildPhase();
+  StringBuilder scriptBuilder=new StringBuilder("set -e\n");
+  if (commonAssetCatalogs.size() != 0) {
+    scriptBuilder.append("\"$SRCROOT/\"" + assetCatalogBuildPhaseScriptRelativeToProjectRoot.toString() + " "+ combinedCommonAssetCatalogsScriptArguments+ "\n");
+  }
+  if (assetCatalogsToSplitIntoBundles.size() != 0) {
+    scriptBuilder.append("\"$SRCROOT/\"" + assetCatalogBuildPhaseScriptRelativeToProjectRoot.toString() + " -b "+ combinedAssetCatalogsToBeSplitIntoBundlesScriptArguments);
+  }
+  phase.setShellScript(scriptBuilder.toString());
+  target.getBuildPhases().add(phase);
+}

@@ -1,0 +1,27 @@
+{
+  BuildRule assetCatalog1=createBuildRuleWithDefaults(new BuildTarget("//foo","asset_catalog1"),ImmutableSortedSet.<BuildRule>of(),new AppleAssetCatalogDescription(),new Function<AppleAssetCatalogDescription.Arg,AppleAssetCatalogDescription.Arg>(){
+    @Nullable @Override public AppleAssetCatalogDescription.Arg apply(    @Nullable AppleAssetCatalogDescription.Arg input){
+      input.dirs=ImmutableSet.of(Paths.get("AssetCatalog1.xcassets"));
+      return input;
+    }
+  }
+);
+  BuildRule assetCatalog2=createBuildRuleWithDefaults(new BuildTarget("//foo","asset_catalog2"),ImmutableSortedSet.<BuildRule>of(),new AppleAssetCatalogDescription(),new Function<AppleAssetCatalogDescription.Arg,AppleAssetCatalogDescription.Arg>(){
+    @Nullable @Override public AppleAssetCatalogDescription.Arg apply(    @Nullable AppleAssetCatalogDescription.Arg input){
+      input.dirs=ImmutableSet.of(Paths.get("AssetCatalog2.xcassets"));
+      input.copyToBundles=Optional.of(Boolean.TRUE);
+      return input;
+    }
+  }
+);
+  BuildRule libraryRule=createBuildRuleWithDefaults(new BuildTarget("//foo","lib"),ImmutableSortedSet.of(assetCatalog1,assetCatalog2),iosLibraryDescription);
+  BuildRule testRule=createBuildRuleWithDefaults(new BuildTarget("//foo","test"),ImmutableSortedSet.of(libraryRule),iosTestDescription);
+  BuildRule binaryRule=createBuildRuleWithDefaults(new BuildTarget("//foo","bin"),ImmutableSortedSet.of(libraryRule),iosBinaryDescription);
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(assetCatalog1,assetCatalog2,libraryRule,testRule,binaryRule),ImmutableSet.of(testRule.getBuildTarget(),binaryRule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXProject generatedProject=projectGenerator.getGeneratedProject();
+  PBXTarget testTarget=assertTargetExistsAndReturnTarget(generatedProject,"//foo:test");
+  assertTrue(hasShellScriptPhaseToCompileCommonAndSplitAssetCatalogs(testTarget));
+  PBXTarget binTarget=assertTargetExistsAndReturnTarget(generatedProject,"//foo:bin");
+  assertTrue(hasShellScriptPhaseToCompileCommonAndSplitAssetCatalogs(binTarget));
+}
