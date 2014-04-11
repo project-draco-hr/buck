@@ -1,6 +1,6 @@
-def glob_walk_internal(normpath, iglob, isresult, visited, tokens, path):
-    "Recursive routine for glob_walk.\n\n  'visited' is initially the empty set.\n  'tokens' is the list of glob elements yet to be traversed, e.g. ['**', '*.java'].\n  'path', initially None, is the path being constructed.\n  'normpath(path)' should normalize and resolve symlinks of 'path' (for symlink loop detection)\n  'iglob(pattern)' should behave like glob.iglob if 'path' were relative to the current directory\n  'isresult(path)' should verify that path is valid as a result (typically calls os.path.isfile)\n  "
-    key = (tuple(tokens), normpath(path))
+def glob_walk_internal(normpath_join, iglob, isresult, visited, tokens, path, normpath):
+    "Recursive routine for glob_walk.\n\n  'visited' is initially the empty set.\n  'tokens' is the list of glob elements yet to be traversed, e.g. ['**', '*.java'].\n  'path', initially None, is the path being constructed.\n  'normpath', initially os.path.realpath(root), is the os.path.realpath()-normalization of the path being constructed.\n  'normpath_join(normpath, element)' is the os.path.realpath()-normalization of path_join(normpath, element)\n  'iglob(pattern)' should behave like glob.iglob if 'path' were relative to the current directory\n  'isresult(path)' should verify that path is valid as a result (typically calls os.path.isfile)\n  "
+    key = (tuple(tokens), normpath)
     if (key in visited):
         return
     visited.add(key)
@@ -11,12 +11,12 @@ def glob_walk_internal(normpath, iglob, isresult, visited, tokens, path):
     token = tokens[0]
     next_tokens = tokens[1:]
     if (token == '**'):
-        for x in glob_walk_internal(normpath, iglob, isresult, visited, next_tokens, path):
+        for x in glob_walk_internal(normpath_join, iglob, isresult, visited, next_tokens, path, normpath):
             yield x
         for child in iglob(path_join(path, '*')):
-            for x in glob_walk_internal(normpath, iglob, isresult, visited, tokens, child):
+            for x in glob_walk_internal(normpath_join, iglob, isresult, visited, tokens, child, normpath_join(normpath, child)):
                 yield x
     else:
         for child in iglob(path_join(path, token)):
-            for x in glob_walk_internal(normpath, iglob, isresult, visited, next_tokens, child):
+            for x in glob_walk_internal(normpath_join, iglob, isresult, visited, next_tokens, child, normpath_join(normpath, child)):
                 yield x

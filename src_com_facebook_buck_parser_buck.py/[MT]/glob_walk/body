@@ -1,10 +1,12 @@
 def glob_walk(pattern, root, include_dotfiles=False):
     "Walk the path hierarchy, following symlinks, and emit relative paths to plain files matching 'pattern'.\n\n  Patterns can be any combination of chars recognized by shell globs.\n  The special path token '**' expands to zero or more consecutive '*'.\n  E.g. '**/foo.java' will match the union of 'foo.java', '*/foo.java.', '*/*/foo.java', etc.\n\n  Names starting with dots will not be matched by '?', '*' and '**' unless include_dotfiles=True\n  "
 
-    def normpath(path):
-        if (path is None):
-            return None
-        return os.path.realpath(os.path.join(root, path))
+    def normpath_join(normpath, element):
+        newpath = ((normpath + os.path.sep) + element)
+        if os.path.islink(newpath):
+            return os.path.realpath(newpath)
+        else:
+            return newpath
     root_len = len(os.path.join(root, ''))
     special_rules_for_dots = ((('^\\*', '.*'), ('^\\?', '.'), ('/\\*', '/.*'), ('/\\?', '/.')) if include_dotfiles else [])
 
@@ -25,4 +27,4 @@ def glob_walk(pattern, root, include_dotfiles=False):
     visited = set()
     tokens = split_path(pattern)
     assert well_formed_tokens(tokens), 'Glob patterns cannot be empty, start or end with a slash, or contain consecutive slashes.'
-    return glob_walk_internal(normpath, iglob, isresult, visited, tokens, None)
+    return glob_walk_internal(normpath_join, iglob, isresult, visited, tokens, None, os.path.realpath(root))
