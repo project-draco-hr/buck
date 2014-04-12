@@ -1,10 +1,10 @@
 {
-  final ImmutableSet.Builder<String> pathsToDexBuilder=ImmutableSet.builder();
-  final ImmutableSet.Builder<String> noDxPathsBuilder=ImmutableSet.builder();
-  final ImmutableSet.Builder<String> pathsToThirdPartyJarsBuilder=ImmutableSet.builder();
+  final ImmutableSet.Builder<Path> pathsToDexBuilder=ImmutableSet.builder();
+  final ImmutableSet.Builder<Path> noDxPathsBuilder=ImmutableSet.builder();
+  final ImmutableSet.Builder<Path> pathsToThirdPartyJarsBuilder=ImmutableSet.builder();
   AndroidResourceDetails details=findAndroidResourceDetails(androidResourceDeps);
-  ImmutableSet<Map.Entry<JavaLibrary,String>> classpath=Classpaths.getClasspathEntries(rulesToTraverseForTransitiveDeps).entries();
-  for (  Map.Entry<JavaLibrary,String> entry : classpath) {
+  ImmutableSet<Map.Entry<JavaLibrary,Path>> classpath=Classpaths.getClasspathEntries(rulesToTraverseForTransitiveDeps).entries();
+  for (  Map.Entry<JavaLibrary,Path> entry : classpath) {
     if (!buildRulesToExcludeFromDex.contains(entry.getKey())) {
       pathsToDexBuilder.add(entry.getValue());
     }
@@ -16,7 +16,7 @@
     @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
       if (rule.getBuildable() instanceof PrebuiltJar) {
         PrebuiltJar prebuiltJar=(PrebuiltJar)rule.getBuildable();
-        pathsToThirdPartyJarsBuilder.add(prebuiltJar.getBinaryJar().toString());
+        pathsToThirdPartyJarsBuilder.add(prebuiltJar.getBinaryJar());
       }
       return maybeVisitAllDeps(rule,rule.getProperties().is(LIBRARY));
     }
@@ -25,10 +25,10 @@
   ImmutableSet<String> rDotJavaPackages=details.rDotJavaPackages;
   if (!rDotJavaPackages.isEmpty()) {
     Path pathToCompiledRDotJavaFiles=uberRDotJava.getPathToCompiledRDotJavaFiles();
-    pathsToDexBuilder.add(pathToCompiledRDotJavaFiles.toString());
+    pathsToDexBuilder.add(pathToCompiledRDotJavaFiles);
   }
-  ImmutableSet<String> noDxPaths=noDxPathsBuilder.build();
-  Set<String> classpathEntries=Sets.difference(pathsToDexBuilder.build(),noDxPaths);
-  Set<String> pathsToThirdPartyJars=Sets.difference(pathsToThirdPartyJarsBuilder.build(),noDxPaths);
+  ImmutableSet<Path> noDxPaths=noDxPathsBuilder.build();
+  Set<Path> classpathEntries=Sets.difference(pathsToDexBuilder.build(),noDxPaths);
+  Set<Path> pathsToThirdPartyJars=Sets.difference(pathsToThirdPartyJarsBuilder.build(),noDxPaths);
   return new AndroidDexTransitiveDependencies(classpathEntries,pathsToThirdPartyJars,noDxPaths);
 }

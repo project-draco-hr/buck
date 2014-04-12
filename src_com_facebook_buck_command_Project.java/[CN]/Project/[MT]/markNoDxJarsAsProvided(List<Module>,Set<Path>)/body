@@ -1,0 +1,39 @@
+{
+  Map<String,Path> intelliJLibraryNameToJarPath=Maps.newHashMap();
+  for (  Path jarPath : noDxJars) {
+    String libraryName=getIntellijNameForBinaryJar(jarPath);
+    intelliJLibraryNameToJarPath.put(libraryName,jarPath);
+  }
+  for (  Module module : modules) {
+    Set<Path> classpathEntriesToDex;
+    if (module.srcRule.getBuildable() instanceof AndroidBinary) {
+      AndroidBinary androidBinary=(AndroidBinary)module.srcRule.getBuildable();
+      AndroidDexTransitiveDependencies dexTransitiveDependencies=androidBinary.findDexTransitiveDependencies();
+      classpathEntriesToDex=Sets.newHashSet(Sets.intersection(noDxJars,dexTransitiveDependencies.classpathEntriesToDex));
+    }
+ else {
+      classpathEntriesToDex=ImmutableSet.of();
+    }
+    for (    DependentModule dependentModule : module.dependencies) {
+      if (!dependentModule.isLibrary()) {
+        continue;
+      }
+      String libraryName=dependentModule.getLibraryName();
+      Path jarPath=intelliJLibraryNameToJarPath.get(libraryName);
+      if (jarPath != null) {
+        if (classpathEntriesToDex.contains(jarPath)) {
+          dependentModule.scope=null;
+          classpathEntriesToDex.remove(jarPath);
+        }
+ else {
+          dependentModule.scope="PROVIDED";
+        }
+      }
+    }
+    for (    Path entry : classpathEntriesToDex) {
+      String libraryName=getIntellijNameForBinaryJar(entry);
+      DependentModule dependency=DependentModule.newLibrary(null,libraryName);
+      module.dependencies.add(dependency);
+    }
+  }
+}
