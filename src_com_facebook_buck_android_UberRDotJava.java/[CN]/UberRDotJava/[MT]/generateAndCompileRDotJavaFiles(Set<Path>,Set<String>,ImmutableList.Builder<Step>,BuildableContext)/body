@@ -19,24 +19,10 @@
   commands.add(new MakeCleanDirectoryStep(rDotJavaBin));
   JavacStep javac=UberRDotJavaUtil.createJavacStepForUberRDotJavaFiles(javaSourceFilePaths,rDotJavaBin,javacOptions,buildTarget);
   commands.add(javac);
-  final Path rDotJavaClassesTxt=rDotJavaBin.resolve("classes.txt");
+  Path rDotJavaClassesTxt=getPathToRDotJavaClassesTxt();
+  commands.add(new MakeCleanDirectoryStep(rDotJavaClassesTxt.getParent()));
   commands.add(new AccumulateClassNamesStep(Optional.of(rDotJavaBin),rDotJavaClassesTxt));
-  commands.add(new AbstractExecutionStep("record_r_dot_java_classes_hash"){
-    @Override public int execute(    ExecutionContext context){
-      List<String> lines;
-      try {
-        ProjectFilesystem filesystem=context.getProjectFilesystem();
-        lines=filesystem.readLines(rDotJavaClassesTxt);
-      }
- catch (      IOException e) {
-        context.logError(e,"There was an error reading classes.txt file: %s",rDotJavaClassesTxt);
-        return 1;
-      }
-      buildableContext.addMetadata(R_DOT_JAVA_CLASSES_HASH,Hashing.combineOrdered(AccumulateClassNamesStep.parseClassHashes(lines).values()).toString());
-      return 0;
-    }
-  }
-);
   buildableContext.recordArtifactsInDirectory(rDotJavaSrc);
   buildableContext.recordArtifactsInDirectory(rDotJavaBin);
+  buildableContext.recordArtifact(rDotJavaClassesTxt);
 }
