@@ -6,17 +6,17 @@
     Predicate<String> requiredInPrimaryZip=createRequiredInPrimaryZipPredicate(context,translatorFactory,classes);
     final ImmutableSet<String> wantedInPrimaryZip=getWantedPrimaryDexEntries(context,translatorFactory,classes);
     ZipSplitterFactory zipSplitterFactory;
-    if (useLinearAllocSplitDex) {
-      zipSplitterFactory=new DalvikAwareZipSplitterFactory(linearAllocHardLimit,wantedInPrimaryZip);
+    if (dexSplitMode.useLinearAllocSplitDex()) {
+      zipSplitterFactory=new DalvikAwareZipSplitterFactory(dexSplitMode.getLinearAllocHardLimit(),wantedInPrimaryZip);
     }
  else {
       zipSplitterFactory=new DefaultZipSplitterFactory(ZIP_SIZE_SOFT_LIMIT,ZIP_SIZE_HARD_LIMIT);
     }
     ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
     File primaryJarFile=primaryJarPath.toFile();
-    Collection<File> secondaryZips=zipSplitterFactory.newInstance(projectFilesystem,inputJarPaths,primaryJarFile,secondaryJarDir.toFile(),secondaryJarPattern,requiredInPrimaryZip,dexSplitStrategy,ZipSplitter.CanaryStrategy.INCLUDE_CANARIES,projectFilesystem.getFileForRelativePath(pathToReportDir)).execute();
+    Collection<File> secondaryZips=zipSplitterFactory.newInstance(projectFilesystem,inputJarPaths,primaryJarFile,secondaryJarDir.toFile(),secondaryJarPattern,requiredInPrimaryZip,dexSplitMode.getDexSplitStrategy(),ZipSplitter.CanaryStrategy.INCLUDE_CANARIES,projectFilesystem.getFileForRelativePath(pathToReportDir)).execute();
     try (BufferedWriter secondaryMetaInfoWriter=Files.newWriter(secondaryJarMetaPath.toFile(),Charsets.UTF_8)){
-      writeMetaList(secondaryMetaInfoWriter,secondaryZips,dexStore);
+      writeMetaList(secondaryMetaInfoWriter,secondaryZips,dexSplitMode.getDexStore());
     }
      stepFinished=true;
     return 0;
