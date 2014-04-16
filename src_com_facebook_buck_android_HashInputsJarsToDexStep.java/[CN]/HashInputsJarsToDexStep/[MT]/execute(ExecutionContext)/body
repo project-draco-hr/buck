@@ -1,0 +1,29 @@
+{
+  ImmutableList.Builder<Path> allInputs=ImmutableList.builder();
+  allInputs.addAll(primaryInputsToDex.get());
+  if (secondaryOutputToInputs.isPresent()) {
+    allInputs.addAll(secondaryOutputToInputs.get().get().values());
+  }
+  final Map<String,HashCode> classNamesToHashes=classNamesToHashesSupplier.get();
+  for (  Path path : allInputs.build()) {
+    try {
+      final Hasher hasher=Hashing.sha1().newHasher();
+      new DefaultClasspathTraverser().traverse(new ClasspathTraversal(Collections.singleton(path),context.getProjectFilesystem()){
+        @Override public void visit(        FileLike fileLike) throws IOException {
+          String className=fileLike.getRelativePath().replaceAll("\\.class$","");
+          if (classNamesToHashes.containsKey(className)) {
+            HashCode classHash=classNamesToHashes.get(className);
+            hasher.putBytes(classHash.asBytes());
+          }
+        }
+      }
+);
+      dexInputsToHashes.put(path,new Sha1HashCode(hasher.hash().toString()));
+    }
+ catch (    IOException e) {
+      context.logError(e,"Error hashing smart dex input: %s",path);
+      return 1;
+    }
+  }
+  return 0;
+}
