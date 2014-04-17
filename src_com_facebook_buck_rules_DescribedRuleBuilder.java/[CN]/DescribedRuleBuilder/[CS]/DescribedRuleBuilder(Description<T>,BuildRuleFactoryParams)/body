@@ -2,19 +2,23 @@
   this.description=Preconditions.checkNotNull(description);
   this.ruleFactoryParams=Preconditions.checkNotNull(params);
   this.target=params.target;
-  final ImmutableSortedSet.Builder<BuildTarget> allDeps=ImmutableSortedSet.naturalOrder();
+  final ImmutableSortedSet.Builder<BuildTarget> extraDeps=ImmutableSortedSet.naturalOrder();
+  final ImmutableSortedSet.Builder<BuildTarget> declaredDeps=ImmutableSortedSet.naturalOrder();
   for (  String rawDep : params.getOptionalListAttribute("deps")) {
-    allDeps.add(params.resolveBuildTarget(rawDep));
+    BuildTarget target=params.resolveBuildTarget(rawDep);
+    declaredDeps.add(target);
+    extraDeps.add(target);
   }
+  this.declaredDeps=declaredDeps.build();
   TypeCoercerFactory typeCoercerFactory=new TypeCoercerFactory();
   T arg=description.createUnpopulatedConstructorArg();
   for (  Field field : arg.getClass().getFields()) {
     ParamInfo info=new ParamInfo(typeCoercerFactory,Paths.get(target.getBasePath()),field);
     if (info.hasElementTypes(BuildRule.class,SourcePath.class)) {
-      detectBuildTargetsForParameter(allDeps,info,params);
+      detectBuildTargetsForParameter(extraDeps,info,params);
     }
   }
-  this.deps=allDeps.build();
+  this.extraDeps=ImmutableSortedSet.copyOf(Sets.difference(extraDeps.build(),this.declaredDeps));
   ImmutableSet.Builder<BuildTargetPattern> allVisibilities=ImmutableSet.builder();
   for (  String rawVis : params.getOptionalListAttribute("visibility")) {
     allVisibilities.add(params.buildTargetPatternParser.parse(rawVis,ParseContext.forVisibilityArgument()));

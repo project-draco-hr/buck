@@ -1,16 +1,26 @@
 {
-  ImmutableSortedSet.Builder<BuildRule> rules=ImmutableSortedSet.naturalOrder();
-  for (  BuildTarget dep : deps) {
-    rules.add(ruleResolver.get(dep));
+  ImmutableSortedSet.Builder<BuildRule> declaredRules=ImmutableSortedSet.naturalOrder();
+  for (  BuildTarget dep : declaredDeps) {
+    BuildRule rule=ruleResolver.get(dep);
+    Preconditions.checkNotNull(rule,dep.toString());
+    declaredRules.add(rule);
   }
-  BuildRuleParams params=new BuildRuleParams(target,rules.build(),getVisibilityPatterns(),ruleFactoryParams.getProjectFilesystem(),ruleFactoryParams.getRuleKeyBuilderFactory());
+  ImmutableSortedSet.Builder<BuildRule> paramRules=ImmutableSortedSet.naturalOrder();
+  for (  BuildTarget dep : extraDeps) {
+    paramRules.add(ruleResolver.get(dep));
+  }
   ConstructorArgMarshaller inspector=new ConstructorArgMarshaller(Paths.get(target.getBasePath()));
   T arg=description.createUnpopulatedConstructorArg();
   inspector.populate(ruleResolver,ruleFactoryParams.getProjectFilesystem(),ruleFactoryParams,arg);
+  BuildRuleParams params=new BuildRuleParams(target,declaredRules.build(),getVisibilityPatterns(),ruleFactoryParams.getProjectFilesystem(),ruleFactoryParams.getRuleKeyBuilderFactory());
   Buildable buildable=description.createBuildable(params,arg);
   ImmutableSortedSet<BuildRule> enhancedDeps=buildable.getEnhancedDeps(ruleResolver);
   if (enhancedDeps != null) {
-    params=new BuildRuleParams(params.getBuildTarget(),enhancedDeps,params.getVisibilityPatterns(),params.getProjectFilesystem(),params.getRuleKeyBuilderFactory());
+    paramRules.addAll(enhancedDeps);
   }
+ else {
+    paramRules.addAll(declaredRules.build());
+  }
+  params=new BuildRuleParams(params.getBuildTarget(),paramRules.build(),params.getVisibilityPatterns(),params.getProjectFilesystem(),params.getRuleKeyBuilderFactory());
   return new DescribedRule(description.getBuildRuleType(),buildable,params);
 }
