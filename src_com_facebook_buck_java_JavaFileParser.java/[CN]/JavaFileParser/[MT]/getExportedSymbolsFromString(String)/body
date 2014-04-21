@@ -1,0 +1,22 @@
+{
+  ASTParser parser=ASTParser.newParser(jlsLevel);
+  parser.setSource(code.toCharArray());
+  parser.setKind(ASTParser.K_COMPILATION_UNIT);
+  @SuppressWarnings("unchecked") Map<String,String> options=JavaCore.getOptions();
+  JavaCore.setComplianceOptions(javaVersion,options);
+  parser.setCompilerOptions(options);
+  final CompilationUnit compilationUnit=(CompilationUnit)parser.createAST(null);
+  final ImmutableSortedSet.Builder<String> symbolsBuilder=ImmutableSortedSet.naturalOrder();
+  compilationUnit.accept(new ASTVisitor(){
+    @Override public boolean visit(    TypeDeclaration node){
+      symbolsBuilder.add(getFullyQualifiedTypeName(node));
+      return true;
+    }
+    @Override public boolean visit(    EnumDeclaration node){
+      symbolsBuilder.add(getFullyQualifiedTypeName(node));
+      return true;
+    }
+  }
+);
+  return symbolsBuilder.build();
+}
