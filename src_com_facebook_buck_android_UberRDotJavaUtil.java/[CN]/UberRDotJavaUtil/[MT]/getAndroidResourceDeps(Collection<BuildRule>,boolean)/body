@@ -1,0 +1,36 @@
+{
+  final MutableDirectedGraph<BuildRule> mutableGraph=new MutableDirectedGraph<>();
+  final ImmutableSet.Builder<HasAndroidResourceDeps> androidResources=ImmutableSet.builder();
+  AbstractDependencyVisitor visitor=new AbstractDependencyVisitor(rules){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      HasAndroidResourceDeps androidResourceRule=null;
+      if (rule instanceof HasAndroidResourceDeps) {
+        androidResourceRule=(HasAndroidResourceDeps)rule;
+      }
+ else       if (rule.getBuildable() instanceof HasAndroidResourceDeps) {
+        androidResourceRule=(HasAndroidResourceDeps)rule.getBuildable();
+      }
+      if (androidResourceRule != null && (androidResourceRule.getRes() != null || (includeAssetOnlyRules && androidResourceRule.getAssets() != null))) {
+        androidResources.add(androidResourceRule);
+      }
+      BuildRuleType type=rule.getType();
+      ImmutableSet<BuildRule> depsToVisit=maybeVisitAllDeps(rule,TRAVERSABLE_TYPES.contains(type));
+      mutableGraph.addNode(rule);
+      for (      BuildRule dep : depsToVisit) {
+        mutableGraph.addEdge(rule,dep);
+      }
+      return depsToVisit;
+    }
+  }
+;
+  visitor.start();
+  final Set<HasAndroidResourceDeps> allAndroidResourceRules=androidResources.build();
+  Predicate<BuildRule> inclusionPredicate=new Predicate<BuildRule>(){
+    @Override public boolean apply(    BuildRule rule){
+      return allAndroidResourceRules.contains(rule) || allAndroidResourceRules.contains(rule.getBuildable());
+    }
+  }
+;
+  ImmutableList<BuildRule> sortedAndroidResourceRules=TopologicalSort.sort(mutableGraph,inclusionPredicate);
+  return ImmutableList.copyOf(Iterables.transform(sortedAndroidResourceRules.reverse(),CAST_TO_ANDROID_RESOURCE_RULE));
+}
