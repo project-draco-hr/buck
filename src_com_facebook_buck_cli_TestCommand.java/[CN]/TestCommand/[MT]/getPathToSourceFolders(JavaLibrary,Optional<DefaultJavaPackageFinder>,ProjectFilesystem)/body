@@ -1,5 +1,5 @@
 {
-  ImmutableSet<Path> javaSrcPaths=rule.getJavaSrcs();
+  ImmutableSet<SourcePath> javaSrcPaths=rule.getJavaSrcs();
   if (javaSrcPaths.isEmpty()) {
     return ImmutableSet.of();
   }
@@ -8,22 +8,22 @@
   }
   DefaultJavaPackageFinder defaultJavaPackageFinder=defaultJavaPackageFinderOptional.get();
   Set<String> srcFolders=Sets.newHashSet();
-  loopThroughSourcePath:   for (  Path javaSrcPath : javaSrcPaths) {
-    if (!MorePaths.isGeneratedFile(javaSrcPath)) {
+  loopThroughSourcePath:   for (  SourcePath javaSrcPath : javaSrcPaths) {
+    if (!MorePaths.isGeneratedFile(javaSrcPath.resolve())) {
       for (      String srcFolder : srcFolders) {
-        if (javaSrcPath.startsWith(srcFolder)) {
+        if (javaSrcPath.resolve().startsWith(srcFolder)) {
           continue loopThroughSourcePath;
         }
       }
       ImmutableSortedSet<String> pathsFromRoot=defaultJavaPackageFinder.getPathsFromRoot();
       for (      String root : pathsFromRoot) {
-        if (javaSrcPath.startsWith(root)) {
+        if (javaSrcPath.resolve().startsWith(root)) {
           srcFolders.add(root);
           continue loopThroughSourcePath;
         }
       }
       ImmutableSet<String> pathElements=defaultJavaPackageFinder.getPathElements();
-      File directory=projectFilesystem.getFileForRelativePath(javaSrcPath).getParentFile();
+      File directory=filesystem.getFileForRelativePath(javaSrcPath.resolve().getParent());
       while (directory != null && !pathElements.contains(directory.getName())) {
         directory=directory.getParentFile();
       }

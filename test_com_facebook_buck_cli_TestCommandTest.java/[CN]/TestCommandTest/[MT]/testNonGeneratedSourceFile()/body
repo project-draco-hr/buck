@@ -3,19 +3,11 @@
   assertFalse(MorePaths.isGeneratedFile(pathToNonGenFile));
   ImmutableSortedSet<Path> javaSrcs=ImmutableSortedSet.of(pathToNonGenFile);
   JavaLibrary javaLibrary=new FakeJavaLibrary(new BuildTarget("//foo","bar")).setJavaSrcs(javaSrcs);
-  File parentFile=createMock(File.class);
-  expect(parentFile.getName()).andReturn("src");
-  expect(parentFile.getPath()).andReturn("package/src");
-  File sourceFile=createMock(File.class);
-  expect(sourceFile.getParentFile()).andReturn(parentFile);
   DefaultJavaPackageFinder defaultJavaPackageFinder=createMock(DefaultJavaPackageFinder.class);
   expect(defaultJavaPackageFinder.getPathsFromRoot()).andReturn(pathsFromRoot);
   expect(defaultJavaPackageFinder.getPathElements()).andReturn(pathElements);
-  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
-  expect(projectFilesystem.getFileForRelativePath(pathToNonGenFile)).andReturn(sourceFile);
-  Object[] mocks=new Object[]{parentFile,sourceFile,defaultJavaPackageFinder,projectFilesystem};
-  replay(mocks);
-  ImmutableSet<String> result=TestCommand.getPathToSourceFolders(javaLibrary,Optional.of(defaultJavaPackageFinder),projectFilesystem);
-  assertEquals("All non-generated source files are under one source tmp.",ImmutableSet.of("package/src/"),result);
-  verify(mocks);
+  replay(defaultJavaPackageFinder);
+  ImmutableSet<String> result=TestCommand.getPathToSourceFolders(javaLibrary,Optional.of(defaultJavaPackageFinder),new FakeProjectFilesystem());
+  assertEquals("All non-generated source files are under one source tmp.",ImmutableSet.of("./package/src/"),result);
+  verify(defaultJavaPackageFinder);
 }
