@@ -1,0 +1,27 @@
+{
+  ImmutableList.Builder<Step> allSteps=ImmutableList.builder();
+  if (resources.isEmpty()) {
+    return allSteps.build();
+  }
+  String targetPackageDir=javaPackageFinder.findJavaPackageForPath(target.getBasePathWithSlash()).replace('.',File.separatorChar);
+  for (  SourcePath rawResource : resources) {
+    Path resource=MorePaths.separatorsToUnix(rawResource.resolve());
+    String javaPackageAsPath=javaPackageFinder.findJavaPackageFolderForPath(resource.toString());
+    Path relativeSymlinkPath;
+    if (resource.startsWith(BuckConstant.BUCK_OUTPUT_PATH) || resource.startsWith(BuckConstant.GEN_PATH) || resource.startsWith(BuckConstant.BIN_PATH)|| resource.startsWith(BuckConstant.ANNOTATION_PATH)) {
+      relativeSymlinkPath=Paths.get(String.format("%s%s%s",targetPackageDir,targetPackageDir.isEmpty() ? "" : "/",rawResource.resolve().getFileName()));
+    }
+ else     if ("".equals(javaPackageAsPath)) {
+      relativeSymlinkPath=resource.getFileName();
+    }
+ else {
+      int lastIndex=resource.toString().lastIndexOf(javaPackageAsPath);
+      Preconditions.checkState(lastIndex >= 0,"Resource path %s must contain %s",resource,javaPackageAsPath);
+      relativeSymlinkPath=Paths.get(resource.toString().substring(lastIndex));
+    }
+    Path target=outputDirectory.resolve(relativeSymlinkPath);
+    MkdirAndSymlinkFileStep link=new MkdirAndSymlinkFileStep(resource,target);
+    allSteps.add(link);
+  }
+  return allSteps.build();
+}
