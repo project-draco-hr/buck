@@ -1,6 +1,6 @@
 {
   BuildRuleResolver buildRuleResolver=new BuildRuleResolver();
-  BuildRule genrule=GenruleBuilder.createGenrule(new BuildTarget("//foo","script")).setBash("echo \"hello world!\"").setOut("helloworld.txt").build();
+  BuildRule genrule=GenruleBuilder.createGenrule(new BuildTarget("//foo","script")).addSrc(new TestSourcePath("script/input.png").resolve()).setBash("echo \"hello world!\"").setOut("helloworld.txt").build();
   buildRuleResolver.addToIndex(genrule.getBuildTarget(),genrule);
   BuildTarget libTarget=new BuildTarget("//foo","lib");
   BuildRuleParams libParams=new FakeBuildRuleParams(libTarget,ImmutableSortedSet.of(genrule));
@@ -18,5 +18,6 @@
   assertThat(target.getName(),equalTo("//foo:lib"));
   assertThat(target.isa(),equalTo("PBXNativeTarget"));
   PBXShellScriptBuildPhase shellScriptBuildPhase=ProjectGeneratorTestUtils.getSingletonPhaseByType(target,PBXShellScriptBuildPhase.class);
+  assertThat(Iterables.getOnlyElement(shellScriptBuildPhase.getInputPaths()),equalTo(".././script/input.png"));
   assertThat(shellScriptBuildPhase.getShellScript(),equalTo("/bin/bash -e -c 'echo \"hello world!\"'"));
 }
