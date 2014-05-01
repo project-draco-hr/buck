@@ -5,22 +5,29 @@
   }
   String targetPackageDir=javaPackageFinder.findJavaPackageForPath(target.getBasePathWithSlash()).replace('.',File.separatorChar);
   for (  SourcePath rawResource : resources) {
-    Path resource=MorePaths.separatorsToUnix(rawResource.resolve());
-    String javaPackageAsPath=javaPackageFinder.findJavaPackageFolderForPath(resource.toString());
-    Path relativeSymlinkPath;
-    if (resource.startsWith(BuckConstant.BUCK_OUTPUT_PATH) || resource.startsWith(BuckConstant.GEN_PATH) || resource.startsWith(BuckConstant.BIN_PATH)|| resource.startsWith(BuckConstant.ANNOTATION_PATH)) {
-      relativeSymlinkPath=Paths.get(String.format("%s%s%s",targetPackageDir,targetPackageDir.isEmpty() ? "" : "/",rawResource.resolve().getFileName()));
+    final Path pathToResource=rawResource.resolve();
+    String resource=MorePaths.pathWithUnixSeparators(pathToResource);
+    Matcher matcher;
+    if ((matcher=GENERATED_FILE_PATTERN.matcher(resource)).matches()) {
+      resource=matcher.group(1);
     }
- else     if ("".equals(javaPackageAsPath)) {
-      relativeSymlinkPath=resource.getFileName();
+    String javaPackageAsPath=javaPackageFinder.findJavaPackageFolderForPath(resource);
+    Path relativeSymlinkPath;
+    if ("".equals(javaPackageAsPath)) {
+      relativeSymlinkPath=pathToResource.getFileName();
     }
  else {
-      int lastIndex=resource.toString().lastIndexOf(javaPackageAsPath);
-      Preconditions.checkState(lastIndex >= 0,"Resource path %s must contain %s",resource,javaPackageAsPath);
-      relativeSymlinkPath=Paths.get(resource.toString().substring(lastIndex));
+      int lastIndex=resource.lastIndexOf(javaPackageAsPath);
+      if (lastIndex < 0) {
+        Preconditions.checkState(rawResource instanceof BuildRuleSourcePath,"If resource path %s does not contain %s, then it must be a BuildRuleSourcePath.",pathToResource,javaPackageAsPath);
+        relativeSymlinkPath=Paths.get(String.format("%s%s%s",targetPackageDir,targetPackageDir.isEmpty() ? "" : "/",rawResource.resolve().getFileName()));
+      }
+ else {
+        relativeSymlinkPath=Paths.get(resource.substring(lastIndex));
+      }
     }
     Path target=outputDirectory.resolve(relativeSymlinkPath);
-    MkdirAndSymlinkFileStep link=new MkdirAndSymlinkFileStep(resource,target);
+    MkdirAndSymlinkFileStep link=new MkdirAndSymlinkFileStep(pathToResource,target);
     allSteps.add(link);
   }
   return allSteps.build();

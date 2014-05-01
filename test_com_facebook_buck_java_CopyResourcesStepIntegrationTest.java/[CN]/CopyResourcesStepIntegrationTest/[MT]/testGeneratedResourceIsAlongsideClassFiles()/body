@@ -1,0 +1,23 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"generated_resources",temporaryFolder);
+  workspace.setUp();
+  String buildTarget="//java/com/example:example";
+  ProcessResult buildResult=workspace.runBuckBuild(buildTarget);
+  buildResult.assertSuccess();
+  ProcessResult outputFileResult=workspace.runBuckCommand("targets","--show_output",buildTarget);
+  outputFileResult.assertSuccess();
+  String pathToGeneratedJarFile=outputFileResult.getStdout().split(" ")[1].trim();
+  File jarFile=workspace.getFile(pathToGeneratedJarFile);
+  assertTrue("Should exist: " + jarFile,jarFile.exists());
+  Set<String> entries=Sets.newHashSet();
+  try (JarFile jar=new JarFile(jarFile)){
+    for (Iterator<JarEntry> iter=Iterators.forEnumeration(jar.entries()); iter.hasNext(); ) {
+      JarEntry entry=iter.next();
+      entries.add(entry.getName());
+    }
+  }
+   assertThat("com/example/HelloWorld.class",isIn(entries));
+  assertThat("com/example/res/helloworld.txt",isIn(entries));
+  ProcessResult runResult=workspace.runBuckCommand("run","//java/com/example:HelloWorld");
+  runResult.assertSuccess();
+}
