@@ -21,6 +21,14 @@
  else {
     paramRules.addAll(declaredRules.build());
   }
-  params=new BuildRuleParams(params.getBuildTarget(),paramRules.build(),params.getVisibilityPatterns(),params.getProjectFilesystem(),params.getRuleKeyBuilderFactory());
+  ImmutableSortedSet<BuildRule> totalDeps=paramRules.build();
+  if (buildable instanceof HasDepsOverride) {
+    HasDepsOverride hasDepsOverride=(HasDepsOverride)buildable;
+    ImmutableSortedSet<BuildRule> redefinedDeps=hasDepsOverride.iKnowWhatIAmDoingAndIWillSpecifyAllTheDepsMyself(ruleResolver);
+    if (redefinedDeps != null) {
+      totalDeps=redefinedDeps;
+    }
+  }
+  params=new BuildRuleParams(params.getBuildTarget(),totalDeps,params.getVisibilityPatterns(),params.getProjectFilesystem(),params.getRuleKeyBuilderFactory());
   return new DescribedRule(description.getBuildRuleType(),buildable,params);
 }

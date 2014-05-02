@@ -1,12 +1,11 @@
 {
-  BuildRuleWithInterestingFile dep=new BuildRuleWithInterestingFile(new FakeBuildRuleParams(new BuildTarget("//my","library")),Paths.get("my/fileofinterest.txt"));
-  BuildRuleResolver ruleResolver=new BuildRuleResolver(ImmutableSet.of(dep));
+  BuildRuleResolver ruleResolver=createBuildRuleResolver();
   Description<Arg> description=new FileCollectorDescription();
   ImmutableList<String> deps=ImmutableList.of("//my:library");
   BuildRuleFactoryParams params=createParamsWithDeps(deps);
   DescribedRuleBuilder<Arg> describedRuleBuilder=new DescribedRuleBuilder<>(description,params);
   BuildRule buildRule=describedRuleBuilder.build(ruleResolver);
-  assertTrue("The build rule should not have any deps.",buildRule.getDeps().isEmpty());
+  assertEquals("The build rule should have only the implicit deps.",ImmutableSet.of("//my:sourcepath"),FluentIterable.from(buildRule.getDeps()).transform(Functions.toStringFunction()).toSet());
   assertEquals("The Buildable should collect files of interest from the original deps.",ImmutableSet.of(Paths.get("my/fileofinterest.txt")),((FileCollector)buildRule.getBuildable()).filesOfInterest);
   verifyAll();
 }
