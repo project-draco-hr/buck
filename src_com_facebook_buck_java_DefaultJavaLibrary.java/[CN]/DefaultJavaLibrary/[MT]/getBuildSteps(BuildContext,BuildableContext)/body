@@ -14,7 +14,15 @@
   Path outputDirectory=getClassesDir(getBuildTarget());
   steps.add(new MakeCleanDirectoryStep(outputDirectory));
   Optional<JavacInMemoryStep.SuggestBuildRules> suggestBuildRule=createSuggestBuildFunction(context,transitiveClasspathEntries,declaredClasspathEntries,JAR_RESOLVER);
-  Supplier<Sha1HashCode> abiKeySupplier=createCommandsForJavac(outputDirectory,ImmutableSet.copyOf(transitiveClasspathEntries.values()),ImmutableSet.copyOf(declaredClasspathEntries.values()),javacOptions,context.getBuildDependencies(),suggestBuildRule,steps,getBuildTarget());
+  Collection<Path> provided=JavaLibraryClasspathProvider.getJavaLibraryDeps(providedDeps).transformAndConcat(new Function<JavaLibrary,Collection<Path>>(){
+    @Override public Collection<Path> apply(    JavaLibrary input){
+      return input.getOutputClasspathEntries().values();
+    }
+  }
+).filter(Predicates.notNull()).toSet();
+  ImmutableSet<Path> transitive=ImmutableSet.<Path>builder().addAll(transitiveClasspathEntries.values()).addAll(provided).build();
+  ImmutableSet<Path> declared=ImmutableSet.<Path>builder().addAll(declaredClasspathEntries.values()).addAll(provided).build();
+  Supplier<Sha1HashCode> abiKeySupplier=createCommandsForJavac(outputDirectory,transitive,declared,javacOptions,context.getBuildDependencies(),suggestBuildRule,steps,getBuildTarget());
   addPostprocessClassesCommands(steps,postprocessClassesCommands,outputDirectory);
   steps.add(new CopyResourcesStep(getBuildTarget(),resources,outputDirectory,context.getJavaPackageFinder()));
   if (outputJar.isPresent()) {
