@@ -1,0 +1,44 @@
+{
+  DocumentBuilder docBuilder;
+  Transformer transformer;
+  try {
+    docBuilder=DocumentBuilderFactory.newInstance().newDocumentBuilder();
+    transformer=TransformerFactory.newInstance().newTransformer();
+  }
+ catch (  ParserConfigurationException|TransformerConfigurationException e) {
+    throw new RuntimeException(e);
+  }
+  DOMImplementation domImplementation=docBuilder.getDOMImplementation();
+  Document doc=domImplementation.createDocument(null,"Workspace",null);
+  doc.setXmlVersion("1.0");
+  Element rootElem=doc.getDocumentElement();
+  rootElem.setAttribute("version","1.0");
+  for (  String groupName : projects.keySet()) {
+    Element targetElement=doc.getDocumentElement();
+    if (!groupName.isEmpty()) {
+      Element group=doc.createElement("Group");
+      group.setAttribute("location","container:");
+      group.setAttribute("name",groupName);
+      rootElem.appendChild(group);
+      targetElement=group;
+    }
+    for (    Path path : projects.get(groupName)) {
+      Element fileRef=doc.createElement("FileRef");
+      fileRef.setAttribute("location","container:" + outputDirectory.relativize(path).toString());
+      targetElement.appendChild(fileRef);
+    }
+  }
+  Path projectWorkspaceDir=outputDirectory.resolve(workspaceName + ".xcworkspace");
+  projectFilesystem.mkdirs(projectWorkspaceDir);
+  Path serializedWorkspace=projectWorkspaceDir.resolve("contents.xcworkspacedata");
+  try (ByteArrayOutputStream outputStream=new ByteArrayOutputStream()){
+    DOMSource source=new DOMSource(doc);
+    StreamResult result=new StreamResult(outputStream);
+    transformer.transform(source,result);
+    projectFilesystem.writeContentsToPath(outputStream.toString(),serializedWorkspace);
+  }
+ catch (  TransformerException e) {
+    throw new RuntimeException(e);
+  }
+  return projectWorkspaceDir;
+}
