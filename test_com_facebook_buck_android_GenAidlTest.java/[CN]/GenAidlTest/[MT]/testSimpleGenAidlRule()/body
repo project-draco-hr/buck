@@ -12,12 +12,8 @@
   final String pathToAidlExecutable="/usr/local/bin/aidl";
   final String pathToFrameworkAidl="/home/root/android/platforms/android-16/framework.aidl";
   AndroidPlatformTarget androidPlatformTarget=createMock(AndroidPlatformTarget.class);
-  File aidlExecutable=createMock(File.class);
-  expect(aidlExecutable.getAbsolutePath()).andReturn(pathToAidlExecutable);
-  expect(androidPlatformTarget.getAidlExecutable()).andReturn(aidlExecutable);
-  File frameworkIdlFile=createMock(File.class);
-  expect(frameworkIdlFile.getAbsolutePath()).andReturn(pathToFrameworkAidl);
-  expect(androidPlatformTarget.getAndroidFrameworkIdlFile()).andReturn(frameworkIdlFile);
+  expect(androidPlatformTarget.getAidlExecutable()).andReturn(Paths.get(pathToAidlExecutable));
+  expect(androidPlatformTarget.getAndroidFrameworkIdlFile()).andReturn(Paths.get(pathToFrameworkAidl));
   ExecutionContext executionContext=createMock(ExecutionContext.class);
   expect(executionContext.getAndroidPlatformTarget()).andReturn(androidPlatformTarget);
   expect(executionContext.getProjectFilesystem()).andReturn(new ProjectFilesystem(new File(".")){
@@ -26,12 +22,12 @@
     }
   }
 ).times(2);
-  replay(androidPlatformTarget,aidlExecutable,frameworkIdlFile,executionContext);
+  replay(androidPlatformTarget,executionContext);
   Path outputDirectory=Paths.get(BuckConstant.BIN_DIR,"/java/com/example/base/.IWhateverService.aidl");
   MkdirStep mkdirStep=(MkdirStep)steps.get(0);
   assertEquals("gen_aidl() should make a directory at " + outputDirectory,outputDirectory,mkdirStep.getPath(executionContext));
   ShellStep aidlStep=(ShellStep)steps.get(1);
   assertEquals("gen_aidl() should use the aidl binary to write .java files.",String.format("%s -b -p%s -I%s -o%s %s",pathToAidlExecutable,pathToFrameworkAidl,importPath,outputDirectory,pathToAidl),aidlStep.getDescription(executionContext));
   assertEquals(4,steps.size());
-  verify(androidPlatformTarget,aidlExecutable,frameworkIdlFile,executionContext);
+  verify(androidPlatformTarget,executionContext);
 }
