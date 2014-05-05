@@ -16,8 +16,14 @@ class Dto implements ConstructorArg {
 ;
   ProjectFilesystem filesystem=createForgivingProjectFilesystem();
   BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(ImmutableMap.of("name","cheese"),filesystem,new BuildFileTree(ImmutableSet.<String>of()),new BuildTargetParser(filesystem),BuildTargetFactory.newInstance("//one/two:example"),new FakeRuleKeyBuilderFactory(),true);
-  BuildContext fakeBuildContext=EasyMock.createNiceMock(BuildContext.class);
-  ExecutionContext fakeExecutionContext=EasyMock.createNiceMock(ExecutionContext.class);
+  BuildContext fakeBuildContext=FakeBuildContext.NOOP_CONTEXT;
+  DescribedRuleFactory<Dto> factory=new DescribedRuleFactory<>(description);
+  DescribedRuleBuilder<Dto> builder=factory.newInstance(factoryParams);
+  DescribedRule rule=builder.build(new BuildRuleResolver());
+  List<Step> steps=rule.getBuildable().getBuildSteps(fakeBuildContext,new FakeBuildableContext());
+  assertEquals(1,steps.size());
+  EchoStep step=(EchoStep)Iterables.getOnlyElement(steps);
+  ExecutionContext.Builder executionContextBuilder=TestExecutionContext.newBuilder();
   BuckEventBus bus=BuckEventBusFactory.newInstance();
   final AtomicBoolean ok=new AtomicBoolean(false);
   bus.register(new Object(){
@@ -26,14 +32,7 @@ class Dto implements ConstructorArg {
     }
   }
 );
-  EasyMock.expect(fakeExecutionContext.getBuckEventBus()).andStubReturn(bus);
-  EasyMock.replay(fakeBuildContext,fakeExecutionContext);
-  DescribedRuleFactory<Dto> factory=new DescribedRuleFactory<>(description);
-  DescribedRuleBuilder<Dto> builder=factory.newInstance(factoryParams);
-  DescribedRule rule=builder.build(new BuildRuleResolver());
-  List<Step> steps=rule.getBuildable().getBuildSteps(fakeBuildContext,new FakeBuildableContext());
-  assertEquals(1,steps.size());
-  EchoStep step=(EchoStep)Iterables.getOnlyElement(steps);
-  step.execute(fakeExecutionContext);
+  executionContextBuilder.setEventBus(bus);
+  step.execute(executionContextBuilder.build());
   assertTrue(ok.get());
 }
