@@ -1,0 +1,32 @@
+{
+  XCScheme scheme=new XCScheme(schemeName);
+  final ImmutableMap<BuildRule,PBXTarget> buildRuleToTargetMap=buildRuleToTargetMapBuilder.build();
+  ImmutableMap<PBXTarget,Path> targetToProjectPathMap=targetToProjectPathMapBuilder.build();
+  List<BuildRule> orderedBuildRules=TopologicalSort.sort(partialGraph.getDependencyGraph(),new Predicate<BuildRule>(){
+    @Override public boolean apply(    BuildRule input){
+      return buildRuleToTargetMap.containsKey(input);
+    }
+  }
+);
+  Set<BuildRule> nonTestRules=Sets.newLinkedHashSet();
+  Set<BuildRule> testRules=Sets.newLinkedHashSet();
+  for (  BuildRule rule : orderedBuildRules) {
+    if (AppleBuildRules.isXcodeTargetTestBuildRuleType(rule.getType())) {
+      testRules.add(rule);
+    }
+ else {
+      nonTestRules.add(rule);
+    }
+  }
+  for (  BuildRule rule : Iterables.concat(nonTestRules,testRules)) {
+    scheme.addBuildAction(outputDirectory.getParent().relativize(targetToProjectPathMap.get(buildRuleToTargetMap.get(rule))).toString(),buildRuleToTargetMap.get(rule).getGlobalID());
+  }
+  Path schemeDirectory=outputDirectory.resolve("xcshareddata/xcschemes");
+  projectFilesystem.mkdirs(schemeDirectory);
+  Path schemePath=schemeDirectory.resolve(schemeName + ".xcscheme");
+  try (ByteArrayOutputStream outputStream=new ByteArrayOutputStream()){
+    serializeScheme(scheme,outputStream);
+    projectFilesystem.writeContentsToPath(outputStream.toString(),schemePath);
+  }
+   return schemePath;
+}
