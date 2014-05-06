@@ -4,6 +4,7 @@
     throw new HumanReadableException("%s must be a xcode_workspace_config",workspaceTargetRule.getFullyQualifiedName());
   }
   XcodeWorkspaceConfig workspaceBuildable=(XcodeWorkspaceConfig)workspaceTargetRule.getBuildable();
+  BuildRule actualTargetRule=workspaceBuildable.getSrcTarget();
   String workspaceName=workspaceBuildable.getSrcTarget().getBuildTarget().getShortName();
   WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,workspaceName,outputDirectory);
   SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,partialGraph,workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"));
@@ -31,7 +32,8 @@
     if (shouldGenerateProject) {
       ProjectGenerator generator=new ProjectGenerator(partialGraph,nativeTargets,projectFilesystem,executionContext,projectFilesystem.resolve(Paths.get(basePath)),Paths.get(basePath).getFileName().toString(),ProjectGenerator.SEPARATED_PROJECT_OPTIONS);
       generator.createXcodeProjects();
-      workspaceGenerator.addFilePath("",generator.getProjectPath());
+      String workspaceGroup=nativeTargets.contains(actualTargetRule) ? "" : DEPENDENCIES_GROUP;
+      workspaceGenerator.addFilePath(workspaceGroup,generator.getProjectPath());
       schemeGenerator.addRuleToTargetMap(generator.getBuildRuleToGeneratedTargetMap());
       for (      PBXTarget target : generator.getBuildRuleToGeneratedTargetMap().values()) {
         schemeGenerator.addTargetToProjectPathMap(target,generator.getProjectPath());
@@ -42,7 +44,7 @@
       Path projectPath=buildable.getProjectContainerPath().resolve();
       Path pbxprojectPath=projectPath.resolve("project.pbxproj");
       String targetName=rule.getBuildTarget().getShortName();
-      workspaceGenerator.addFilePath("",outputDirectory.resolveSibling(projectPath));
+      workspaceGenerator.addFilePath(DEPENDENCIES_GROUP,outputDirectory.resolveSibling(projectPath));
       ImmutableMap.Builder<String,String> targetNameToGIDMapBuilder=ImmutableMap.builder();
       try (InputStream projectInputStream=projectFilesystem.newFileInputStream(pbxprojectPath)){
         NSDictionary projectObjects=ProjectParser.extractObjectsFromXcodeProject(projectInputStream);
