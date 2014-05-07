@@ -1,0 +1,17 @@
+{
+  File tempDir=tmp.getRoot();
+  ProjectFilesystem filesystem=new ProjectFilesystem(tempDir);
+  File command=new File(tempDir,"src/com/facebook/buck/command");
+  assertTrue(command.mkdirs());
+  File notbuck=new File(tempDir,"src/com/facebook/buck/notbuck");
+  assertTrue(notbuck.mkdirs());
+  Files.touch(new File(tempDir,"src/com/facebook/BUCK"));
+  Files.touch(new File(tempDir,"src/com/facebook/buck/BUCK"));
+  Files.touch(new File(tempDir,"src/com/facebook/buck/command/BUCK"));
+  Files.touch(new File(tempDir,"src/com/facebook/buck/notbuck/BUCK"));
+  BuildFileTree buildFiles=new FilesystemBackedBuildFileTree(filesystem);
+  Iterable<Path> allChildren=buildFiles.getChildPaths(new BuildTarget("src","com/facebook"));
+  assertEquals(ImmutableSet.of(Paths.get("buck")),ImmutableSet.copyOf(allChildren));
+  Iterable<Path> subChildren=buildFiles.getChildPaths(new BuildTarget("//src","/com/facebook/buck"));
+  assertEquals(ImmutableSet.of(Paths.get("command"),Paths.get("notbuck")),ImmutableSet.copyOf(subChildren));
+}

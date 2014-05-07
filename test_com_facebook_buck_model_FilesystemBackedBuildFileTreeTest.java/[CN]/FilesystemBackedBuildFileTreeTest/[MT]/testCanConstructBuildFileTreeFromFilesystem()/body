@@ -1,0 +1,22 @@
+{
+  File tempDir=tmp.getRoot();
+  ProjectFilesystem filesystem=new ProjectFilesystem(tempDir);
+  File command=new File(tempDir,"src/com/example/build/command");
+  assertTrue(command.mkdirs());
+  File notbuck=new File(tempDir,"src/com/example/build/notbuck");
+  assertTrue(notbuck.mkdirs());
+  assertTrue((new File(tempDir,"src/com/example/some/directory")).mkdirs());
+  Files.touch(new File(tempDir,"src/com/example/BUCK"));
+  Files.touch(new File(tempDir,"src/com/example/build/BUCK"));
+  Files.touch(new File(tempDir,"src/com/example/build/command/BUCK"));
+  Files.touch(new File(tempDir,"src/com/example/build/notbuck/BUCK"));
+  Files.touch(new File(tempDir,"src/com/example/some/directory/BUCK"));
+  BuildFileTree buildFiles=new FilesystemBackedBuildFileTree(filesystem);
+  Collection<Path> allChildren=buildFiles.getChildPaths(BuildTargetFactory.newInstance("//src/com/example:example"));
+  assertEquals(ImmutableSet.of(Paths.get("build"),Paths.get("some/directory")),ImmutableSet.copyOf(allChildren));
+  Iterable<Path> subChildren=buildFiles.getChildPaths(BuildTargetFactory.newInstance("//src/com/example/build:build"));
+  assertEquals(ImmutableSet.of(Paths.get("command"),Paths.get("notbuck")),ImmutableSet.copyOf(subChildren));
+  assertEquals(Paths.get("src/com/example"),buildFiles.getBasePathOfAncestorTarget(Paths.get("src/com/example/foo")));
+  assertEquals(Paths.get("src/com/example"),buildFiles.getBasePathOfAncestorTarget(Paths.get("src/com/example/some/bar")));
+  assertEquals(Paths.get("src/com/example/some/directory"),buildFiles.getBasePathOfAncestorTarget(Paths.get("src/com/example/some/directory/baz")));
+}

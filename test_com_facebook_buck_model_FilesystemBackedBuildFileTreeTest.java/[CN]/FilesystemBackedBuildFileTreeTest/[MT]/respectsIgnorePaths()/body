@@ -1,0 +1,18 @@
+{
+  File tempDir=tmp.getRoot();
+  File fooBuck=new File(tempDir,"foo/BUCK");
+  File fooBarBuck=new File(tempDir,"foo/bar/BUCK");
+  File fooBazBuck=new File(tempDir,"foo/baz/BUCK");
+  Files.createParentDirs(fooBarBuck);
+  Files.createParentDirs(fooBazBuck);
+  Files.touch(fooBuck);
+  Files.touch(fooBarBuck);
+  Files.touch(fooBazBuck);
+  ImmutableSet<Path> ignoredPaths=ImmutableSet.of(Paths.get("foo/bar"));
+  ProjectFilesystem filesystem=new ProjectFilesystem(tempDir.toPath(),ignoredPaths);
+  BuildFileTree buildFiles=new FilesystemBackedBuildFileTree(filesystem);
+  Collection<Path> children=buildFiles.getChildPaths(new BuildTarget("//foo","foo"));
+  assertEquals(ImmutableSet.of(Paths.get("baz")),children);
+  Path ancestor=buildFiles.getBasePathOfAncestorTarget(Paths.get("foo/bar/xyzzy"));
+  assertEquals(Paths.get("foo"),ancestor);
+}
