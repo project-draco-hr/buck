@@ -1,11 +1,17 @@
 {
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
-  Path outputDirectory=Paths.get(BuckConstant.BIN_DIR,buildTarget.getBasePath(),"." + buildTarget.getShortName() + ".aidl");
-  commands.add(new MkdirStep(outputDirectory));
+  Path outputDirectory=BuildTargets.getBinPath(buildTarget,".%s.aidl");
+  commands.add(new MakeCleanDirectoryStep(outputDirectory));
   AidlStep command=new AidlStep(aidlFilePath,ImmutableSet.of(importPath),outputDirectory);
   commands.add(command);
-  Path genDirectory=Paths.get(BuckConstant.GEN_DIR,importPath);
-  commands.add(new MkdirStep(genDirectory));
-  commands.add(new RecordArtifactsInDirectoryStep(buildableContext,outputDirectory,genDirectory));
+  commands.add(new MakeCleanDirectoryStep(BuckConstant.GEN_PATH.resolve(buildTarget.getBasePath())));
+{
+    Path genDirectory=BuckConstant.GEN_PATH.resolve(importPath);
+    commands.add(new MkdirStep(genDirectory));
+    commands.add(new RecordArtifactsInDirectoryStep(buildableContext,outputDirectory,genDirectory));
+  }
+  commands.add(new MkdirStep(output.getParent()));
+  commands.add(new JarDirectoryStep(output,ImmutableSet.of(outputDirectory),null,null));
+  buildableContext.recordArtifact(output);
   return commands.build();
 }
