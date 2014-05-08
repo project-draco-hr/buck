@@ -29,7 +29,9 @@
   JavaBuckConfig javaConfig=new JavaBuckConfig(config);
   JavaCompilerEnvironment javacEnv=javaConfig.getJavaCompilerEnvironment(processExecutor);
   KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createInstance(config,androidDirectoryResolver,javacEnv);
+  @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   try (AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
+    artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
     Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console);
     eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,webServer,consoleListener);
     ImmutableList<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
@@ -37,7 +39,6 @@
     String commandName=executingCommand.name().toLowerCase();
     CommandEvent commandEvent=CommandEvent.started(commandName,remainingArgs,isDaemon);
     buildEventBus.post(commandEvent);
-    ArtifactCacheFactory artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
     Parser parser;
     if (isDaemon) {
       parser=getParserFromDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console,commandEvent,buildEventBus);
@@ -48,20 +49,24 @@
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(projectFilesystem);
     CachingBuildEngine buildEngine=new CachingBuildEngine();
     exitCode=executingCommand.execute(remainingArgs,config,new CommandRunnerParams(console,projectFilesystem,androidDirectoryResolver,buildRuleTypes,buildEngine,artifactCacheFactory,buildEventBus,parser,platform));
-    artifactCacheFactory.closeCreatedArtifactCaches(ARTIFACT_CACHE_TIMEOUT_IN_SECONDS);
     if (webServer.isPresent()) {
       int port=webServer.get().getPort();
       buildEventBus.post(LogEvent.info("See trace at http://localhost:%s/trace/%s",port,buildId));
     }
     buildEventBus.post(CommandEvent.finished(commandName,remainingArgs,isDaemon,exitCode));
   }
-  finally {
+ catch (  Exception e) {
+    closeCreatedArtifactCaches(artifactCacheFactory);
+    throw e;
+  }
+ finally {
     commandSemaphore.release();
   }
   if (isDaemon && !config.getFlushEventsBeforeExit()) {
     context.get().in.close();
     context.get().exit(exitCode);
   }
+  closeCreatedArtifactCaches(artifactCacheFactory);
   for (  BuckEventListener eventListener : eventListeners) {
     try {
       eventListener.outputTrace(buildId);
