@@ -6,7 +6,10 @@ def buck_build_target(args, cwd, target, perftest_side, log_as_perftest=True):
     if log_as_perftest:
         env.update({'BUCK_EXTRA_JAVA_ARGS': ('-Dbuck.perftest_id=%s,-Dbuck.perftest_side=%s' % (args.perftest_id, perftest_side)), })
     start = datetime.now()
-    build_output = subprocess.check_output([args.path_to_buck, 'build', target, '-v', '5'], stderr=subprocess.STDOUT, cwd=cwd, env=env)
+    with tempfile.TemporaryFile() as tmpFile:
+        subprocess.check_call([args.path_to_buck, 'build', target, '-v', '5'], stdout=tmpFile, stderr=tmpFile, cwd=cwd, env=env)
+        tmpFile.seek(0)
+        build_output = tmpFile.read()
     finish = datetime.now()
     rule_debug_map = {}
     for line in build_output.splitlines():
