@@ -1,0 +1,12 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"symbol_finder",temporaryFolder);
+  workspace.setUp();
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(temporaryFolder.getRoot());
+  BuckConfig config=BuckConfig.createFromFiles(projectFilesystem,ImmutableList.of(projectFilesystem.getFileForRelativePath(".buckconfig")),Platform.detect());
+  ImmutableSet<Description<?>> allDescriptions=DefaultKnownBuildRuleTypes.getDefaultKnownBuildRuleTypes(projectFilesystem).getAllDescriptions();
+  ProjectBuildFileParserFactory projectBuildFileParserFactory=new DefaultProjectBuildFileParserFactory(projectFilesystem,config.getPythonInterpreter(),allDescriptions);
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
+  JavaSymbolFinder finder=new JavaSymbolFinder(projectFilesystem,projectBuildFileParserFactory,config,buckEventBus,new TestConsole());
+  SetMultimap<String,String> foundTargets=finder.findTargetsForSymbols(ImmutableSet.of("com.example.a.A"));
+  assertEquals("JavaSymbolFinder failed to find the right target.",ImmutableSetMultimap.of("com.example.a.A","//java/com/example/a:a"),foundTargets);
+}

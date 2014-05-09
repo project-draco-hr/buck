@@ -1,0 +1,34 @@
+{
+  Map<Path,List<Map<String,Object>>> parsedBuildFiles=Maps.newHashMap();
+  ImmutableSetMultimap.Builder<Path,String> sourceFileTargetsMultimap=ImmutableSetMultimap.builder();
+  try (ProjectBuildFileParser parser=projectBuildFileParserFactory.createParser(config.getDefaultIncludes(),EnumSet.noneOf(ProjectBuildFileParser.Option.class),console)){
+    for (    Path sourceFile : sourceFilePaths) {
+      for (      Path buckFile : possibleBuckFilesForSourceFile(sourceFile)) {
+        List<Map<String,Object>> rules;
+        if (parsedBuildFiles.containsKey(buckFile)) {
+          rules=parsedBuildFiles.get(buckFile);
+        }
+ else {
+          rules=parser.getAllRules(buckFile);
+          parsedBuildFiles.put(buckFile,rules);
+        }
+        for (        Map<String,Object> ruleMap : rules) {
+          String type=(String)ruleMap.get("type");
+          if (javaRuleTypes.contains(type)) {
+            @SuppressWarnings("unchecked") List<String> srcs=(List<String>)ruleMap.get("srcs");
+            if (isSourceFilePathInSrcsList(sourceFile,srcs,buckFile.getParent())) {
+              String name=(String)ruleMap.get("name");
+              Path buckFileDir=buckFile.getParent();
+              String target="//" + (buckFileDir != null ? buckFileDir : "") + ":"+ name;
+              sourceFileTargetsMultimap.put(sourceFile,target);
+            }
+          }
+        }
+      }
+    }
+  }
+ catch (  BuildFileParseException e) {
+    buckEventBus.post(ThrowableLogEvent.create(e,"Error while searching for targets."));
+  }
+  return sourceFileTargetsMultimap.build();
+}
