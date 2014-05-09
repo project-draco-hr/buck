@@ -1,0 +1,22 @@
+{
+  final ImmutableSortedSet.Builder<BuildRule> totalDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalDeps);
+  final ImmutableSortedSet.Builder<Path> gwtModuleJarsBuilder=ImmutableSortedSet.naturalOrder();
+  new AbstractDependencyVisitor(moduleDeps){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      if (!(rule.getBuildable() instanceof JavaLibrary)) {
+        return ImmutableSet.of();
+      }
+      JavaLibrary javaLibrary=(JavaLibrary)rule.getBuildable();
+      BuildTarget gwtModuleTarget=BuildTargets.createFlavoredBuildTarget(javaLibrary,JavaLibrary.GWT_MODULE_FLAVOR);
+      BuildRule gwtModule=ruleResolver.get(gwtModuleTarget);
+      if (gwtModule != null) {
+        totalDeps.add(gwtModule);
+        gwtModuleJarsBuilder.add(gwtModule.getBuildable().getPathToOutputFile());
+      }
+      return rule.getDeps();
+    }
+  }
+.start();
+  this.gwtModuleJars=gwtModuleJarsBuilder.build();
+  return totalDeps.build();
+}
