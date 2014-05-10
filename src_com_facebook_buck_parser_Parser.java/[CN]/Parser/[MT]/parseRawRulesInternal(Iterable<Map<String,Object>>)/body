@@ -7,16 +7,15 @@
     BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(map);
     BuildTarget target=parseBuildTargetFromRawRule(map);
     targetsToFile.put(target,normalize(Paths.get((String)map.get("buck.base_path"))).resolve("BUCK").toAbsolutePath());
-    BuildRuleFactory<?> factory=buildRuleTypes.getFactory(buildRuleType);
-    if (factory == null) {
+    Description<?> description=buildRuleTypes.getDescription(buildRuleType);
+    if (description == null) {
       throw new HumanReadableException("Unrecognized rule %s while parsing %s.",buildRuleType,target.getBuildFile(projectFilesystem));
     }
-    BuildRuleBuilder<?> buildRuleBuilder;
     BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(map,projectFilesystem,buildTargetParser,target,ruleKeyBuilderFactory);
-    buildRuleBuilder=factory.newInstance(factoryParams);
-    Object existingRule=knownBuildTargets.put(target,buildRuleBuilder);
-    if (existingRule != null) {
-      throw new RuntimeException("Duplicate definition for " + target.getFullyQualifiedName());
+    TargetNode<?> targetNode=new TargetNode<>(description,factoryParams);
+    TargetNode<?> existingTargetNode=knownBuildTargets.put(target,targetNode);
+    if (existingTargetNode != null) {
+      throw new HumanReadableException("Duplicate definition for " + target);
     }
     parsedBuildFiles.put(normalize(target.getBuildFile(projectFilesystem).toPath()),map);
   }

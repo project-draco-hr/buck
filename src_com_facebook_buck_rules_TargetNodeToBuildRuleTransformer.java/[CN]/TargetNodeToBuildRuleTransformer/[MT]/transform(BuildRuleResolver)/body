@@ -1,0 +1,25 @@
+{
+  ImmutableSortedSet.Builder<BuildRule> declaredRules=expandRules(ruleResolver,targetNode.getDeclaredDeps());
+  ImmutableSortedSet.Builder<BuildRule> extraRules=expandRules(ruleResolver,targetNode.getExtraDeps());
+  BuildRuleFactoryParams ruleFactoryParams=targetNode.getRuleFactoryParams();
+  Description<T> description=targetNode.getDescription();
+  ConstructorArgMarshaller inspector=new ConstructorArgMarshaller(Paths.get(targetNode.getBuildTarget().getBasePath()));
+  T arg=description.createUnpopulatedConstructorArg();
+  inspector.populate(ruleResolver,ruleFactoryParams.getProjectFilesystem(),ruleFactoryParams,arg);
+  BuildRuleParams params=new BuildRuleParams(targetNode.getBuildTarget(),declaredRules.build(),getVisibilityPatterns(targetNode),ruleFactoryParams.getProjectFilesystem(),ruleFactoryParams.getRuleKeyBuilderFactory());
+  Buildable buildable=description.createBuildable(params,arg);
+  ImmutableSortedSet<BuildRule> finalDependencySet;
+  if (buildable instanceof DependencyEnhancer) {
+    finalDependencySet=((DependencyEnhancer)buildable).getEnhancedDeps(ruleResolver,declaredRules.build(),extraRules.build());
+  }
+ else {
+    finalDependencySet=extraRules.addAll(declaredRules.build()).build();
+  }
+  params=new BuildRuleParams(params.getBuildTarget(),finalDependencySet,params.getVisibilityPatterns(),params.getProjectFilesystem(),params.getRuleKeyBuilderFactory());
+  DescribedRule describedRule=new DescribedRule(description.getBuildRuleType(),buildable,params);
+  if (description instanceof FlavorableDescription) {
+    FlavorableDescription<T> flavorable=(FlavorableDescription<T>)description;
+    flavorable.registerFlavors(arg,describedRule,ruleFactoryParams.getProjectFilesystem(),ruleFactoryParams.getRuleKeyBuilderFactory(),ruleResolver);
+  }
+  return describedRule;
+}

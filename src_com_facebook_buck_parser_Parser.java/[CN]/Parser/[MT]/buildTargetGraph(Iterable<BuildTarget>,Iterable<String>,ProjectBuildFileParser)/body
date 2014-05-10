@@ -1,0 +1,43 @@
+{
+  final MutableDirectedGraph<TargetNode<?>> graph=new MutableDirectedGraph<>();
+  AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget>(){
+    @Override protected Iterator<BuildTarget> findChildren(    BuildTarget buildTarget) throws IOException {
+      ParseContext parseContext=ParseContext.forBaseName(buildTarget.getBaseName());
+      if (!knownBuildTargets.containsKey(buildTarget)) {
+        throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTarget,parseContext));
+      }
+      TargetNode<?> targetNode=knownBuildTargets.get(buildTarget);
+      Set<BuildTarget> deps=Sets.newHashSet();
+      for (      BuildTarget buildTargetForDep : targetNode.getDeps()) {
+        try {
+          if (!knownBuildTargets.containsKey(buildTargetForDep)) {
+            parseBuildFileContainingTarget(buildTarget,buildTargetForDep,defaultIncludes,buildFileParser);
+          }
+          deps.add(buildTargetForDep);
+        }
+ catch (        BuildTargetException|BuildFileParseException e) {
+          throw new HumanReadableException(e);
+        }
+      }
+      return deps.iterator();
+    }
+    @Override protected void onNodeExplored(    BuildTarget buildTarget){
+      TargetNode<?> targetNode=knownBuildTargets.get(buildTarget);
+      Preconditions.checkNotNull(targetNode,"No target node found for %s",buildTarget);
+      graph.addNode(targetNode);
+      for (      BuildTarget target : targetNode.getDeps()) {
+        graph.addEdge(targetNode,knownBuildTargets.get(target));
+      }
+    }
+    @Override protected void onTraversalComplete(    Iterable<BuildTarget> nodesInExplorationOrder){
+    }
+  }
+;
+  try {
+    traversal.traverse(toExplore);
+  }
+ catch (  AbstractAcyclicDepthFirstPostOrderTraversal.CycleException e) {
+    throw new HumanReadableException(e.getMessage());
+  }
+  return new DefaultImmutableDirectedAcyclicGraph<>(graph);
+}

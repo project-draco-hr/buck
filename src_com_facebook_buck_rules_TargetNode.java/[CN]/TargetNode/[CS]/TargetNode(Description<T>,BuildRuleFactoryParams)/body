@@ -1,0 +1,22 @@
+{
+  this.description=Preconditions.checkNotNull(description);
+  this.ruleFactoryParams=Preconditions.checkNotNull(params);
+  final ImmutableSet.Builder<Path> paths=ImmutableSet.builder();
+  final ImmutableSortedSet.Builder<BuildTarget> extraDeps=ImmutableSortedSet.naturalOrder();
+  final ImmutableSortedSet.Builder<BuildTarget> declaredDeps=ImmutableSortedSet.naturalOrder();
+  for (  String rawDep : params.getOptionalListAttribute("deps")) {
+    BuildTarget target=params.resolveBuildTarget(rawDep);
+    declaredDeps.add(Preconditions.checkNotNull(target));
+  }
+  this.declaredDeps=declaredDeps.build();
+  TypeCoercerFactory typeCoercerFactory=new TypeCoercerFactory();
+  T arg=description.createUnpopulatedConstructorArg();
+  for (  Field field : arg.getClass().getFields()) {
+    ParamInfo info=new ParamInfo(typeCoercerFactory,Paths.get(params.target.getBasePath()),field);
+    if (info.hasElementTypes(BuildRule.class,SourcePath.class,Path.class)) {
+      detectBuildTargetsAndPathsForParameter(extraDeps,paths,info,params);
+    }
+  }
+  this.extraDeps=ImmutableSortedSet.copyOf(Sets.difference(extraDeps.build(),this.declaredDeps));
+  this.pathsReferenced=paths.build();
+}

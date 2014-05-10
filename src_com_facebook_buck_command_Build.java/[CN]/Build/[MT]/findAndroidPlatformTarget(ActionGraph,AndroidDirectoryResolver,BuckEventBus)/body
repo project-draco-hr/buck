@@ -1,0 +1,50 @@
+{
+  Optional<Path> androidSdkDirOption=androidDirectoryResolver.findAndroidSdkDirSafe();
+  if (!androidSdkDirOption.isPresent()) {
+    return Optional.absent();
+  }
+  TraversableGraph<BuildRule> graph=actionGraph;
+  AbstractBottomUpTraversal<BuildRule,Optional<AndroidPlatformTarget>> traversal=new AbstractBottomUpTraversal<BuildRule,Optional<AndroidPlatformTarget>>(graph){
+    private String androidPlatformTargetId=null;
+    private boolean isEncounteredAndroidRuleInTraversal=false;
+    @Override public void visit(    BuildRule rule){
+      if (rule.getProperties().is(ANDROID)) {
+        isEncounteredAndroidRuleInTraversal=true;
+      }
+      Buildable buildable=rule.getBuildable();
+      if (buildable != null && buildable instanceof HasAndroidPlatformTarget) {
+        String target=((HasAndroidPlatformTarget)buildable).getAndroidPlatformTarget();
+        if (androidPlatformTargetId == null) {
+          androidPlatformTargetId=target;
+        }
+ else         if (!target.equals(androidPlatformTargetId)) {
+          throw new RuntimeException(String.format("More than one android platform targeted: %s and %s",target,androidPlatformTargetId));
+        }
+      }
+    }
+    @Override public Optional<AndroidPlatformTarget> getResult(){
+      Optional<AndroidPlatformTarget> result;
+      if (androidPlatformTargetId != null) {
+        Optional<AndroidPlatformTarget> target=AndroidPlatformTarget.getTargetForId(androidPlatformTargetId,androidDirectoryResolver);
+        if (target.isPresent()) {
+          result=target;
+        }
+ else {
+          throw new RuntimeException("No target found with id: " + androidPlatformTargetId);
+        }
+      }
+ else       if (isEncounteredAndroidRuleInTraversal) {
+        AndroidPlatformTarget androidPlatformTarget=AndroidPlatformTarget.getDefaultPlatformTarget(androidDirectoryResolver);
+        eventBus.post(LogEvent.warning("No Android platform target specified. Using default: %s",androidPlatformTarget.getName()));
+        result=Optional.of(androidPlatformTarget);
+      }
+ else {
+        result=Optional.absent();
+      }
+      return result;
+    }
+  }
+;
+  traversal.traverse();
+  return traversal.getResult();
+}
