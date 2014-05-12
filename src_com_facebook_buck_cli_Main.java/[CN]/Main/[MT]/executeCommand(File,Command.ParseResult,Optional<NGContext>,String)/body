@@ -39,11 +39,17 @@
     String commandName=executingCommand.name().toLowerCase();
     CommandEvent commandEvent=CommandEvent.started(commandName,remainingArgs,isDaemon);
     buildEventBus.post(commandEvent);
-    Parser parser;
+    Parser parser=null;
     if (isDaemon) {
-      parser=getParserFromDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console,commandEvent,buildEventBus);
+      try {
+        parser=getParserFromDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console,commandEvent,buildEventBus);
+      }
+ catch (      WatchmanWatcherException e) {
+        buildEventBus.post(LogEvent.warning("Watchman threw an exception while parsing file changes, resetting daemon.\n%s",e.getMessage()));
+        resetDaemon();
+      }
     }
- else {
+    if (parser == null) {
       parser=new Parser(projectFilesystem,buildRuleTypes,console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(projectFilesystem);
