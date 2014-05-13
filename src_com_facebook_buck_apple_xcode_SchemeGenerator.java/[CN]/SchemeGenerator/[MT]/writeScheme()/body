@@ -19,7 +19,15 @@
     }
   }
   for (  BuildRule rule : Iterables.concat(nonTestRules,testRules)) {
-    scheme.addBuildAction(outputDirectory.getParent().relativize(targetToProjectPathMap.get(buildRuleToTargetMap.get(rule))).toString(),buildRuleToTargetMap.get(rule).getGlobalID());
+    EnumSet<XCScheme.BuildActionEntry.BuildFor> buildFor;
+    if (AppleBuildRules.isXcodeTargetTestBuildRuleType(rule.getType())) {
+      buildFor=XCScheme.BuildActionEntry.BuildFor.TEST_ONLY;
+    }
+ else {
+      buildFor=XCScheme.BuildActionEntry.BuildFor.DEFAULT;
+    }
+    XCScheme.BuildActionEntry entry=new XCScheme.BuildActionEntry(outputDirectory.getParent().relativize(targetToProjectPathMap.get(buildRuleToTargetMap.get(rule))).toString(),buildRuleToTargetMap.get(rule).getGlobalID(),buildFor);
+    scheme.addBuildAction(entry);
   }
   Path schemeDirectory=outputDirectory.resolve("xcshareddata/xcschemes");
   projectFilesystem.mkdirs(schemeDirectory);
