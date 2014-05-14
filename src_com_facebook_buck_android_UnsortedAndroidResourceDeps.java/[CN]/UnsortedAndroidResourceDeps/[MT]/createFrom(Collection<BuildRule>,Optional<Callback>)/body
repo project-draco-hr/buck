@@ -1,0 +1,29 @@
+{
+  final ImmutableSet.Builder<HasAndroidResourceDeps> androidResources=ImmutableSet.builder();
+  final ImmutableSet.Builder<HasAndroidResourceDeps> assetOnlyResources=ImmutableSet.builder();
+  AbstractDependencyVisitor visitor=new AbstractDependencyVisitor(rules){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      HasAndroidResourceDeps androidResourceRule=null;
+      if (rule.getBuildable() instanceof HasAndroidResourceDeps) {
+        androidResourceRule=(HasAndroidResourceDeps)rule.getBuildable();
+      }
+      if (androidResourceRule != null) {
+        if (androidResourceRule.getRes() != null) {
+          androidResources.add(androidResourceRule);
+        }
+ else         if (androidResourceRule.getAssets() != null) {
+          assetOnlyResources.add(androidResourceRule);
+        }
+      }
+      BuildRuleType type=rule.getType();
+      ImmutableSet<BuildRule> depsToVisit=maybeVisitAllDeps(rule,TRAVERSABLE_TYPES.contains(type));
+      if (callback.isPresent()) {
+        callback.get().onRuleVisited(rule,depsToVisit);
+      }
+      return depsToVisit;
+    }
+  }
+;
+  visitor.start();
+  return new UnsortedAndroidResourceDeps(androidResources.build(),assetOnlyResources.build());
+}

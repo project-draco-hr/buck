@@ -1,7 +1,8 @@
 {
   ImmutableSortedSet.Builder<BuildRule> enhancedDeps=ImmutableSortedSet.naturalOrder();
   enhancedDeps.addAll(originalDeps);
-  ImmutableSortedSet<BuildRule> resourceRules=getAndroidResourcesAsRules();
+  UnsortedAndroidResourceDeps androidResourceDepsForEnhancement=UnsortedAndroidResourceDeps.createFrom(originalDeps,Optional.<Callback>absent());
+  ImmutableSortedSet<BuildRule> resourceRules=getAndroidResourcesAsRules(androidResourceDepsForEnhancement);
   BuildTarget buildTargetForFilterResources=createBuildTargetWithFlavor(RESOURCES_FILTER_FLAVOR);
   FilteredResourcesProvider filteredResourcesProvider;
   boolean needsResourceFiltering=resourceFilter.isEnabled() || resourceCompressionMode.isStoreStringsAsAssets();
@@ -28,7 +29,7 @@
   }
   BuildTarget buildTargetForAapt=createBuildTargetWithFlavor(AAPT_PACKAGE_FLAVOR);
   AaptPackageResources aaptPackageResources=new AaptPackageResources(buildTargetForAapt,manifest,filteredResourcesProvider,androidResourceDepsFinder.getAndroidTransitiveDependencies(),packageType,cpuFilters,aaptOverride);
-  BuildRule aaptPackageResourcesBuildRule=buildRuleAndAddToIndex(aaptPackageResources,BuildRuleType.AAPT_PACKAGE,buildTargetForAapt,getAdditionalAaptDeps(resourceRules));
+  BuildRule aaptPackageResourcesBuildRule=buildRuleAndAddToIndex(aaptPackageResources,BuildRuleType.AAPT_PACKAGE,buildTargetForAapt,getAdditionalAaptDeps(resourceRules,androidResourceDepsForEnhancement));
   enhancedDeps.add(aaptPackageResourcesBuildRule);
   Optional<PreDexMerge> preDexMerge=Optional.absent();
   if (shouldPreDex) {
