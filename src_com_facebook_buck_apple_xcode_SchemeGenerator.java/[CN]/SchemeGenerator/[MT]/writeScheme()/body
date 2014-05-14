@@ -1,5 +1,4 @@
 {
-  XCScheme scheme=new XCScheme(schemeName);
   final ImmutableMap<BuildRule,PBXTarget> buildRuleToTargetMap=buildRuleToTargetMapBuilder.build();
   ImmutableMap<PBXTarget,Path> targetToProjectPathMap=targetToProjectPathMapBuilder.build();
   List<BuildRule> orderedBuildRules=TopologicalSort.sort(partialGraph.getDependencyGraph(),new Predicate<BuildRule>(){
@@ -10,6 +9,7 @@
 );
   Set<BuildRule> nonTestRules=Sets.newLinkedHashSet();
   Set<BuildRule> testRules=Sets.newLinkedHashSet();
+  Map<BuildRule,XCScheme.BuildableReference> buildRuleToBuildableReferenceMap=Maps.newHashMap();
   for (  BuildRule rule : orderedBuildRules) {
     if (AppleBuildRules.isXcodeTargetTestBuildRuleType(rule.getType())) {
       testRules.add(rule);
@@ -17,7 +17,10 @@
  else {
       nonTestRules.add(rule);
     }
+    XCScheme.BuildableReference buildableReference=new XCScheme.BuildableReference(outputDirectory.getParent().relativize(targetToProjectPathMap.get(buildRuleToTargetMap.get(rule))).toString(),buildRuleToTargetMap.get(rule).getGlobalID());
+    buildRuleToBuildableReferenceMap.put(rule,buildableReference);
   }
+  XCScheme.BuildAction buildAction=new XCScheme.BuildAction();
   for (  BuildRule rule : Iterables.concat(nonTestRules,testRules)) {
     EnumSet<XCScheme.BuildActionEntry.BuildFor> buildFor;
     if (AppleBuildRules.isXcodeTargetTestBuildRuleType(rule.getType())) {
@@ -26,9 +29,20 @@
  else {
       buildFor=XCScheme.BuildActionEntry.BuildFor.DEFAULT;
     }
-    XCScheme.BuildActionEntry entry=new XCScheme.BuildActionEntry(outputDirectory.getParent().relativize(targetToProjectPathMap.get(buildRuleToTargetMap.get(rule))).toString(),buildRuleToTargetMap.get(rule).getGlobalID(),buildFor);
-    scheme.addBuildAction(entry);
+    XCScheme.BuildableReference buildableReference=buildRuleToBuildableReferenceMap.get(rule);
+    XCScheme.BuildActionEntry entry=new XCScheme.BuildActionEntry(buildableReference,buildFor);
+    buildAction.addBuildAction(entry);
   }
+  XCScheme.TestAction testAction=new XCScheme.TestAction();
+  for (  BuildRule rule : testRules) {
+    XCScheme.BuildableReference buildableReference=buildRuleToBuildableReferenceMap.get(rule);
+    XCScheme.TestableReference testableReference=new XCScheme.TestableReference(buildableReference);
+    testAction.addTestableReference(testableReference);
+  }
+  XCScheme.BuildableReference primaryBuildableReference=buildRuleToBuildableReferenceMap.get(primaryRule);
+  XCScheme.LaunchAction launchAction=new XCScheme.LaunchAction(primaryBuildableReference);
+  XCScheme.ProfileAction profileAction=new XCScheme.ProfileAction(primaryBuildableReference);
+  XCScheme scheme=new XCScheme(schemeName,buildAction,testAction,launchAction,profileAction);
   Path schemeDirectory=outputDirectory.resolve("xcshareddata/xcschemes");
   projectFilesystem.mkdirs(schemeDirectory);
   Path schemePath=schemeDirectory.resolve(schemeName + ".xcscheme");
