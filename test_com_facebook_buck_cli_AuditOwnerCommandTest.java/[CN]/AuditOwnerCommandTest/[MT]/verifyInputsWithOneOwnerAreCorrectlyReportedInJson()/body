@@ -1,0 +1,22 @@
+{
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem(){
+    @Override public File getFileForRelativePath(    String pathRelativeToProjectRoot){
+      return new ExistingFile(getProjectRoot(),pathRelativeToProjectRoot);
+    }
+  }
+;
+  String[] args=new String[]{"java/somefolder/badfolder/somefile.java","java/somefolder/perfect.java","com/test/subtest/random.java"};
+  ImmutableSortedSet<Path> inputs=MorePaths.asPaths(ImmutableSortedSet.copyOf(args));
+  BuildTarget target=new BuildTarget("//base/name","name");
+  BuildRule ownerRule=new StubBuildRule(target,inputs);
+  MutableDirectedGraph<BuildRule> mutableGraph=new MutableDirectedGraph<BuildRule>();
+  mutableGraph.addNode(ownerRule);
+  DependencyGraph graph=new DependencyGraph(mutableGraph);
+  AuditOwnerOptions options=getOptions(args);
+  AuditOwnerCommand command=createAuditOwnerCommand(filesystem);
+  AuditOwnerCommand.OwnersReport report=command.generateOwnersReport(graph,options);
+  command.printOwnersOnlyJsonReport(report);
+  String EXPECTED_JSON=Joiner.on("").join("{","\"com/test/subtest/random.java\":[\"//base/name:name\"],","\"java/somefolder/badfolder/somefile.java\":[\"//base/name:name\"],","\"java/somefolder/perfect.java\":[\"//base/name:name\"]","}");
+  assertEquals(EXPECTED_JSON,console.getTextWrittenToStdOut());
+  assertEquals("",console.getTextWrittenToStdErr());
+}
