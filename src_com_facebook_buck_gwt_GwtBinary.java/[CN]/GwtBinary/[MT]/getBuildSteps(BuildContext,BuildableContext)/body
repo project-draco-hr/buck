@@ -2,25 +2,32 @@
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   Path workingDirectory=getPathToOutputFile().getParent();
   steps.add(new MakeCleanDirectoryStep(workingDirectory));
-  Path tempWarFolder=workingDirectory.resolve("tmp");
-  ImmutableList.Builder<String> javaArgsBuilder=ImmutableList.builder();
-  javaArgsBuilder.add("java","-classpath",Joiner.on(":").join(getClasspathEntries()),GWT_COMPILER_CLASS,"-war",tempWarFolder.toString(),"-style",style.name(),"-optimize",String.valueOf(optimize),"-localWorkers",String.valueOf(localWorkers));
-  if (draftCompile) {
-    javaArgsBuilder.add("-draftCompile");
-  }
-  javaArgsBuilder.addAll(modules);
-  final ImmutableList<String> javaArgs=javaArgsBuilder.build();
+  final Path deployDirectory=workingDirectory.resolve("deploy");
+  steps.add(new MkdirStep(deployDirectory));
   Step javaStep=new ShellStep(){
     @Override public String getShortName(){
       return "gwt-compile";
     }
     @Override protected ImmutableList<String> getShellCommandInternal(    ExecutionContext context){
+      ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
+      ImmutableList.Builder<String> javaArgsBuilder=ImmutableList.builder();
+      javaArgsBuilder.add("java");
+      javaArgsBuilder.addAll(vmArgs);
+      javaArgsBuilder.add("-classpath",Joiner.on(File.pathSeparator).join(Iterables.transform(getClasspathEntries(),projectFilesystem.getAbsolutifier())),GWT_COMPILER_CLASS,"-war",projectFilesystem.resolve(getPathToOutputFile()).toString(),"-style",style.name(),"-optimize",String.valueOf(optimize),"-localWorkers",String.valueOf(localWorkers),"-deploy",projectFilesystem.resolve(deployDirectory).toString());
+      if (draftCompile) {
+        javaArgsBuilder.add("-draftCompile");
+      }
+      if (strict) {
+        javaArgsBuilder.add("-strict");
+      }
+      javaArgsBuilder.addAll(experimentalArgs);
+      javaArgsBuilder.addAll(modules);
+      final ImmutableList<String> javaArgs=javaArgsBuilder.build();
       return javaArgs;
     }
   }
 ;
   steps.add(javaStep);
-  steps.add(new JarDirectoryStep(getPathToOutputFile(),ImmutableSet.of(tempWarFolder),null,null));
   buildableContext.recordArtifact(getPathToOutputFile());
   return steps.build();
 }
