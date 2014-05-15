@@ -1,7 +1,7 @@
 {
   BuildContext context=null;
   Path pathToAidl=Paths.get("java/com/example/base/IWhateverService.aidl");
-  String importPath="java/com/example/base/";
+  String importPath="java/com/example/base";
   BuildTarget target=BuildTargetFactory.newInstance("//java/com/example/base:IWhateverService");
   Buildable genAidlRule=new GenAidl(target,pathToAidl,importPath);
   GenAidlDescription description=new GenAidlDescription();
@@ -20,14 +20,17 @@
     @Override public Path resolve(    Path path){
       return path;
     }
+    @Override public boolean exists(    Path pathRelativeToProjectRoot){
+      return true;
+    }
   }
-).times(2);
+);
   replay(androidPlatformTarget,executionContext);
-  Path outputDirectory=Paths.get(BuckConstant.BIN_DIR,"/java/com/example/base/.IWhateverService.aidl");
-  MkdirStep mkdirStep=(MkdirStep)steps.get(0);
-  assertEquals("gen_aidl() should make a directory at " + outputDirectory,outputDirectory,mkdirStep.getPath(executionContext));
-  ShellStep aidlStep=(ShellStep)steps.get(1);
+  Path outputDirectory=Paths.get(BuckConstant.BIN_DIR,"/java/com/example/base/__IWhateverService.aidl");
+  MakeCleanDirectoryStep mkdirStep=(MakeCleanDirectoryStep)steps.get(1);
+  assertEquals("gen_aidl() should make a directory at " + outputDirectory,outputDirectory,mkdirStep.getPath());
+  ShellStep aidlStep=(ShellStep)steps.get(2);
   assertEquals("gen_aidl() should use the aidl binary to write .java files.",String.format("%s -b -p%s -I%s -o%s %s",pathToAidlExecutable,pathToFrameworkAidl,importPath,outputDirectory,pathToAidl),aidlStep.getDescription(executionContext));
-  assertEquals(4,steps.size());
+  assertEquals(6,steps.size());
   verify(androidPlatformTarget,executionContext);
 }
