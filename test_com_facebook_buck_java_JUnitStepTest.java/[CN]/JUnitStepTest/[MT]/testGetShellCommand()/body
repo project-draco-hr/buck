@@ -8,17 +8,18 @@
   List<String> vmArgs=ImmutableList.of(vmArg1,vmArg2);
   BuildId pretendBuildId=new BuildId("pretend-build-id");
   String buildIdArg=String.format("-D%s=%s",JUnitStep.BUILD_ID_PROPERTY,pretendBuildId);
-  String directoryForTestResults="buck-out/gen/theresults/";
+  Path directoryForTestResults=Paths.get("buck-out/gen/theresults/");
+  Path directoryForTemp=Paths.get("buck-out/gen/thetmp/");
   boolean isCodeCoverageEnabled=false;
   boolean isJacocoEnabled=true;
   boolean isDebugEnabled=false;
   Path testRunnerClassesDirectory=Paths.get("build/classes/junit");
-  JUnitStep junit=new JUnitStep(classpathEntries,testClassNames,vmArgs,directoryForTestResults,isCodeCoverageEnabled,isJacocoEnabled,isDebugEnabled,pretendBuildId,TestSelectorList.empty(),testRunnerClassesDirectory);
+  JUnitStep junit=new JUnitStep(classpathEntries,testClassNames,vmArgs,directoryForTestResults,directoryForTemp,isCodeCoverageEnabled,isJacocoEnabled,isDebugEnabled,pretendBuildId,TestSelectorList.empty(),testRunnerClassesDirectory);
   ExecutionContext executionContext=EasyMock.createMock(ExecutionContext.class);
   EasyMock.expect(executionContext.getVerbosity()).andReturn(Verbosity.ALL);
   EasyMock.expect(executionContext.getDefaultTestTimeoutMillis()).andReturn(5000L);
   EasyMock.replay(executionContext);
   List<String> observedArgs=junit.getShellCommand(executionContext);
-  MoreAsserts.assertListEquals(ImmutableList.of("java",buildIdArg,vmArg1,vmArg2,"-verbose","-classpath",Joiner.on(File.pathSeparator).join("foo","bar/baz","build/classes/junit"),JUnitStep.JUNIT_TEST_RUNNER_CLASS_NAME,directoryForTestResults,"5000","",testClass1,testClass2),observedArgs);
+  MoreAsserts.assertListEquals(ImmutableList.of("java","-Djava.io.tmpdir=" + directoryForTemp,buildIdArg,vmArg1,vmArg2,"-verbose","-classpath",Joiner.on(File.pathSeparator).join("foo","bar/baz","build/classes/junit"),JUnitStep.JUNIT_TEST_RUNNER_CLASS_NAME,directoryForTestResults.toString(),"5000","",testClass1,testClass2),observedArgs);
   EasyMock.verify(executionContext);
 }
