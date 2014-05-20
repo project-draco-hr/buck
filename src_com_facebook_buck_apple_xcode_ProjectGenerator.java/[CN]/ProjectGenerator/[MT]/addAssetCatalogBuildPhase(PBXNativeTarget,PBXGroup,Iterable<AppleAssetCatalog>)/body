@@ -21,17 +21,23 @@
   if (commonAssetCatalogs.size() == 0 && assetCatalogsToSplitIntoBundles.size() == 0) {
     return;
   }
-  shouldPlaceAssetCatalogCompiler=true;
-  Path assetCatalogBuildPhaseScriptRelativeToProjectRoot=outputDirectory.relativize(placedAssetCatalogBuildPhaseScript);
+  Path assetCatalogBuildPhaseScriptRelativeToProjectRoot;
+  if (PATH_OVERRIDE_FOR_ASSET_CATALOG_BUILD_PHASE_SCRIPT != null) {
+    assetCatalogBuildPhaseScriptRelativeToProjectRoot=this.repoRootRelativeToOutputDirectory.resolve(PATH_OVERRIDE_FOR_ASSET_CATALOG_BUILD_PHASE_SCRIPT).normalize();
+  }
+ else {
+    shouldPlaceAssetCatalogCompiler=true;
+    assetCatalogBuildPhaseScriptRelativeToProjectRoot=outputDirectory.relativize(placedAssetCatalogBuildPhaseScript);
+  }
   String combinedAssetCatalogsToBeSplitIntoBundlesScriptArguments=Joiner.on(' ').join(assetCatalogsToSplitIntoBundles);
   String combinedCommonAssetCatalogsScriptArguments=Joiner.on(' ').join(commonAssetCatalogs);
   PBXShellScriptBuildPhase phase=new PBXShellScriptBuildPhase();
   StringBuilder scriptBuilder=new StringBuilder("set -e\n");
   if (commonAssetCatalogs.size() != 0) {
-    scriptBuilder.append("\"$SRCROOT/\"" + assetCatalogBuildPhaseScriptRelativeToProjectRoot.toString() + " "+ combinedCommonAssetCatalogsScriptArguments+ "\n");
+    scriptBuilder.append("\"${PROJECT_DIR}/\"" + assetCatalogBuildPhaseScriptRelativeToProjectRoot.toString() + " "+ combinedCommonAssetCatalogsScriptArguments+ "\n");
   }
   if (assetCatalogsToSplitIntoBundles.size() != 0) {
-    scriptBuilder.append("\"$SRCROOT/\"" + assetCatalogBuildPhaseScriptRelativeToProjectRoot.toString() + " -b "+ combinedAssetCatalogsToBeSplitIntoBundlesScriptArguments);
+    scriptBuilder.append("\"${PROJECT_DIR}/\"" + assetCatalogBuildPhaseScriptRelativeToProjectRoot.toString() + " -b "+ combinedAssetCatalogsToBeSplitIntoBundlesScriptArguments);
   }
   phase.setShellScript(scriptBuilder.toString());
   target.getBuildPhases().add(phase);
