@@ -1,24 +1,21 @@
 {
-  Filter filter=null;
-  if (testSelectorList != null) {
-    filter=new Filter(){
-      @Override public boolean shouldRun(      Description description){
-        String methodName=description.getMethodName();
-        if (methodName == null) {
-          return true;
-        }
- else {
-          String className=description.getClassName();
-          TestDescription testDescription=new TestDescription(className,methodName);
-          return testSelectorList.isIncluded(testDescription);
-        }
+  Filter filter=new Filter(){
+    @Override public boolean shouldRun(    Description description){
+      String methodName=description.getMethodName();
+      if (methodName == null) {
+        return true;
       }
-      @Override public String describe(){
-        return FILTER_DESCRIPTION;
+ else {
+        String className=description.getClassName();
+        TestDescription testDescription=new TestDescription(className,methodName);
+        return testSelectorList.isIncluded(testDescription);
       }
     }
-;
+    @Override public String describe(){
+      return FILTER_DESCRIPTION;
+    }
   }
+;
   for (  String className : testClassNames) {
     final Class<?> testClass=Class.forName(className);
     Ignore ignore=testClass.getAnnotation(Ignore.class);
@@ -32,13 +29,12 @@
       JUnitCore jUnitCore=new JUnitCore();
       Runner suite=new Computer().getSuite(createRunnerBuilder(),new Class<?>[]{testClass});
       Request request=Request.runner(suite);
-      if (filter != null) {
-        request=request.filterWith(filter);
-      }
+      request=request.filterWith(filter);
       jUnitCore.addListener(TestResult.createSingleTestResultRunListener(results));
       jUnitCore.run(request);
     }
-    if (isSignificantEnoughToWriteResultsToFile(filter,results)) {
+    results=interpretResults(results);
+    if (results != null) {
       writeResult(className,results);
     }
   }
