@@ -2,9 +2,35 @@
   if (!inputDir.isPresent()) {
     return ImmutableSortedSet.of();
   }
-  ImmutableSortedSet.Builder<Path> paths=ImmutableSortedSet.naturalOrder();
+  final ImmutableSortedSet.Builder<Path> paths=ImmutableSortedSet.naturalOrder();
+  FileVisitor<Path> fileVisitor=new SimpleFileVisitor<Path>(){
+    @Override public FileVisitResult preVisitDirectory(    Path dir,    BasicFileAttributes attr) throws IOException {
+      String dirName=dir.getFileName().toString();
+      if (dirName.charAt(0) == '_' || !isResource(dirName)) {
+        return FileVisitResult.SKIP_SUBTREE;
+      }
+      return FileVisitResult.CONTINUE;
+    }
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attr) throws IOException {
+      String filename=file.getFileName().toString();
+      if (isResource(filename)) {
+        paths.add(file);
+      }
+      return FileVisitResult.CONTINUE;
+    }
+    private boolean isResource(    String fileOrDirName){
+      if (NON_ASSET_FILENAMES.contains(fileOrDirName.toLowerCase())) {
+        return false;
+      }
+      if (fileOrDirName.charAt(fileOrDirName.length() - 1) == '~') {
+        return false;
+      }
+      return true;
+    }
+  }
+;
   try {
-    paths.addAll(filesystem.getFilesUnderPath(inputDir.get()));
+    filesystem.walkRelativeFileTree(inputDir.get(),fileVisitor);
   }
  catch (  IOException e) {
     throw new HumanReadableException(e,"Error traversing directory: %s.",inputDir.get());
