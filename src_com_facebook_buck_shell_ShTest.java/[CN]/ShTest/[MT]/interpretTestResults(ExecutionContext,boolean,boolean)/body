@@ -1,0 +1,24 @@
+{
+  final ImmutableSet<String> contacts=getContacts();
+  final ProjectFilesystem filesystem=context.getProjectFilesystem();
+  if (isDryRun) {
+    return new Callable<TestResults>(){
+      @Override public TestResults call() throws Exception {
+        return new TestResults(getBuildTarget(),ImmutableList.<TestCaseSummary>of(),contacts);
+      }
+    }
+;
+  }
+ else {
+    return new Callable<TestResults>(){
+      @Override public TestResults call() throws Exception {
+        Optional<String> resultsFileContents=filesystem.readFileIfItExists(getPathToTestOutputResult());
+        ObjectMapper mapper=new ObjectMapper();
+        TestResultSummary testResultSummary=mapper.readValue(resultsFileContents.get(),TestResultSummary.class);
+        TestCaseSummary testCaseSummary=new TestCaseSummary(target.getFullyQualifiedName(),ImmutableList.of(testResultSummary));
+        return new TestResults(getBuildTarget(),ImmutableList.of(testCaseSummary),contacts);
+      }
+    }
+;
+  }
+}

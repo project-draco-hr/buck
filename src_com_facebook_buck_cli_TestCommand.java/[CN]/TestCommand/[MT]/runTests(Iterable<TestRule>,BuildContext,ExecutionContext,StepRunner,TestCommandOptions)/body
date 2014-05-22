@@ -45,7 +45,7 @@
       ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
       BuildEngine cachingBuildEngine=getBuildEngine();
       Preconditions.checkState(cachingBuildEngine.isRuleBuilt(test.getBuildTarget()));
-      List<Step> testSteps=test.runTests(buildContext,executionContext,options.getTestSelectorList());
+      List<Step> testSteps=test.runTests(buildContext,executionContext,options.isDryRun(),options.getTestSelectorList());
       if (!testSteps.isEmpty()) {
         stepsBuilder.addAll(testSteps);
         stepsBuilder.add(testRuleKeyFileHelper.createRuleKeyInDirStep(test));
@@ -55,7 +55,7 @@
  else {
       steps=ImmutableList.of();
     }
-    ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext,!options.getTestSelectorList().isEmpty())),test.getBuildTarget());
+    ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext,!options.getTestSelectorList().isEmpty(),options.isDryRun())),test.getBuildTarget());
     FutureCallback<TestResults> onTestFinishedCallback=getFutureCallback(grouper,test,options,printTestResults);
     Futures.addCallback(testResults,onTestFinishedCallback);
     results.add(testResults);
