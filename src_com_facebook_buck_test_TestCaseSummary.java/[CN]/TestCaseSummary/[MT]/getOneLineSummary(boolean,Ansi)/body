@@ -1,19 +1,32 @@
 {
-  String status;
+  String statusText;
   Ansi.SeverityLevel severityLevel;
   if (!isSuccess()) {
     if (hasPassingDependencies) {
       severityLevel=Ansi.SeverityLevel.ERROR;
-      status=ansi.asHighlightedStatusText(severityLevel,"FAIL");
+      statusText="FAIL";
     }
  else {
       severityLevel=Ansi.SeverityLevel.WARNING;
-      status=ansi.asHighlightedStatusText(severityLevel,"DROP");
+      statusText="DROP";
     }
   }
  else {
-    severityLevel=Ansi.SeverityLevel.OK;
-    status=ansi.asHighlightedStatusText(severityLevel,"PASS");
+    if (hasAssumptionViolations) {
+      severityLevel=Ansi.SeverityLevel.WARNING;
+      statusText="ASSUME";
+    }
+ else {
+      severityLevel=Ansi.SeverityLevel.OK;
+      statusText="PASS";
+    }
   }
-  return String.format("%s %s %2d Passed  %2d Failed   %s",status,!isCached ? TimeFormat.formatForConsole(totalTime,ansi) : ansi.asHighlightedStatusText(severityLevel,"CACHED"),testResults.size() - failureCount,failureCount,testCaseName);
+  String status=ansi.asHighlightedStatusText(severityLevel,statusText);
+  int paddingWidth=MAX_STATUS_WIDTH - statusText.length();
+  String padding="";
+  for (int position=0; position < paddingWidth; position++) {
+    padding+=' ';
+  }
+  int passedCount=testResults.size() - failureCount - skippedCount;
+  return String.format("%s%s %s %2d Passed  %2d Skipped  %2d Failed   %s",status,padding,!isCached ? TimeFormat.formatForConsole(totalTime,ansi) : ansi.asHighlightedStatusText(severityLevel,"CACHED"),passedCount,skippedCount,failureCount,testCaseName);
 }
