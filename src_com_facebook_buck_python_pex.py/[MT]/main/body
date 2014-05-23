@@ -1,0 +1,20 @@
+def main(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--entry-point', default='__main__')
+    parser.add_argument('--python', default='/usr/bin/python')
+    parser.add_argument('output')
+    args = parser.parse_args(argv[1:])
+    manifest = json.load(sys.stdin)
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        interpreter = PythonInterpreter(args.python, PythonInterpreter.from_binary(args.python).identity, extras={('setuptools', '1.0'): os.path.join(BUCK_ROOT, 'third-party/py/setuptools'), })
+        pex_builder = PEXBuilder(path=tmp_dir, interpreter=interpreter)
+        pex_builder.info.zip_safe = True
+        pex_builder.info.entry_point = args.entry_point
+        for (dst, src) in manifest['modules'].iteritems():
+            pex_builder.add_source(dereference_symlinks(src), dst)
+        for (dst, src) in manifest['resources'].iteritems():
+            pex_builder.add_resource(dereference_symlinks(src), dst)
+        pex_builder.build(args.output)
+    finally:
+        shutil.rmtree(tmp_dir, True)

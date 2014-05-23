@@ -1,0 +1,17 @@
+{
+  BuildTarget orphanPyLibraryTarget=new BuildTarget("//","orphan_python_library");
+  PythonLibrary orphanPyLibrary=new PythonLibrary(orphanPyLibraryTarget,ImmutableSortedSet.<SourcePath>of(new TestSourcePath("java/src/com/javalib/orphan/sadpanda.py")),ImmutableSortedSet.<SourcePath>of());
+  BuildRule orphanPyLibraryRule=createBuildRule(orphanPyLibrary,orphanPyLibraryTarget);
+  BuildTarget pyLibraryTarget=BuildTargetFactory.newInstance("//:py_library");
+  PythonLibrary pyLibrary=new PythonLibrary(pyLibraryTarget,ImmutableSortedSet.<SourcePath>of(new TestSourcePath("python/tastypy.py")),ImmutableSortedSet.<SourcePath>of());
+  Map<BuildTarget,BuildRule> rules=Maps.newHashMap();
+  rules.put(orphanPyLibraryTarget,createBuildRule(orphanPyLibrary,orphanPyLibraryTarget));
+  BuildRule pyLibraryRule=createBuildRule(pyLibrary,pyLibraryTarget);
+  rules.put(pyLibraryTarget,pyLibraryRule);
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(rules);
+  BuildTarget javaLibraryTarget=BuildTargetFactory.newInstance("//:javalib");
+  BuildRule javaLibrary=JavaLibraryBuilder.createBuilder(javaLibraryTarget).addSrc(Paths.get("java/src/com/javalib/Bar.java")).addDep(orphanPyLibraryRule).build(ruleResolver);
+  Path foo=Paths.get("foo");
+  PythonBinary buildable=new PythonBinary(new BuildTarget("//","python_binary"),ImmutableSortedSet.<BuildRule>of(javaLibrary,pyLibraryRule),foo);
+  assertEquals(new PythonPackageComponents.Builder("test").addModule(foo,foo,"").addComponent(pyLibrary.getPythonPackageComponents(),"").build(),buildable.getAllComponents());
+}
