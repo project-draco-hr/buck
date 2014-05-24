@@ -1,0 +1,21 @@
+def _compute_dependencies(self):
+    "Recompute this distribution's dependencies."
+    from _markerlib import compile as compile_marker
+    dm = self.__dep_map = {None: [], }
+    reqs = []
+    for req in (self._parsed_pkg_info.get_all('Requires-Dist') or []):
+        (distvers, mark) = self._preparse_requirement(req)
+        parsed = next(parse_requirements(distvers))
+        parsed.marker_fn = compile_marker(mark)
+        reqs.append(parsed)
+
+    def reqs_for_extra(extra):
+        for req in reqs:
+            if req.marker_fn(override={'extra': extra, }):
+                yield req
+    common = frozenset(reqs_for_extra(None))
+    dm[None].extend(common)
+    for extra in (self._parsed_pkg_info.get_all('Provides-Extra') or []):
+        extra = safe_extra(extra.strip())
+        dm[extra] = list((frozenset(reqs_for_extra(extra)) - common))
+    return dm

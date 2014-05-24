@@ -1,0 +1,14 @@
+def find_eggs_in_zip(importer, path_item, only=False):
+    '\n    Find eggs in zip files; possibly multiple nested eggs.\n    '
+    if importer.archive.endswith('.whl'):
+        return
+    metadata = EggMetadata(importer)
+    if metadata.has_metadata('PKG-INFO'):
+        yield Distribution.from_filename(path_item, metadata=metadata)
+    if only:
+        return
+    for subitem in metadata.resource_listdir('/'):
+        if subitem.endswith('.egg'):
+            subpath = os.path.join(path_item, subitem)
+            for dist in find_eggs_in_zip(zipimport.zipimporter(subpath), subpath):
+                yield dist

@@ -1,0 +1,31 @@
+def _extract_resource(self, manager, zip_path):
+    if (zip_path in self._index()):
+        for name in self._index()[zip_path]:
+            last = self._extract_resource(manager, os.path.join(zip_path, name))
+        return os.path.dirname(last)
+    (timestamp, size) = self._get_date_and_size(self.zipinfo[zip_path])
+    if (not WRITE_SUPPORT):
+        raise IOError('"os.rename" and "os.unlink" are not supported on this platform')
+    try:
+        real_path = manager.get_cache_path(self.egg_name, self._parts(zip_path))
+        if self._is_current(real_path, zip_path):
+            return real_path
+        (outf, tmpnam) = _mkstemp('.$extract', dir=os.path.dirname(real_path))
+        os.write(outf, self.loader.get_data(zip_path))
+        os.close(outf)
+        utime(tmpnam, (timestamp, timestamp))
+        manager.postprocess(tmpnam, real_path)
+        try:
+            rename(tmpnam, real_path)
+        except os.error:
+            if os.path.isfile(real_path):
+                if self._is_current(real_path, zip_path):
+                    return real_path
+                elif (os.name == 'nt'):
+                    unlink(real_path)
+                    rename(tmpnam, real_path)
+                    return real_path
+            raise
+    except os.error:
+        manager.extraction_error()
+    return real_path
