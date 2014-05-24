@@ -1,0 +1,19 @@
+def _postprocess(self):
+    installed_files = []
+    egg_info = None
+    with open(self._install_record) as fp:
+        installed_files = fp.read().splitlines()
+        for line in installed_files:
+            if line.endswith('.egg-info'):
+                assert line.startswith('/'), 'Expect .egg-info to be within install_tmp!'
+                egg_info = line
+                break
+    if (not egg_info):
+        self._installed = False
+        return self._installed
+    installed_files = [os.path.relpath(fn, egg_info) for fn in installed_files if (fn != egg_info)]
+    self._egg_info = os.path.join(self._install_tmp, egg_info[1:])
+    with open(os.path.join(self._egg_info, 'installed-files.txt'), 'w') as fp:
+        fp.write('\n'.join(installed_files))
+        fp.write('\n')
+    return self._installed

@@ -1,0 +1,22 @@
+@classmethod
+def execute_interpreter(cls):
+    force_interpreter = ('PEX_INTERPRETER' in os.environ)
+    os.unsetenv('PEX_INTERPRETER')
+    TRACER.log(('%s, dropping into interpreter' % ('PEX_INTERPRETER specified' if force_interpreter else 'No entry point specified')))
+    if sys.argv[1:]:
+        try:
+            with open(sys.argv[1]) as fp:
+                ast = compile(fp.read(), fp.name, 'exec', flags=0, dont_inherit=1)
+        except IOError as e:
+            print(('Could not open %s in the environment [%s]: %s' % (sys.argv[1], sys.argv[0], e)))
+            sys.exit(1)
+        sys.argv = sys.argv[1:]
+        old_name = globals()['__name__']
+        try:
+            globals()['__name__'] = '__main__'
+            exec_function(ast, globals())
+        finally:
+            globals()['__name__'] = old_name
+    else:
+        import code
+        code.interact()

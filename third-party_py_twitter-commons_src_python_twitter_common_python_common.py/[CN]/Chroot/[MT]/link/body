@@ -1,0 +1,15 @@
+def link(self, src, dst, label=None):
+    "\n      Hard link file from {root}/source to {chroot}/dest with optional label.\n\n      May raise anything os.link can raise, e.g.\n        IOError(Errno 21 'EISDIR')\n\n      May raise ChrootTaggingException if dst is already in a fileset\n      but with a different label.\n    "
+    self._tag(dst, label)
+    self._mkdir_for(dst)
+    abs_src = self._rootjoin(src)
+    abs_dst = os.path.join(self.chroot, dst)
+    try:
+        os.link(abs_src, abs_dst)
+    except OSError as e:
+        if (e.errno == errno.EEXIST):
+            pass
+        elif (e.errno == errno.EXDEV):
+            shutil.copyfile(abs_src, abs_dst)
+        else:
+            raise
