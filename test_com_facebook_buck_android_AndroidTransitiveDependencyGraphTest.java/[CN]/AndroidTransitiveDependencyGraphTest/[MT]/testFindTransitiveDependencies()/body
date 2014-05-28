@@ -11,9 +11,10 @@
   BuildRule libraryRule=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/src/com/facebook:example")).addDep(guavaRule).addDep(jsr305Rule).addDep(prebuiltNativeLibraryBuild).addDep(ndkLibrary).build(ruleResolver);
   BuildRule manifestRule=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/src/com/facebook:res")).setManifest(Paths.get("java/src/com/facebook/module/AndroidManifest.xml")).setAssets(Paths.get("assets")).build());
   BuildTarget keystoreTarget=BuildTargetFactory.newInstance("//keystore:debug");
-  Keystore keystore=(Keystore)KeystoreBuilder.createBuilder(keystoreTarget).setStore(Paths.get("keystore/debug.keystore")).setProperties(Paths.get("keystore/debug.keystore.properties")).build(ruleResolver).getBuildable();
-  AndroidBinary binaryRule=(AndroidBinary)AndroidBinaryBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/src/com/facebook:app")).setOriginalDeps(ImmutableSortedSet.of(libraryRule,manifestRule)).setBuildTargetsToExcludeFromDex(ImmutableSet.of(BuildTargetFactory.newInstance("//third_party/guava:guava"))).setManifest(new TestSourcePath("java/src/com/facebook/AndroidManifest.xml")).setTarget("Google Inc.:Google APIs:16").setKeystore(keystore).build(ruleResolver).getBuildable();
-  binaryRule.getEnhancedDeps(ruleResolver);
+  BuildRule keystore=KeystoreBuilder.createBuilder(keystoreTarget).setStore(Paths.get("keystore/debug.keystore")).setProperties(Paths.get("keystore/debug.keystore.properties")).build(ruleResolver);
+  ImmutableSortedSet<BuildRule> originalDeps=ImmutableSortedSet.of(libraryRule,manifestRule);
+  AndroidBinary binaryRule=(AndroidBinary)AndroidBinaryBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//java/src/com/facebook:app")).setOriginalDeps(originalDeps).setBuildTargetsToExcludeFromDex(ImmutableSet.of(BuildTargetFactory.newInstance("//third_party/guava:guava"))).setManifest(new TestSourcePath("java/src/com/facebook/AndroidManifest.xml")).setTarget("Google Inc.:Google APIs:16").setKeystore((Keystore)keystore.getBuildable()).build(ruleResolver).getBuildable();
+  binaryRule.getEnhancedDeps(ruleResolver,originalDeps,ImmutableSortedSet.of(keystore));
   AndroidTransitiveDependencies transitiveDeps=binaryRule.findTransitiveDependencies();
   AndroidDexTransitiveDependencies dexTransitiveDeps=binaryRule.findDexTransitiveDependencies();
   assertEquals("Because guava was passed to no_dx, it should not be in the classpathEntriesToDex list",ImmutableSet.of(Paths.get("third_party/jsr-305/jsr305.jar")),dexTransitiveDeps.classpathEntriesToDex);
