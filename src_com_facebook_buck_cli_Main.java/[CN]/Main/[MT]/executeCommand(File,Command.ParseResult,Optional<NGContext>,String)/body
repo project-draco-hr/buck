@@ -33,7 +33,7 @@
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   try (AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
     artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
-    Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console);
+    Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console,clientEnvironment);
     eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,webServer,consoleListener);
     ImmutableList<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
     Command executingCommand=commandParseResult.getCommand().get();
@@ -43,7 +43,7 @@
     Parser parser=null;
     if (isDaemon) {
       try {
-        parser=getParserFromDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console,commandEvent,buildEventBus);
+        parser=getParserFromDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,console,clientEnvironment,commandEvent,buildEventBus);
       }
  catch (      WatchmanWatcherException e) {
         buildEventBus.post(LogEvent.warning("Watchman threw an exception while parsing file changes, resetting daemon.\n%s",e.getMessage()));
@@ -51,7 +51,7 @@
       }
     }
     if (parser == null) {
-      parser=new Parser(projectFilesystem,buildRuleTypes,console,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
+      parser=new Parser(projectFilesystem,buildRuleTypes,console,clientEnvironment,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem,console)));
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(projectFilesystem);
     CachingBuildEngine buildEngine=new CachingBuildEngine();
