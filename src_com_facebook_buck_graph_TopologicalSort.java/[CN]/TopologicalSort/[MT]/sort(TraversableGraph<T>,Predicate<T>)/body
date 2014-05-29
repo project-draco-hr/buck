@@ -1,16 +1,29 @@
 {
-  AbstractBottomUpTraversal<T,ImmutableList<T>> traversal=new AbstractBottomUpTraversal<T,ImmutableList<T>>(graph){
-    final ImmutableList.Builder<T> builder=ImmutableList.builder();
-    @Override public void visit(    T node){
+  Map<T,AtomicInteger> effectiveOutDegreesOfExplorableNodes=Maps.newHashMap();
+  Queue<T> nextLevel=Queues.newArrayDeque(graph.getNodesWithNoOutgoingEdges());
+  Set<T> visitedNodes=Sets.newHashSet();
+  ImmutableList.Builder<T> toReturn=ImmutableList.builder();
+  while (!nextLevel.isEmpty()) {
+    Queue<T> toExplore=nextLevel;
+    nextLevel=Queues.newArrayDeque();
+    Set<T> level=Sets.newTreeSet();
+    while (!toExplore.isEmpty()) {
+      T node=toExplore.remove();
+      Preconditions.checkState(!visitedNodes.contains(node),"The queue of nodes to explore should not contain a node that has already been" + " visited.");
       if (inclusionPredicate.apply(node)) {
-        builder.add(node);
+        level.add(node);
+      }
+      visitedNodes.add(node);
+      for (      T exploreCandidate : graph.getIncomingNodesFor(node)) {
+        if (!effectiveOutDegreesOfExplorableNodes.containsKey(exploreCandidate)) {
+          effectiveOutDegreesOfExplorableNodes.put(exploreCandidate,new AtomicInteger(Iterables.size(graph.getOutgoingNodesFor(exploreCandidate))));
+        }
+        if (effectiveOutDegreesOfExplorableNodes.get(exploreCandidate).decrementAndGet() == 0) {
+          nextLevel.add(exploreCandidate);
+        }
       }
     }
-    @Override public ImmutableList<T> getResult(){
-      return builder.build();
-    }
+    toReturn.addAll(level);
   }
-;
-  traversal.traverse();
-  return traversal.getResult();
+  return toReturn.build();
 }

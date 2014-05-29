@@ -1,9 +1,10 @@
 {
-  UsesMultiANewArray.createMultiArray();
-  UsesMultiANewArrayAndExplicitArrayCall.createMultiArray();
-  ClassReader usesImplicitOnly=new ClassReader(UsesMultiANewArray.class.getName());
+  JavaSourceFromString usesMultiANewArray=new JavaSourceFromString("UsesMultiANewArray",createSource("public class UsesMultiANewArray {","  static Object createMultiArray() {","    return new Object[1][1];","  }","}"));
+  JavaSourceFromString usesMultiANewArrayAndExplicitArrayCall=new JavaSourceFromString("UsesMultiANewArrayAndExplicitArrayCall",createSource("import java.lang.reflect.Array;","public class UsesMultiANewArrayAndExplicitArrayCall {","  static Object createMultiArray() {","    Array.newInstance(Object.class, 1, 1);","    return new Object[1][1];","  }","}"));
+  compileSources(outputDir,usesMultiANewArray,usesMultiANewArrayAndExplicitArrayCall);
+  ClassReader usesImplicitOnly=new ClassReader(Files.newInputStream(new File(outputDir,"UsesMultiANewArray.class").toPath()));
   DalvikStatsTool.Stats implicitStats=DalvikStatsTool.getEstimateInternal(usesImplicitOnly);
-  ClassReader usesBoth=new ClassReader(UsesMultiANewArrayAndExplicitArrayCall.class.getName());
+  ClassReader usesBoth=new ClassReader(Files.newInputStream(new File(outputDir,"UsesMultiANewArrayAndExplicitArrayCall.class").toPath()));
   DalvikStatsTool.Stats bothStats=DalvikStatsTool.getEstimateInternal(usesBoth);
   assertEquals(implicitStats.methodReferences.size(),bothStats.methodReferences.size());
 }
