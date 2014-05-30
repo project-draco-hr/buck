@@ -10,11 +10,10 @@
   BuildRule androidBinaryRule=AndroidBinaryBuilder.newBuilder().setBuildTarget(binaryBuildTarget).setOriginalDeps(originalDeps).setBuildTargetsToExcludeFromDex(ImmutableSet.of(BuildTargetFactory.newInstance("//java/src/com/facebook/base:libraryTwo"))).setManifest(new TestSourcePath("java/src/com/facebook/base/AndroidManifest.xml")).setTarget("Google Inc.:Google APIs:16").setKeystore((Keystore)keystoreRule.getBuildable()).build(ruleResolver);
   AndroidBinary androidBinary=(AndroidBinary)androidBinaryRule.getBuildable();
   androidBinary.getEnhancedDeps(ruleResolver,originalDeps,ImmutableSortedSet.of(keystoreRule));
-  AndroidTransitiveDependencies transitiveDependencies=androidBinary.findTransitiveDependencies();
-  AndroidDexTransitiveDependencies dexTransitiveDependencies=androidBinary.findDexTransitiveDependencies();
+  AndroidPackageableCollection packageableCollection=androidBinary.getAndroidPackageableCollection();
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
   FakeBuildableContext buildableContext=new FakeBuildableContext();
-  androidBinary.addProguardCommands(dexTransitiveDependencies.classpathEntriesToDex,transitiveDependencies.proguardConfigs,commands,ImmutableList.<Path>of(),buildableContext);
+  androidBinary.addProguardCommands(packageableCollection.classpathEntriesToDex,packageableCollection.proguardConfigs,commands,ImmutableList.<Path>of(),buildableContext);
   ImmutableSet<Path> expectedRecordedArtifacts=ImmutableSet.of(Paths.get("buck-out/gen/java/src/com/facebook/base/.proguard/apk/configuration.txt"),Paths.get("buck-out/gen/java/src/com/facebook/base/.proguard/apk/mapping.txt"));
   assertEquals(expectedRecordedArtifacts,buildableContext.getRecordedArtifacts());
   buildableContext=new FakeBuildableContext();

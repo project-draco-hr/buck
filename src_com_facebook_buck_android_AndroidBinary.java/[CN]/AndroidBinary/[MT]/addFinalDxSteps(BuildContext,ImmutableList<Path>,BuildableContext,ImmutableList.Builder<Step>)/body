@@ -1,0 +1,53 @@
+{
+  ImmutableSet<Path> classpathEntriesToDex;
+  if (preprocessJavaClassesBash.isPresent()) {
+    final Path preprocessJavaClassesInDir=getBinPath("java_classes_preprocess_in_%s");
+    final Path preprocessJavaClassesOutDir=getBinPath("java_classes_preprocess_out_%s");
+    steps.add(new MakeCleanDirectoryStep(preprocessJavaClassesInDir));
+    steps.add(new MakeCleanDirectoryStep(preprocessJavaClassesOutDir));
+    steps.add(new SymlinkFilesIntoDirectoryStep(context.getProjectRoot(),packageableCollection.classpathEntriesToDex,preprocessJavaClassesInDir));
+    classpathEntriesToDex=FluentIterable.from(packageableCollection.classpathEntriesToDex).transform(new Function<Path,Path>(){
+      @Override public Path apply(      Path classpathEntry){
+        return preprocessJavaClassesOutDir.resolve(classpathEntry);
+      }
+    }
+).toSet();
+    AbstractGenruleStep.CommandString commandString=new AbstractGenruleStep.CommandString(Optional.<String>absent(),preprocessJavaClassesBash,Optional.<String>absent());
+    steps.add(new AbstractGenruleStep(AndroidBinaryDescription.TYPE,this.getBuildTarget(),commandString,preprocessJavaClassesDeps,preprocessJavaClassesInDir.toFile()){
+      @Override protected void addEnvironmentVariables(      ExecutionContext context,      ImmutableMap.Builder<String,String> environmentVariablesBuilder){
+        Function<Path,Path> aboslutifier=context.getProjectFilesystem().getAbsolutifier();
+        environmentVariablesBuilder.put("IN_JARS_DIR",aboslutifier.apply(preprocessJavaClassesInDir).toString());
+        environmentVariablesBuilder.put("OUT_JARS_DIR",aboslutifier.apply(preprocessJavaClassesOutDir).toString());
+        Optional<AndroidPlatformTarget> platformTarget=context.getAndroidPlatformTargetOptional();
+        if (!platformTarget.isPresent()) {
+          return;
+        }
+        String bootclasspath=Joiner.on(':').join(Iterables.transform(platformTarget.get().getBootclasspathEntries(),aboslutifier));
+        environmentVariablesBuilder.put("ANDROID_BOOTCLASSPATH",bootclasspath);
+      }
+    }
+);
+  }
+ else {
+    classpathEntriesToDex=packageableCollection.classpathEntriesToDex;
+  }
+  if (packageType.isBuildWithObfuscation()) {
+    classpathEntriesToDex=addProguardCommands(classpathEntriesToDex,packageableCollection.proguardConfigs,steps,resDirectories,buildableContext);
+  }
+  ImmutableSet.Builder<Path> secondaryDexDirectoriesBuilder=ImmutableSet.builder();
+  if (!preDexMerge.isPresent()) {
+    steps.add(new MkdirStep(primaryDexPath.getParent()));
+    addDexingSteps(classpathEntriesToDex,packageableCollection.classNamesToHashesSupplier,secondaryDexDirectoriesBuilder,steps,primaryDexPath);
+  }
+ else   if (!exopackage) {
+    secondaryDexDirectoriesBuilder.addAll(preDexMerge.get().getSecondaryDexDirectories());
+  }
+  ImmutableSet<Path> secondaryDexDirectories=secondaryDexDirectoriesBuilder.build();
+  ImmutableSet.Builder<Path> secondaryDexZips=ImmutableSet.builder();
+  for (  Path secondaryDexDirectory : secondaryDexDirectories) {
+    Path zipFile=Paths.get(secondaryDexDirectory.toString().replaceAll("/$","") + ".zip");
+    secondaryDexZips.add(zipFile);
+    steps.add(new ZipDirectoryWithMaxDeflateStep(secondaryDexDirectory,zipFile,FROYO_DEFLATE_LIMIT_BYTES));
+  }
+  return new DexFilesInfo(primaryDexPath,secondaryDexZips.build());
+}

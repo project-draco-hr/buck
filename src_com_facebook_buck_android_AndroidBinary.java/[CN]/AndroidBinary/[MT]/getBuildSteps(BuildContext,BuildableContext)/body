@@ -1,15 +1,13 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
-  final AndroidTransitiveDependencies transitiveDependencies=findTransitiveDependencies();
-  AndroidDexTransitiveDependencies dexTransitiveDependencies=findDexTransitiveDependencies();
   Path signedApkPath=getSignedApkPath();
-  DexFilesInfo dexFilesInfo=addFinalDxSteps(context,transitiveDependencies,dexTransitiveDependencies,filteredResourcesProvider.getResDirectories(),buildableContext,steps);
+  DexFilesInfo dexFilesInfo=addFinalDxSteps(context,filteredResourcesProvider.getResDirectories(),buildableContext,steps);
   ImmutableSet<Path> nativeLibraryDirectories;
-  if (!transitiveDependencies.nativeLibsDirectories.isEmpty()) {
+  if (!packageableCollection.nativeLibsDirectories.isEmpty()) {
     Path pathForNativeLibs=getPathForNativeLibs();
     Path libSubdirectory=pathForNativeLibs.resolve("lib");
     steps.add(new MakeCleanDirectoryStep(libSubdirectory));
-    for (    Path nativeLibDir : transitiveDependencies.nativeLibsDirectories) {
+    for (    Path nativeLibDir : packageableCollection.nativeLibsDirectories) {
       copyNativeLibrary(nativeLibDir,libSubdirectory,cpuFilters,steps);
     }
     nativeLibraryDirectories=ImmutableSet.of(libSubdirectory);
@@ -18,11 +16,11 @@
     nativeLibraryDirectories=ImmutableSet.of();
   }
   ImmutableSet<Path> nativeLibraryAsAssetDirectories;
-  if (!transitiveDependencies.nativeLibAssetsDirectories.isEmpty()) {
+  if (!packageableCollection.nativeLibAssetsDirectories.isEmpty()) {
     Path pathForNativeLibsAsAssets=getPathForNativeLibsAsAssets();
     Path libSubdirectory=pathForNativeLibsAsAssets.resolve("assets").resolve("lib");
     steps.add(new MakeCleanDirectoryStep(libSubdirectory));
-    for (    Path nativeLibDir : transitiveDependencies.nativeLibAssetsDirectories) {
+    for (    Path nativeLibDir : packageableCollection.nativeLibAssetsDirectories) {
       AndroidBinary.copyNativeLibrary(nativeLibDir,libSubdirectory,cpuFilters,steps);
     }
     nativeLibraryAsAssetDirectories=ImmutableSet.of(pathForNativeLibsAsAssets);
@@ -36,7 +34,7 @@
     final Path pathToStringAssetsZip=packageStringAssets.get().getPathToStringAssetsZip();
     zipFiles.add(pathToStringAssetsZip);
   }
-  ApkBuilderStep apkBuilderCommand=new ApkBuilderStep(aaptPackageResources.getResourceApkPath(),getSignedApkPath(),dexFilesInfo.primaryDexPath,nativeLibraryAsAssetDirectories,nativeLibraryDirectories,zipFiles.build(),dexTransitiveDependencies.pathsToThirdPartyJars,keystore.getPathToStore(),keystore.getPathToPropertiesFile(),false);
+  ApkBuilderStep apkBuilderCommand=new ApkBuilderStep(aaptPackageResources.getResourceApkPath(),getSignedApkPath(),dexFilesInfo.primaryDexPath,nativeLibraryAsAssetDirectories,nativeLibraryDirectories,zipFiles.build(),packageableCollection.pathsToThirdPartyJars,keystore.getPathToStore(),keystore.getPathToPropertiesFile(),false);
   steps.add(apkBuilderCommand);
   Path apkToAlign;
   if (this.isCompressResources()) {

@@ -11,14 +11,15 @@
   ImmutableSet<BuildTarget> buildRulesToExcludeFromDex=ImmutableSet.of(javaDep2BuildTarget);
   BuildTarget apkTarget=new BuildTarget("//java/com/example","apk");
   BuildRuleParams originalParams=new BuildRuleParams(apkTarget,originalDeps,ImmutableSet.<BuildTargetPattern>of(),new FakeProjectFilesystem(),ruleKeyBuilderFactory);
-  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,ruleResolver,ResourcesFilter.ResourceCompressionMode.DISABLED,FilterResourcesStep.ResourceFilter.EMPTY_FILTER,createStrictMock(AndroidResourceDepsFinder.class),createStrictMock(PathSourcePath.class),AndroidBinary.PackageType.DEBUG,ImmutableSet.<AndroidBinary.TargetCpuType>of(),false,true,BuildTargets.getBinPath(apkTarget,"%s/classes.dex"),DexSplitMode.NO_SPLIT,buildRulesToExcludeFromDex,JavacOptions.DEFAULTS,false,createStrictMock(Keystore.class));
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,ruleResolver,ResourcesFilter.ResourceCompressionMode.DISABLED,FilterResourcesStep.ResourceFilter.EMPTY_FILTER,createStrictMock(PathSourcePath.class),AndroidBinary.PackageType.DEBUG,ImmutableSet.<AndroidBinary.TargetCpuType>of(),false,true,BuildTargets.getBinPath(apkTarget,"%s/classes.dex"),DexSplitMode.NO_SPLIT,buildRulesToExcludeFromDex,ImmutableSet.<BuildTarget>of(),JavacOptions.DEFAULTS,false,createStrictMock(Keystore.class));
   UberRDotJava uberRDotJava=createMock(UberRDotJava.class);
   BuildTarget uberRDotJavaTarget=new BuildTarget("//java/com/example","apk","uber_r_dot_java");
   expect(uberRDotJava.getBuildTarget()).andStubReturn(uberRDotJavaTarget);
   replay(uberRDotJava);
   BuildRule uberRDotJavaRule=new DescribedRule(BuildRuleType.UBER_R_DOT_JAVA,uberRDotJava,new BuildRuleParams(uberRDotJavaTarget,ImmutableSortedSet.<BuildRule>of(),ImmutableSet.of(BuildTargetPattern.MATCH_ALL),new FakeProjectFilesystem(),ruleKeyBuilderFactory));
   ruleResolver.addToIndex(uberRDotJavaTarget,uberRDotJavaRule);
-  BuildRule preDexMergeRule=graphEnhancer.createPreDexMergeRule(uberRDotJava);
+  AndroidPackageableCollection collection=new AndroidPackageableCollector(ImmutableSet.of(javaDep2BuildTarget),ImmutableSet.<BuildTarget>of()).addClasspathEntry(((HasJavaClassHashes)javaDep1.getBuildable()),Paths.get("ignored")).addClasspathEntry(((HasJavaClassHashes)javaDep2.getBuildable()),Paths.get("ignored")).addClasspathEntry(((HasJavaClassHashes)javaLib.getBuildable()),Paths.get("ignored")).build();
+  BuildRule preDexMergeRule=graphEnhancer.createPreDexMergeRule(uberRDotJava,collection);
   BuildTarget dexMergeTarget=new BuildTarget("//java/com/example","apk","dex_merge");
   BuildRule dexMergeRule=ruleResolver.get(dexMergeTarget);
   assertEquals(dexMergeRule.getBuildable(),preDexMergeRule.getBuildable());

@@ -1,0 +1,31 @@
+{
+  ImmutableSet.Builder<DexProducedFromJavaLibrary> preDexDeps=ImmutableSet.builder();
+  for (  BuildTarget buildTarget : packageableCollection.javaLibrariesToDex) {
+    Preconditions.checkState(!buildTargetsToExcludeFromDex.contains(buildTarget),"JavaLibrary should have been excluded from target to dex: %s",buildTarget);
+    BuildRule libraryRule=ruleResolver.get(buildTarget);
+    Preconditions.checkNotNull(libraryRule);
+    if (libraryRule.getBuildable() == uberRDotJava) {
+      continue;
+    }
+    Preconditions.checkState(libraryRule.getBuildable() instanceof JavaLibrary);
+    JavaLibrary javaLibrary=(JavaLibrary)libraryRule.getBuildable();
+    if (javaLibrary.getPathToOutputFile() == null) {
+      continue;
+    }
+    BuildTarget originalTarget=javaLibrary.getBuildTarget();
+    BuildTarget preDexTarget=new BuildTarget(originalTarget.getBaseName(),originalTarget.getShortName(),DEX_FLAVOR);
+    BuildRule preDexRule=ruleResolver.get(preDexTarget);
+    if (preDexRule != null) {
+      preDexDeps.add((DexProducedFromJavaLibrary)preDexRule.getBuildable());
+      continue;
+    }
+    DexProducedFromJavaLibrary preDex=new DexProducedFromJavaLibrary(preDexTarget,javaLibrary);
+    buildRuleAndAddToIndex(preDex,BuildRuleType.PRE_DEX,preDexTarget,ImmutableSortedSet.of(ruleResolver.get(javaLibrary.getBuildTarget())));
+    preDexDeps.add(preDex);
+  }
+  ImmutableSet<DexProducedFromJavaLibrary> allPreDexDeps=preDexDeps.build();
+  BuildTarget buildTargetForDexMerge=createBuildTargetWithFlavor(DEX_MERGE_FLAVOR);
+  PreDexMerge preDexMerge=new PreDexMerge(buildTargetForDexMerge,primaryDexPath,dexSplitMode,allPreDexDeps,uberRDotJava);
+  BuildRule preDexMergeBuildRule=buildRuleAndAddToIndex(preDexMerge,BuildRuleType.DEX_MERGE,buildTargetForDexMerge,getDexMergeDeps(uberRDotJava,allPreDexDeps));
+  return preDexMergeBuildRule;
+}

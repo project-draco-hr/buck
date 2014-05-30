@@ -3,8 +3,6 @@
     @Override public int execute(    ExecutionContext context){
       try {
         ProjectFilesystem filesystem=context.getProjectFilesystem();
-        AndroidTransitiveDependencies transitiveDependencies=androidResourceDepsFinder.getAndroidTransitiveDependencies();
-        AndroidDexTransitiveDependencies dexTransitiveDependencies=androidResourceDepsFinder.getAndroidDexTransitiveDependencies(uberRDotJava);
         final Hasher hasher=Hashing.sha1().newHasher();
         hasher.putUnencodedChars(aaptPackageResources.getResourcePackageHash().toString());
         hasher.putUnencodedChars(preDexMerge.get().getPrimaryDexHash().toString());
@@ -12,17 +10,17 @@
           hasher.putUnencodedChars(packageStringAssets.get().getStringAssetsZipHash().toString());
         }
         ImmutableSortedMap.Builder<Path,String> filesToHash=ImmutableSortedMap.naturalOrder();
-        for (        final Path libDir : transitiveDependencies.nativeLibsDirectories) {
+        for (        final Path libDir : packageableCollection.nativeLibsDirectories) {
           for (          Path nativeFile : filesystem.getFilesUnderPath(libDir)) {
             filesToHash.put(nativeFile,"native_lib");
           }
         }
-        for (        final Path libDir : transitiveDependencies.nativeLibAssetsDirectories) {
+        for (        final Path libDir : packageableCollection.nativeLibAssetsDirectories) {
           for (          Path nativeFile : filesystem.getFilesUnderPath(libDir)) {
             filesToHash.put(nativeFile,"native_lib_as_asset");
           }
         }
-        for (        Path jar : dexTransitiveDependencies.pathsToThirdPartyJars) {
+        for (        Path jar : packageableCollection.pathsToThirdPartyJars) {
           filesToHash.put(jar,"third-party jar");
         }
         filesToHash.put(keystore.getPathToStore(),"keystore");

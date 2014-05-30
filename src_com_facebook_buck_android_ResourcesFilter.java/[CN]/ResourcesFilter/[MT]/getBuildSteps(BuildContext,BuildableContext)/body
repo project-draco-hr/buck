@@ -1,22 +1,21 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
-  AndroidResourceDetails androidResourceDetails=androidResourceDepsFinder.getAndroidResourceDetails();
-  final ImmutableList.Builder<Path> filteredResDirectories=ImmutableList.builder();
-  final FilterResourcesStep filterResourcesStep=createFilterResourcesStep(androidResourceDetails.resDirectories,androidResourceDetails.whitelistedStringDirs,filteredResDirectories);
+  final ImmutableList.Builder<Path> filteredResDirectoriesBuilder=ImmutableList.builder();
+  final FilterResourcesStep filterResourcesStep=createFilterResourcesStep(resDirectories,whitelistedStringDirs,filteredResDirectoriesBuilder);
   steps.add(filterResourcesStep);
-  final ImmutableList<Path> resDirectories=filteredResDirectories.build();
+  final ImmutableList<Path> filteredResDirectories=filteredResDirectoriesBuilder.build();
   final Supplier<ImmutableSet<Path>> nonEnglishStringFiles=Suppliers.memoize(new Supplier<ImmutableSet<Path>>(){
     @Override public ImmutableSet<Path> get(){
       return filterResourcesStep.getNonEnglishStringFiles();
     }
   }
 );
-  for (  Path outputResourceDir : resDirectories) {
+  for (  Path outputResourceDir : filteredResDirectories) {
     buildableContext.recordArtifactsInDirectory(outputResourceDir);
   }
   steps.add(new AbstractExecutionStep("record_build_output"){
     @Override public int execute(    ExecutionContext context){
-      buildableContext.addMetadata(RES_DIRECTORIES_KEY,Iterables.transform(resDirectories,Functions.toStringFunction()));
+      buildableContext.addMetadata(RES_DIRECTORIES_KEY,Iterables.transform(filteredResDirectories,Functions.toStringFunction()));
       buildableContext.addMetadata(NON_ENGLISH_STRING_FILES_KEY,Iterables.transform(nonEnglishStringFiles.get(),Functions.toStringFunction()));
       return 0;
     }
