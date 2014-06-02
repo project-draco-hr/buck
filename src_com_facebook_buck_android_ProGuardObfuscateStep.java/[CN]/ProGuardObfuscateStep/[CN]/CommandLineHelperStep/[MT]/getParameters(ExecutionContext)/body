@@ -3,27 +3,33 @@
   AndroidPlatformTarget androidPlatformTarget=context.getAndroidPlatformTarget();
   Joiner pathJoiner=Joiner.on(':');
   args.add("-basedirectory").add(context.getProjectDirectoryRoot().getAbsolutePath());
-  if (useAndroidProguardConfigWithOptimizations) {
+switch (sdkProguardConfig) {
+case OPTIMIZED:
     args.add("-include").add(androidPlatformTarget.getOptimizedProguardConfig().toString());
-    if (optimizationPasses.isPresent()) {
-      args.add("-optimizationpasses").add(optimizationPasses.get().toString());
-    }
+  if (optimizationPasses.isPresent()) {
+    args.add("-optimizationpasses").add(optimizationPasses.get().toString());
   }
- else {
-    args.add("-include").add(androidPlatformTarget.getProguardConfig().toString());
-  }
-  for (  Path proguardConfig : customProguardConfigs) {
-    args.add("-include").add(proguardConfig.toString());
-  }
-  args.add("-include").add(generatedProGuardConfig.toString());
-  for (  Map.Entry<Path,Path> inputOutputEntry : inputAndOutputEntries.entrySet()) {
-    args.add("-injars").add(inputOutputEntry.getKey().toString());
-    args.add("-outjars").add(inputOutputEntry.getValue().toString());
-  }
-  Iterable<Path> bootclasspathPaths=androidPlatformTarget.getBootclasspathEntries();
-  Iterable<Path> libraryJars=Iterables.concat(bootclasspathPaths,additionalLibraryJarsForProguard);
-  args.add("-libraryjars").add(pathJoiner.join(libraryJars));
-  args.add("-printmapping").add(getMappingTxt().toString());
-  args.add("-printconfiguration").add(getConfigurationTxt().toString());
-  return args.build();
+break;
+case DEFAULT:
+args.add("-include").add(androidPlatformTarget.getProguardConfig().toString());
+break;
+case NONE:
+break;
+default :
+throw new RuntimeException("Illegal value for sdkProguardConfig: " + sdkProguardConfig);
+}
+for (Path proguardConfig : customProguardConfigs) {
+args.add("-include").add(proguardConfig.toString());
+}
+args.add("-include").add(generatedProGuardConfig.toString());
+for (Map.Entry<Path,Path> inputOutputEntry : inputAndOutputEntries.entrySet()) {
+args.add("-injars").add(inputOutputEntry.getKey().toString());
+args.add("-outjars").add(inputOutputEntry.getValue().toString());
+}
+Iterable<Path> bootclasspathPaths=androidPlatformTarget.getBootclasspathEntries();
+Iterable<Path> libraryJars=Iterables.concat(bootclasspathPaths,additionalLibraryJarsForProguard);
+args.add("-libraryjars").add(pathJoiner.join(libraryJars));
+args.add("-printmapping").add(getMappingTxt().toString());
+args.add("-printconfiguration").add(getConfigurationTxt().toString());
+return args.build();
 }
