@@ -1,0 +1,17 @@
+{
+  File originalJar=folder.newFile("unexpected.jar");
+  JarOutputStream ignored=new JarOutputStream(Files.newOutputStream(originalJar.toPath()),fromJar);
+  ignored.close();
+  File manifestFile=folder.newFile("actual_manfiest.mf");
+  try (OutputStream os=Files.newOutputStream(manifestFile.toPath())){
+    fromUser.write(os);
+  }
+   File tmp=folder.newFolder();
+  File output=new File(tmp,"example.jar");
+  JarDirectoryStep step=new JarDirectoryStep(output.toPath(),ImmutableSortedSet.of(originalJar.toPath()),null,manifestFile.toPath(),mergeEntries);
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(new ProjectFilesystem(tmp)).build();
+  step.execute(context);
+  try (JarInputStream jis=new JarInputStream(Files.newInputStream(output.toPath()))){
+    return jis.getManifest();
+  }
+ }
