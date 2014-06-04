@@ -4,9 +4,10 @@
   ProjectFilesystem projectFilesystem=new ProjectFilesystem(temporaryFolder.getRoot());
   BuckConfig config=BuckConfig.createFromFiles(projectFilesystem,ImmutableList.of(projectFilesystem.getFileForRelativePath(".buckconfig")),Platform.detect(),ImmutableMap.copyOf(System.getenv()));
   ImmutableSet<Description<?>> allDescriptions=DefaultKnownBuildRuleTypes.getDefaultKnownBuildRuleTypes(projectFilesystem).getAllDescriptions();
+  SrcRootsFinder srcRootsFinder=new SrcRootsFinder(projectFilesystem);
   ProjectBuildFileParserFactory projectBuildFileParserFactory=new DefaultProjectBuildFileParserFactory(projectFilesystem,config.getPythonInterpreter(),allDescriptions);
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
-  JavaSymbolFinder finder=new JavaSymbolFinder(projectFilesystem,projectBuildFileParserFactory,config,buckEventBus,new TestConsole(),ImmutableMap.copyOf(System.getenv()));
-  SetMultimap<String,String> foundTargets=finder.findTargetsForSymbols(ImmutableSet.of("com.example.a.A"));
-  assertEquals("JavaSymbolFinder failed to find the right target.",ImmutableSetMultimap.of("com.example.a.A","//java/com/example/a:a"),foundTargets);
+  JavaSymbolFinder finder=new JavaSymbolFinder(projectFilesystem,srcRootsFinder,projectBuildFileParserFactory,config,buckEventBus,new TestConsole(),ImmutableMap.copyOf(System.getenv()));
+  SetMultimap<String,BuildTarget> foundTargets=finder.findTargetsForSymbols(ImmutableSet.of("com.example.a.A"));
+  assertEquals("JavaSymbolFinder failed to find the right target.",ImmutableSetMultimap.of("com.example.a.A",new BuildTarget("//java/com/example/a","a")),foundTargets);
 }

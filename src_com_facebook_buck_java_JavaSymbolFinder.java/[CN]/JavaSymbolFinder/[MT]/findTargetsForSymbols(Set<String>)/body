@@ -1,0 +1,23 @@
+{
+  Collection<Path> srcRoots;
+  try {
+    srcRoots=srcRootsFinder.getAllSrcRootPaths(config.getSrcRoots());
+  }
+ catch (  IOException e) {
+    buckEventBus.post(ThrowableLogEvent.create(e,"Error while searching for source roots."));
+    return ImmutableSetMultimap.of();
+  }
+  Multimap<String,Path> symbolsToSourceFiles=HashMultimap.create();
+  for (  String symbol : symbols) {
+    symbolsToSourceFiles.putAll(symbol,getDefiningPaths(symbol,srcRoots));
+  }
+  Set<Path> allSourceFilePaths=ImmutableSet.copyOf(symbolsToSourceFiles.values());
+  Multimap<Path,BuildTarget> sourceFilesToTargets=getTargetsForSourceFiles(allSourceFilePaths);
+  ImmutableSetMultimap.Builder<String,BuildTarget> symbolsToTargets=ImmutableSetMultimap.builder();
+  for (  String symbol : symbolsToSourceFiles.keySet()) {
+    for (    Path sourceFile : symbolsToSourceFiles.get(symbol)) {
+      symbolsToTargets.putAll(symbol,sourceFilesToTargets.get(sourceFile));
+    }
+  }
+  return symbolsToTargets.build();
+}

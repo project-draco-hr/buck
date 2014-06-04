@@ -1,0 +1,18 @@
+{
+  ImmutableSetMultimap.Builder<BuildTarget,String> targetsMissingSymbolsBuilder=ImmutableSetMultimap.builder();
+  for (  MissingSymbolEvent event : missingSymbolEvents) {
+    if (event.getType() != MissingSymbolEvent.SymbolType.Java) {
+      throw new UnsupportedOperationException("Only implemented for Java.");
+    }
+    targetsMissingSymbolsBuilder.put(event.getTarget(),event.getSymbol());
+  }
+  ImmutableSetMultimap<BuildTarget,String> targetsMissingSymbols=targetsMissingSymbolsBuilder.build();
+  ImmutableSetMultimap<String,BuildTarget> symbolProviders=javaSymbolFinder.findTargetsForSymbols(ImmutableSet.copyOf(targetsMissingSymbols.values()));
+  ImmutableSetMultimap.Builder<BuildTarget,BuildTarget> neededDeps=ImmutableSetMultimap.builder();
+  for (  BuildTarget target : targetsMissingSymbols.keySet()) {
+    for (    String symbol : targetsMissingSymbols.get(target)) {
+      neededDeps.putAll(target,ImmutableSortedSet.copyOf(symbolProviders.get(symbol)));
+    }
+  }
+  return neededDeps.build();
+}

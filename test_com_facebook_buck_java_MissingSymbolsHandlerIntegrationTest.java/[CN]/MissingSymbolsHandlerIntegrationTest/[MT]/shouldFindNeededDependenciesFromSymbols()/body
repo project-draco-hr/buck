@@ -1,0 +1,13 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"symbol_finder",temporaryFolder);
+  workspace.setUp();
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(temporaryFolder.getRoot());
+  ImmutableMap<String,String> environment=ImmutableMap.copyOf(System.getenv());
+  BuckConfig config=BuckConfig.createFromFiles(projectFilesystem,ImmutableList.of(projectFilesystem.getFileForRelativePath(".buckconfig")),Platform.detect(),environment);
+  ImmutableSet<Description<?>> allDescriptions=DefaultKnownBuildRuleTypes.getDefaultKnownBuildRuleTypes(projectFilesystem).getAllDescriptions();
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
+  MissingSymbolsHandler missingSymbolsHandler=MissingSymbolsHandler.create(projectFilesystem,allDescriptions,config,buckEventBus,new TestConsole(),environment);
+  MissingSymbolEvent missingSymbolEvent=MissingSymbolEvent.create(new BuildTarget("//java/com/example/b","b"),"com.example.a.A",MissingSymbolEvent.SymbolType.Java);
+  ImmutableSetMultimap<BuildTarget,BuildTarget> neededDeps=missingSymbolsHandler.getNeededDependencies(ImmutableList.of(missingSymbolEvent));
+  assertEquals("MissingSymbolsHandler failed to find the needed dependency.",neededDeps,ImmutableSetMultimap.of(new BuildTarget("//java/com/example/b","b"),new BuildTarget("//java/com/example/a","a")));
+}
