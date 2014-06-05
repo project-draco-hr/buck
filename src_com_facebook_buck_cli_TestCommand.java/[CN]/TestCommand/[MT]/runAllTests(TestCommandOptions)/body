@@ -1,5 +1,12 @@
 {
   Logging.setLoggingLevelForVerbosity(console.getVerbosity());
+  ImmutableList<BuildTarget> emptyTargetsList=ImmutableList.of();
+  if (getParser().getParseStartTime().isPresent()) {
+    getBuckEventBus().post(BuildEvent.started(emptyTargetsList),getParser().getParseStartTime().get());
+  }
+ else {
+    getBuckEventBus().post(BuildEvent.started(emptyTargetsList));
+  }
   RawRulePredicate predicate=RawRulePredicates.isTestRule();
   PartialGraph partialGraph=PartialGraph.createPartialGraph(predicate,getProjectFilesystem(),options.getDefaultIncludes(),getParser(),getBuckEventBus());
   final ActionGraph graph=partialGraph.getActionGraph();
@@ -20,6 +27,7 @@
   ArtifactCache artifactCache=getArtifactCache();
   try (Build build=options.createBuild(options.getBuckConfig(),graph,getProjectFilesystem(),getAndroidDirectoryResolver(),getBuildEngine(),artifactCache,console,getBuckEventBus(),options.getTargetDeviceOptional(),getCommandRunnerParams().getPlatform(),getCommandRunnerParams().getEnvironment())){
     int exitCode=BuildCommand.executeBuildAndPrintAnyFailuresToConsole(testRules,build,console);
+    getBuckEventBus().post(BuildEvent.finished(emptyTargetsList,exitCode));
     if (exitCode != 0) {
       return exitCode;
     }
