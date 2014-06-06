@@ -1,0 +1,17 @@
+{
+  try (ZipArchiveOutputStream zip=new ZipArchiveOutputStream(zipFile)){
+    ZipArchiveEntry entry=new ZipArchiveEntry("test.exe");
+    entry.setUnixMode((int)MorePosixFilePermissions.toMode(PosixFilePermissions.fromString("r-x------")));
+    entry.setSize(DUMMY_FILE_CONTENTS.length);
+    entry.setMethod(ZipEntry.STORED);
+    zip.putArchiveEntry(entry);
+    zip.write(DUMMY_FILE_CONTENTS);
+    zip.closeArchiveEntry();
+  }
+   File extractFolder=tmpFolder.newFolder();
+  ImmutableList<Path> result=Unzip.extractZipFile(zipFile.getAbsolutePath(),extractFolder.getAbsolutePath(),false);
+  File exe=new File(extractFolder.getAbsoluteFile() + "/test.exe");
+  assertTrue(exe.exists());
+  assertTrue(exe.canExecute());
+  assertEquals(ImmutableList.of(extractFolder.toPath().resolve("test.exe")),result);
+}

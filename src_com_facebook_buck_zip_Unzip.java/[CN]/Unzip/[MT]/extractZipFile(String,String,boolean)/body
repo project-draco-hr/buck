@@ -2,8 +2,10 @@
   File folder=new File(destination);
   Files.createDirectories(folder.toPath());
   ImmutableList.Builder<Path> filesWritten=ImmutableList.builder();
-  try (ZipInputStream zip=new ZipInputStream(new FileInputStream(zipFile))){
-    for (ZipEntry entry=zip.getNextEntry(); entry != null; entry=zip.getNextEntry()) {
+  try (ZipFile zip=new ZipFile(new File(zipFile))){
+    Enumeration<ZipArchiveEntry> entries=zip.getEntries();
+    while (entries.hasMoreElements()) {
+      ZipArchiveEntry entry=entries.nextElement();
       String fileName=entry.getName();
       File target=new File(folder,fileName);
       if (target.exists() && !overwriteExistingFiles) {
@@ -16,9 +18,13 @@
         Files.createDirectories(target.toPath().getParent());
         filesWritten.add(target.toPath());
         try (FileOutputStream out=new FileOutputStream(target)){
-          ByteStreams.copy(zip,out);
+          ByteStreams.copy(zip.getInputStream(entry),out);
         }
-       }
+         Set<PosixFilePermission> permissions=MorePosixFilePermissions.fromMode(entry.getExternalAttributes() >> 16);
+        if (permissions.contains(PosixFilePermission.OWNER_EXECUTE)) {
+          target.setExecutable(true,true);
+        }
+      }
     }
   }
    return filesWritten.build();

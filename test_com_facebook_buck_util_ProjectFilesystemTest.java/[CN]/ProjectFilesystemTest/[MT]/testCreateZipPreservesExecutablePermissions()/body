@@ -1,0 +1,14 @@
+{
+  File exe=tmp.newFile("test.exe");
+  exe.setExecutable(true);
+  File zipFile=new File(tmp.getRoot().toPath().toString() + "/test.zip");
+  filesystem.createZip(ImmutableList.of(exe.toPath()),zipFile);
+  try (ZipFile zip=new ZipFile(zipFile)){
+    Enumeration<ZipArchiveEntry> entries=zip.getEntries();
+    assertTrue(entries.hasMoreElements());
+    ZipArchiveEntry entry=entries.nextElement();
+    Set<PosixFilePermission> permissions=MorePosixFilePermissions.fromMode(entry.getExternalAttributes() >> 16);
+    assertTrue(permissions.contains(PosixFilePermission.OWNER_EXECUTE));
+    assertFalse(entries.hasMoreElements());
+  }
+ }
