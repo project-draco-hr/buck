@@ -10,6 +10,17 @@
   PBXFileReference productReference=new PBXFileReference(libraryName,libraryName,PBXReference.SourceTree.BUILT_PRODUCTS_DIR);
   productsGroup.getChildren().add(productReference);
   target.setProductReference(productReference);
+  if (options.contains(Option.GENERATE_HEADER_MAPS_FOR_LIBRARY_TARGETS)) {
+    HeaderMap.Builder builder=HeaderMap.builder();
+    addGroupedSourcesToHeaderMap(builder,Paths.get(getProductName(rule.getBuildTarget())),buildable.getSrcs(),buildable.getPerFileFlags());
+    builder.add("","","\n// @gen" + "erated SignedSource<<00000000000000000000000000000000>>\n");
+    HeaderMap headerMap=builder.build();
+    String headerMapName=getProductName(rule.getBuildTarget()) + "-public-headers.hmap";
+    Path headerMapFile=projectPath.resolve(headerMapName);
+    headerMaps.add(headerMapFile);
+    projectFilesystem.mkdirs(projectPath);
+    projectFilesystem.writeBytesToPath(headerMap.getBytes(),headerMapFile);
+  }
   project.getTargets().add(target);
   return target;
 }
