@@ -3,6 +3,12 @@
   BuildTarget genruleBuildTarget=BuildTargetFactory.newInstance("//generated:stuff");
   BuildRule genrule=GenruleBuilder.createGenrule(genruleBuildTarget).setBash("echo 'aha' > $OUT").setOut("stuff.txt").build();
   ruleResolver.addToIndex(genruleBuildTarget,genrule);
-  DefaultJavaLibrary javaRule=(DefaultJavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//library:code")).addResource(new BuildRuleSourcePath(genrule)).addResource(new TestSourcePath("library/data.txt")).build(ruleResolver).getBuildable();
+  ProjectFilesystem filesystem=new AllExistingProjectFilesystem(){
+    @Override public boolean isDirectory(    Path path,    LinkOption... linkOptionsk){
+      return false;
+    }
+  }
+;
+  DefaultJavaLibrary javaRule=(DefaultJavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//library:code")).addResource(new BuildRuleSourcePath(genrule)).addResource(new TestSourcePath("library/data.txt")).build(ruleResolver,filesystem).getBuildable();
   assertEquals("Generated files should not be included in getInputsToCompareToOutput() because they " + "should not be part of the RuleKey computation.",ImmutableList.of(Paths.get("library/data.txt")),javaRule.getInputsToCompareToOutput());
 }
