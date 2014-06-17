@@ -24,7 +24,11 @@
   ImmutableSet<Path> declared=ImmutableSet.<Path>builder().addAll(declaredClasspathEntries.values()).addAll(provided).build();
   Supplier<Sha1HashCode> abiKeySupplier=createCommandsForJavac(outputDirectory,transitive,declared,javacOptions,context.getBuildDependencies(),suggestBuildRule,steps,getBuildTarget());
   addPostprocessClassesCommands(steps,postprocessClassesCommands,outputDirectory);
-  steps.add(new CopyResourcesStep(getBuildTarget(),resources,outputDirectory,context.getJavaPackageFinder()));
+  JavaPackageFinder finder=context.getJavaPackageFinder();
+  if (resourcesRoot.isPresent()) {
+    finder=new ResourcesRootPackageFinder(resourcesRoot.get(),finder);
+  }
+  steps.add(new CopyResourcesStep(getBuildTarget(),resources,outputDirectory,finder));
   if (outputJar.isPresent()) {
     steps.add(new MakeCleanDirectoryStep(getOutputJarDirPath(getBuildTarget())));
     steps.add(new JarDirectoryStep(outputJar.get(),Collections.singleton(outputDirectory),null,null));
