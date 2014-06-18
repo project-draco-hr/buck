@@ -1,0 +1,18 @@
+{
+  ExecutionContext context=createMock(ExecutionContext.class);
+  AndroidPlatformTarget target=createMock(AndroidPlatformTarget.class);
+  expect(context.getProjectDirectoryRoot()).andStubReturn(new File("root"));
+  expect(context.getAndroidPlatformTarget()).andStubReturn(target);
+  expect(target.getProguardConfig()).andStubReturn(Paths.get("sdk-default.pro"));
+  expect(target.getOptimizedProguardConfig()).andStubReturn(Paths.get("sdk-optimized.pro"));
+  expect(target.getBootclasspathEntries()).andStubReturn(ImmutableList.<Path>of());
+  replayAll();
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  ProGuardObfuscateStep.create(Optional.<Path>absent(),Paths.get("generated/proguard.txt"),ImmutableSet.<Path>of(),ProGuardObfuscateStep.SdkProguardType.DEFAULT,Optional.<Integer>absent(),ImmutableMap.<Path,Path>of(),ImmutableSet.<Path>of(Paths.get("myfavorite.jar"),Paths.get("another.jar")),Paths.get("proguard-directory"),new FakeBuildableContext(),steps);
+  ProGuardObfuscateStep.CommandLineHelperStep commandLineHelperStep=(ProGuardObfuscateStep.CommandLineHelperStep)steps.build().get(0);
+  ImmutableList<String> parameters=commandLineHelperStep.getParameters(context);
+  int libraryJarsArgIndex=parameters.indexOf("-libraryjars");
+  int libraryJarsValueIndex=parameters.indexOf("myfavorite.jar:another.jar");
+  assertNotEquals(-1,libraryJarsArgIndex);
+  assertEquals(libraryJarsValueIndex,libraryJarsArgIndex + 1);
+}
