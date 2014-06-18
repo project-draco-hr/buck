@@ -1,0 +1,27 @@
+{
+  Type type=TestFields.class.getField("setOfSourcePaths").getGenericType();
+  TypeCoercer<?> coercer=typeCoercerFactory.typeCoercerForType(type);
+  Path baratheon=Paths.get("Baratheon.java");
+  Path lannister=Paths.get("Lannister.java");
+  Path stark=Paths.get("Stark.java");
+  Path targaryen=Paths.get("Targaryen.java");
+  ImmutableList<Path> input=ImmutableList.of(baratheon,lannister,stark,targaryen);
+  for (  Path p : input) {
+    if (!p.equals(baratheon)) {
+      filesystem.touch(p);
+    }
+  }
+  try {
+    coercer.coerce(buildRuleResolver,filesystem,Paths.get(""),input);
+  }
+ catch (  CoerceFailedException e) {
+    String result=e.getMessage();
+    String expected="Cannot coerce argument 'Baratheon.java'";
+    for (    Path p : input) {
+      if (!p.equals(baratheon)) {
+        assertFalse(result.contains(p.toString()));
+      }
+    }
+    assertTrue(result.contains(expected));
+  }
+}
