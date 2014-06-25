@@ -39,19 +39,34 @@
       }
 );
       private boolean startOfBuildWasRecordedOnTheEventBus=false;
-      @Override public void onSuccess(      List<BuildRuleSuccess> deps){
+      @Override @SuppressWarnings("PMD.EmptyCatchBlock") public void onSuccess(      List<BuildRuleSuccess> deps){
         eventBus.post(BuildRuleEvent.started(rule));
         startOfBuildWasRecordedOnTheEventBus=true;
         ruleKeys.putIfAbsent(rule.getBuildTarget(),rule.getRuleKey());
-        BuildResult result=buildOnceDepsAreBuilt(rule,context,onDiskBuildInfo,buildInfoRecorder.get(),shouldTryToFetchFromCache(deps));
+        BuildResult result=null;
+        try {
+          result=buildOnceDepsAreBuilt(rule,context,onDiskBuildInfo,buildInfoRecorder.get(),shouldTryToFetchFromCache(deps));
+        }
+ catch (        InterruptedException e) {
+          e.printStackTrace();
+          Thread.currentThread().interrupt();
+          return;
+        }
         if (result.getStatus() == BuildRuleStatus.SUCCESS) {
-          recordBuildRuleSuccess(result);
+          try {
+            recordBuildRuleSuccess(result);
+          }
+ catch (          InterruptedException e) {
+            e.printStackTrace();
+            Thread.currentThread().interrupt();
+            return;
+          }
         }
  else {
           recordBuildRuleFailure(result);
         }
       }
-      private void recordBuildRuleSuccess(      BuildResult result){
+      private void recordBuildRuleSuccess(      BuildResult result) throws InterruptedException {
         BuildRuleSuccess.Type success=result.getSuccess();
         if (success.shouldWriteRecordedMetadataToDiskAfterBuilding()) {
           try {
