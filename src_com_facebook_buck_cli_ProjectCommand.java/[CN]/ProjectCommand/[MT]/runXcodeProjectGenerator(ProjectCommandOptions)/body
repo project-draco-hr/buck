@@ -15,12 +15,16 @@
     throw new HumanReadableException(e);
   }
   ExecutionContext executionContext=createExecutionContext(options,partialGraph.getActionGraph());
+  ImmutableSet.Builder<ProjectGenerator.Option> optionsBuilder=ImmutableSet.builder();
+  if (options.getReadOnly()) {
+    optionsBuilder.add(ProjectGenerator.Option.GENERATE_READ_ONLY_FILES);
+  }
   if (options.getCombinedProject() != null) {
-    ProjectGenerator projectGenerator=new ProjectGenerator(partialGraph,passedInTargetsSet,getProjectFilesystem(),executionContext,getProjectFilesystem().getPathForRelativePath(Paths.get("_gen")),"GeneratedProject",ProjectGenerator.COMBINED_PROJECT_OPTIONS);
+    ProjectGenerator projectGenerator=new ProjectGenerator(partialGraph,passedInTargetsSet,getProjectFilesystem(),executionContext,getProjectFilesystem().getPathForRelativePath(Paths.get("_gen")),"GeneratedProject",optionsBuilder.addAll(ProjectGenerator.COMBINED_PROJECT_OPTIONS).build());
     projectGenerator.createXcodeProjects();
   }
  else   if (options.getWorkspaceAndProjects()) {
-    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),partialGraph,executionContext,Iterables.getOnlyElement(passedInTargetsSet));
+    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),partialGraph,executionContext,Iterables.getOnlyElement(passedInTargetsSet),optionsBuilder.build());
     generator.generateWorkspaceAndDependentProjects();
   }
  else {
@@ -37,7 +41,7 @@
  else {
       targets=passedInTargetsSet;
     }
-    SeparatedProjectsGenerator projectGenerator=new SeparatedProjectsGenerator(getProjectFilesystem(),partialGraph,executionContext,targets);
+    SeparatedProjectsGenerator projectGenerator=new SeparatedProjectsGenerator(getProjectFilesystem(),partialGraph,executionContext,targets,optionsBuilder.build());
     ImmutableSet<Path> generatedProjectPaths=projectGenerator.generateProjects();
     for (    Path path : generatedProjectPaths) {
       console.getStdOut().println(path.toString());
