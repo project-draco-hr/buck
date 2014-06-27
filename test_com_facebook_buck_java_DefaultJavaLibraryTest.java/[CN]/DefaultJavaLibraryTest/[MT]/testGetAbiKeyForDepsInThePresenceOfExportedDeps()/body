@@ -4,9 +4,9 @@
   String commonWithExportAbiKeyHash=Strings.repeat("b",40);
   BuildRule commonWithExport=createDefaultJavaLibaryRuleWithAbiKey(commonWithExportAbiKeyHash,BuildTargetFactory.newInstance("//:common_with_export"),ImmutableSet.<String>of(),ImmutableSortedSet.<BuildRule>of(tinyLibrary),ImmutableSortedSet.<BuildRule>of(tinyLibrary));
   BuildRule commonNoExport=createDefaultJavaLibaryRuleWithAbiKey(null,BuildTargetFactory.newInstance("//:common_no_export"),ImmutableSet.<String>of(),ImmutableSortedSet.<BuildRule>of(tinyLibrary),ImmutableSortedSet.<BuildRule>of());
-  assertEquals("getAbiKeyForDeps() should be the same for both rules because they have the same deps.",((AbiRule)commonNoExport.getBuildable()).getAbiKeyForDeps(),((AbiRule)commonWithExport.getBuildable()).getAbiKeyForDeps());
+  assertEquals("getAbiKeyForDeps() should be the same for both rules because they have the same deps.",((AbiRule)commonNoExport).getAbiKeyForDeps(),((AbiRule)commonWithExport).getAbiKeyForDeps());
   String expectedAbiKeyForDepsHash=Hashing.sha1().newHasher().putUnencodedChars(tinyLibAbiKeyHash).hash().toString();
-  String observedAbiKeyForDepsHash=((AbiRule)commonNoExport.getBuildable()).getAbiKeyForDeps().getHash();
+  String observedAbiKeyForDepsHash=((AbiRule)commonNoExport).getAbiKeyForDeps().getHash();
   assertEquals(expectedAbiKeyForDepsHash,observedAbiKeyForDepsHash);
   Map<BuildTarget,BuildRule> buildRuleIndex=Maps.newHashMap();
   buildRuleIndex.put(tinyLibrary.getBuildTarget(),tinyLibrary);
@@ -15,9 +15,9 @@
   BuildRuleResolver ruleResolver=new BuildRuleResolver(buildRuleIndex);
   BuildRule consumerNoExport=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:consumer_no_export")).addDep(commonNoExport).build(ruleResolver);
   BuildRule consumerWithExport=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:consumer_with_export")).addDep(commonWithExport).build(ruleResolver);
-  assertEquals("The ABI of the deps of //:consumer_no_export should be the empty ABI.",new Sha1HashCode(AbiWriterProtocol.EMPTY_ABI_KEY),((AbiRule)consumerNoExport.getBuildable()).getAbiKeyForDeps());
-  assertThat("Although //:consumer_no_export and //:consumer_with_export have the same deps, " + "the ABIs of their deps will differ because of the use of exported_deps is non-empty",((AbiRule)consumerNoExport.getBuildable()).getAbiKeyForDeps(),not(equalTo(((AbiRule)consumerWithExport.getBuildable()).getAbiKeyForDeps())));
-  String expectedAbiKeyNoDepsHashForConsumerWithExport=Hashing.sha1().newHasher().putUnencodedChars(((HasJavaAbi)commonWithExport.getBuildable()).getAbiKey().getHash()).putUnencodedChars(tinyLibAbiKeyHash).hash().toString();
-  String observedAbiKeyNoDepsHashForConsumerWithExport=((AbiRule)consumerWithExport.getBuildable()).getAbiKeyForDeps().getHash();
+  assertEquals("The ABI of the deps of //:consumer_no_export should be the empty ABI.",new Sha1HashCode(AbiWriterProtocol.EMPTY_ABI_KEY),((AbiRule)consumerNoExport).getAbiKeyForDeps());
+  assertThat("Although //:consumer_no_export and //:consumer_with_export have the same deps, " + "the ABIs of their deps will differ because of the use of exported_deps is non-empty",((AbiRule)consumerNoExport).getAbiKeyForDeps(),not(equalTo(((AbiRule)consumerWithExport).getAbiKeyForDeps())));
+  String expectedAbiKeyNoDepsHashForConsumerWithExport=Hashing.sha1().newHasher().putUnencodedChars(((HasJavaAbi)commonWithExport).getAbiKey().getHash()).putUnencodedChars(tinyLibAbiKeyHash).hash().toString();
+  String observedAbiKeyNoDepsHashForConsumerWithExport=((AbiRule)consumerWithExport).getAbiKeyForDeps().getHash();
   assertEquals("By hardcoding the ABI keys for the deps, we made getAbiKeyForDeps() a predictable value.",expectedAbiKeyNoDepsHashForConsumerWithExport,observedAbiKeyNoDepsHashForConsumerWithExport);
 }

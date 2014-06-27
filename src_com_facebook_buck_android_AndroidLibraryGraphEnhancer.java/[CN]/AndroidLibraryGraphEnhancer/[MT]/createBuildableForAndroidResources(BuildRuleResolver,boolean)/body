@@ -2,16 +2,14 @@
   ImmutableSortedSet<BuildRule> originalDeps=originalBuildRuleParams.getDeps();
   ImmutableSet<HasAndroidResourceDeps> androidResourceDeps=UnsortedAndroidResourceDeps.createFrom(originalDeps,Optional.<Callback>absent()).getResourceDeps();
   if (androidResourceDeps.isEmpty() && !createBuildableIfEmptyDeps) {
-    return new Result(originalBuildRuleParams,Optional.<DummyRDotJava>absent());
+    return Optional.absent();
   }
   ImmutableSortedSet.Builder<BuildRule> actualDeps=ImmutableSortedSet.naturalOrder();
   for (  HasAndroidResourceDeps dep : androidResourceDeps) {
     actualDeps.add(ruleResolver.get(dep.getBuildTarget()));
   }
-  DummyRDotJava dummyRDotJava=new DummyRDotJava(androidResourceDeps,dummyRDotJavaBuildTarget,javacOptions);
-  BuildRule dummyRDotJavaBuildRule=Buildables.createRuleFromBuildable(dummyRDotJava,BuildRuleType.DUMMY_R_DOT_JAVA,dummyRDotJavaBuildTarget,actualDeps.build(),originalBuildRuleParams);
-  ruleResolver.addToIndex(dummyRDotJavaBuildTarget,dummyRDotJavaBuildRule);
-  ImmutableSortedSet<BuildRule> totalDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalDeps).add(dummyRDotJavaBuildRule).build();
-  BuildRuleParams newBuildRuleParams=originalBuildRuleParams.copyWithChangedDeps(totalDeps);
-  return new Result(newBuildRuleParams,Optional.of(dummyRDotJava));
+  BuildRuleParams dummyRDotJavaParams=originalBuildRuleParams.copyWithChanges(BuildRuleType.DUMMY_R_DOT_JAVA,dummyRDotJavaBuildTarget,actualDeps.build(),ImmutableSortedSet.<BuildRule>of());
+  DummyRDotJava dummyRDotJava=new DummyRDotJava(dummyRDotJavaParams,androidResourceDeps,javacOptions);
+  ruleResolver.addToIndex(dummyRDotJavaBuildTarget,dummyRDotJava);
+  return Optional.of(dummyRDotJava);
 }

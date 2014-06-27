@@ -8,26 +8,7 @@
   BuildTarget buildTarget=new BuildTarget("//src/com/facebook","sign_fb4a");
   ApkGenruleDescription description=new ApkGenruleDescription();
   ApkGenruleDescription.Arg arg=description.createUnpopulatedConstructorArg();
-  arg.apk=new FakeBuildRule(AndroidBinaryDescription.TYPE,apkTarget){
-    @Override public Buildable getBuildable(){
-class Dummy extends FakeBuildable implements InstallableApk {
-        public Dummy(){
-          super(apkTarget);
-        }
-        @Override public Path getManifestPath(){
-          return Paths.get("spoof");
-        }
-        @Override public Path getApkPath(){
-          return Paths.get("buck-out/gen/fb4a.apk");
-        }
-        @Override public Optional<ExopackageInfo> getExopackageInfo(){
-          return Optional.absent();
-        }
-      }
-      return new Dummy();
-    }
-  }
-;
+  arg.apk=new FakeInstallable(AndroidBinaryDescription.TYPE,apkTarget);
   arg.bash=Optional.of("");
   arg.cmd=Optional.of("python signer.py $APK key.properties > $OUT");
   arg.cmdExe=Optional.of("");
@@ -39,9 +20,8 @@ class Dummy extends FakeBuildable implements InstallableApk {
     }
   }
 ).build();
-  ApkGenrule apkGenrule=description.createBuildable(params,arg);
-  BuildRule rule=new DescribedRule(ApkGenruleDescription.TYPE,apkGenrule,params);
-  ruleResolver.addToIndex(buildTarget,rule);
+  ApkGenrule apkGenrule=description.createBuildRule(params,ruleResolver,arg);
+  ruleResolver.addToIndex(buildTarget,apkGenrule);
   String expectedApkOutput="/opt/local/fbandroid/" + GEN_DIR + "/src/com/facebook/sign_fb4a.apk";
   assertEquals(expectedApkOutput,apkGenrule.getAbsoluteOutputFilePath());
   BuildContext buildContext=BuildContext.builder().setActionGraph(EasyMock.createMock(ActionGraph.class)).setStepRunner(EasyMock.createNiceMock(StepRunner.class)).setProjectFilesystem(EasyMock.createNiceMock(ProjectFilesystem.class)).setArtifactCache(EasyMock.createMock(ArtifactCache.class)).setJavaPackageFinder(EasyMock.createNiceMock(JavaPackageFinder.class)).setEventBus(BuckEventBusFactory.newInstance()).build();

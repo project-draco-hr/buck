@@ -1,17 +1,15 @@
 {
   BuildTarget orphanPyLibraryTarget=new BuildTarget("//","orphan_python_library");
-  PythonLibrary orphanPyLibrary=new PythonLibrary(orphanPyLibraryTarget,ImmutableSortedSet.<SourcePath>of(new TestSourcePath("java/src/com/javalib/orphan/sadpanda.py")),ImmutableSortedSet.<SourcePath>of());
-  BuildRule orphanPyLibraryRule=createBuildRule(orphanPyLibrary,orphanPyLibraryTarget);
+  PythonLibrary orphanPyLibrary=new PythonLibrary(new FakeBuildRuleParamsBuilder(orphanPyLibraryTarget).build(),ImmutableSortedSet.<SourcePath>of(new TestSourcePath("java/src/com/javalib/orphan/sadpanda.py")),ImmutableSortedSet.<SourcePath>of());
   BuildTarget pyLibraryTarget=BuildTargetFactory.newInstance("//:py_library");
-  PythonLibrary pyLibrary=new PythonLibrary(pyLibraryTarget,ImmutableSortedSet.<SourcePath>of(new TestSourcePath("python/tastypy.py")),ImmutableSortedSet.<SourcePath>of());
+  PythonLibrary pyLibrary=new PythonLibrary(new FakeBuildRuleParamsBuilder(pyLibraryTarget).build(),ImmutableSortedSet.<SourcePath>of(new TestSourcePath("python/tastypy.py")),ImmutableSortedSet.<SourcePath>of());
   Map<BuildTarget,BuildRule> rules=Maps.newHashMap();
-  rules.put(orphanPyLibraryTarget,createBuildRule(orphanPyLibrary,orphanPyLibraryTarget));
-  BuildRule pyLibraryRule=createBuildRule(pyLibrary,pyLibraryTarget);
-  rules.put(pyLibraryTarget,pyLibraryRule);
+  rules.put(orphanPyLibraryTarget,orphanPyLibrary);
+  rules.put(pyLibraryTarget,pyLibrary);
   BuildRuleResolver ruleResolver=new BuildRuleResolver(rules);
   BuildTarget javaLibraryTarget=BuildTargetFactory.newInstance("//:javalib");
-  BuildRule javaLibrary=JavaLibraryBuilder.createBuilder(javaLibraryTarget).addSrc(Paths.get("java/src/com/javalib/Bar.java")).addDep(orphanPyLibraryRule).build(ruleResolver);
+  BuildRule javaLibrary=JavaLibraryBuilder.createBuilder(javaLibraryTarget).addSrc(Paths.get("java/src/com/javalib/Bar.java")).addDep(orphanPyLibrary).build(ruleResolver);
   Path foo=Paths.get("foo");
-  PythonBinary buildable=new PythonBinary(new BuildTarget("//","python_binary"),ImmutableSortedSet.<BuildRule>of(javaLibrary,pyLibraryRule),foo);
+  PythonBinary buildable=new PythonBinary(new FakeBuildRuleParamsBuilder(new BuildTarget("//","python_binary")).setDeps(ImmutableSortedSet.of(javaLibrary,pyLibrary)).build(),foo);
   assertEquals(new PythonPackageComponents.Builder("test").addModule(foo,foo,"").addComponent(pyLibrary.getPythonPackageComponents(),"").build(),buildable.getAllComponents());
 }

@@ -5,9 +5,10 @@
   FakeBuckConfig buckConfig=new FakeBuckConfig(sections);
   JavaBuckConfig javaConfig=new JavaBuckConfig(buckConfig);
   KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createBuilder(buckConfig,new FakeAndroidDirectoryResolver(),new JavaCompilerEnvironment(javaConfig.getJavac(),Optional.<JavacVersion>absent(),TARGETED_JAVA_VERSION,TARGETED_JAVA_VERSION)).build();
-  BuildRuleFactory<?> factory=buildRuleTypes.getFactory(AndroidLibraryDescription.TYPE);
-  BuildRule rule=factory.newInstance(params).build(new BuildRuleResolver());
-  assertTrue("Rule is AndroidLibraryRule",rule.getBuildable() instanceof AndroidLibrary);
-  AndroidLibrary libraryRule=(AndroidLibrary)rule.getBuildable();
-  assertEquals(javac.toPath(),libraryRule.getJavac().get());
+  AndroidLibraryDescription description=(AndroidLibraryDescription)buildRuleTypes.getDescription(AndroidLibraryDescription.TYPE);
+  AndroidLibraryDescription.Arg arg=new AndroidLibraryDescription.Arg();
+  populateJavaArg(arg);
+  arg.manifest=Optional.absent();
+  AndroidLibrary rule=description.createBuildRule(buildRuleParams,new BuildRuleResolver(),arg);
+  assertEquals(javac.toPath(),rule.getJavac().get());
 }

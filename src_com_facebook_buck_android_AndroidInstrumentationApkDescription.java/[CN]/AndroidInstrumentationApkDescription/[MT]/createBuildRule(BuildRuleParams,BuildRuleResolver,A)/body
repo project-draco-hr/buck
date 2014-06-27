@@ -1,0 +1,13 @@
+{
+  if (!(args.apk instanceof InstallableApk)) {
+    throw new HumanReadableException("In %s, apk='%s' must be an android_binary() or apk_genrule() but was %s().",params.getBuildTarget(),args.apk.getFullyQualifiedName(),args.apk.getType().getName());
+  }
+  AndroidBinary apkUnderTest=getUnderlyingApk((InstallableApk)args.apk);
+  ImmutableSortedSet<JavaLibrary> rulesToExcludeFromDex=FluentIterable.from(ImmutableSet.<JavaLibrary>builder().addAll(apkUnderTest.getRulesToExcludeFromDex()).addAll(Classpaths.getClasspathEntries(apkUnderTest.getClasspathDeps()).keySet()).build()).toSortedSet(HasBuildTarget.BUILD_TARGET_COMPARATOR);
+  AndroidPackageableCollection.ResourceDetails resourceDetails=apkUnderTest.getAndroidPackageableCollection().resourceDetails;
+  ImmutableSet<BuildTarget> resourcesToExclude=ImmutableSet.copyOf(Iterables.concat(resourceDetails.resourcesWithNonEmptyResDir,resourceDetails.resourcesWithEmptyResButNonEmptyAssetsDir));
+  Path primaryDexPath=AndroidBinary.getPrimaryDexPath(params.getBuildTarget());
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(params.copyWithExtraDeps(ImmutableSortedSet.<BuildRule>of()),resolver,ResourceCompressionMode.DISABLED,FilterResourcesStep.ResourceFilter.EMPTY_FILTER,args.manifest,PackageType.INSTRUMENTED,apkUnderTest.getCpuFilters(),false,false,primaryDexPath,DexSplitMode.NO_SPLIT,FluentIterable.from(rulesToExcludeFromDex).transform(TO_TARGET).toSet(),resourcesToExclude,JavacOptions.DEFAULTS,false,apkUnderTest.getKeystore());
+  AndroidBinaryGraphEnhancer.EnhancementResult enhancementResult=graphEnhancer.createAdditionalBuildables();
+  return new AndroidInstrumentationApk(params.copyWithExtraDeps(enhancementResult.getFinalDeps()),args.manifest,apkUnderTest,rulesToExcludeFromDex,enhancementResult);
+}

@@ -4,11 +4,11 @@
     Preconditions.checkState(!buildTargetsToExcludeFromDex.contains(buildTarget),"JavaLibrary should have been excluded from target to dex: %s",buildTarget);
     BuildRule libraryRule=ruleResolver.get(buildTarget);
     Preconditions.checkNotNull(libraryRule);
-    if (libraryRule.getBuildable() == uberRDotJava) {
+    if (libraryRule.equals(uberRDotJava)) {
       continue;
     }
-    Preconditions.checkState(libraryRule.getBuildable() instanceof JavaLibrary);
-    JavaLibrary javaLibrary=(JavaLibrary)libraryRule.getBuildable();
+    Preconditions.checkState(libraryRule instanceof JavaLibrary);
+    JavaLibrary javaLibrary=(JavaLibrary)libraryRule;
     if (javaLibrary.getPathToOutputFile() == null) {
       continue;
     }
@@ -16,16 +16,18 @@
     BuildTarget preDexTarget=new BuildTarget(originalTarget.getBaseName(),originalTarget.getShortName(),DEX_FLAVOR);
     BuildRule preDexRule=ruleResolver.get(preDexTarget);
     if (preDexRule != null) {
-      preDexDeps.add((DexProducedFromJavaLibrary)preDexRule.getBuildable());
+      preDexDeps.add((DexProducedFromJavaLibrary)preDexRule);
       continue;
     }
-    DexProducedFromJavaLibrary preDex=new DexProducedFromJavaLibrary(preDexTarget,javaLibrary);
-    buildRuleAndAddToIndex(preDex,BuildRuleType.PRE_DEX,preDexTarget,ImmutableSortedSet.of(ruleResolver.get(javaLibrary.getBuildTarget())));
+    BuildRuleParams paramsForPreDex=buildRuleParams.copyWithChanges(BuildRuleType.PRE_DEX,preDexTarget,ImmutableSortedSet.of(ruleResolver.get(javaLibrary.getBuildTarget())),ImmutableSortedSet.<BuildRule>of());
+    DexProducedFromJavaLibrary preDex=new DexProducedFromJavaLibrary(paramsForPreDex,javaLibrary);
+    ruleResolver.addToIndex(preDexTarget,preDex);
     preDexDeps.add(preDex);
   }
   ImmutableSet<DexProducedFromJavaLibrary> allPreDexDeps=preDexDeps.build();
   BuildTarget buildTargetForDexMerge=createBuildTargetWithFlavor(DEX_MERGE_FLAVOR);
-  PreDexMerge preDexMerge=new PreDexMerge(buildTargetForDexMerge,primaryDexPath,dexSplitMode,allPreDexDeps,uberRDotJava);
-  BuildRule preDexMergeBuildRule=buildRuleAndAddToIndex(preDexMerge,BuildRuleType.DEX_MERGE,buildTargetForDexMerge,getDexMergeDeps(uberRDotJava,allPreDexDeps));
-  return preDexMergeBuildRule;
+  BuildRuleParams paramsForPreDexMerge=buildRuleParams.copyWithChanges(BuildRuleType.DEX_MERGE,buildTargetForDexMerge,getDexMergeDeps(uberRDotJava,allPreDexDeps),ImmutableSortedSet.<BuildRule>of());
+  PreDexMerge preDexMerge=new PreDexMerge(paramsForPreDexMerge,primaryDexPath,dexSplitMode,allPreDexDeps,uberRDotJava);
+  ruleResolver.addToIndex(buildTargetForDexMerge,preDexMerge);
+  return preDexMerge;
 }

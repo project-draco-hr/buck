@@ -1,0 +1,28 @@
+{
+  if (!(args.keystore instanceof Keystore)) {
+    throw new HumanReadableException("In %s, keystore='%s' must be a keystore() but was %s().",params.getBuildTarget(),args.keystore.getFullyQualifiedName(),args.keystore.getType().getName());
+  }
+  Keystore keystore=(Keystore)args.keystore;
+  ProGuardObfuscateStep.SdkProguardType androidSdkProguardConfig=args.androidSdkProguardConfig.or(ProGuardObfuscateStep.SdkProguardType.DEFAULT);
+  if (args.useAndroidProguardConfigWithOptimizations.isPresent()) {
+    Preconditions.checkArgument(!args.androidSdkProguardConfig.isPresent(),"The deprecated use_android_proguard_config_with_optimizations parameter" + " cannot be used with android_sdk_proguard_config.");
+    androidSdkProguardConfig=args.useAndroidProguardConfigWithOptimizations.or(false) ? ProGuardObfuscateStep.SdkProguardType.OPTIMIZED : ProGuardObfuscateStep.SdkProguardType.DEFAULT;
+  }
+  DexSplitMode dexSplitMode=createDexSplitMode(args);
+  boolean allowNonExistentRule=false;
+  ImmutableSortedSet<BuildRule> buildRulesToExcludeFromDex=BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,args.noDx.or(ImmutableSet.<BuildTarget>of()),allowNonExistentRule);
+  ImmutableSortedSet<JavaLibrary> rulesToExcludeFromDex=FluentIterable.from(buildRulesToExcludeFromDex).filter(JavaLibrary.class).transform(new Function<BuildRule,JavaLibrary>(){
+    @Override public JavaLibrary apply(    BuildRule input){
+      return (JavaLibrary)input;
+    }
+  }
+).toSortedSet(HasBuildTarget.BUILD_TARGET_COMPARATOR);
+  PackageType packageType=getPackageType(args);
+  boolean shouldPreDex=!args.disablePreDex.or(false) && PackageType.DEBUG.equals(packageType) && !args.preprocessJavaClassesBash.isPresent();
+  ResourceCompressionMode compressionMode=getCompressionMode(args);
+  ImmutableSet<TargetCpuType> cpuFilters=getCpuFilters(args);
+  ResourceFilter resourceFilter=new ResourceFilter(args.resourceFilter.or(ImmutableList.<String>of()));
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(params,resolver,compressionMode,resourceFilter,args.manifest,packageType,cpuFilters,args.buildStringSourceMap.or(false),shouldPreDex,AndroidBinary.getPrimaryDexPath(params.getBuildTarget()),dexSplitMode,ImmutableSet.copyOf(args.noDx.or(ImmutableSet.<BuildTarget>of())),ImmutableSet.<BuildTarget>of(),javacOptions,args.exopackage.or(false),keystore);
+  AndroidBinaryGraphEnhancer.EnhancementResult result=graphEnhancer.createAdditionalBuildables();
+  return new AndroidBinary(params.copyWithExtraDeps(result.getFinalDeps()),proguardJarOverride,args.manifest,args.target,keystore,packageType,dexSplitMode,args.noDx.or(ImmutableSet.<BuildTarget>of()),androidSdkProguardConfig,args.optimizationPasses,args.proguardConfig,compressionMode,cpuFilters,resourceFilter,args.exopackage.or(false),args.preprocessJavaClassesDeps.or(ImmutableSet.<BuildRule>of()),args.preprocessJavaClassesBash,rulesToExcludeFromDex,result);
+}

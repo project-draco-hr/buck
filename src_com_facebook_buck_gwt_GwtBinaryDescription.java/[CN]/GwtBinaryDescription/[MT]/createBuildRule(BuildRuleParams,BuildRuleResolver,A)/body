@@ -1,0 +1,21 @@
+{
+  final ImmutableSortedSet.Builder<BuildRule> extraDeps=ImmutableSortedSet.naturalOrder();
+  final ImmutableSortedSet.Builder<Path> gwtModuleJarsBuilder=ImmutableSortedSet.naturalOrder();
+  new AbstractDependencyVisitor(args.moduleDeps.get()){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      if (!(rule instanceof JavaLibrary)) {
+        return ImmutableSet.of();
+      }
+      JavaLibrary javaLibrary=(JavaLibrary)rule;
+      BuildTarget gwtModuleTarget=BuildTargets.createFlavoredBuildTarget(javaLibrary,JavaLibrary.GWT_MODULE_FLAVOR);
+      BuildRule gwtModule=resolver.get(gwtModuleTarget);
+      if (gwtModule != null) {
+        extraDeps.add(gwtModule);
+        gwtModuleJarsBuilder.add(gwtModule.getPathToOutputFile());
+      }
+      return rule.getDeps();
+    }
+  }
+.start();
+  return new GwtBinary(params.copyWithExtraDeps(extraDeps.build()),args.modules.get(),args.vmArgs.get(),GwtBinary.Style.valueOf(args.style.or(DEFAULT_STYLE)),args.draftCompile.or(DEFAULT_DRAFT_COMPILE),args.optimize.or(DEFAULT_OPTIMIZE),args.localWorkers.or(DEFAULT_NUM_LOCAL_WORKERS),args.strict.or(DEFAULT_STRICT),args.experimentalArgs.get(),args.moduleDeps.get(),gwtModuleJarsBuilder.build());
+}

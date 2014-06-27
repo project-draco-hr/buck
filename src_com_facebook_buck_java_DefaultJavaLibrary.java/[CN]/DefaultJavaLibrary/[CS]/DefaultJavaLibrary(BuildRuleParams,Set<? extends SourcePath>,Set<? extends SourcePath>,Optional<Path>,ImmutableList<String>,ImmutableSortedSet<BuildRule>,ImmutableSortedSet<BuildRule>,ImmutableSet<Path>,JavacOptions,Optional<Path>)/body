@@ -1,0 +1,42 @@
+{
+  super(params);
+  for (  BuildRule dep : exportedDeps) {
+    if (!(dep instanceof JavaLibrary)) {
+      throw new HumanReadableException(params.getBuildTarget() + ": exported dep " + dep.getBuildTarget()+ " ("+ dep.getType()+ ") "+ "must be a type of java library.");
+    }
+  }
+  this.srcs=ImmutableSortedSet.copyOf(srcs);
+  this.resources=ImmutableSortedSet.copyOf(resources);
+  this.proguardConfig=Preconditions.checkNotNull(proguardConfig);
+  this.postprocessClassesCommands=Preconditions.checkNotNull(postprocessClassesCommands);
+  this.exportedDeps=exportedDeps;
+  this.providedDeps=providedDeps;
+  this.additionalClasspathEntries=Preconditions.checkNotNull(additionalClasspathEntries);
+  this.javacOptions=Preconditions.checkNotNull(javacOptions);
+  this.resourcesRoot=Preconditions.checkNotNull(resourcesRoot);
+  if (!srcs.isEmpty() || !resources.isEmpty()) {
+    this.outputJar=Optional.of(getOutputJarPath(getBuildTarget()));
+  }
+ else {
+    this.outputJar=Optional.absent();
+  }
+  this.outputClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibrary,Path>>(){
+    @Override public ImmutableSetMultimap<JavaLibrary,Path> get(){
+      return JavaLibraryClasspathProvider.getOutputClasspathEntries(DefaultJavaLibrary.this,outputJar);
+    }
+  }
+);
+  this.transitiveClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibrary,Path>>(){
+    @Override public ImmutableSetMultimap<JavaLibrary,Path> get(){
+      return JavaLibraryClasspathProvider.getTransitiveClasspathEntries(DefaultJavaLibrary.this,outputJar);
+    }
+  }
+);
+  this.declaredClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibrary,Path>>(){
+    @Override public ImmutableSetMultimap<JavaLibrary,Path> get(){
+      return JavaLibraryClasspathProvider.getDeclaredClasspathEntries(DefaultJavaLibrary.this);
+    }
+  }
+);
+  this.buildOutputInitializer=new BuildOutputInitializer<>(params.getBuildTarget(),this);
+}
