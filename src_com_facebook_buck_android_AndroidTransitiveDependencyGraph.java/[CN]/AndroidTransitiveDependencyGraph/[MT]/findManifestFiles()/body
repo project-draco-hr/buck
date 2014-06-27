@@ -1,0 +1,21 @@
+{
+  final ImmutableSet.Builder<Path> manifestFiles=ImmutableSet.builder();
+  new AbstractDependencyVisitor(rulesToTraverseForTransitiveDeps){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      if (rule instanceof AndroidResource) {
+        AndroidResource androidRule=(AndroidResource)rule;
+        Path manifestFile=androidRule.getManifestFile();
+        if (manifestFile != null) {
+          manifestFiles.add(manifestFile);
+        }
+      }
+ else       if (rule instanceof AndroidLibrary) {
+        AndroidLibrary androidLibraryRule=(AndroidLibrary)rule;
+        Optionals.addIfPresent(androidLibraryRule.getManifestFile(),manifestFiles);
+      }
+      return maybeVisitAllDeps(rule,rule.getProperties().is(LIBRARY));
+    }
+  }
+.start();
+  return manifestFiles.build();
+}
