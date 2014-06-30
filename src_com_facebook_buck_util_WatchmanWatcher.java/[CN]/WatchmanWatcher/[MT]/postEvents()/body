@@ -1,31 +1,32 @@
 {
   Process watchmanProcess=watchmanProcessSupplier.get();
-  watchmanProcess.getOutputStream().write(query.getBytes(Charsets.US_ASCII));
-  watchmanProcess.getOutputStream().close();
-  JsonParser jsonParser=jsonFactory.createJsonParser(watchmanProcess.getInputStream());
-  PathEventBuilder builder=new PathEventBuilder();
-  JsonToken token=jsonParser.nextToken();
-  int eventCount=0;
-  while (token != null) {
-    if (eventCount > overflow) {
-      watchmanProcess.destroy();
-      eventBus.post(createOverflowEvent());
-      return;
-    }
+  try {
+    watchmanProcess.getOutputStream().write(query.getBytes(Charsets.US_ASCII));
+    watchmanProcess.getOutputStream().close();
+    JsonParser jsonParser=jsonFactory.createJsonParser(watchmanProcess.getInputStream());
+    PathEventBuilder builder=new PathEventBuilder();
+    JsonToken token=jsonParser.nextToken();
+    int eventCount=0;
+    while (token != null) {
+      if (eventCount > overflow) {
+        eventBus.post(createOverflowEvent());
+        watchmanProcess.destroy();
+        return;
+      }
 switch (token) {
 case FIELD_NAME:
-      String fieldName=jsonParser.getCurrentName();
+        String fieldName=jsonParser.getCurrentName();
 switch (fieldName) {
 case "name":
-      File file=new File(jsonParser.nextTextValue());
-    if (!file.isDirectory()) {
-      builder.setPath(file.toPath());
-    }
-  break;
+        File file=new File(jsonParser.nextTextValue());
+      if (!file.isDirectory()) {
+        builder.setPath(file.toPath());
+      }
+    break;
 case "new":
-if (jsonParser.nextBooleanValue()) {
-  builder.setCreationEvent();
-}
+  if (jsonParser.nextBooleanValue()) {
+    builder.setCreationEvent();
+  }
 break;
 case "exists":
 if (!jsonParser.nextBooleanValue()) {
@@ -51,8 +52,20 @@ token=jsonParser.nextToken();
 int watchmanExitCode;
 watchmanExitCode=watchmanProcess.waitFor();
 if (watchmanExitCode != 0) {
+eventBus.post(createOverflowEvent());
 ByteArrayOutputStream buffer=new ByteArrayOutputStream();
 ByteStreams.copy(watchmanProcess.getErrorStream(),buffer);
 throw new WatchmanWatcherException("Watchman failed with exit code " + watchmanExitCode + ": "+ buffer.toString());
+}
+}
+ catch (InterruptedException e) {
+eventBus.post(createOverflowEvent());
+watchmanProcess.destroy();
+Thread.currentThread().interrupt();
+}
+catch (IOException e) {
+eventBus.post(createOverflowEvent());
+watchmanProcess.destroy();
+throw e;
 }
 }

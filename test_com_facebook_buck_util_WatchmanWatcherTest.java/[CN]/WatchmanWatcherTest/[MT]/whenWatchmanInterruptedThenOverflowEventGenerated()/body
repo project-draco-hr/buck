@@ -1,0 +1,20 @@
+{
+  String watchmanOutput="";
+  String message="Boo!";
+  Capture<WatchEvent<Path>> eventCapture=new Capture<>();
+  EventBus eventBus=createStrictMock(EventBus.class);
+  eventBus.post(capture(eventCapture));
+  Process process=createWaitForProcessMock(watchmanOutput,new InterruptedException(message));
+  process.destroy();
+  replay(eventBus,process);
+  WatchmanWatcher watcher=createWatcher(eventBus,process);
+  try {
+    watcher.postEvents();
+  }
+ catch (  InterruptedException e) {
+    assertEquals("Should be test interruption.",e.getMessage(),message);
+  }
+  verify(eventBus,process);
+  assertTrue(Thread.currentThread().isInterrupted());
+  assertEquals("Should be overflow event.",StandardWatchEventKinds.OVERFLOW,eventCapture.getValue().kind());
+}
