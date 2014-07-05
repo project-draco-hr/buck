@@ -1,7 +1,7 @@
 {
   ImmutableSortedSet.Builder<BuildRule> enhancedDeps=ImmutableSortedSet.naturalOrder();
   enhancedDeps.addAll(originalDeps);
-  AndroidPackageableCollector collector=new AndroidPackageableCollector(buildTargetsToExcludeFromDex,resourcesToExclude);
+  AndroidPackageableCollector collector=new AndroidPackageableCollector(originalBuildTarget,buildTargetsToExcludeFromDex,resourcesToExclude);
   collector.addPackageables(AndroidPackageableCollector.getPackageableRules(originalDeps));
   AndroidPackageableCollection packageableCollection=collector.build();
   ResourceDetails resourceDetails=packageableCollection.resourceDetails;
@@ -27,6 +27,20 @@
   enhancedDeps.add(uberRDotJava);
   if (!packageableCollection.resourceDetails.rDotJavaPackages.isEmpty()) {
     collector.addClasspathEntry(uberRDotJava,uberRDotJava.getPathToCompiledRDotJavaFiles());
+  }
+  ImmutableMap<String,Object> buildConfigConstants=ImmutableMap.<String,Object>of(BuildConfigs.DEBUG_CONSTANT,packageType != AndroidBinary.PackageType.RELEASE,BuildConfigs.IS_EXO_CONSTANT,exopackage);
+  for (  Map.Entry<String,ImmutableMap<String,Object>> entry : packageableCollection.buildConfigs.entrySet()) {
+    String javaPackage=entry.getKey();
+    Map<String,Object> totalConstants=Maps.newHashMap();
+    Map<String,Object> userDefinedConstants=entry.getValue();
+    totalConstants.putAll(userDefinedConstants);
+    totalConstants.putAll(buildConfigConstants);
+    Flavor flavor=new Flavor("buildconfig_" + javaPackage.replace('.','_'));
+    BuildRuleParams buildConfigParams=new BuildRuleParams(createBuildTargetWithFlavor(flavor),ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of(),BuildTargetPattern.PUBLIC,buildRuleParams.getProjectFilesystem(),buildRuleParams.getRuleKeyBuilderFactory(),AndroidBuildConfigDescription.TYPE);
+    JavaLibrary finalBuildConfig=AndroidBuildConfigDescription.createBuildRule(buildConfigParams,javaPackage,true,totalConstants);
+    ruleResolver.addToIndex(finalBuildConfig);
+    enhancedDeps.add(finalBuildConfig);
+    collector.addClasspathEntry(finalBuildConfig,finalBuildConfig.getPathToOutputFile());
   }
   packageableCollection=collector.build();
   Optional<PackageStringAssets> packageStringAssets=Optional.absent();

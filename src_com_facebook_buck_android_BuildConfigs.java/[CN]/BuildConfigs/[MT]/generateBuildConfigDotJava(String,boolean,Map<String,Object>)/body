@@ -1,0 +1,77 @@
+{
+  Preconditions.checkNotNull(javaPackage);
+  Preconditions.checkNotNull(userValues);
+  ImmutableMap.Builder<String,Object> valuesBuilder=ImmutableMap.<String,Object>builder();
+  for (  Map.Entry<String,Object> entry : DEFAULT_BUILD_CONFIG_CONSTANTS.entrySet()) {
+    String key=entry.getKey();
+    Object userValue=userValues.get(key);
+    valuesBuilder.put(key,userValue != null ? userValue : entry.getValue());
+  }
+  for (  Map.Entry<String,Object> entry : userValues.entrySet()) {
+    String key=entry.getKey();
+    if (!DEFAULT_BUILD_CONFIG_CONSTANTS.containsKey(key)) {
+      valuesBuilder.put(key,entry.getValue());
+    }
+  }
+  Map<String,Object> values=valuesBuilder.build();
+  StringBuilder builder=new StringBuilder();
+  builder.append("package ").append(javaPackage).append(";\n");
+  builder.append("public class BuildConfig {\n");
+  builder.append("  private BuildConfig() {}\n");
+  for (  Map.Entry<String,Object> entry : values.entrySet()) {
+    String name=entry.getKey();
+    Object value=entry.getValue();
+    String type, defaultValue;
+    if (value instanceof String) {
+      type="String";
+      String stringValue=(String)value;
+      defaultValue=Escaper.escapeAsJavaString(stringValue);
+      if (!useConstantExpressions) {
+        defaultValue="!Boolean.parseBoolean(null) ? " + defaultValue + " : null";
+      }
+    }
+ else     if (value instanceof Boolean) {
+      type="boolean";
+      boolean booleanValue=((Boolean)value).booleanValue();
+      if (useConstantExpressions) {
+        defaultValue=String.valueOf(booleanValue);
+      }
+ else {
+        defaultValue="Boolean.parseBoolean(null)";
+        if (booleanValue) {
+          defaultValue="!" + defaultValue;
+        }
+      }
+    }
+ else     if (value instanceof Integer) {
+      type="int";
+      int intValue=((Integer)value).intValue();
+      defaultValue=String.valueOf(intValue);
+      if (!useConstantExpressions) {
+        defaultValue="!Boolean.parseBoolean(null) ? " + defaultValue + " : 0";
+      }
+    }
+ else     if (value instanceof Long) {
+      type="long";
+      long longValue=((Long)value).longValue();
+      defaultValue=String.valueOf(longValue) + "L";
+      if (!useConstantExpressions) {
+        defaultValue="!Boolean.parseBoolean(null) ? " + defaultValue + " : 0L";
+      }
+    }
+ else     if (value instanceof Double || value instanceof Float) {
+      type="double";
+      double doubleValue=((Number)value).doubleValue();
+      defaultValue=String.valueOf(doubleValue);
+      if (!useConstantExpressions) {
+        defaultValue="!Boolean.parseBoolean(null) ? " + defaultValue + " : 0.";
+      }
+    }
+ else {
+      throw new HumanReadableException("BuildConfig variable '%s' has value '%s', but must be one of {String,Boolean,Number}.",name,value);
+    }
+    builder.append(String.format("  public static final %s %s = %s;\n",type,name,defaultValue));
+  }
+  builder.append("}\n");
+  return builder.toString();
+}
