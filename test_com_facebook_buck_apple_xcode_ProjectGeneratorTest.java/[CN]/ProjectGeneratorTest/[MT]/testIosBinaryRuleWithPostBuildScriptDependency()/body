@@ -1,0 +1,28 @@
+{
+  BuildRule scriptRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","post_build_script").build(),ImmutableSortedSet.<BuildRule>of(),iosPostprocessResourcesDescription,new Function<IosPostprocessResourcesDescription.Arg,IosPostprocessResourcesDescription.Arg>(){
+    @Override public IosPostprocessResourcesDescription.Arg apply(    IosPostprocessResourcesDescription.Arg input){
+      input.cmd=Optional.of("script.sh");
+      return input;
+    }
+  }
+);
+  BuildRule resourceRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","resource").build(),ImmutableSortedSet.<BuildRule>of(),iosResourceDescription,new Function<AppleResourceDescriptionArg,AppleResourceDescriptionArg>(){
+    @Override public AppleResourceDescriptionArg apply(    AppleResourceDescriptionArg input){
+      input.files=ImmutableSet.<SourcePath>of(new TestSourcePath("foo.png"));
+      return input;
+    }
+  }
+);
+  BuildRule iosBinaryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bin").build(),ImmutableSortedSet.of(scriptRule,resourceRule),iosBinaryDescription);
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(iosBinaryRule),ImmutableSet.of(iosBinaryRule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXProject project=projectGenerator.getGeneratedProject();
+  assertThat(project.getTargets(),hasSize(2));
+  PBXTarget target=project.getTargets().get(0);
+  assertThat(target.getName(),equalTo("//foo:bin"));
+  assertThat(target.isa(),equalTo("PBXNativeTarget"));
+  PBXShellScriptBuildPhase shellScriptBuildPhase=ProjectGeneratorTestUtils.getSingletonPhaseByType(target,PBXShellScriptBuildPhase.class);
+  assertThat(shellScriptBuildPhase.getShellScript(),equalTo("/bin/bash -e -c script.sh"));
+  assertThat(target.getBuildPhases().get(1),instanceOf(PBXResourcesBuildPhase.class));
+  assertThat(target.getBuildPhases().get(2),instanceOf(PBXShellScriptBuildPhase.class));
+}
