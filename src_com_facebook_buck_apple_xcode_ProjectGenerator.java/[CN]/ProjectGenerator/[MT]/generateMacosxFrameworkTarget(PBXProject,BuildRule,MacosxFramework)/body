@@ -2,7 +2,13 @@
   PBXNativeTarget target=new PBXNativeTarget(getXcodeTargetName(rule));
   target.setProductType(PBXTarget.ProductType.MACOSX_FRAMEWORK);
   PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(target.getName());
-  setTargetBuildConfigurations(rule.getBuildTarget(),target,targetGroup,buildable.getConfigurations(),ImmutableMap.<String,String>of());
+  ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
+  Optional<Path> infoPlistOptional=buildable.getInfoPlist();
+  if (infoPlistOptional.isPresent()) {
+    Path infoPlistPath=repoRootRelativeToOutputDirectory.resolve(infoPlistOptional.get());
+    extraSettingsBuilder.put("INFOPLIST_FILE",infoPlistPath.toString());
+  }
+  setTargetBuildConfigurations(rule.getBuildTarget(),target,targetGroup,buildable.getConfigurations(),extraSettingsBuilder.build());
   addRunScriptBuildPhasesForDependencies(rule,target);
   addSourcesAndHeadersBuildPhases(target,targetGroup,buildable.getSrcs(),buildable.getPerFileFlags());
   ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
