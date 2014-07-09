@@ -17,5 +17,19 @@
       resourcesWithEmptyResButNonEmptyAssetsDir.add(buildTarget);
     }
   }
-  return new AndroidPackageableCollection(new AndroidPackageableCollection.ResourceDetails(resourceDirectories.build().reverse(),whitelistedStringDirectories.build(),rDotJavaPackages.build(),resourcesWithNonEmptyResDir.build().reverse(),resourcesWithEmptyResButNonEmptyAssetsDir.build().reverse()),nativeLibsDirectories.build(),nativeLibAssetsDirectories.build(),assetsDirectories.build(),manifestFiles.build(),proguardConfigs.build(),classpathEntriesToDex.build(),noDxClasspathEntries.build(),ImmutableMap.copyOf(buildConfigs),pathsToThirdPartyJars.build(),FluentIterable.from(javaClassProviders).transform(BuildTarget.TO_TARGET).toSet(),classNamesToHashesSupplier);
+  final ImmutableSet<String> knownRDotJavaPackages=rDotJavaPackages.build();
+  final ImmutableCollection<Supplier<String>> knownRDotJavaPackageSuppliers=rDotJavaPackageSuppliers.build();
+  boolean hasRDotJavaPackages=!knownRDotJavaPackages.isEmpty() || !knownRDotJavaPackageSuppliers.isEmpty();
+  Supplier<ImmutableSet<String>> rDotJavaPackagesSupplier=Suppliers.memoize(new Supplier<ImmutableSet<String>>(){
+    @Override public ImmutableSet<String> get(){
+      ImmutableSet.Builder<String> allRDotJavaPackages=ImmutableSet.builder();
+      allRDotJavaPackages.addAll(knownRDotJavaPackages);
+      for (      Supplier<String> supplier : knownRDotJavaPackageSuppliers) {
+        allRDotJavaPackages.add(supplier.get());
+      }
+      return allRDotJavaPackages.build();
+    }
+  }
+);
+  return new AndroidPackageableCollection(new AndroidPackageableCollection.ResourceDetails(resourceDirectories.build().reverse(),whitelistedStringDirectories.build(),rDotJavaPackagesSupplier,hasRDotJavaPackages,resourcesWithNonEmptyResDir.build().reverse(),resourcesWithEmptyResButNonEmptyAssetsDir.build().reverse()),nativeLibsDirectories.build(),nativeLibAssetsDirectories.build(),assetsDirectories.build(),manifestFiles.build(),proguardConfigs.build(),classpathEntriesToDex.build(),noDxClasspathEntries.build(),ImmutableMap.copyOf(buildConfigs),pathsToThirdPartyJars.build(),FluentIterable.from(javaClassProviders).transform(BuildTarget.TO_TARGET).toSet(),classNamesToHashesSupplier);
 }
