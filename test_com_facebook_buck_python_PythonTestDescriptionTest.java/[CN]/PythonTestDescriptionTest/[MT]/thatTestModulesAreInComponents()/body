@@ -1,0 +1,19 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:bin")).build();
+  PythonTestDescription desc=new PythonTestDescription(PEX_PATH,TEST_MAIN);
+  PythonTestDescription.Arg arg=desc.createUnpopulatedConstructorArg();
+  arg.deps=Optional.of(ImmutableSortedSet.<BuildRule>of());
+  arg.srcs=Optional.of(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("blah.py")));
+  arg.resources=Optional.absent();
+  arg.contacts=Optional.absent();
+  arg.labels=Optional.absent();
+  arg.sourceUnderTest=Optional.absent();
+  PythonTest testRule=desc.createBuildRule(params,resolver,arg);
+  PythonBinary binRule=(PythonBinary)resolver.get(desc.getBinaryBuildTarget(testRule.getBuildTarget()));
+  assertNotNull(binRule);
+  PythonPackageComponents components=binRule.getComponents();
+  assertTrue(components.getModules().containsKey(desc.getTestModulesListName()));
+  assertTrue(components.getModules().containsKey(desc.getTestMainName()));
+  assertEquals(binRule.getMain(),desc.getTestMainName());
+}

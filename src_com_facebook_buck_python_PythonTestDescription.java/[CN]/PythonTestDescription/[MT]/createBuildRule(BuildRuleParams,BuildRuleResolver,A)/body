@@ -1,0 +1,17 @@
+{
+  ImmutableMap<Path,SourcePath> srcs=PythonUtil.toModuleMap(params.getBuildTarget(),"srcs",params.getBuildTarget().getBasePath(),args.srcs.or(ImmutableSortedSet.<SourcePath>of()));
+  ImmutableMap<Path,SourcePath> resources=PythonUtil.toModuleMap(params.getBuildTarget(),"resources",params.getBuildTarget().getBasePath(),args.resources.or(ImmutableSortedSet.<SourcePath>of()));
+  ImmutableSet.Builder<String> testModulesBuilder=ImmutableSet.builder();
+  for (  Path name : srcs.keySet()) {
+    testModulesBuilder.add(PythonUtil.toModuleName(params.getBuildTarget(),name.toString()));
+  }
+  ImmutableSet<String> testModules=testModulesBuilder.build();
+  BuildRule testModulesBuildRule=createTestModulesSourceBuildRule(params,getTestModulesListPath(params.getBuildTarget()),testModules);
+  resolver.addToIndex(testModulesBuildRule);
+  PythonPackageComponents testComponents=new PythonPackageComponents(ImmutableMap.<Path,SourcePath>builder().put(getTestModulesListName(),new BuildRuleSourcePath(testModulesBuildRule)).put(getTestMainName(),new PathSourcePath(pathToPythonTestMain)).putAll(srcs).build(),resources,ImmutableMap.<Path,SourcePath>of());
+  PythonPackageComponents allComponents=PythonUtil.getAllComponents(params,testComponents);
+  BuildRuleParams binaryParams=params.copyWithChanges(PythonBinaryDescription.TYPE,getBinaryBuildTarget(params.getBuildTarget()),PythonUtil.getDepsFromComponents(allComponents),ImmutableSortedSet.<BuildRule>of());
+  PythonBinary binary=new PythonBinary(binaryParams,pathToPex,getTestMainName(),allComponents);
+  resolver.addToIndex(binary);
+  return new PythonTest(params.copyWithDeps(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).add(binary).build(),params.getExtraDeps()),new BuildRuleSourcePath(binary),args.sourceUnderTest.or(ImmutableSet.<BuildRule>of()),args.labels.or(ImmutableSet.<Label>of()),args.contacts.or(ImmutableSet.<String>of()));
+}
