@@ -3,11 +3,35 @@
     buildableContext.addMetadata(METADATA_KEY_FOR_ABI,getAbiKeyForDeps().getHash());
     return ImmutableList.of();
   }
-  MakeCleanDirectoryStep mkdir=new MakeCleanDirectoryStep(pathToTextSymbolsDir);
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  steps.add(new MakeCleanDirectoryStep(pathToTextSymbolsDir));
+  if (rDotJavaPackageArgument == null) {
+    steps.add(new AbstractExecutionStep("extract_android_package"){
+      @Override public int execute(      ExecutionContext context){
+        AndroidManifestReader androidManifestReader;
+        try {
+          androidManifestReader=DefaultAndroidManifestReader.forPath(manifestFile,context.getProjectFilesystem());
+        }
+ catch (        IOException e) {
+          context.logError(e,"Failed to create AndroidManifestReader for %s.",manifestFile);
+          return 1;
+        }
+        String rDotJavaPackageFromAndroidManifest=androidManifestReader.getPackage();
+        if (rDotJavaPackageFromAndroidManifest == null) {
+          context.logError(new Throwable(),"Failed to read package from %s.",manifestFile);
+          return 1;
+        }
+        AndroidResource.this.rDotJavaPackage.set(rDotJavaPackageFromAndroidManifest);
+        buildableContext.addMetadata(METADATA_KEY_FOR_R_DOT_JAVA_PACKAGE,rDotJavaPackageFromAndroidManifest);
+        return 0;
+      }
+    }
+);
+  }
   ImmutableList<Path> resDirectories=FluentIterable.from(transitiveAndroidResourceDeps.get()).transform(GET_RES_FOR_RULE).toList();
   Path dummyManifestFile=BuildTargets.getGenPath(getBuildTarget(),"__%s_dummy_manifest/AndroidManifest.xml");
-  GenRDotJavaStep genRDotJava=new GenRDotJavaStep(resDirectories,pathToTextSymbolsDir,rDotJavaPackage,true,ImmutableSet.<String>of(),dummyManifestFile);
+  steps.add(new GenRDotJavaStep(resDirectories,pathToTextSymbolsDir,rDotJavaPackageSupplier,true,ImmutableSet.<String>of(),dummyManifestFile));
   buildableContext.recordArtifact(pathToTextSymbolsFile);
-  RecordFileSha1Step recordRDotTxtSha1=new RecordFileSha1Step(pathToTextSymbolsFile,METADATA_KEY_FOR_ABI,buildableContext);
-  return ImmutableList.of(mkdir,genRDotJava,recordRDotTxtSha1);
+  steps.add(new RecordFileSha1Step(pathToTextSymbolsFile,METADATA_KEY_FOR_ABI,buildableContext));
+  return steps.build();
 }
