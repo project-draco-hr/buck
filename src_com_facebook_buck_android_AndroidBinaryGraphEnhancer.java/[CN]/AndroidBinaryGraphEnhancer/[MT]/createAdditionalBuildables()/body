@@ -28,8 +28,18 @@
   if (packageableCollection.resourceDetails.hasRDotJavaPackages) {
     collector.addClasspathEntry(uberRDotJava,uberRDotJava.getPathToCompiledRDotJavaFiles());
   }
-  if (packageType != PackageType.INSTRUMENTED) {
-    addBuildConfigDeps(enhancedDeps,collector,packageableCollection);
+  ImmutableList<DexProducedFromJavaLibrary> preDexBuildConfigs;
+  ImmutableList<Path> buildConfigJarFiles;
+  if (packageType == PackageType.INSTRUMENTED) {
+    preDexBuildConfigs=ImmutableList.of();
+    buildConfigJarFiles=ImmutableList.of();
+  }
+ else {
+    ImmutableList.Builder<DexProducedFromJavaLibrary> preDexBuildConfigsBuilder=ImmutableList.builder();
+    ImmutableList.Builder<Path> buildConfigJarFilesBuilder=ImmutableList.builder();
+    addBuildConfigDeps(shouldPreDex,packageableCollection,enhancedDeps,preDexBuildConfigsBuilder,buildConfigJarFilesBuilder);
+    preDexBuildConfigs=preDexBuildConfigsBuilder.build();
+    buildConfigJarFiles=buildConfigJarFilesBuilder.build();
   }
   packageableCollection=collector.build();
   Optional<PackageStringAssets> packageStringAssets=Optional.absent();
@@ -47,7 +57,7 @@
   enhancedDeps.add(aaptPackageResources);
   Optional<PreDexMerge> preDexMerge=Optional.absent();
   if (shouldPreDex) {
-    preDexMerge=Optional.of(createPreDexMergeRule(uberRDotJava,packageableCollection));
+    preDexMerge=Optional.of(createPreDexMergeRule(uberRDotJava,preDexBuildConfigs,packageableCollection));
     enhancedDeps.add(preDexMerge.get());
   }
  else {
@@ -65,5 +75,5 @@
  else {
     finalDeps=enhancedDeps.build();
   }
-  return new EnhancementResult(filteredResourcesProvider,packageableCollection,aaptPackageResources,packageStringAssets,preDexMerge,computeExopackageDepsAbi,finalDeps);
+  return new EnhancementResult(filteredResourcesProvider,packageableCollection,aaptPackageResources,packageStringAssets,preDexMerge,computeExopackageDepsAbi,ImmutableSet.<Path>builder().addAll(packageableCollection.classpathEntriesToDex).addAll(buildConfigJarFiles).build(),finalDeps);
 }

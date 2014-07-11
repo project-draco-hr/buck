@@ -5,9 +5,17 @@
     String javaPackage=entry.getKey();
     Flavor flavor=new Flavor("buildconfig_" + javaPackage.replace('.','_'));
     BuildRuleParams buildConfigParams=new BuildRuleParams(createBuildTargetWithFlavor(flavor),ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of(),BuildTargetPattern.PUBLIC,buildRuleParams.getProjectFilesystem(),buildRuleParams.getRuleKeyBuilderFactory(),AndroidBuildConfigDescription.TYPE);
-    JavaLibrary finalBuildConfig=AndroidBuildConfigDescription.createBuildRule(buildConfigParams,javaPackage,totalBuildConfigValues,buildConfigValuesFile,true);
-    ruleResolver.addToIndex(finalBuildConfig);
-    enhancedDeps.add(finalBuildConfig);
-    collector.addClasspathEntry(finalBuildConfig,finalBuildConfig.getPathToOutputFile());
+    JavaLibrary buildConfigJavaLibrary=AndroidBuildConfigDescription.createBuildRule(buildConfigParams,javaPackage,totalBuildConfigValues,buildConfigValuesFile,true,ruleResolver);
+    ruleResolver.addToIndex(buildConfigJavaLibrary);
+    enhancedDeps.add(buildConfigJavaLibrary);
+    Path buildConfigJar=buildConfigJavaLibrary.getPathToOutputFile();
+    Preconditions.checkNotNull(buildConfigJar,"%s must have an output file.",buildConfigJavaLibrary);
+    buildConfigJarFilesBuilder.add(buildConfigJar);
+    if (shouldPreDex) {
+      DexProducedFromJavaLibrary buildConfigDex=new DexProducedFromJavaLibrary(buildConfigParams.copyWithChanges(BuildRuleType.PRE_DEX,createBuildTargetWithFlavor(new Flavor("dex_" + flavor.getName())),ImmutableSortedSet.<BuildRule>of(buildConfigJavaLibrary),ImmutableSortedSet.<BuildRule>of()),buildConfigJavaLibrary);
+      ruleResolver.addToIndex(buildConfigDex);
+      enhancedDeps.add(buildConfigDex);
+      preDexRules.add(buildConfigDex);
+    }
   }
 }
