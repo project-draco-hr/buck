@@ -24,19 +24,20 @@
     projectGenerator.createXcodeProjects();
   }
  else   if (options.getWorkspaceAndProjects()) {
-    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),partialGraph,executionContext,passedInTargetsSet,optionsBuilder.build());
+    ImmutableSet<BuildTarget> targets;
+    if (passedInTargetsSet.isEmpty()) {
+      targets=getAllTargetsOfType(partialGraph.getActionGraph().getNodes(),XcodeWorkspaceConfigDescription.TYPE);
+    }
+ else {
+      targets=passedInTargetsSet;
+    }
+    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),partialGraph,executionContext,targets,optionsBuilder.build());
     generator.generateWorkspacesAndDependentProjects();
   }
  else {
     ImmutableSet<BuildTarget> targets;
     if (passedInTargetsSet.isEmpty()) {
-      ImmutableSet.Builder<BuildTarget> targetsBuilder=ImmutableSet.builder();
-      for (      BuildRule node : partialGraph.getActionGraph().getNodes()) {
-        if (node.getType() == XcodeProjectConfigDescription.TYPE) {
-          targetsBuilder.add(node.getBuildTarget());
-        }
-      }
-      targets=targetsBuilder.build();
+      targets=getAllTargetsOfType(partialGraph.getActionGraph().getNodes(),XcodeProjectConfigDescription.TYPE);
     }
  else {
       targets=passedInTargetsSet;
