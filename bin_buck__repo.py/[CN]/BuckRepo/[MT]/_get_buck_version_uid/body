@@ -1,0 +1,19 @@
+def _get_buck_version_uid(self):
+    if (not self._is_git):
+        return 'N/A'
+    if (not self._is_dirty()):
+        return self._get_git_revision()
+    if (self._buck_project.has_no_buck_check or (not self._buck_project.buck_version)):
+        return self._compute_local_hash()
+    if self._has_local_changes():
+        print(textwrap.dedent('            ::: Your buck directory has local modifications, and therefore\n            ::: builds will not be able to use a distributed cache.\n            ::: The following files must be either reverted or committed:'), file=sys.stderr)
+        subprocess.call(['git', 'ls-files', '-m'], stdout=sys.stderr, cwd=self._buck_dir)
+    else:
+        print(textwrap.dedent('            ::: Your local buck directory is dirty, and therefore builds will\n            ::: not be able to use a distributed cache.'), file=sys.stderr)
+        if sys.stdout.isatty():
+            print('::: Do you want to clean your buck directory? [y/N]', file=sys.stderr)
+            choice = raw_input().lower()
+            if (choice == 'y'):
+                subprocess.call(['git', 'clean', '-fd'], stdout=sys.stderr, cwd=self._buck_dir)
+                self._restart_buck()
+    return self._compute_local_hash()

@@ -1,0 +1,14 @@
+def _compute_local_hash(self):
+    git_tree_in = subprocess.check_output(['git', 'log', '-n1', '--pretty=format:%T', 'HEAD', '--'], cwd=self._buck_dir).strip()
+    with tempfile.NamedTemporaryFile(prefix='buck-git-index', dir=self._tmp_dir) as index_file:
+        new_environ = os.environ.copy()
+        new_environ['GIT_INDEX_FILE'] = index_file.name
+        subprocess.check_call(['git', 'read-tree', git_tree_in], cwd=self._buck_dir, env=new_environ)
+        files_changed = subprocess.check_output(['git', 'diff', '--name-only', 'HEAD', '--'], cwd=self._buck_dir, env=new_environ).strip().split(' ')
+        command = ['git', 'update-index', '--add', '--remove']
+        command.extend(files_changed)
+        subprocess.check_call(command, cwd=self._buck_dir, stderr=DEV_NULL, env=new_environ)
+        git_tree_out = subprocess.check_output(['git', 'write-tree'], cwd=self._buck_dir, env=new_environ).strip()
+    with tempfile.NamedTemporaryFile(prefix='buck-version-uid-input', dir=self._tmp_dir) as uid_input:
+        subprocess.check_call(['git', 'ls-tree', '--full-tree', git_tree_out], cwd=self._buck_dir, stdout=uid_input)
+        return subprocess.check_output(['git', 'hash-object', uid_input.name], cwd=self._buck_dir).strip()

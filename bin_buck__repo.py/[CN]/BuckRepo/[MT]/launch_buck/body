@@ -1,0 +1,45 @@
+def launch_buck(self):
+    version_uid = self._get_buck_version_uid()
+    if (('clean' in sys.argv) or os.environ.get('NO_BUCKD')):
+        self.kill_buckd()
+    self._build()
+    use_buckd = (not os.environ.get('NO_BUCKD'))
+    has_watchman = bool(which('watchman'))
+    if (use_buckd and has_watchman):
+        buckd_run_count = self._buck_project.get_buckd_run_count()
+        running_version = self._buck_project.get_running_buckd_version()
+        new_buckd_run_count = (buckd_run_count + 1)
+        if ((buckd_run_count == MAX_BUCKD_RUN_COUNT) or (running_version != version_uid)):
+            self.kill_buckd()
+            new_buckd_run_count = 0
+        if (new_buckd_run_count == 0):
+            self.launch_buckd()
+        else:
+            self._buck_project.update_buckd_run_count(new_buckd_run_count)
+    elif (use_buckd and (not has_watchman)):
+        print("Not using buckd because watchman isn't installed.", file=sys.stderr)
+    if (self._is_buckd_running() and os.path.exists(self._buck_client_file)):
+        print('Using buckd.', file=sys.stderr)
+        buckd_port = self._buck_project.get_buckd_port()
+        if ((not buckd_port) or (not buckd_port.isdigit())):
+            print('Daemon port file is corrupt, starting new buck process.', file=sys.stderr)
+            self.kill_buckd()
+        else:
+            command = [self._buck_client_file]
+            command.append('--nailgun-port')
+            command.append(buckd_port)
+            command.append('com.facebook.buck.cli.Main')
+            command.extend(sys.argv[1:])
+            exit_code = subprocess.call(command)
+            if (exit_code == 2):
+                print('Daemon is busy, starting new buck process.', file=sys.stderr)
+            else:
+                return exit_code
+    command = ['java']
+    command.extend(self._get_java_args(version_uid))
+    command.append('-Djava.io.tmpdir={}'.format(self._tmp_dir))
+    command.append('-classpath')
+    command.append(self._get_java_classpath())
+    command.append('com.facebook.buck.cli.Main')
+    command.extend(sys.argv[1:])
+    return subprocess.call(command)
