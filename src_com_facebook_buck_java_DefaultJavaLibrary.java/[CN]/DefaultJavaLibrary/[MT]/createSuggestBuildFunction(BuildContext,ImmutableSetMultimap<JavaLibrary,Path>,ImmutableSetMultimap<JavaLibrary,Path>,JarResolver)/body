@@ -4,18 +4,13 @@
   }
   final Set<JavaLibrary> transitiveNotDeclaredDeps=Sets.difference(transitiveClasspathEntries.keySet(),Sets.union(ImmutableSet.of(this),declaredClasspathEntries.keySet()));
   TraversableGraph<BuildRule> graph=context.getActionGraph();
-  final ImmutableList<BuildRule> sortedTransitiveNotDeclaredDeps=ImmutableList.copyOf(TopologicalSort.sort(graph,new Predicate<BuildRule>(){
-    @Override public boolean apply(    BuildRule input){
-      return transitiveNotDeclaredDeps.contains(input);
-    }
-  }
-)).reverse();
+  final ImmutableList<JavaLibrary> sortedTransitiveNotDeclaredDeps=FluentIterable.from(TopologicalSort.sort(graph,Predicates.<BuildRule>alwaysTrue())).filter(JavaLibrary.class).filter(Predicates.in(transitiveNotDeclaredDeps)).toList().reverse();
   JavacInMemoryStep.SuggestBuildRules suggestBuildRuleFn=new JavacInMemoryStep.SuggestBuildRules(){
     @Override public ImmutableSet<String> suggest(    ProjectFilesystem filesystem,    ImmutableSet<String> failedImports){
       ImmutableSet.Builder<String> suggestedDeps=ImmutableSet.builder();
       Set<String> remainingImports=Sets.newHashSet(failedImports);
-      for (      BuildRule transitiveNotDeclaredDep : sortedTransitiveNotDeclaredDeps) {
-        boolean ruleCanSeeDep=transitiveNotDeclaredDep.isVisibleTo(DefaultJavaLibrary.this.getBuildTarget());
+      for (      JavaLibrary transitiveNotDeclaredDep : sortedTransitiveNotDeclaredDeps) {
+        boolean ruleCanSeeDep=transitiveNotDeclaredDep.isVisibleTo(DefaultJavaLibrary.this);
         if (ruleCanSeeDep && isMissingBuildRule(filesystem,transitiveNotDeclaredDep,remainingImports,jarResolver)) {
           suggestedDeps.add(transitiveNotDeclaredDep.getFullyQualifiedName());
         }
