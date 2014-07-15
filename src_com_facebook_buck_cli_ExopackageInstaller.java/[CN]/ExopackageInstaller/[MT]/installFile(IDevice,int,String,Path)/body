@@ -21,21 +21,8 @@
     }
   }
 ;
-  String runAsPrefix;
-  String dataDirPrefix;
-  int shellUid=getShellUid(device);
-  if (shellUid != 0) {
-    logFine("shellUid is %d: using run-as",shellUid);
-    runAsPrefix="run-as " + packageName + " ";
-    dataDirPrefix="";
-  }
- else {
-    logFine("remote adb appears to be root: not using run-as");
-    runAsPrefix="";
-    dataDirPrefix="/data/data/" + packageName + "/";
-  }
-  String targetFileName=dataDirPrefix + "app_exopackage/secondary-dex/" + basename;
-  String command=runAsPrefix + getAgentCommand() + "receive-file "+ port+ " "+ Files.size(source)+ " "+ targetFileName+ " ; echo -n :$?";
+  String targetFileName=dataRoot + "/secondary-dex/" + basename;
+  String command="umask 022 && " + getAgentCommand() + "receive-file "+ port+ " "+ Files.size(source)+ " "+ targetFileName+ " ; echo -n :$?";
   logFine("Executing %s",command);
   Exception shellException=null;
   try {
@@ -56,7 +43,5 @@
   if (shellException != null) {
     throw shellException;
   }
-  if (shellUid == 0) {
-    AdbHelper.executeCommandWithErrorChecking(device,"chmod 644 " + targetFileName);
-  }
+  AdbHelper.executeCommandWithErrorChecking(device,"chmod 644 " + targetFileName);
 }

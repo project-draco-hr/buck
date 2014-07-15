@@ -1,17 +1,12 @@
 {
   try (TraceEventLogger ignored=TraceEventLogger.start(eventBus,"prepare_dex_dir")){
     final ImmutableSet.Builder<String> foundHashes=ImmutableSet.builder();
-    AdbHelper.executeCommandWithErrorChecking(device,"run-as " + packageName + " mkdir -p app_exopackage/secondary-dex");
-    String output=AdbHelper.executeCommandWithErrorChecking(device,"run-as " + packageName + " ls app_exopackage/secondary-dex");
+    AdbHelper.executeCommandWithErrorChecking(device,"umask 022 && mkdir -p " + dataRoot + "/secondary-dex");
+    String output=AdbHelper.executeCommandWithErrorChecking(device,"ls " + dataRoot + "/secondary-dex");
     ImmutableSet.Builder<String> toDeleteBuilder=ImmutableSet.builder();
     scanSecondaryDexDir(output,requiredHashes,foundHashes,toDeleteBuilder);
-    ImmutableList<String> filesToDelete=FluentIterable.from(toDeleteBuilder.build()).transform(new Function<String,String>(){
-      @Override public String apply(      @Nullable String input){
-        return "app_exopackage/secondary-dex/" + input;
-      }
-    }
-).toList();
-    String commandPrefix="run-as " + packageName + " rm ";
+    Iterable<String> filesToDelete=toDeleteBuilder.build();
+    String commandPrefix="cd " + dataRoot + "/secondary-dex && rm ";
     final int overhead=commandPrefix.length() + 100;
     for (    List<String> rmArgs : chunkArgs(filesToDelete,MAX_ADB_COMMAND_SIZE - overhead)) {
       String command=commandPrefix + Joiner.on(' ').join(rmArgs);
