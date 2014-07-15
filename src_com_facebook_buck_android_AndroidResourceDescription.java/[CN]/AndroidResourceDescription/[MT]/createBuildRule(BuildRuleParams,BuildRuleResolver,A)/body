@@ -1,4 +1,8 @@
 {
+  Optional<BuildRule> invalidDep=FluentIterable.from(Iterables.concat(params.getDeclaredDeps(),params.getExtraDeps())).filter(Predicates.not(Predicates.or(Predicates.instanceOf(AndroidResource.class),Predicates.instanceOf(AndroidLibrary.class)))).first();
+  if (invalidDep.isPresent()) {
+    throw new HumanReadableException(params.getBuildTarget() + " (android_resource): dependency " + invalidDep.get().getBuildTarget()+ " ("+ invalidDep.get().getType()+ ") is not of type android_resource or android_library.");
+  }
   ProjectFilesystem filesystem=params.getProjectFilesystem();
-  return new AndroidResource(params,args.deps.get(),args.res.orNull(),collectInputFiles(filesystem,args.res),args.rDotJavaPackage.orNull(),args.assets.orNull(),collectInputFiles(filesystem,args.assets),args.manifest.orNull(),args.hasWhitelistedStrings.or(false));
+  return new AndroidResource(params.copyWithDeps(androidResOnly(params.getDeclaredDeps()),androidResOnly(params.getExtraDeps())),args.deps.get(),args.res.orNull(),collectInputFiles(filesystem,args.res),args.rDotJavaPackage.orNull(),args.assets.orNull(),collectInputFiles(filesystem,args.assets),args.manifest.orNull(),args.hasWhitelistedStrings.or(false));
 }
