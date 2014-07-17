@@ -1,23 +1,31 @@
 def glob_walk_internal(normpath_join, iglob, isresult, visited, tokens, path, normpath):
     "Recursive routine for glob_walk.\n\n    'visited' is initially the empty set.\n    'tokens' is the list of glob elements yet to be traversed, e.g.\n        ['**', '*.java'].\n    'path', initially None, is the path being constructed.\n    'normpath', initially os.path.realpath(root), is the os.path.realpath()-\n        normalization of the path being constructed.\n    'normpath_join(normpath, element)' is the os.path.realpath()-normalization\n        of path_join(normpath, element)\n    'iglob(pattern)' should behave like glob.iglob if 'path' were relative to\n        the current directory\n    'isresult(path)' should verify that path is valid as a result (typically\n        calls os.path.isfile)\n    "
-    key = (tuple(tokens), normpath)
-    if (key in visited):
-        return
-    visited.add(key)
     if (not tokens):
         if isresult(path):
             yield path
         return
     token = tokens[0]
     next_tokens = tokens[1:]
+    if ((token == '**') and (not next_tokens)):
+        if isresult(path):
+            yield path
+    key = (tuple(tokens), normpath)
+    if (key in visited):
+        return
+    visited.add(key)
     path_and_sep_len = ((len(path) + 1) if (path is not None) else 0)
     if (token == '**'):
-        for x in glob_walk_internal(normpath_join, iglob, isresult, visited, next_tokens, path, normpath):
-            yield x
+        if next_tokens:
+            for x in glob_walk_internal(normpath_join, iglob, isresult, visited, next_tokens, path, normpath):
+                yield x
         for child in iglob(path_join(path, '*')):
             for x in glob_walk_internal(normpath_join, iglob, isresult, visited, tokens, child, normpath_join(normpath, child[path_and_sep_len:])):
                 yield x
-    else:
+    elif next_tokens:
         for child in iglob(path_join(path, token)):
             for x in glob_walk_internal(normpath_join, iglob, isresult, visited, next_tokens, child, normpath_join(normpath, child[path_and_sep_len:])):
+                yield x
+    else:
+        for child in iglob(path_join(path, token)):
+            for x in glob_walk_internal(normpath_join, iglob, isresult, visited, None, child, None):
                 yield x
