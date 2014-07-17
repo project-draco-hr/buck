@@ -1,0 +1,26 @@
+{
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  steps.add(new MakeCleanDirectoryStep(unpackDirectory));
+  steps.add(new UnzipStep(aarFile.resolve(),unpackDirectory));
+  steps.add(new TouchStep(getProguardConfig()));
+  steps.add(new MkdirStep(getAssetsDirectory()));
+  steps.add(new AbstractExecutionStep("check_for_libs"){
+    @Override public int execute(    ExecutionContext context){
+      Path libsDirectory=unpackDirectory.resolve("libs");
+      ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
+      if (!projectFilesystem.exists(libsDirectory)) {
+        return 0;
+      }
+      if (projectFilesystem.listFiles(libsDirectory).length > 0) {
+        context.logError(new IllegalArgumentException(),"Error processing %s for %s. " + "Currently, Buck does not support .aar files with lib entries. " + "If this is a problem for you, please file an issue on GitHub.",aarFile,getBuildTarget());
+        return 1;
+      }
+ else {
+        return 0;
+      }
+    }
+  }
+);
+  buildableContext.recordArtifactsInDirectory(unpackDirectory);
+  return steps.build();
+}
