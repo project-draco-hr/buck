@@ -1,13 +1,18 @@
 {
+  LOG.debug("Creating projects for targets %s",initialTargets);
   try {
     targetNameToGIDMap=buildTargetNameToGIDMap();
     Iterable<BuildRule> allRules=RuleDependencyFinder.getAllRules(partialGraph,initialTargets);
     for (    BuildRule rule : allRules) {
       if (isBuiltByCurrentProject(rule)) {
+        LOG.debug("Including rule %s in project",rule);
         Optional<PBXTarget> target=buildRuleToXcodeTarget.getUnchecked(rule);
         if (target.isPresent()) {
           buildRuleToGeneratedTargetBuilder.put(rule,target.get());
         }
+      }
+ else {
+        LOG.verbose("Excluding rule %s (not built by current project)",rule);
       }
     }
     if (options.contains(Option.REFERENCE_EXISTING_XCCONFIGS)) {
@@ -20,6 +25,7 @@
     }
     if (shouldPlaceAssetCatalogCompiler) {
       Path placedAssetCatalogCompilerPath=projectFilesystem.getPathForRelativePath(BuckConstant.BIN_PATH.resolve("xcode-scripts/compile_asset_catalogs.py"));
+      LOG.debug("Ensuring asset catalog is copied to path [%s]",placedAssetCatalogCompilerPath);
       projectFilesystem.createParentDirs(placedAssetCatalogCompilerPath);
       projectFilesystem.createParentDirs(placedAssetCatalogBuildPhaseScript);
       projectFilesystem.copyFile(Paths.get(PATH_TO_ASSET_CATALOG_COMPILER),placedAssetCatalogCompilerPath);
