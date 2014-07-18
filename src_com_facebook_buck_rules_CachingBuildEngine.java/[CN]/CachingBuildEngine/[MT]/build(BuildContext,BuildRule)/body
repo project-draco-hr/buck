@@ -44,26 +44,20 @@
         startOfBuildWasRecordedOnTheEventBus=true;
         ruleKeys.putIfAbsent(rule.getBuildTarget(),rule.getRuleKey());
         BuildResult result=null;
-        try {
-          result=buildOnceDepsAreBuilt(rule,context,onDiskBuildInfo,buildInfoRecorder.get(),shouldTryToFetchFromCache(deps));
-        }
- catch (        InterruptedException e) {
-          e.printStackTrace();
-          Thread.currentThread().interrupt();
-          return;
-        }
+        result=buildOnceDepsAreBuilt(rule,context,onDiskBuildInfo,buildInfoRecorder.get(),shouldTryToFetchFromCache(deps));
         if (result.getStatus() == BuildRuleStatus.SUCCESS) {
           try {
             recordBuildRuleSuccess(result);
           }
  catch (          InterruptedException e) {
-            e.printStackTrace();
-            Thread.currentThread().interrupt();
-            return;
+            result=new BuildResult(e);
           }
         }
- else {
+        if (result.getStatus() == BuildRuleStatus.FAIL) {
           recordBuildRuleFailure(result);
+          if (result.getFailure() instanceof InterruptedException) {
+            Thread.currentThread().interrupt();
+          }
         }
       }
       private void recordBuildRuleSuccess(      BuildResult result) throws InterruptedException {
