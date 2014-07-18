@@ -1,0 +1,17 @@
+{
+  BuildRuleResolver buildRuleResolver=new BuildRuleResolver();
+  BuildRule ruleWithOutput=new FakeBuildRule(GenruleDescription.TYPE,BuildTargetFactory.newInstance("//foo:bar")){
+    @Override public Path getPathToOutputFile(){
+      return Paths.get("buck-out/gen/foo/bar/AndroidManifest.xml");
+    }
+  }
+;
+  BuildRuleSourcePath skeleton=new BuildRuleSourcePath(ruleWithOutput);
+  buildRuleResolver.addToIndex(ruleWithOutput);
+  AndroidManifestDescription.Arg arg=new AndroidManifestDescription.Arg();
+  arg.skeleton=skeleton;
+  arg.deps=Optional.of(ImmutableSortedSet.<BuildRule>of());
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder("//foo:baz").setDeps(arg.deps.get()).build();
+  AndroidManifest androidManifest=new AndroidManifestDescription().createBuildRule(params,buildRuleResolver,arg);
+  assertEquals(ImmutableSortedSet.of(ruleWithOutput),androidManifest.getDeps());
+}

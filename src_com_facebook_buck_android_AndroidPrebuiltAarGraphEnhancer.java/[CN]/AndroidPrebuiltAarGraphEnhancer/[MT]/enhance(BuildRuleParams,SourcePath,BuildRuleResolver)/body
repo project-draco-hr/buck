@@ -9,11 +9,14 @@
   BuildRuleParams prebuiltJarParams=originalBuildRuleParams.copyWithChanges(PrebuiltJarDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_PREBUILT_JAR_FLAVOR),ImmutableSortedSet.<BuildRule>of(unzipAar),ImmutableSortedSet.<BuildRule>of());
   PrebuiltJar prebuiltJar=new PrebuiltJar(prebuiltJarParams,new BuildRuleSourcePath(classesJar),Optional.<SourcePath>absent(),Optional.<SourcePath>absent(),Optional.<String>absent());
   ruleResolver.addToIndex(prebuiltJar);
-  BuildRuleParams androidResourceParams=originalBuildRuleParams.copyWithChanges(AndroidResourceDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ANDROID_RESOURCE_FLAVOR),ImmutableSortedSet.<BuildRule>of(unzipAar),ImmutableSortedSet.<BuildRule>of());
+  BuildRuleParams manifestParams=originalBuildRuleParams.copyWithChanges(OutputOnlyBuildRule.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_MANIFEST),ImmutableSortedSet.<BuildRule>of(unzipAar),ImmutableSortedSet.<BuildRule>of());
+  OutputOnlyBuildRule manifest=new OutputOnlyBuildRule(manifestParams,unzipAar.getAndroidManifest());
+  ruleResolver.addToIndex(manifest);
+  BuildRuleParams androidResourceParams=originalBuildRuleParams.copyWithChanges(AndroidResourceDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ANDROID_RESOURCE_FLAVOR),ImmutableSortedSet.<BuildRule>of(manifest),ImmutableSortedSet.<BuildRule>of());
   ImmutableSortedSet<Path> resSrcs=ImmutableSortedSet.of();
   ImmutableSortedSet<Path> assetsSrcs=ImmutableSortedSet.of();
-  AndroidResource androidResource=new AndroidResource(androidResourceParams,ImmutableSortedSet.<BuildRule>of(unzipAar),unzipAar.getResDirectory(),resSrcs,null,unzipAar.getAssetsDirectory(),assetsSrcs,unzipAar.getAndroidManifest(),false);
+  AndroidResource androidResource=new AndroidResource(androidResourceParams,ImmutableSortedSet.<BuildRule>of(unzipAar),unzipAar.getResDirectory(),resSrcs,null,unzipAar.getAssetsDirectory(),assetsSrcs,new BuildRuleSourcePath(manifest),false);
   ruleResolver.addToIndex(androidResource);
   BuildRuleParams androidLibraryParams=originalBuildRuleParams.copyWithChanges(AndroidLibraryDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ANDROID_LIBRARY_FLAVOR),ImmutableSortedSet.<BuildRule>of(androidResource,prebuiltJar,unzipAar),ImmutableSortedSet.<BuildRule>of());
-  return new AndroidLibrary(androidLibraryParams,ImmutableSortedSet.<SourcePath>of(),ImmutableSortedSet.<SourcePath>of(),Optional.of(unzipAar.getProguardConfig()),ImmutableList.<String>of(),ImmutableSortedSet.<BuildRule>of(prebuiltJar),ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<Path>of(),JavacOptions.DEFAULTS,Optional.<Path>absent(),Optional.<Path>absent(),true);
+  return new AndroidLibrary(androidLibraryParams,ImmutableSortedSet.<SourcePath>of(),ImmutableSortedSet.<SourcePath>of(),Optional.of(unzipAar.getProguardConfig()),ImmutableList.<String>of(),ImmutableSortedSet.<BuildRule>of(prebuiltJar),ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<Path>of(),JavacOptions.DEFAULTS,Optional.<Path>absent(),Optional.<SourcePath>absent(),true);
 }
