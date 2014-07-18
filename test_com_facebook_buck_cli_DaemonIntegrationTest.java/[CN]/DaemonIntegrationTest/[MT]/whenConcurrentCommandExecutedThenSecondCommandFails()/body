@@ -1,0 +1,45 @@
+{
+  final CapturingPrintStream stdOut=new CapturingPrintStream();
+  final CapturingPrintStream firstThreadStdErr=new CapturingPrintStream();
+  final CapturingPrintStream secondThreadStdErr=new CapturingPrintStream();
+  final ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"exclusive_execution",tmp);
+  workspace.setUp();
+  Future<?> firstThread=executorService.schedule(new Runnable(){
+    @Override public void run(){
+      try {
+        Main main=new Main(stdOut,firstThreadStdErr);
+        int exitCode=main.tryRunMainWithExitCode(tmp.getRoot(),Optional.<NGContext>absent(),"build","//:sleep");
+        assertEquals("Should return 0 when no command running.",SUCCESS_EXIT_CODE,exitCode);
+      }
+ catch (      IOException e) {
+        fail("Should not throw exception.");
+        throw Throwables.propagate(e);
+      }
+catch (      InterruptedException e) {
+        fail("Should not throw exception.");
+        Thread.currentThread().interrupt();
+      }
+    }
+  }
+,0,TimeUnit.MILLISECONDS);
+  Future<?> secondThread=executorService.schedule(new Runnable(){
+    @Override public void run(){
+      try {
+        Main main=new Main(stdOut,secondThreadStdErr);
+        int exitCode=main.tryRunMainWithExitCode(tmp.getRoot(),Optional.<NGContext>absent(),"build","//:sleep");
+        assertEquals("Should return 2 when command running.",Main.BUSY_EXIT_CODE,exitCode);
+      }
+ catch (      IOException e) {
+        fail("Should not throw exception.");
+        throw Throwables.propagate(e);
+      }
+catch (      InterruptedException e) {
+        fail("Should not throw exception.");
+        Thread.currentThread().interrupt();
+      }
+    }
+  }
+,500L,TimeUnit.MILLISECONDS);
+  firstThread.get();
+  secondThread.get();
+}
