@@ -7,12 +7,12 @@
   XcodeWorkspaceConfig workspaceBuildable=(XcodeWorkspaceConfig)workspaceTargetRule;
   BuildRule actualTargetRule=workspaceBuildable.getSrcTarget();
   String workspaceName=workspaceBuildable.getSrcTarget().getBuildTarget().getShortName();
-  Path outputDirectory=Paths.get(workspaceBuildable.getBuildTarget().getBasePath());
+  Path outputDirectory=workspaceBuildable.getBuildTarget().getBasePath();
   WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,workspaceName,outputDirectory);
   Iterable<BuildRule> allRules=Iterables.concat(RuleDependencyFinder.getAllRules(partialGraph,ImmutableList.of(workspaceBuildable.getSrcTarget().getBuildTarget())),ImmutableList.of(workspaceTargetRule));
   SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,partialGraph,actualTargetRule,ImmutableSet.copyOf(allRules),workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),workspaceBuildable.getActionConfigNames());
-  Multimap<String,BuildRule> buildRulesByTargetBasePath=BuildRules.buildRulesByTargetBasePath(allRules);
-  for (  String basePath : buildRulesByTargetBasePath.keySet()) {
+  Multimap<Path,BuildRule> buildRulesByTargetBasePath=BuildRules.buildRulesByTargetBasePath(allRules);
+  for (  Path basePath : buildRulesByTargetBasePath.keySet()) {
     Optional<BuildRule> xcodeProjectConfigRule=Optional.fromNullable(Iterables.getOnlyElement(partialGraph.getActionGraph().getBuildRulesOfBuildableTypeInBasePath(XcodeProjectConfig.class,basePath),null));
     ProjectGenerator generator;
     if (xcodeProjectConfigRule.isPresent()) {
@@ -25,7 +25,7 @@
       generator=projectGenerators.get(xcodeProjectConfig);
       if (generator == null) {
         LOG.debug("Generating project for rule %s",xcodeProjectConfig);
-        generator=new ProjectGenerator(partialGraph,initialTargets,projectFilesystem,executionContext,projectFilesystem.getPathForRelativePath(Paths.get(basePath)),xcodeProjectConfig.getProjectName(),projectGeneratorOptions);
+        generator=new ProjectGenerator(partialGraph,initialTargets,projectFilesystem,executionContext,projectFilesystem.getPathForRelativePath(basePath),xcodeProjectConfig.getProjectName(),projectGeneratorOptions);
         generator.createXcodeProjects();
         projectGenerators.put(xcodeProjectConfig,generator);
       }
