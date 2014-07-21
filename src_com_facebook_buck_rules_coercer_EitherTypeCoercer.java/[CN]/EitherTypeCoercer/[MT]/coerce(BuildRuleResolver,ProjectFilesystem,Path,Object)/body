@@ -1,13 +1,25 @@
 {
-  try {
+  Type objectType=getObjectType(object);
+  Type leftCoercerType=getCoercerType(leftTypeCoercer);
+  Type rightCoercerType=getCoercerType(rightTypeCoercer);
+  if (leftCoercerType == objectType && rightCoercerType == objectType) {
+    try {
+      return Either.ofLeft(leftTypeCoercer.coerce(buildRuleResolver,filesystem,pathRelativeToProjectRoot,object));
+    }
+ catch (    CoerceFailedException eLeft) {
+      try {
+        return Either.ofRight(rightTypeCoercer.coerce(buildRuleResolver,filesystem,pathRelativeToProjectRoot,object));
+      }
+ catch (      CoerceFailedException eRight) {
+        throw new CoerceFailedException(String.format("%s, or %s",eLeft.getMessage(),eRight.getMessage()));
+      }
+    }
+  }
+  if (leftCoercerType == objectType) {
     return Either.ofLeft(leftTypeCoercer.coerce(buildRuleResolver,filesystem,pathRelativeToProjectRoot,object));
   }
- catch (  CoerceFailedException e) {
-    try {
-      return Either.ofRight(rightTypeCoercer.coerce(buildRuleResolver,filesystem,pathRelativeToProjectRoot,object));
-    }
- catch (    CoerceFailedException e1) {
-      throw CoerceFailedException.simple(object,getOutputClass());
-    }
+  if (rightCoercerType == objectType) {
+    return Either.ofRight(rightTypeCoercer.coerce(buildRuleResolver,filesystem,pathRelativeToProjectRoot,object));
   }
+  throw new CoerceFailedException(String.format("cannot parse %s",object));
 }
