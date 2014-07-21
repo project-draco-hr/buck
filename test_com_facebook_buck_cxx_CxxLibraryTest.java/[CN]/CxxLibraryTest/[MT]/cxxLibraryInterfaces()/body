@@ -1,0 +1,25 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
+  final BuildTarget headerTarget=BuildTargetFactory.newInstance("//:header");
+  final BuildTarget headerSymlinkTreeTarget=BuildTargetFactory.newInstance("//:symlink");
+  final Path headerSymlinkTreeRoot=Paths.get("symlink/tree/root");
+  final BuildTarget archiveTarget=BuildTargetFactory.newInstance("//:archive");
+  final Path archiveOutput=Paths.get("output/path/lib.a");
+  CxxLibrary cxxLibrary=new CxxLibrary(params){
+    @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
+      return new CxxPreprocessorInput(ImmutableSet.of(headerTarget,headerSymlinkTreeTarget),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableList.of(headerSymlinkTreeRoot),ImmutableList.<Path>of());
+    }
+    @Override public NativeLinkableInput getNativeLinkableInput(){
+      return new NativeLinkableInput(ImmutableSet.of(archiveTarget),ImmutableList.of(archiveOutput),ImmutableList.of(archiveOutput.toString()));
+    }
+  }
+;
+  CxxPreprocessorInput expectedCxxPreprocessorInput=new CxxPreprocessorInput(ImmutableSet.of(headerTarget,headerSymlinkTreeTarget),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableList.of(headerSymlinkTreeRoot),ImmutableList.<Path>of());
+  assertEquals(expectedCxxPreprocessorInput,cxxLibrary.getCxxPreprocessorInput());
+  NativeLinkableInput expectedNativeLinkableInput=new NativeLinkableInput(ImmutableSet.of(archiveTarget),ImmutableList.of(archiveOutput),ImmutableList.of(archiveOutput.toString()));
+  assertEquals(expectedNativeLinkableInput,cxxLibrary.getNativeLinkableInput());
+  assertEquals(ImmutableList.<Step>of(),cxxLibrary.getBuildSteps(null,null));
+  assertNull(cxxLibrary.getPathToOutputFile());
+  assertTrue(ImmutableList.copyOf(cxxLibrary.getInputsToCompareToOutput()).isEmpty());
+}

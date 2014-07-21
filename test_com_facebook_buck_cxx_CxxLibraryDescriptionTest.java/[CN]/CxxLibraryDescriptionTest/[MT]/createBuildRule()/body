@@ -1,0 +1,48 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  String genHeaderName="test/foo.h";
+  BuildTarget genHeaderTarget=BuildTargetFactory.newInstance("//:genHeader");
+  Genrule genHeader=GenruleBuilder.createGenrule(genHeaderTarget).setOut(genHeaderName).build();
+  String genSourceName="test/foo.cpp";
+  BuildTarget genSourceTarget=BuildTargetFactory.newInstance("//:genSource");
+  Genrule genSource=GenruleBuilder.createGenrule(genSourceTarget).setOut(genSourceName).build();
+  final BuildRule header=createFakeBuildRule("//:header");
+  final BuildRule headerSymlinkTree=createFakeBuildRule("//:symlink");
+  final Path headerSymlinkTreeRoot=Paths.get("symlink/tree/root");
+  final BuildRule archive=createFakeBuildRule("//:archive");
+  final Path archiveOutput=Paths.get("output/path/lib.a");
+  BuildTarget depTarget=BuildTargetFactory.newInstance("//:dep");
+  BuildRuleParams depParams=BuildRuleParamsFactory.createTrivialBuildRuleParams(depTarget);
+  CxxLibrary dep=new CxxLibrary(depParams){
+    @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
+      return new CxxPreprocessorInput(ImmutableSet.of(header.getBuildTarget(),headerSymlinkTree.getBuildTarget()),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableList.of(headerSymlinkTreeRoot),ImmutableList.<Path>of());
+    }
+    @Override public NativeLinkableInput getNativeLinkableInput(){
+      return new NativeLinkableInput(ImmutableSet.<BuildTarget>of(archive.getBuildTarget()),ImmutableList.<Path>of(archiveOutput),ImmutableList.<String>of(archiveOutput.toString()));
+    }
+  }
+;
+  resolver.addAllToIndex(ImmutableList.of(header,headerSymlinkTree,archive));
+  BuildTarget target=BuildTargetFactory.newInstance("//:rule");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setDeps(ImmutableSortedSet.<BuildRule>of(dep)).build();
+  CxxLibraryDescription.Arg arg=new CxxLibraryDescription.Arg();
+  arg.deps=Optional.of(ImmutableSortedSet.<BuildRule>of(dep));
+  arg.srcs=Optional.of(ImmutableList.<SourcePath>of(new TestSourcePath("test/bar.cpp"),new BuildRuleSourcePath(genSource)));
+  arg.headers=Optional.of(ImmutableList.<SourcePath>of(new TestSourcePath("test/bar.h"),new BuildRuleSourcePath(genHeader)));
+  arg.compilerFlags=Optional.absent();
+  arg.propagatedPpFlags=Optional.absent();
+  arg.preprocessorFlags=Optional.absent();
+  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(new FakeBuckConfig());
+  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig);
+  CxxLibrary rule=description.createBuildRule(params,resolver,arg);
+  assertEquals(new CxxPreprocessorInput(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderTarget(target),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(target)),ImmutableList.<Path>of()),rule.getCxxPreprocessorInput());
+  BuildRule archiveRule=resolver.get(CxxDescriptionEnhancer.createStaticLibraryBuildTarget(target));
+  assertNotNull(archiveRule);
+  assertEquals(ImmutableSet.of(CxxCompilableEnhancer.createCompileBuildTarget(target,"test/bar.cpp"),CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName)),FluentIterable.from(archiveRule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  BuildRule compileRule1=resolver.get(CxxCompilableEnhancer.createCompileBuildTarget(target,"test/bar.cpp"));
+  assertNotNull(compileRule1);
+  assertEquals(ImmutableSet.of(headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderTarget(target),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),FluentIterable.from(compileRule1.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  BuildRule compileRule2=resolver.get(CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName));
+  assertNotNull(compileRule2);
+  assertEquals(ImmutableSet.of(genSourceTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderTarget(target),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),FluentIterable.from(compileRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+}
