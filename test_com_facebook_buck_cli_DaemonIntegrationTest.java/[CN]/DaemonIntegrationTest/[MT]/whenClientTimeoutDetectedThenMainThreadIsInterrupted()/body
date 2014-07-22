@@ -1,0 +1,18 @@
+{
+  final long timeoutMillis=100;
+  final long intervalMillis=timeoutMillis * 2;
+  final ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"exclusive_execution",tmp);
+  workspace.setUp();
+  Thread.currentThread().setName("Test");
+  try (TestContext context=new TestContext(ImmutableMap.copyOf(System.getenv()),TestContext.createHeartBeatStream(intervalMillis),timeoutMillis)){
+    final Thread commandThread=Thread.currentThread();
+    context.addClientListener(new NGClientListener(){
+      @Override public void clientDisconnected() throws InterruptedException {
+        commandThread.interrupt();
+      }
+    }
+);
+    Thread.sleep(1000);
+    fail("Should have been interrupted.");
+  }
+ }
