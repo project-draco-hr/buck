@@ -1,0 +1,37 @@
+{
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  IosLibraryDescription iosLibraryDescription=new IosLibraryDescription();
+  XcodeProjectConfigDescription xcodeProjectConfigDescription=new XcodeProjectConfigDescription();
+  BuildRuleParams fooParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).setType(IosLibraryDescription.TYPE).build();
+  AppleNativeTargetDescriptionArg libFooArg=iosLibraryDescription.createUnpopulatedConstructorArg();
+  libFooArg.configs=ImmutableMap.of();
+  libFooArg.srcs=ImmutableList.of();
+  libFooArg.frameworks=ImmutableSortedSet.of();
+  libFooArg.deps=Optional.absent();
+  BuildRule fooLibRule=iosLibraryDescription.createBuildRule(fooParams,ruleResolver,libFooArg);
+  BuildRuleParams barParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//bar","lib").build()).setType(IosLibraryDescription.TYPE).build();
+  AppleNativeTargetDescriptionArg libBarArg=iosLibraryDescription.createUnpopulatedConstructorArg();
+  libBarArg.configs=ImmutableMap.of();
+  libBarArg.srcs=ImmutableList.of();
+  libBarArg.frameworks=ImmutableSortedSet.of();
+  libBarArg.deps=Optional.absent();
+  BuildRule barLibRule=iosLibraryDescription.createBuildRule(barParams,ruleResolver,libBarArg);
+  BuildRuleParams fooProjectParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","project").build()).setType(XcodeProjectConfigDescription.TYPE).build();
+  XcodeProjectConfigDescription.Arg fooProjectArg=xcodeProjectConfigDescription.createUnpopulatedConstructorArg();
+  fooProjectArg.projectName="foo";
+  fooProjectArg.rules=ImmutableSet.of(fooLibRule);
+  BuildRule fooProjectRule=xcodeProjectConfigDescription.createBuildRule(fooProjectParams,ruleResolver,fooProjectArg);
+  BuildRuleParams barProjectParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//bar","project").build()).setType(XcodeProjectConfigDescription.TYPE).build();
+  XcodeProjectConfigDescription.Arg barProjectArg=xcodeProjectConfigDescription.createUnpopulatedConstructorArg();
+  barProjectArg.projectName="bar";
+  barProjectArg.rules=ImmutableSet.of(barLibRule);
+  BuildRule barProjectRule=xcodeProjectConfigDescription.createBuildRule(barProjectParams,ruleResolver,barProjectArg);
+  BuckConfig buckConfig=createBuckConfig(Joiner.on("\n").join("[project]","ide = xcode","default_exclude_paths = foo"));
+  ProjectCommandForTest command=new ProjectCommandForTest(buckConfig,projectFilesystem);
+  command.createPartialGraphCallReturnValues.push(createGraphFromBuildRules(ImmutableList.of(barProjectRule)));
+  command.runCommandWithOptions(createOptions(buckConfig));
+  assertTrue(command.createPartialGraphCallReturnValues.isEmpty());
+  RawRulePredicate projectConfigPredicate=command.createPartialGraphCallPredicates.get(0);
+  checkPredicate(projectConfigPredicate,EMPTY_PARSE_DATA,fooProjectRule,false);
+  checkPredicate(projectConfigPredicate,EMPTY_PARSE_DATA,barProjectRule,true);
+}
