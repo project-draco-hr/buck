@@ -1,0 +1,14 @@
+{
+  Path aFile=tmpDir.newFile().toPath();
+  Files.write(aFile,"hello world".getBytes(Charsets.UTF_8));
+  AbstractBuildRule modifiedSymlinkTreeBuildRule=new SymlinkTree(new FakeBuildRuleParamsBuilder(buildTarget).build(),ImmutableMap.of(Paths.get("different/link"),aFile));
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new FakeRuleKeyBuilderFactory(FakeFileHashCache.createFromStrings(ImmutableMap.<String,String>of()));
+  RuleKey.Builder builder1=ruleKeyBuilderFactory.newInstance(symlinkTreeBuildRule);
+  RuleKey.Builder builder2=ruleKeyBuilderFactory.newInstance(modifiedSymlinkTreeBuildRule);
+  symlinkTreeBuildRule.appendToRuleKey(builder1);
+  modifiedSymlinkTreeBuildRule.appendToRuleKey(builder2);
+  RuleKey.Builder.RuleKeyPair pair1=builder1.build();
+  RuleKey.Builder.RuleKeyPair pair2=builder2.build();
+  assertNotEquals(pair1.getTotalRuleKey(),pair2.getTotalRuleKey());
+  assertNotEquals(pair1.getRuleKeyWithoutDeps(),pair2.getRuleKeyWithoutDeps());
+}
