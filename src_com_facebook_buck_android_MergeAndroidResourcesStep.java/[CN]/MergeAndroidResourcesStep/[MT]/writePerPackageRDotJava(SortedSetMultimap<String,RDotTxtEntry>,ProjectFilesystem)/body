@@ -1,0 +1,26 @@
+{
+  for (  String rDotJavaPackage : packageToResources.keySet()) {
+    Path outputFile=getPathToRDotJava(rDotJavaPackage);
+    filesystem.mkdirs(outputFile.getParent());
+    try (PrintWriter writer=new PrintWriter(filesystem.newFileOutputStream(outputFile))){
+      writer.format("package %s;\n\n",rDotJavaPackage);
+      writer.println("public class R {\n");
+      String lastType=null;
+      for (      RDotTxtEntry res : packageToResources.get(rDotJavaPackage)) {
+        String type=res.type;
+        if (!type.equals(lastType)) {
+          if (lastType != null) {
+            writer.println("  }\n");
+          }
+          writer.format("  public static class %s {\n",type);
+          lastType=type;
+        }
+        writer.format("    public static%s%s %s=%s;\n",uberRDotTxt.isPresent() ? " final " : " ",res.idType,res.name,res.idValue);
+      }
+      if (lastType != null) {
+        writer.println("  }\n");
+      }
+      writer.println("}");
+    }
+   }
+}

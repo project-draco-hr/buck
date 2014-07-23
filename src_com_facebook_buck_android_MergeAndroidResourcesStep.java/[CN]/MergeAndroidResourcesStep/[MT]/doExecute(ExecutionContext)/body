@@ -1,12 +1,21 @@
 {
-  SortedSetMultimap<String,RDotTxtEntry> rDotJavaPackageToResources=sortSymbols(symbolsFileToRDotJavaPackage,context.getProjectFilesystem(),true);
-  for (  String rDotJavaPackage : rDotJavaPackageToResources.keySet()) {
-    SortedSet<RDotTxtEntry> resources=rDotJavaPackageToResources.get(rDotJavaPackage);
-    Path pathToRDotJava=getOutputFilePath(pathToGeneratedJavaFiles,rDotJavaPackage);
-    File rDotJava=context.getProjectFilesystem().getFileForRelativePath(pathToRDotJava);
-    Files.createParentDirs(rDotJava);
-    try (BufferedWriter writer=Files.newWriter(rDotJava,Charsets.UTF_8)){
-      writeJavaCodeForPackageAndResources(new PrintWriter(writer),rDotJavaPackage,resources);
+  ProjectFilesystem filesystem=context.getProjectFilesystem();
+  ImmutableMap.Builder<Path,String> symbolsFileToRDotJavaPackage=ImmutableMap.builder();
+  for (  HasAndroidResourceDeps res : androidResourceDeps) {
+    symbolsFileToRDotJavaPackage.put(res.getPathToTextSymbolsFile(),res.getRDotJavaPackage());
+  }
+  Optional<ImmutableMap<RDotTxtEntry,String>> uberRDotTxtIds;
+  if (uberRDotTxt.isPresent()) {
+    uberRDotTxtIds=Optional.of(FluentIterable.from(RDotTxtEntry.readResources(context,uberRDotTxt.get())).toMap(new Function<RDotTxtEntry,String>(){
+      @Override public String apply(      RDotTxtEntry input){
+        return input.idValue;
+      }
     }
-   }
+));
+  }
+ else {
+    uberRDotTxtIds=Optional.absent();
+  }
+  SortedSetMultimap<String,RDotTxtEntry> rDotJavaPackageToResources=sortSymbols(symbolsFileToRDotJavaPackage.build(),filesystem,uberRDotTxtIds);
+  writePerPackageRDotJava(rDotJavaPackageToResources,filesystem);
 }

@@ -1,28 +1,27 @@
 {
+  Path rDotTxtDir=getPathToRDotTxtDir();
+  steps.add(new MakeCleanDirectoryStep(rDotTxtDir));
+  Path dummyManifestFile=BuildTargets.getGenPath(getBuildTarget(),"__%s_dummy_manifest/AndroidManifest.xml");
+  steps.add(new GenRDotTxtStep(resDirectories,rDotTxtDir,Suppliers.ofInstance(Iterables.get(rDotJavaPackages,0)),false,dummyManifestFile));
   Path rDotJavaSrc=getPathToGeneratedRDotJavaSrcFiles();
   steps.add(new MakeCleanDirectoryStep(rDotJavaSrc));
-  Path dummyManifestFile=BuildTargets.getGenPath(getBuildTarget(),"__%s_dummy_manifest/AndroidManifest.xml");
-  GenRDotJavaStep genRDotJava=new GenRDotJavaStep(resDirectories,rDotJavaSrc,Suppliers.ofInstance(Iterables.get(rDotJavaPackages,0)),false,FluentIterable.from(rDotJavaPackages).skip(1).toSet(),dummyManifestFile);
-  steps.add(genRDotJava);
+  MergeAndroidResourcesStep mergeStep=new MergeAndroidResourcesStep(resourceDeps,Optional.of(rDotTxtDir.resolve("R.txt")),rDotJavaSrc);
+  steps.add(mergeStep);
   if (shouldBuildStringSourceMap) {
     Path outputDirPath=getPathForNativeStringInfoDirectory();
     steps.add(new MakeCleanDirectoryStep(outputDirPath));
-    GenStringSourceMapStep genNativeStringInfo=new GenStringSourceMapStep(rDotJavaSrc,resDirectories,outputDirPath);
+    GenStringSourceMapStep genNativeStringInfo=new GenStringSourceMapStep(rDotTxtDir,resDirectories,outputDirPath);
     steps.add(genNativeStringInfo);
     buildableContext.recordArtifactsInDirectory(outputDirPath);
   }
-  Set<SourcePath> javaSourceFilePaths=Sets.newHashSet();
-  for (  String rDotJavaPackage : rDotJavaPackages) {
-    Path path=rDotJavaSrc.resolve(rDotJavaPackage.replace('.','/')).resolve("R.java");
-    javaSourceFilePaths.add(new PathSourcePath(path));
-  }
   Path rDotJavaBin=getPathToCompiledRDotJavaFiles();
   steps.add(new MakeCleanDirectoryStep(rDotJavaBin));
-  JavacStep javac=UberRDotJavaUtil.createJavacStepForUberRDotJavaFiles(javaSourceFilePaths,rDotJavaBin,javacOptions,getBuildTarget());
+  JavacStep javac=UberRDotJavaUtil.createJavacStepForUberRDotJavaFiles(mergeStep.getRDotJavaFiles(),rDotJavaBin,javacOptions,getBuildTarget());
   steps.add(javac);
   Path rDotJavaClassesTxt=getPathToRDotJavaClassesTxt();
   steps.add(new MakeCleanDirectoryStep(rDotJavaClassesTxt.getParent()));
   steps.add(new AccumulateClassNamesStep(Optional.of(rDotJavaBin),rDotJavaClassesTxt));
+  buildableContext.recordArtifactsInDirectory(rDotTxtDir);
   buildableContext.recordArtifactsInDirectory(rDotJavaSrc);
   buildableContext.recordArtifactsInDirectory(rDotJavaBin);
   buildableContext.recordArtifact(rDotJavaClassesTxt);

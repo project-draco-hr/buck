@@ -1,23 +1,15 @@
 {
-  String symbolsFile=BuckConstant.BIN_DIR + "/android_res/com/facebook/http/__res_resources_text_symbols__/R.txt";
+  String symbolsFile=BuckConstant.GEN_DIR + "/android_res/com/facebook/http/__res_text_symbols__/R.txt";
   String rDotJavaPackage="com.facebook";
   final ImmutableList<String> outputTextSymbols=ImmutableList.<String>builder().add("int id placeholder 0x7f020000").add("int string debug_http_proxy_dialog_title 0x7f030004").add("int string debug_http_proxy_hint 0x7f030005").add("int string debug_http_proxy_summary 0x7f030003").add("int string debug_http_proxy_title 0x7f030002").add("int string debug_ssl_cert_check_summary 0x7f030001").add("int string debug_ssl_cert_check_title 0x7f030000").add("int styleable SherlockMenuItem_android_visible 4").add("int[] styleable SherlockMenuView { 0x7f010026, 0x7f010027, 0x7f010028, 0x7f010029, " + "0x7f01002a, 0x7f01002b, 0x7f01002c, 0x7f01002d }").build();
   RDotTxtEntryBuilder entriesBuilder=new RDotTxtEntryBuilder();
   entriesBuilder.add(new RDotTxtFile(rDotJavaPackage,symbolsFile,outputTextSymbols));
-  SortedSetMultimap<String,RDotTxtEntry> rDotJavaPackageToResources=MergeAndroidResourcesStep.sortSymbols(entriesBuilder.buildFilePathToPackageNameSet(),entriesBuilder.getProjectFilesystem(),false);
-  assertEquals(1,rDotJavaPackageToResources.keySet().size());
-  SortedSet<RDotTxtEntry> resources=rDotJavaPackageToResources.get(rDotJavaPackage);
-  assertEquals(9,resources.size());
-  Iterator<RDotTxtEntry> iter=resources.iterator();
-  assertResource("int","id","placeholder","0x7f020000",iter.next());
-  assertResource("int","string","debug_http_proxy_dialog_title","0x7f030004",iter.next());
-  assertResource("int","string","debug_http_proxy_hint","0x7f030005",iter.next());
-  assertResource("int","string","debug_http_proxy_summary","0x7f030003",iter.next());
-  assertResource("int","string","debug_http_proxy_title","0x7f030002",iter.next());
-  assertResource("int","string","debug_ssl_cert_check_summary","0x7f030001",iter.next());
-  assertResource("int","string","debug_ssl_cert_check_title","0x7f030000",iter.next());
-  assertResource("int","styleable","SherlockMenuItem_android_visible","4",iter.next());
-  assertResource("int[]","styleable","SherlockMenuView","{ 0x7f010026, 0x7f010027, 0x7f010028, 0x7f010029, 0x7f01002a, 0x7f01002b, 0x7f01002c, " + "0x7f01002d }",iter.next());
-  String javaCode=MergeAndroidResourcesStep.generateJavaCodeForPackageAndResources(rDotJavaPackage,resources);
-  assertEquals("package com.facebook;\n" + "\n" + "public class R {\n"+ "\n"+ "  public static class id {\n"+ "    public static int placeholder=0x7f020000;\n"+ "  }\n"+ "\n"+ "  public static class string {\n"+ "    public static int debug_http_proxy_dialog_title=0x7f030004;\n"+ "    public static int debug_http_proxy_hint=0x7f030005;\n"+ "    public static int debug_http_proxy_summary=0x7f030003;\n"+ "    public static int debug_http_proxy_title=0x7f030002;\n"+ "    public static int debug_ssl_cert_check_summary=0x7f030001;\n"+ "    public static int debug_ssl_cert_check_title=0x7f030000;\n"+ "  }\n"+ "\n"+ "  public static class styleable {\n"+ "    public static int SherlockMenuItem_android_visible=4;\n"+ "    public static int[] SherlockMenuView={ 0x7f010026, 0x7f010027, 0x7f010028, "+ "0x7f010029, 0x7f01002a, 0x7f01002b, 0x7f01002c, 0x7f01002d };\n"+ "  }\n"+ "\n"+ "}\n",javaCode);
+  FakeProjectFilesystem filesystem=entriesBuilder.getProjectFilesystem();
+  Path uberRDotTxt=Paths.get("R.txt");
+  filesystem.writeLinesToPath(outputTextSymbols,uberRDotTxt);
+  HasAndroidResourceDeps resource=AndroidResourceRuleBuilder.newBuilder().setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/facebook/http:res")).setRes(Paths.get("res")).setRDotJavaPackage("com.facebook").build();
+  MergeAndroidResourcesStep mergeStep=new MergeAndroidResourcesStep(ImmutableList.of(resource),Optional.of(uberRDotTxt),Paths.get("output"));
+  ExecutionContext executionContext=TestExecutionContext.newBuilder().setProjectFilesystem(filesystem).build();
+  assertEquals(0,mergeStep.execute(executionContext));
+  assertEquals("package com.facebook;\n" + "\n" + "public class R {\n"+ "\n"+ "  public static class id {\n"+ "    public static final int placeholder=0x7f020000;\n"+ "  }\n"+ "\n"+ "  public static class string {\n"+ "    public static final int debug_http_proxy_dialog_title=0x7f030004;\n"+ "    public static final int debug_http_proxy_hint=0x7f030005;\n"+ "    public static final int debug_http_proxy_summary=0x7f030003;\n"+ "    public static final int debug_http_proxy_title=0x7f030002;\n"+ "    public static final int debug_ssl_cert_check_summary=0x7f030001;\n"+ "    public static final int debug_ssl_cert_check_title=0x7f030000;\n"+ "  }\n"+ "\n"+ "  public static class styleable {\n"+ "    public static final int SherlockMenuItem_android_visible=4;\n"+ "    public static final int[] SherlockMenuView={ 0x7f010026, 0x7f010027, 0x7f010028, "+ "0x7f010029, 0x7f01002a, 0x7f01002b, 0x7f01002c, 0x7f01002d };\n"+ "  }\n"+ "\n"+ "}\n",filesystem.readFileIfItExists(Paths.get("output/com/facebook/R.java")).get());
 }
