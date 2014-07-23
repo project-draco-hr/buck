@@ -1,0 +1,40 @@
+{
+  if (!isStoreSupported()) {
+    return;
+  }
+  String method="POST";
+  HttpURLConnection connection;
+  try {
+    connection=getConnection(urlStore);
+    connection.setConnectTimeout(timeoutSeconds);
+    connection.setRequestMethod(method);
+    prepareFileUpload(connection,file,ruleKey.toString());
+  }
+ catch (  MalformedURLException e) {
+    logger.error(e,"store(%s): malformed URL: %s",ruleKey,urlStore);
+    return;
+  }
+catch (  ProtocolException e) {
+    logger.error(e,"store(%s): invalid protocol: %s",ruleKey,method);
+    return;
+  }
+catch (  ConnectException e) {
+    reportConnectionFailure(String.format("store(%s)",ruleKey),e);
+    return;
+  }
+catch (  IOException e) {
+    logger.warn(e,"store(%s): IOException: %s",ruleKey,e.getMessage());
+    return;
+  }
+  int responseCode;
+  try {
+    responseCode=connection.getResponseCode();
+  }
+ catch (  IOException e) {
+    reportConnectionFailure(String.format("store(%s)",ruleKey),e);
+    return;
+  }
+  if (responseCode != HttpURLConnection.HTTP_ACCEPTED) {
+    logger.warn("store(%s): unexpected response: %d",ruleKey,responseCode);
+  }
+}
