@@ -1,0 +1,24 @@
+{
+  assertTrue("setUp() must be run before this method is invoked",isSetUp);
+  CapturingPrintStream stdout=new CapturingPrintStream();
+  CapturingPrintStream stderr=new CapturingPrintStream();
+  final ImmutableList.Builder<BuckEvent> capturedEventsListBuilder=new ImmutableList.Builder<>();
+  BuckEventListener capturingEventListener=new BuckEventListener(){
+    @Subscribe public void captureEvent(    BuckEvent event){
+      capturedEventsListBuilder.add(event);
+    }
+    @Override public void outputTrace(    BuildId buildId) throws InterruptedException {
+    }
+  }
+;
+  Main main=new Main(stdout,stderr,Optional.of(capturingEventListener));
+  int exitCode=0;
+  try {
+    exitCode=main.runMainWithExitCode(destDir,context,args);
+  }
+ catch (  InterruptedException e) {
+    Thread.currentThread().interrupt();
+    exitCode=Main.FAIL_EXIT_CODE;
+  }
+  return new ProcessResult(exitCode,stdout.getContentsAsString(Charsets.UTF_8),stderr.getContentsAsString(Charsets.UTF_8),capturedEventsListBuilder.build());
+}
