@@ -1,7 +1,21 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  Supplier<BuildConfigFields> totalFields;
+  if (valuesFile.isPresent()) {
+    final ReadValuesStep readValuesStep=new ReadValuesStep(valuesFile.get());
+    steps.add(readValuesStep);
+    totalFields=Suppliers.memoize(new Supplier<BuildConfigFields>(){
+      @Override public BuildConfigFields get(){
+        return defaultValues.putAll(readValuesStep.get());
+      }
+    }
+);
+  }
+ else {
+    totalFields=Suppliers.ofInstance(defaultValues);
+  }
   steps.add(new MakeCleanDirectoryStep(pathToOutputFile.getParent()));
-  steps.add(new GenerateBuildConfigStep(javaPackage,useConstantExpressions,constants,pathToOutputFile));
+  steps.add(new GenerateBuildConfigStep(javaPackage,useConstantExpressions,totalFields,pathToOutputFile));
   buildableContext.recordArtifact(pathToOutputFile);
   return steps.build();
 }

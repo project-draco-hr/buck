@@ -28,19 +28,8 @@
   if (packageableCollection.resourceDetails.hasRDotJavaPackages) {
     collector.addClasspathEntry(uberRDotJava,uberRDotJava.getPathToCompiledRDotJavaFiles());
   }
-  ImmutableMap<String,Object> buildConfigConstants=ImmutableMap.<String,Object>of(BuildConfigs.DEBUG_CONSTANT,packageType != AndroidBinary.PackageType.RELEASE,BuildConfigs.IS_EXO_CONSTANT,exopackage);
-  for (  Map.Entry<String,ImmutableMap<String,Object>> entry : packageableCollection.buildConfigs.entrySet()) {
-    String javaPackage=entry.getKey();
-    Map<String,Object> totalConstants=Maps.newHashMap();
-    Map<String,Object> userDefinedConstants=entry.getValue();
-    totalConstants.putAll(userDefinedConstants);
-    totalConstants.putAll(buildConfigConstants);
-    Flavor flavor=new Flavor("buildconfig_" + javaPackage.replace('.','_'));
-    BuildRuleParams buildConfigParams=new BuildRuleParams(createBuildTargetWithFlavor(flavor),ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of(),BuildTargetPattern.PUBLIC,buildRuleParams.getProjectFilesystem(),buildRuleParams.getRuleKeyBuilderFactory(),AndroidBuildConfigDescription.TYPE);
-    JavaLibrary finalBuildConfig=AndroidBuildConfigDescription.createBuildRule(buildConfigParams,javaPackage,true,totalConstants);
-    ruleResolver.addToIndex(finalBuildConfig);
-    enhancedDeps.add(finalBuildConfig);
-    collector.addClasspathEntry(finalBuildConfig,finalBuildConfig.getPathToOutputFile());
+  if (packageType != PackageType.INSTRUMENTED) {
+    addBuildConfigDeps(enhancedDeps,collector,packageableCollection);
   }
   packageableCollection=collector.build();
   Optional<PackageStringAssets> packageStringAssets=Optional.absent();

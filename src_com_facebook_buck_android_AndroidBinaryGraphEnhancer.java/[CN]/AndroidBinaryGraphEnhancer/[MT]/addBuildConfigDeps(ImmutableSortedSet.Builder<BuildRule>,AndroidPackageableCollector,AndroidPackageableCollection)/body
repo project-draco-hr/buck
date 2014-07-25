@@ -1,0 +1,13 @@
+{
+  BuildConfigFields buildConfigConstants=BuildConfigFields.fromFields(ImmutableList.of(new BuildConfigFields.Field("boolean",BuildConfigs.DEBUG_CONSTANT,String.valueOf(packageType != AndroidBinary.PackageType.RELEASE)),new BuildConfigFields.Field("boolean",BuildConfigs.IS_EXO_CONSTANT,String.valueOf(exopackage))));
+  for (  Map.Entry<String,BuildConfigFields> entry : packageableCollection.buildConfigs.entrySet()) {
+    BuildConfigFields totalBuildConfigValues=BuildConfigFields.empty().putAll(entry.getValue()).putAll(buildConfigValues).putAll(buildConfigConstants);
+    String javaPackage=entry.getKey();
+    Flavor flavor=new Flavor("buildconfig_" + javaPackage.replace('.','_'));
+    BuildRuleParams buildConfigParams=new BuildRuleParams(createBuildTargetWithFlavor(flavor),ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of(),BuildTargetPattern.PUBLIC,buildRuleParams.getProjectFilesystem(),buildRuleParams.getRuleKeyBuilderFactory(),AndroidBuildConfigDescription.TYPE);
+    JavaLibrary finalBuildConfig=AndroidBuildConfigDescription.createBuildRule(buildConfigParams,javaPackage,totalBuildConfigValues,buildConfigValuesFile,true);
+    ruleResolver.addToIndex(finalBuildConfig);
+    enhancedDeps.add(finalBuildConfig);
+    collector.addClasspathEntry(finalBuildConfig,finalBuildConfig.getPathToOutputFile());
+  }
+}

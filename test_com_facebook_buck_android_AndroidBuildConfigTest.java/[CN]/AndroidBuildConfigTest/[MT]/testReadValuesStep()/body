@@ -1,0 +1,12 @@
+{
+  Path pathToValues=Paths.get("src/values.txt");
+  ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
+  EasyMock.expect(projectFilesystem.readLines(pathToValues)).andReturn(ImmutableList.of("boolean DEBUG = false","String FOO = \"BAR\""));
+  EasyMock.replay(projectFilesystem);
+  ReadValuesStep step=new ReadValuesStep(new PathSourcePath(pathToValues));
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
+  int exitCode=step.execute(context);
+  assertEquals(0,exitCode);
+  assertEquals(BuildConfigFields.fromFields(ImmutableList.of(new BuildConfigFields.Field("boolean","DEBUG","false"),new BuildConfigFields.Field("String","FOO","\"BAR\""))),step.get());
+  EasyMock.verify(projectFilesystem);
+}
