@@ -4,7 +4,9 @@
   final long disconnectMillis=100;
   final ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"exclusive_execution",tmp);
   workspace.setUp();
-  try (TestContext context=new TestContext(ImmutableMap.copyOf(System.getenv()),createDisconnectionStream(disconnectMillis),timeoutMillis)){
-    workspace.runBuckdCommand(context,"build","//:sleep").assertFailure();
+  try (TestContext context=new TestContext(ImmutableMap.copyOf(System.getenv()),TestContext.createDisconnectionStream(disconnectMillis),timeoutMillis)){
+    ProcessResult result=workspace.runBuckdCommand(context,"build","//:sleep");
+    result.assertFailure();
+    assertThat(result.getStderr(),containsString("InterruptedException"));
   }
  }
