@@ -1,0 +1,24 @@
+{
+  BuildRuleParams fooParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).setType(IosLibraryDescription.TYPE).build();
+  AppleNativeTargetDescriptionArg fooArg=iosLibraryDescription.createUnpopulatedConstructorArg();
+  fooArg.configs=ImmutableMap.of();
+  fooArg.srcs=ImmutableList.of();
+  fooArg.frameworks=ImmutableSortedSet.of();
+  fooArg.deps=Optional.absent();
+  fooArg.gid=Optional.of("E66DC04E36F2D8BE00000000");
+  BuildRule fooRule=iosLibraryDescription.createBuildRule(fooParams,new BuildRuleResolver(),fooArg);
+  BuildRuleParams barParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//bar","lib").build()).setType(IosLibraryDescription.TYPE).build();
+  AppleNativeTargetDescriptionArg barArg=iosLibraryDescription.createUnpopulatedConstructorArg();
+  barArg.configs=ImmutableMap.of();
+  barArg.srcs=ImmutableList.of();
+  barArg.frameworks=ImmutableSortedSet.of();
+  barArg.deps=Optional.absent();
+  barArg.gid=Optional.absent();
+  BuildRule barRule=iosLibraryDescription.createBuildRule(barParams,new BuildRuleResolver(),barArg);
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(fooRule,barRule),ImmutableSet.of(fooRule.getBuildTarget(),barRule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//bar:lib");
+  String expectedGID=String.format("%08X%08X%08X",target.isa().hashCode(),target.getName().hashCode(),1);
+  assertEquals("expected GID has correct value","E66DC04E36F2D8BE00000001",expectedGID);
+  assertEquals("generated GID is same as expected",expectedGID,target.getGlobalID());
+}
