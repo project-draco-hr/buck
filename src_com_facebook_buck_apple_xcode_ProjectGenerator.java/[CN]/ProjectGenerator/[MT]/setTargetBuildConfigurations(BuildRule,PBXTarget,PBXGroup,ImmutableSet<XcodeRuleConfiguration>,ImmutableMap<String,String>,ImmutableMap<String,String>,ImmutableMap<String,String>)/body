@@ -1,0 +1,78 @@
+{
+  BuildTarget buildTarget=buildRule.getBuildTarget();
+  ImmutableMap.Builder<String,String> overrideConfigsBuilder=ImmutableMap.builder();
+  overrideConfigsBuilder.putAll(overrideBuildSettings).put("TARGET_NAME",getProductName(buildTarget)).put("SRCROOT",relativizeBuckRelativePathToGeneratedProject(buildTarget,"").toString());
+  ImmutableMap.Builder<String,String> defaultConfigsBuilder=ImmutableMap.builder();
+  defaultConfigsBuilder.putAll(defaultBuildSettings);
+  ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
+  appendConfigsBuilder.putAll(appendBuildSettings).put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveHeaderSearchPaths(buildRule))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(buildRule))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(buildRule)));
+  if (!options.contains(Option.REFERENCE_EXISTING_XCCONFIGS)) {
+    overrideConfigsBuilder.put("GCC_PREFIX_HEADER","$(SRCROOT)/$(inherited)");
+  }
+  ImmutableMap<String,String> overrideConfigs=overrideConfigsBuilder.build();
+  ImmutableMap<String,String> defaultConfigs=defaultConfigsBuilder.build();
+  ImmutableMap<String,String> appendConfigs=appendConfigsBuilder.build();
+  PBXGroup configurationsGroup=targetGroup.getOrCreateChildGroupByName("Configurations");
+  for (  XcodeRuleConfiguration configuration : configurations) {
+    if (options.contains(Option.REFERENCE_EXISTING_XCCONFIGS)) {
+      ConfigInXcodeLayout layers=extractXcodeConfigurationLayers(buildTarget,configuration);
+      xcodeConfigurationLayersMultimapBuilder.put(configuration.getName(),layers);
+      XCBuildConfiguration outputConfiguration=target.getBuildConfigurationList().getBuildConfigurationsByName().getUnchecked(configuration.getName());
+      if (layers.targetLevelConfigFile.isPresent()) {
+{
+          Map<String,String> mutableOverrideConfigs=new HashMap<>(overrideConfigs);
+          for (          Map.Entry<String,String> entry : defaultConfigs.entrySet()) {
+            String existingSetting=layers.targetLevelInlineSettings.get(entry.getKey());
+            if (existingSetting == null) {
+              mutableOverrideConfigs.put(entry.getKey(),entry.getValue());
+            }
+          }
+          for (          Map.Entry<String,String> entry : appendConfigs.entrySet()) {
+            String existingSetting=layers.targetLevelInlineSettings.get(entry.getKey());
+            String settingPrefix;
+            if (existingSetting != null) {
+              settingPrefix=existingSetting + ' ';
+            }
+ else {
+              settingPrefix="$(inherited) ";
+            }
+            mutableOverrideConfigs.put(entry.getKey(),settingPrefix + entry.getValue());
+          }
+          overrideConfigs=ImmutableMap.copyOf(mutableOverrideConfigs);
+        }
+        PBXFileReference fileReference=configurationsGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,repoRootRelativeToOutputDirectory.resolve(layers.targetLevelConfigFile.get()).normalize()));
+        outputConfiguration.setBaseConfigurationReference(fileReference);
+        NSDictionary inlineSettings=new NSDictionary();
+        Iterable<Map.Entry<String,String>> entries=Iterables.concat(layers.targetLevelInlineSettings.entrySet(),overrideConfigs.entrySet());
+        for (        Map.Entry<String,String> entry : entries) {
+          inlineSettings.put(entry.getKey(),entry.getValue());
+        }
+        outputConfiguration.setBuildSettings(inlineSettings);
+      }
+    }
+ else {
+      Map<String,String> mutableExtraConfigs=new HashMap<>(overrideConfigs);
+      for (      Map.Entry<String,String> entry : appendBuildSettings.entrySet()) {
+        String setting="$(inherited) " + entry.getValue();
+        mutableExtraConfigs.put(entry.getKey(),setting);
+      }
+      overrideConfigs=ImmutableMap.copyOf(mutableExtraConfigs);
+      Path outputConfigurationDirectory=outputDirectory.resolve("Configurations");
+      projectFilesystem.mkdirs(outputConfigurationDirectory);
+      Path originalProjectPath=projectFilesystem.getPathForRelativePath(Paths.get(buildTarget.getBasePathWithSlash()));
+      ImmutableList<Path> searchPaths=ImmutableList.of(originalProjectPath);
+      project.getBuildConfigurationList().getBuildConfigurationsByName().getUnchecked(configuration.getName());
+      Path configurationFilePath=outputConfigurationDirectory.resolve(mangledBuildTargetName(buildTarget) + "-" + configuration.getName()+ ".xcconfig");
+      String serializedConfiguration=serializeBuildConfiguration(configuration,searchPaths,overrideConfigs);
+      if (shouldGenerateReadOnlyFiles()) {
+        projectFilesystem.writeContentsToPath(serializedConfiguration,configurationFilePath,READ_ONLY_FILE_ATTRIBUTE);
+      }
+ else {
+        projectFilesystem.writeContentsToPath(serializedConfiguration,configurationFilePath);
+      }
+      PBXFileReference fileReference=configurationsGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,repoRootRelativeToOutputDirectory.resolve(configurationFilePath)));
+      XCBuildConfiguration outputConfiguration=target.getBuildConfigurationList().getBuildConfigurationsByName().getUnchecked(configuration.getName());
+      outputConfiguration.setBaseConfigurationReference(fileReference);
+    }
+  }
+}
