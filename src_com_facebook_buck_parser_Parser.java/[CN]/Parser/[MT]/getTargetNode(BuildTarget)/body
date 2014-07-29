@@ -1,0 +1,32 @@
+{
+  TargetNode<?> toReturn=memoizedTargetNodes.get(buildTarget);
+  if (toReturn != null) {
+    return toReturn;
+  }
+  List<Map<String,Object>> rules=Preconditions.checkNotNull(parsedBuildFiles.get(normalize(buildTarget.getBuildFilePath())));
+  for (  Map<String,Object> map : rules) {
+    if (!buildTarget.getShortName().equals(map.get("name"))) {
+      continue;
+    }
+    BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(map);
+    BuildTarget target=parseBuildTargetFromRawRule(map);
+    targetsToFile.put(target,normalize(Paths.get((String)map.get("buck.base_path"))).resolve("BUCK").toAbsolutePath());
+    Description<?> description=repository.getDescription(buildRuleType);
+    if (description == null) {
+      throw new HumanReadableException("Unrecognized rule %s while parsing %s%s.",buildRuleType,BuildTarget.BUILD_TARGET_PREFIX,target.getBuildFilePath());
+    }
+    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(map,repository.getFilesystem(),buildTargetParser,target,ruleKeyBuilderFactory);
+    TargetNode<?> targetNode;
+    try {
+      targetNode=new TargetNode<>(description,factoryParams);
+    }
+ catch (    NoSuchBuildTargetException e) {
+      throw new HumanReadableException(e);
+    }
+    TargetNode<?> existingTargetNode=memoizedTargetNodes.put(target,targetNode);
+    if (existingTargetNode != null) {
+      throw new HumanReadableException("Duplicate definition for " + target);
+    }
+  }
+  return memoizedTargetNodes.get(buildTarget);
+}

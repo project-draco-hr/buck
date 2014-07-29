@@ -3,17 +3,17 @@
   AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget>(){
     @Override protected Iterator<BuildTarget> findChildren(    BuildTarget buildTarget) throws IOException {
       ParseContext parseContext=ParseContext.forBaseName(buildTarget.getBaseName());
-      if (!knownBuildTargets.containsKey(buildTarget)) {
+      TargetNode<?> targetNode=getTargetNode(buildTarget);
+      if (targetNode == null) {
         throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTarget,parseContext));
       }
-      TargetNode<?> targetNode=knownBuildTargets.get(buildTarget);
       Set<BuildTarget> deps=Sets.newHashSet();
       for (      BuildTarget buildTargetForDep : targetNode.getDeps()) {
         try {
-          TargetNode<?> depTargetNode=knownBuildTargets.get(buildTargetForDep);
+          TargetNode<?> depTargetNode=getTargetNode(buildTargetForDep);
           if (depTargetNode == null) {
             parseBuildFileContainingTarget(buildTarget,buildTargetForDep,defaultIncludes,buildFileParser);
-            depTargetNode=knownBuildTargets.get(buildTargetForDep);
+            depTargetNode=getTargetNode(buildTargetForDep);
             if (depTargetNode == null) {
               throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTargetForDep,ParseContext.forBaseName(buildTargetForDep.getBaseName())));
             }
@@ -28,11 +28,11 @@
       return deps.iterator();
     }
     @Override protected void onNodeExplored(    BuildTarget buildTarget){
-      TargetNode<?> targetNode=knownBuildTargets.get(buildTarget);
+      TargetNode<?> targetNode=getTargetNode(buildTarget);
       Preconditions.checkNotNull(targetNode,"No target node found for %s",buildTarget);
       graph.addNode(targetNode);
       for (      BuildTarget target : targetNode.getDeps()) {
-        graph.addEdge(targetNode,knownBuildTargets.get(target));
+        graph.addEdge(targetNode,getTargetNode(target));
       }
     }
     @Override protected void onTraversalComplete(    Iterable<BuildTarget> nodesInExplorationOrder){
