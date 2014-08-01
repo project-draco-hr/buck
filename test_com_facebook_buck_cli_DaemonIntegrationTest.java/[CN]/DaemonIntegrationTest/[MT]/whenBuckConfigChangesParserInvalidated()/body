@@ -1,14 +1,8 @@
 {
-  final ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"file_watching",tmp);
-  workspace.setUp();
-  workspace.runBuckdCommand("build","//java/com/example/activity:activity").assertSuccess();
-  ProcessResult rebuild=workspace.runBuckdCommand("build","//java/com/example/activity:activity","-v","10");
-  rebuild.assertSuccess();
-  assertThat("Noop build should not have reparsed.",rebuild.getStderr(),not(containsString("Parsing")));
-  String buckConfigFilename=".buckconfig";
-  String extraConfigOptions=Joiner.on("\n").join("[ndk]","    ndk_version = r9b","");
-  Files.append(extraConfigOptions,workspace.getFile(buckConfigFilename),Charsets.UTF_8);
-  rebuild=workspace.runBuckdCommand("build","//java/com/example/activity:activity","-v","10");
-  rebuild.assertSuccess();
-  assertThat("Changing .buckconfing should have forced a reparse.",rebuild.getStderr(),containsString("Parsing"));
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(Paths.get("."));
+  KnownBuildRuleTypes knownBuildRuleTypes=KnownBuildRuleTypes.builder().build();
+  AndroidDirectoryResolver androidDirectoryResolver=createMock(AndroidDirectoryResolver.class);
+  Object daemon=Main.getDaemon(projectFilesystem,new FakeBuckConfig(ImmutableMap.<String,Map<String,String>>builder().put("somesection",ImmutableMap.of("somename","somevalue")).build()),knownBuildRuleTypes,androidDirectoryResolver,ImmutableMap.<String,String>of());
+  assertEquals("Daemon should not be replaced when config equal.",daemon,Main.getDaemon(projectFilesystem,new FakeBuckConfig(ImmutableMap.<String,Map<String,String>>builder().put("somesection",ImmutableMap.of("somename","somevalue")).build()),knownBuildRuleTypes,androidDirectoryResolver,ImmutableMap.<String,String>of()));
+  assertNotEquals("Daemon should be replaced when config not equal.",daemon,Main.getDaemon(projectFilesystem,new FakeBuckConfig(ImmutableMap.<String,Map<String,String>>builder().put("somesection",ImmutableMap.of("somename","someothervalue")).build()),knownBuildRuleTypes,androidDirectoryResolver,ImmutableMap.<String,String>of()));
 }

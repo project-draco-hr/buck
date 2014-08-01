@@ -1,0 +1,23 @@
+{
+  Optional<String> serverPort=Optional.fromNullable(System.getProperty("buck.httpserver.port"));
+  if (!serverPort.isPresent()) {
+    serverPort=config.getValue("httpserver","port");
+  }
+  Optional<WebServer> webServer;
+  if (serverPort.isPresent() && !serverPort.get().isEmpty()) {
+    String rawPort=serverPort.get();
+    try {
+      int port=Integer.parseInt(rawPort,10);
+      LOG.debug("Starting up web server on port %d.",port);
+      webServer=Optional.of(new WebServer(port,projectFilesystem,STATIC_CONTENT_DIRECTORY));
+    }
+ catch (    NumberFormatException e) {
+      LOG.error("Could not parse port for httpserver: %s.",rawPort);
+      webServer=Optional.absent();
+    }
+  }
+ else {
+    webServer=Optional.absent();
+  }
+  return webServer;
+}
