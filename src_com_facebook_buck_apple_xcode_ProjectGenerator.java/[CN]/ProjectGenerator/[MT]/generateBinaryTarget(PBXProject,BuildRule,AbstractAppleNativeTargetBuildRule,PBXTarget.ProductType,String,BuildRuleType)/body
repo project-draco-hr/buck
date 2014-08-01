@@ -9,9 +9,12 @@
     Path infoPlistPath=repoRootRelativeToOutputDirectory.resolve(infoPlistOptional.get());
     extraSettingsBuilder.put("INFOPLIST_FILE",infoPlistPath.toString());
   }
+  if (buildable.getUseBuckHeaderMaps()) {
+    extraSettingsBuilder.put("USE_HEADERMAP","NO");
+  }
   setTargetBuildConfigurations(rule,target,targetGroup,buildable.getConfigurations(),extraSettingsBuilder.build(),ImmutableMap.<String,String>of("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPathForRule(buildable.getHeaderPathPrefix())),ImmutableMap.<String,String>of());
   addRunScriptBuildPhasesForDependencies(rule,target);
-  addSourcesAndHeadersBuildPhases(target,targetGroup,buildable.getSrcs(),buildable.getPerFileFlags());
+  addBuildPhasesGroupsAndHeaderMapsForSourcesAndHeaders(rule.getBuildTarget(),target,targetGroup,buildable.getHeaderPathPrefix(),buildable.getUseBuckHeaderMaps(),buildable.getSrcs(),buildable.getPerFileFlags());
   ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
   frameworksBuilder.addAll(buildable.getFrameworks());
   collectRecursiveFrameworkDependencies(rule,frameworksBuilder);
@@ -25,8 +28,8 @@
     extensionsSourceTreePathsBuilder.add(new SourceTreePath(PBXReference.SourceTree.BUILT_PRODUCTS_DIR,extension.getPathToOutputFile().getFileName()));
   }
   addCopyFilesBuildPhase(target,project.getMainGroup().getOrCreateChildGroupByName("Products"),PBXCopyFilesBuildPhase.Destination.PLUGINS,"",extensionsSourceTreePathsBuilder.build());
-  PBXGroup productsGroup=project.getMainGroup().getOrCreateChildGroupByName("Products");
   String productName=getProductName(rule.getBuildTarget());
+  PBXGroup productsGroup=project.getMainGroup().getOrCreateChildGroupByName("Products");
   String productOutputName=String.format(productOutputFormat,productName);
   PBXFileReference productReference=new PBXFileReference(productOutputName,productOutputName,PBXReference.SourceTree.BUILT_PRODUCTS_DIR);
   productsGroup.getChildren().add(productReference);

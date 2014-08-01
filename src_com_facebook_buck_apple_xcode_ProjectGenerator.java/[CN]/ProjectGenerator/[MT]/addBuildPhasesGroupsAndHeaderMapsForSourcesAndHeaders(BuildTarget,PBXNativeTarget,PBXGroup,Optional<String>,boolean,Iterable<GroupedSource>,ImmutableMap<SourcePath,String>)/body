@@ -1,0 +1,22 @@
+{
+  PBXGroup sourcesGroup=targetGroup.getOrCreateChildGroupByName("Sources");
+  sourcesGroup.setSortPolicy(PBXGroup.SortPolicy.UNSORTED);
+  PBXSourcesBuildPhase sourcesBuildPhase=new PBXSourcesBuildPhase();
+  PBXHeadersBuildPhase headersBuildPhase=new PBXHeadersBuildPhase();
+  addGroupedSourcesToBuildPhases(sourcesGroup,sourcesBuildPhase,(useBuckHeaderMaps ? Optional.<PBXHeadersBuildPhase>absent() : Optional.of(headersBuildPhase)),groupedSources,sourceFlags);
+  if (!sourcesBuildPhase.getFiles().isEmpty()) {
+    target.getBuildPhases().add(sourcesBuildPhase);
+  }
+  if (!headersBuildPhase.getFiles().isEmpty()) {
+    target.getBuildPhases().add(headersBuildPhase);
+  }
+  if (useBuckHeaderMaps) {
+    HeaderMap.Builder publicMapBuilder=HeaderMap.builder();
+    HeaderMap.Builder targetMapBuilder=HeaderMap.builder();
+    HeaderMap.Builder targetFlatMapBuilder=HeaderMap.builder();
+    addGroupedSourcesToHeaderMaps(publicMapBuilder,targetMapBuilder,targetFlatMapBuilder,Paths.get(headerPathPrefix.or(getProductName(buildTarget))),groupedSources,sourceFlags);
+    writeHeaderMap(publicMapBuilder.build(),buildTarget,PUBLIC_HEADER_MAP_SUFFIX);
+    writeHeaderMap(targetMapBuilder.build(),buildTarget,TARGET_HEADER_MAP_SUFFIX);
+    writeHeaderMap(targetFlatMapBuilder.build(),buildTarget,TARGET_FLAT_HEADER_MAP_SUFFIX);
+  }
+}

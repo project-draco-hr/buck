@@ -3,30 +3,21 @@
   target.setProductType(PBXTarget.ProductType.IOS_LIBRARY);
   setNativeTargetGid(target,buildable);
   PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(target.getName());
-  setTargetBuildConfigurations(rule,target,targetGroup,buildable.getConfigurations(),ImmutableMap.<String,String>of(),ImmutableMap.of("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPathForRule(buildable.getHeaderPathPrefix()),"CONFIGURATION_BUILD_DIR",getObjectOutputPathForRule(rule)),ImmutableMap.<String,String>of());
+  BuildTarget buildTarget=rule.getBuildTarget();
+  ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
+  if (buildable.getUseBuckHeaderMaps()) {
+    extraSettingsBuilder.put("USE_HEADERMAP","NO");
+  }
+  setTargetBuildConfigurations(rule,target,targetGroup,buildable.getConfigurations(),extraSettingsBuilder.build(),ImmutableMap.of("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPathForRule(buildable.getHeaderPathPrefix()),"CONFIGURATION_BUILD_DIR",getObjectOutputPathForRule(rule)),ImmutableMap.<String,String>of());
   addRunScriptBuildPhasesForDependencies(rule,target);
-  addSourcesAndHeadersBuildPhases(target,targetGroup,buildable.getSrcs(),buildable.getPerFileFlags());
+  addBuildPhasesGroupsAndHeaderMapsForSourcesAndHeaders(buildTarget,target,targetGroup,buildable.getHeaderPathPrefix(),buildable.getUseBuckHeaderMaps(),buildable.getSrcs(),buildable.getPerFileFlags());
   addCoreDataModelBuildPhase(targetGroup,collectCoreDataModels(rule.getDeps()));
+  String productName=getProductName(buildTarget);
+  String libraryName="lib" + productName + ".a";
   PBXGroup productsGroup=project.getMainGroup().getOrCreateChildGroupByName("Products");
-  String libraryName="lib" + getProductName(rule.getBuildTarget()) + ".a";
   PBXFileReference productReference=new PBXFileReference(libraryName,libraryName,PBXReference.SourceTree.BUILT_PRODUCTS_DIR);
   productsGroup.getChildren().add(productReference);
   target.setProductReference(productReference);
-  if (options.contains(Option.GENERATE_HEADER_MAPS_FOR_LIBRARY_TARGETS)) {
-    HeaderMap.Builder builder=HeaderMap.builder();
-    addGroupedSourcesToHeaderMap(builder,Paths.get(getProductName(rule.getBuildTarget())),buildable.getSrcs(),buildable.getPerFileFlags());
-    HeaderMap headerMap=builder.build();
-    String headerMapName=getProductName(rule.getBuildTarget()) + "-public-headers.hmap";
-    Path headerMapFile=projectPath.resolve(headerMapName);
-    headerMaps.add(headerMapFile);
-    projectFilesystem.mkdirs(projectPath);
-    if (shouldGenerateReadOnlyFiles()) {
-      projectFilesystem.writeBytesToPath(headerMap.getBytes(),headerMapFile,READ_ONLY_FILE_ATTRIBUTE);
-    }
- else {
-      projectFilesystem.writeBytesToPath(headerMap.getBytes(),headerMapFile);
-    }
-  }
   project.getTargets().add(target);
   LOG.debug("Generated iOS library target %s",target);
   return target;
