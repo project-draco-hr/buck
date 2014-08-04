@@ -5,6 +5,10 @@
   if (cachedRepositories.containsKey(root)) {
     return cachedRepositories.get(root);
   }
+  if (!canonicalPathNames.containsKey(root)) {
+    throw new HumanReadableException("No repository name known for " + root);
+  }
+  Optional<String> name=canonicalPathNames.get(root);
   ProjectFilesystem projectFilesystem=new ProjectFilesystem(root,BuckConfig.createDefaultBuckConfig(new ProjectFilesystem(root),platform,clientEnvironment).getIgnorePaths());
   BuckConfig config=BuckConfig.createDefaultBuckConfig(projectFilesystem,platform,clientEnvironment);
   PropertyFinder propertyFinder=new DefaultPropertyFinder(projectFilesystem,clientEnvironment);
@@ -13,7 +17,8 @@
   ProcessExecutor processExecutor=new ProcessExecutor(console);
   JavaCompilerEnvironment javacEnv=javaConfig.getJavaCompilerEnvironment(processExecutor);
   KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createInstance(config,androidDirectoryResolver,javacEnv);
-  Repository repository=new Repository(projectFilesystem,buildRuleTypes,config,androidDirectoryResolver);
+  Repository repository=new Repository(name,projectFilesystem,buildRuleTypes,config,this,androidDirectoryResolver);
   cachedRepositories.put(root,repository);
+  updateCanonicalNames(repository.getBuckConfig().getRepositoryPaths());
   return repository;
 }

@@ -9,18 +9,21 @@
   if (buildTargetName.endsWith(BUILD_RULE_SEPARATOR) && parseContext.getType() != ParseContext.Type.VISIBILITY) {
     throw new BuildTargetParseException(String.format("%s cannot end with a colon",buildTargetName));
   }
-  Optional<String> repoName=Optional.absent();
+  Optional<String> givenRepoName=Optional.absent();
   String targetAfterRepo=buildTargetName;
   if (buildTargetName.startsWith(REPOSITORY_STARTER)) {
     if (!buildTargetName.contains(BUILD_RULE_PREFIX)) {
       throw new BuildTargetParseException(String.format("Cross-repo paths must contain %s (found %s)",BUILD_RULE_PREFIX,buildTargetName));
     }
     int slashIndex=buildTargetName.indexOf(BUILD_RULE_PREFIX);
-    repoName=Optional.of(buildTargetName.substring(REPOSITORY_STARTER.length(),slashIndex));
+    givenRepoName=Optional.of(buildTargetName.substring(REPOSITORY_STARTER.length(),slashIndex));
     targetAfterRepo=buildTargetName.substring(slashIndex);
   }
-  if (repoName.isPresent() && repoName.get().isEmpty()) {
+  if (givenRepoName.isPresent() && givenRepoName.get().isEmpty()) {
     throw new BuildTargetParseException("Repo name must not be empty.");
+  }
+  if (!localToCanonicalRepoNamesMap.containsKey(givenRepoName)) {
+    throw new HumanReadableException(String.format("In build target '%s', repo '%s' is not defined.",buildTargetName,givenRepoName));
   }
   List<String> parts=BUILD_RULE_SEPARATOR_SPLITTER.splitToList(targetAfterRepo);
   if (parts.size() != 2) {
@@ -51,8 +54,9 @@
     }
   }
   BuildTarget.Builder builder=BuildTarget.builder(baseName,shortName);
-  if (repoName.isPresent()) {
-    builder.setRepository(repoName.get()).build();
+  Optional<String> canonicalRepoName=localToCanonicalRepoNamesMap.get(givenRepoName);
+  if (canonicalRepoName.isPresent()) {
+    builder.setRepository(canonicalRepoName.get());
   }
   return builder.build();
 }
