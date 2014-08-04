@@ -1,0 +1,49 @@
+{
+  final MutableDirectedGraph<TargetNode<?>> graph=new MutableDirectedGraph<>();
+  AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget>(){
+    @Override protected Iterator<BuildTarget> findChildren(    BuildTarget buildTarget) throws IOException {
+      ParseContext parseContext=ParseContext.forBaseName(buildTarget.getBaseName());
+      TargetNode<?> targetNode=getTargetNode(buildTarget);
+      if (targetNode == null) {
+        throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTarget,parseContext));
+      }
+      Set<BuildTarget> deps=Sets.newHashSet();
+      for (      BuildTarget buildTargetForDep : targetNode.getDeps()) {
+        try {
+          TargetNode<?> depTargetNode=getTargetNode(buildTargetForDep);
+          if (depTargetNode == null) {
+            parseBuildFileContainingTarget(buildTarget,buildTargetForDep,defaultIncludes,buildFileParser,environment);
+            depTargetNode=getTargetNode(buildTargetForDep);
+            if (depTargetNode == null) {
+              throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTargetForDep,ParseContext.forBaseName(buildTargetForDep.getBaseName())));
+            }
+          }
+          depTargetNode.checkVisibility(buildTarget);
+          deps.add(buildTargetForDep);
+        }
+ catch (        BuildTargetException|BuildFileParseException e) {
+          throw new HumanReadableException(e);
+        }
+      }
+      return deps.iterator();
+    }
+    @Override protected void onNodeExplored(    BuildTarget buildTarget){
+      TargetNode<?> targetNode=getTargetNode(buildTarget);
+      Preconditions.checkNotNull(targetNode,"No target node found for %s",buildTarget);
+      graph.addNode(targetNode);
+      for (      BuildTarget target : targetNode.getDeps()) {
+        graph.addEdge(targetNode,getTargetNode(target));
+      }
+    }
+    @Override protected void onTraversalComplete(    Iterable<BuildTarget> nodesInExplorationOrder){
+    }
+  }
+;
+  try {
+    traversal.traverse(toExplore);
+  }
+ catch (  AbstractAcyclicDepthFirstPostOrderTraversal.CycleException e) {
+    throw new HumanReadableException(e.getMessage());
+  }
+  return new TargetGraph(graph);
+}

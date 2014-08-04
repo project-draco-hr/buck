@@ -32,7 +32,7 @@
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(console.getStdErr(),stdErr);AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment,config);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
     artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
-    Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,clientEnvironment);
+    Optional<WebServer> webServer=getWebServerIfDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver);
     eventListeners=addEventListeners(buildEventBus,projectFilesystem,config,webServer,console,consoleListener,buildRuleTypes,clientEnvironment);
     ImmutableList<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
     Command executingCommand=commandParseResult.getCommand().get();
@@ -42,7 +42,7 @@
     Parser parser=null;
     if (isDaemon) {
       try {
-        parser=getParserFromDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,clientEnvironment,commandEvent,buildEventBus);
+        parser=getParserFromDaemon(context,projectFilesystem,config,buildRuleTypes,androidDirectoryResolver,commandEvent,buildEventBus);
       }
  catch (      WatchmanWatcherException|IOException e) {
         buildEventBus.post(ConsoleEvent.warning("Watchman threw an exception while parsing file changes.\n%s",e.getMessage()));
@@ -50,7 +50,7 @@
     }
     Repository repository=new Repository("default",projectFilesystem,buildRuleTypes,config);
     if (parser == null) {
-      parser=new Parser(repository,clientEnvironment,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem)));
+      parser=new Parser(repository,config.getPythonInterpreter(),config.getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(projectFilesystem)));
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(projectFilesystem);
     CachingBuildEngine buildEngine=new CachingBuildEngine();

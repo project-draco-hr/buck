@@ -1,0 +1,21 @@
+{
+  postParseStartEvent(buildTargets,eventBus);
+  ActionGraph graph=null;
+  try (ProjectBuildFileParser buildFileParser=buildFileParserFactory.createParser(defaultIncludes,EnumSet.of(ProjectBuildFileParser.Option.STRIP_NULL),console,environment)){
+    if (!isCacheComplete(defaultIncludes,environment)) {
+      Set<File> buildTargetFiles=Sets.newHashSet();
+      for (      BuildTarget buildTarget : buildTargets) {
+        File buildFile=buildTarget.getBuildFile(repository.getFilesystem());
+        boolean isNewElement=buildTargetFiles.add(buildFile);
+        if (isNewElement) {
+          parseBuildFile(buildFile,defaultIncludes,buildFileParser,environment);
+        }
+      }
+    }
+    graph=findAllTransitiveDependencies(buildTargets,defaultIncludes,buildFileParser,environment);
+    return graph;
+  }
+  finally {
+    eventBus.post(ParseEvent.finished(buildTargets,Optional.fromNullable(graph)));
+  }
+}
