@@ -1,0 +1,19 @@
+{
+  Preconditions.checkNotNull(absolutePath);
+  Preconditions.checkArgument(absolutePath.isAbsolute());
+  Path root=absolutePath.toRealPath();
+  if (cachedRepositories.containsKey(root)) {
+    return cachedRepositories.get(root);
+  }
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(root,BuckConfig.createDefaultBuckConfig(new ProjectFilesystem(root),platform,clientEnvironment).getIgnorePaths());
+  BuckConfig config=BuckConfig.createDefaultBuckConfig(projectFilesystem,platform,clientEnvironment);
+  PropertyFinder propertyFinder=new DefaultPropertyFinder(projectFilesystem,clientEnvironment);
+  AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(projectFilesystem,config.getNdkVersion(),propertyFinder);
+  JavaBuckConfig javaConfig=new JavaBuckConfig(config);
+  ProcessExecutor processExecutor=new ProcessExecutor(console);
+  JavaCompilerEnvironment javacEnv=javaConfig.getJavaCompilerEnvironment(processExecutor);
+  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createInstance(config,androidDirectoryResolver,javacEnv);
+  Repository repository=new Repository(projectFilesystem,buildRuleTypes,config,androidDirectoryResolver);
+  cachedRepositories.put(root,repository);
+  return repository;
+}
