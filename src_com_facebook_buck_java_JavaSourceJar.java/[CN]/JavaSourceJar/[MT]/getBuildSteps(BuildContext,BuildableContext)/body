@@ -1,0 +1,18 @@
+{
+  JavaPackageFinder packageFinder=context.getJavaPackageFinder();
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  steps.add(new MkdirStep(output.getParent()));
+  steps.add(new RmStep(output,true));
+  steps.add(new MakeCleanDirectoryStep(temp));
+  Set<Path> seenPackages=Sets.newHashSet();
+  for (  Path source : SourcePaths.filterInputsToCompareToOutput(sources)) {
+    String packageFolder=packageFinder.findJavaPackageFolderForPath(source.toString());
+    Path packageDir=temp.resolve(packageFolder);
+    if (seenPackages.add(packageDir)) {
+      steps.add(new MkdirStep(packageDir));
+    }
+    steps.add(CopyStep.forFile(source,packageDir.resolve(source.getFileName())));
+  }
+  steps.add(new ZipStep(output,ImmutableSet.of(temp),false,DEFAULT_COMPRESSION_LEVEL,temp));
+  return steps.build();
+}
