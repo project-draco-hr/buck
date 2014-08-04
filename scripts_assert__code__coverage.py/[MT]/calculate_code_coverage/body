@@ -1,0 +1,46 @@
+def calculate_code_coverage():
+    root = ElementTree.parse(PATH_TO_CODE_COVERAGE_XML)
+    line_coverage = []
+    max_package_name = 0
+    total_line_covered = 0
+    total_line = 0
+    for element in root.findall('.//package'):
+        package_name = element.attrib['name']
+        if (not is_covered_package_name(package_name)):
+            continue
+        max_package_name = max(max_package_name, len(package_name))
+        for counter in element.findall('./counter'):
+            counter_type = counter.attrib.get('type')
+            missed = int(counter.attrib.get('missed'))
+            covered = int(counter.attrib.get('covered'))
+            percentage = round(((100 * covered) / float((missed + covered))), 2)
+            if (counter_type == 'LINE'):
+                total_line_covered += covered
+                total_line += (missed + covered)
+                line_coverage.append({'package_name': package_name, 'percentage': percentage, })
+
+    def pair_compare(p1, p2):
+        diff1 = cmp(p2['percentage'], p1['percentage'])
+        if diff1:
+            return diff1
+        return cmp(p1['package_name'], p2['package_name'])
+
+    def label_with_padding(label):
+        return ((label + (' ' * (max_package_name - len(label)))) + ' ')
+
+    def print_separator():
+        print ('-' * (max_package_name + 7))
+    print (label_with_padding('PACKAGE') + 'LINE')
+    print_separator()
+    line_coverage.sort(cmp=pair_compare)
+    for item in line_coverage:
+        package_name = item['package_name']
+        padding = (' ' * (max_package_name - len(package_name)))
+        percentage = item['percentage']
+        color = ('\x1b[92m' if (percentage >= CODE_COVERAGE_BY_LINE_GOAL) else '\x1b[93m')
+        print ('%s%s%s%%\x1b[0m' % (color, label_with_padding(package_name), percentage))
+    total_line_percentage = round(((100 * total_line_covered) / float(total_line)), 2)
+    color = ('\x1b[92m' if (total_line_percentage >= CODE_COVERAGE_BY_LINE_GOAL) else '\x1b[93m')
+    print_separator()
+    print ('%s%s%s%%\x1b[0m' % (color, label_with_padding('TOTAL'), total_line_percentage))
+    return total_line_percentage
