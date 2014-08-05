@@ -1,11 +1,29 @@
 {
-  BuildRule barLib=createBuildRuleWithDefaults(BuildTarget.builder("//bar","lib").build(),ImmutableSortedSet.<BuildRule>of(),iosLibraryDescription);
-  BuildRule fooLib=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(barLib),iosLibraryDescription);
-  BuildRule fooBin=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bin").build(),ImmutableSortedSet.of(fooLib),iosBinaryDescription);
-  BuildRule bazLib=createBuildRuleWithDefaults(BuildTarget.builder("//baz","lib").build(),ImmutableSortedSet.of(fooLib),iosLibraryDescription);
-  BuildRule bazLibTest=createIosTestRule(BuildTarget.builder("//baz","test").build(),ImmutableSortedSet.of(bazLib),ImmutableSortedSet.of(bazLib));
-  BuildRule fooLibTest=createIosTestRule(BuildTarget.builder("//foo","lib-test").build(),ImmutableSortedSet.of(fooLib),ImmutableSortedSet.of(fooLib,bazLib));
-  BuildRule fooBinTest=createIosTestRule(BuildTarget.builder("//foo","bin-test").build(),ImmutableSortedSet.of(fooBin),ImmutableSortedSet.of(fooBin));
+  final BuildRule barLib=createBuildRuleWithDefaults(BuildTarget.builder("//bar","lib").build(),ImmutableSortedSet.<BuildRule>of(),iosLibraryDescription);
+  final BuildRule fooLib=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(barLib),iosLibraryDescription);
+  final BuildRule fooBin=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bin").build(),ImmutableSortedSet.of(fooLib),iosBinaryDescription);
+  final BuildRule bazLib=createBuildRuleWithDefaults(BuildTarget.builder("//baz","lib").build(),ImmutableSortedSet.of(fooLib),iosLibraryDescription);
+  final BuildRule bazLibTest=createBuildRuleWithDefaults(BuildTarget.builder("//baz","test").build(),ImmutableSortedSet.of(bazLib),iosTestDescription,new Function<IosTestDescription.Arg,IosTestDescription.Arg>(){
+    @Override public IosTestDescription.Arg apply(    IosTestDescription.Arg input){
+      input.sourceUnderTest=Optional.of(ImmutableSortedSet.of(bazLib));
+      return input;
+    }
+  }
+);
+  final BuildRule fooLibTest=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib-test").build(),ImmutableSortedSet.of(fooLib,bazLib),iosTestDescription,new Function<IosTestDescription.Arg,IosTestDescription.Arg>(){
+    @Override public IosTestDescription.Arg apply(    IosTestDescription.Arg input){
+      input.sourceUnderTest=Optional.of(ImmutableSortedSet.of(fooLib));
+      return input;
+    }
+  }
+);
+  final BuildRule fooBinTest=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bin-test").build(),ImmutableSortedSet.of(fooBin),iosTestDescription,new Function<IosTestDescription.Arg,IosTestDescription.Arg>(){
+    @Override public IosTestDescription.Arg apply(    IosTestDescription.Arg input){
+      input.sourceUnderTest=Optional.of(ImmutableSortedSet.of(fooBin));
+      return input;
+    }
+  }
+);
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(barLib,fooLib,fooBin,bazLib,bazLibTest,fooLibTest,fooBinTest),ImmutableSet.of(fooBin.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:bin");
