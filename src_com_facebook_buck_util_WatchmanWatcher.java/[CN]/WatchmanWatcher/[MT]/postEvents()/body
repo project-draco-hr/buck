@@ -5,13 +5,21 @@
     watchmanProcess.getOutputStream().write(query.getBytes(Charsets.US_ASCII));
     watchmanProcess.getOutputStream().close();
     LOG.debug("Parsing JSON output from Watchman");
-    JsonParser jsonParser=jsonFactory.createJsonParser(watchmanProcess.getInputStream());
+    InputStream jsonInput=watchmanProcess.getInputStream();
+    if (LOG.isVerboseEnabled()) {
+      byte[] fullResponse=ByteStreams.toByteArray(jsonInput);
+      jsonInput.close();
+      jsonInput=new ByteArrayInputStream(fullResponse);
+      LOG.verbose("Full JSON: " + new String(fullResponse,Charsets.UTF_8).trim());
+    }
+    JsonParser jsonParser=jsonFactory.createJsonParser(jsonInput);
     PathEventBuilder builder=new PathEventBuilder();
     JsonToken token=jsonParser.nextToken();
     int eventCount=0;
     while (token != null) {
       if (eventCount > overflow) {
-        eventBus.post(createOverflowEvent());
+        LOG.info("Too many watchman events. " + "Posting overflow event to flush caches.");
+        postWatchEvent(createOverflowEvent());
         watchmanProcess.destroy();
         return;
       }
@@ -22,8 +30,8 @@ switch (fieldName) {
 case "is_fresh_instance":
         Boolean newInstance=jsonParser.nextBooleanValue();
       if (newInstance) {
-        LOG.debug("Fresh watchman instance detected. " + "Posting overflow event to flush caches");
-        eventBus.post(createOverflowEvent());
+        LOG.info("Fresh watchman instance detected. " + "Posting overflow event to flush caches.");
+        postWatchEvent(createOverflowEvent());
       }
     break;
 case "name":
@@ -50,7 +58,7 @@ throw e;
 break;
 case END_OBJECT:
 if (builder.canBuild()) {
-eventBus.post(builder.build());
+postWatchEvent(builder.build());
 ++eventCount;
 }
 builder=new PathEventBuilder();
@@ -65,7 +73,7 @@ LOG.debug("Posted %d Watchman events. Waiting for subprocess to exit...",eventCo
 watchmanExitCode=watchmanProcess.waitFor();
 if (watchmanExitCode != 0) {
 LOG.error("Watchman exited with error code %d",watchmanExitCode);
-eventBus.post(createOverflowEvent());
+postWatchEvent(createOverflowEvent());
 ByteArrayOutputStream buffer=new ByteArrayOutputStream();
 ByteStreams.copy(watchmanProcess.getErrorStream(),buffer);
 throw new WatchmanWatcherException("Watchman failed with exit code " + watchmanExitCode + ": "+ buffer.toString());
@@ -76,14 +84,14 @@ LOG.debug("Watchman exited cleanly.");
 }
  catch (InterruptedException e) {
 LOG.warn(e,"Killing Watchman process on interrupted exception");
-eventBus.post(createOverflowEvent());
+postWatchEvent(createOverflowEvent());
 watchmanProcess.destroy();
 Thread.currentThread().interrupt();
 throw e;
 }
 catch (IOException e) {
 LOG.error(e,"Killing Watchman process on I/O exception");
-eventBus.post(createOverflowEvent());
+postWatchEvent(createOverflowEvent());
 watchmanProcess.destroy();
 throw e;
 }
