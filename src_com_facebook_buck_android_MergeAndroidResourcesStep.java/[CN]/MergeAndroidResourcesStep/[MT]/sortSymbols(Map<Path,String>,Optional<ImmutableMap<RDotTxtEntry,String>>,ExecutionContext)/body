@@ -12,7 +12,7 @@
     Path symbolsFile=entry.getKey();
     List<String> linesInSymbolsFile;
     try {
-      linesInSymbolsFile=FluentIterable.from(filesystem.readLines(symbolsFile)).filter(MoreStrings.NON_EMPTY).toList();
+      linesInSymbolsFile=FluentIterable.from(context.getProjectFilesystem().readLines(symbolsFile)).filter(MoreStrings.NON_EMPTY).toList();
     }
  catch (    IOException e) {
       throw new RuntimeException(e);
@@ -23,10 +23,15 @@
       Preconditions.checkState(parsedEntry.isPresent(),"Should be able to match '%s'.",line);
       RDotTxtEntry resource=parsedEntry.get();
       if (uberRDotTxtIds.isPresent()) {
-        Preconditions.checkState(finalIds.containsKey(resource),"Cannot find resource '%s' in the uber R.txt.",resource);
+        Preconditions.checkNotNull(finalIds);
+        if (!finalIds.containsKey(resource)) {
+          context.logError(new RuntimeException(),"Cannot find resource '%s' in the uber R.txt.",resource);
+          continue;
+        }
         resource=resource.copyWithNewIdValue(finalIds.get(resource));
       }
  else       if (resource.idValue.startsWith("0x7f")) {
+        Preconditions.checkNotNull(enumerator);
         resource=resource.copyWithNewIdValue(String.format("0x%08x",enumerator.next()));
       }
       rDotJavaPackageToSymbolsFiles.put(packageName,resource);
