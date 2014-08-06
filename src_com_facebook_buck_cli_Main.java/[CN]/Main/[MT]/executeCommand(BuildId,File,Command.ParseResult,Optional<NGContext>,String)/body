@@ -33,7 +33,7 @@
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(console.getStdErr(),stdErr);AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment,rootRepository.getBuckConfig());BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
     artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
-    Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository);
+    Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,clock);
     eventListeners=addEventListeners(buildEventBus,rootRepository.getFilesystem(),rootRepository.getBuckConfig(),webServer,console,consoleListener,rootRepository.getKnownBuildRuleTypes(),clientEnvironment);
     ImmutableList<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
     Command executingCommand=commandParseResult.getCommand().get();
@@ -43,7 +43,7 @@
     Parser parser=null;
     if (isDaemon) {
       try {
-        parser=getParserFromDaemon(context,rootRepository,commandEvent,buildEventBus);
+        parser=getParserFromDaemon(context,rootRepository,commandEvent,buildEventBus,clock);
       }
  catch (      WatchmanWatcherException|IOException e) {
         buildEventBus.post(ConsoleEvent.warning("Watchman threw an exception while parsing file changes.\n%s",e.getMessage()));

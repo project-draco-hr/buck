@@ -5,6 +5,7 @@
     watchmanProcess.getOutputStream().write(query.getBytes(Charsets.US_ASCII));
     watchmanProcess.getOutputStream().close();
     LOG.debug("Parsing JSON output from Watchman");
+    final long parseStartTimeMillis=clock.currentTimeMillis();
     InputStream jsonInput=watchmanProcess.getInputStream();
     if (LOG.isVerboseEnabled()) {
       byte[] fullResponse=ByteStreams.toByteArray(jsonInput);
@@ -17,8 +18,19 @@
     JsonToken token=jsonParser.nextToken();
     int eventCount=0;
     while (token != null) {
+      boolean shouldOverflow=false;
       if (eventCount > overflow) {
-        LOG.info("Too many watchman events. " + "Posting overflow event to flush caches.");
+        LOG.warn("Received too many events from Watchmen (%d > overflow max %d), posting overflow " + "event and giving up.",eventCount,overflow);
+        shouldOverflow=true;
+      }
+ else {
+        long elapsedMillis=clock.currentTimeMillis() - parseStartTimeMillis;
+        if (elapsedMillis >= timeoutMillis) {
+          LOG.warn("Parsing took too long (timeout %d ms), posting overflow event and giving up.",timeoutMillis);
+          shouldOverflow=true;
+        }
+      }
+      if (shouldOverflow) {
         postWatchEvent(createOverflowEvent());
         watchmanProcess.destroy();
         return;
