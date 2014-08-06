@@ -23,8 +23,12 @@
   Clock clock=new DefaultClock();
   ProcessExecutor processExecutor=new ProcessExecutor(console);
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(processExecutor,clientEnvironment);
-  if (!commandSemaphore.tryAcquire()) {
-    return BUSY_EXIT_CODE;
+  boolean commandSemaphoreAcquired=false;
+  if (!commandParseResult.getCommand().get().isReadOnly()) {
+    commandSemaphoreAcquired=commandSemaphore.tryAcquire();
+    if (!commandSemaphoreAcquired) {
+      return BUSY_EXIT_CODE;
+    }
   }
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(console.getStdErr(),stdErr);AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment,rootRepository.getBuckConfig());BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
@@ -63,7 +67,9 @@
     throw t;
   }
  finally {
-    commandSemaphore.release();
+    if (commandSemaphoreAcquired) {
+      commandSemaphore.release();
+    }
   }
   if (isDaemon && !rootRepository.getBuckConfig().getFlushEventsBeforeExit()) {
     context.get().in.close();
