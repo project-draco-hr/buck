@@ -1,0 +1,21 @@
+{
+  String watchmanOutput=Joiner.on('\n').join("{","\"version\": \"2.9.2\",","\"clock\": \"c:1386170113:26390:5:50273\",","\"is_fresh_instance\": true,","\"files\": []","}");
+  final Set<WatchEvent<?>> events=Sets.newHashSet();
+  EventBus bus=new EventBus("watchman test");
+  bus.register(new Object(){
+    @Subscribe public void listen(    WatchEvent<?> event){
+      events.add(event);
+    }
+  }
+);
+  Process process=createWaitForProcessMock(watchmanOutput);
+  replay(process);
+  WatchmanWatcher watcher=createWatcher(bus,process);
+  watcher.postEvents();
+  verify(process);
+  boolean overflowSeen=false;
+  for (  WatchEvent<?> event : events) {
+    overflowSeen|=event.kind().equals(StandardWatchEventKinds.OVERFLOW);
+  }
+  assertTrue(overflowSeen);
+}
