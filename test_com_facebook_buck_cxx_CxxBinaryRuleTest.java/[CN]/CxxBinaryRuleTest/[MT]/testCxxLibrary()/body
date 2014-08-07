@@ -1,0 +1,17 @@
+{
+  BuildRule library=makeCxxLibraryBuildRule(BuildTarget.builder("//lib","bla").build(),ImmutableSortedSet.<SourcePath>of(new TestSourcePath("libsource1.c"),new TestSourcePath("libsource2.c")),ImmutableSortedSet.<SourcePath>of(),ImmutableSortedSet.<BuildRule>of());
+  CxxLibrary targetLibrary=makeCxxLibraryBuildRule(BuildTarget.builder("//foo","bar").build(),ImmutableSortedSet.<SourcePath>of(new TestSourcePath("source1.c"),new TestSourcePath("source2.c")),ImmutableSortedSet.<SourcePath>of(new TestSourcePath("source.h")),ImmutableSortedSet.of(library));
+  assertThat(targetLibrary.getInputsToCompareToOutput(),hasSize(3));
+  assertThat(targetLibrary.getInputsToCompareToOutput(),hasItems(Paths.get("source1.c"),Paths.get("source2.c"),Paths.get("source.h")));
+  List<Step> buildSteps=null;
+  buildSteps=targetLibrary.getBuildSteps(context,buildableContext);
+  assertNotNull(buildSteps);
+  List<String> descriptions=Lists.transform(buildSteps,new Function<Step,String>(){
+    @Override public String apply(    Step input){
+      return input.getDescription(executionContext);
+    }
+  }
+);
+  assertThat(descriptions,hasSize(5));
+  assertThat(descriptions,hasItems("mkdir -p buck-out/bin/foo","mkdir -p buck-out/gen","g++ -c -I . source1.c -o buck-out/gen/source1.o","g++ -c -I . source2.c -o buck-out/gen/source2.o","ar -q buck-out/bin/foo/libbar.a buck-out/bin/lib/libbla.a " + "buck-out/gen/source1.o buck-out/gen/source2.o"));
+}

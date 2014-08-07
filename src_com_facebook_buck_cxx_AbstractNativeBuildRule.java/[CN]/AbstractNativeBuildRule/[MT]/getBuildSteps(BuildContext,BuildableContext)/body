@@ -1,0 +1,26 @@
+{
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  ImmutableSortedSet.Builder<Path> objectFiles=ImmutableSortedSet.naturalOrder();
+  Set<Path> createdDirectories=Sets.newHashSet();
+  addMkdirStepIfNeeded(createdDirectories,steps,getPathToOutputFile().getParent());
+  for (  SourcePath src : srcs) {
+    Path srcFile=src.resolve();
+    Preconditions.checkState(!srcFile.isAbsolute());
+    Path parent=srcFile.getParent();
+    if (parent == null) {
+      parent=Paths.get("");
+    }
+    Path targetDir=BuckConstant.GEN_PATH.resolve(parent);
+    addMkdirStepIfNeeded(createdDirectories,steps,targetDir);
+    Path objectFile=targetDir.resolve(Files.getNameWithoutExtension(srcFile.getFileName().toString()) + OBJECT_EXTENSION);
+    steps.add(new CompilerStep(getCompiler(),false,ImmutableSortedSet.of(src.resolve()),objectFile,true,ImmutableSortedSet.<Path>of(),commandLineArgsForFile(src,perSrcFileFlags)));
+    objectFiles.add(objectFile);
+  }
+  for (  BuildRule dep : getDeps()) {
+    if (dep instanceof CxxLibrary) {
+      objectFiles.add(dep.getPathToOutputFile());
+    }
+  }
+  steps.addAll(getFinalBuildSteps(objectFiles.build(),getPathToOutputFile()));
+  return steps.build();
+}
