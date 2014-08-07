@@ -1,0 +1,32 @@
+{
+  Set<Path> inputs=Sets.newHashSet();
+  Set<String> nonExistentInputs=Sets.newHashSet();
+  Set<String> nonFileInputs=Sets.newHashSet();
+  ProjectFilesystem projectFilesystem=getProjectFilesystem();
+  for (  String filePath : filePaths) {
+    File file=projectFilesystem.getFileForRelativePath(filePath);
+    if (!file.exists()) {
+      nonExistentInputs.add(filePath);
+    }
+ else     if (!file.isFile()) {
+      nonFileInputs.add(filePath);
+    }
+ else {
+      inputs.add(Paths.get(filePath));
+    }
+  }
+  Set<Path> inputsWithNoOwners=Sets.newHashSet(inputs);
+  SetMultimap<TargetNode<?>,Path> owners=TreeMultimap.create();
+  for (  Path ruleInput : targetNode.getInputs()) {
+    if (inputs.contains(ruleInput)) {
+      inputsWithNoOwners.remove(ruleInput);
+      owners.put(targetNode,ruleInput);
+    }
+  }
+  if (guessForDeletedEnabled) {
+    for (    String nonExsitentInput : nonExistentInputs) {
+      owners.put(targetNode,new File(nonExsitentInput).toPath());
+    }
+  }
+  return new OwnersReport(owners,inputsWithNoOwners,nonExistentInputs,nonFileInputs);
+}

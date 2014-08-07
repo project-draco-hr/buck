@@ -5,24 +5,21 @@
     }
   }
 ;
-  String[] args=new String[]{"java/somefolder/badfolder/somefile.java","java/somefolder/perfect.java","com/test/subtest/random.java"};
-  ImmutableSortedSet<Path> inputs=MorePaths.asPaths(ImmutableSortedSet.copyOf(args));
-  BuildTarget target1=BuildTargetFactory.newInstance("//base/name1:name1");
-  BuildTarget target2=BuildTargetFactory.newInstance("//base/name2:name2");
-  BuildRule owner1Rule=new StubBuildRule(target1,inputs);
-  BuildRule owner2Rule=new StubBuildRule(target2,inputs);
-  MutableDirectedGraph<BuildRule> mutableGraph=new MutableDirectedGraph<BuildRule>();
-  mutableGraph.addNode(owner1Rule);
-  mutableGraph.addNode(owner2Rule);
-  ActionGraph graph=new ActionGraph(mutableGraph);
-  AuditOwnerOptions options=getOptions(args);
+  ImmutableSet<String> inputs=ImmutableSet.of("java/somefolder/badfolder/somefile.java","java/somefolder/perfect.java","com/test/subtest/random.java");
+  ImmutableSortedSet<Path> inputPaths=MorePaths.asPaths(inputs);
+  BuildTarget target1=BuildTarget.builder("//base/name1","name").build();
+  BuildTarget target2=BuildTarget.builder("//base/name2","name").build();
+  TargetNode<?> targetNode1=createTargetNode(target1,inputPaths);
+  TargetNode<?> targetNode2=createTargetNode(target2,inputPaths);
   AuditOwnerCommand command=createAuditOwnerCommand(filesystem);
-  AuditOwnerCommand.OwnersReport report=command.generateOwnersReport(graph,options);
+  AuditOwnerCommand.OwnersReport report=AuditOwnerCommand.OwnersReport.emptyReport();
+  report=report.updatedWith(command.generateOwnersReport(targetNode1,inputs,false));
+  report=report.updatedWith(command.generateOwnersReport(targetNode2,inputs,false));
   assertTrue(report.nonFileInputs.isEmpty());
   assertTrue(report.nonExistentInputs.isEmpty());
   assertTrue(report.inputsWithNoOwners.isEmpty());
-  assertTrue(report.owners.containsKey(owner1Rule));
-  assertTrue(report.owners.containsKey(owner2Rule));
-  assertEquals(owner1Rule.getInputs(),report.owners.get(owner1Rule));
-  assertEquals(owner2Rule.getInputs(),report.owners.get(owner2Rule));
+  assertTrue(report.owners.containsKey(targetNode1));
+  assertTrue(report.owners.containsKey(targetNode2));
+  assertEquals(targetNode1.getInputs(),report.owners.get(targetNode1));
+  assertEquals(targetNode2.getInputs(),report.owners.get(targetNode2));
 }

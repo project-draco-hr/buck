@@ -1,13 +1,37 @@
 {
-  PartialGraph graph;
-  try {
-    graph=PartialGraph.createFullGraph(getProjectFilesystem(),options.getDefaultIncludes(),getParser(),getBuckEventBus(),console,environment);
+  OwnersReport report=OwnersReport.emptyReport();
+  Map<File,List<TargetNode<?>>> targetNodes=Maps.newHashMap();
+  for (  String filePath : options.getArguments()) {
+    File buckFile=findBuckFileFor(new File(filePath));
+    Path targetBasePath=MorePaths.relativize(getProjectFilesystem().getRootPath().toAbsolutePath(),buckFile.getParentFile().toPath().toAbsolutePath());
+    String targetBaseName="//" + targetBasePath.toString();
+    if (!targetNodes.containsKey(buckFile)) {
+      try {
+        Parser parser=getParser();
+        List<Map<String,Object>> buildFileTargets=parser.parseBuildFile(buckFile,options.getDefaultIncludes(),EnumSet.of(ProjectBuildFileParser.Option.STRIP_NULL),environment,console);
+        for (        Map<String,Object> buildFileTarget : buildFileTargets) {
+          if (!buildFileTarget.containsKey("name")) {
+            continue;
+          }
+          BuildTarget target=BuildTarget.builder(targetBaseName,(String)buildFileTarget.get("name")).build();
+          if (!targetNodes.containsKey(buckFile)) {
+            targetNodes.put(buckFile,Lists.<TargetNode<?>>newArrayList());
+          }
+          TargetNode<?> parsedTargetNode=parser.getTargetNode(target);
+          if (parsedTargetNode != null) {
+            targetNodes.get(buckFile).add(parsedTargetNode);
+          }
+        }
+      }
+ catch (      BuildFileParseException|BuildTargetException e) {
+        console.getStdErr().format("Could not parse build targets for %s",targetBaseName);
+        return BUILD_TARGET_ERROR;
+      }
+    }
+    for (    TargetNode<?> targetNode : targetNodes.get(buckFile)) {
+      report=report.updatedWith(generateOwnersReport(targetNode,ImmutableList.of(filePath),options.isGuessForDeletedEnabled()));
+    }
   }
- catch (  BuildTargetException|BuildFileParseException e) {
-    console.printBuildFailureWithoutStacktrace(e);
-    return 1;
-  }
-  OwnersReport report=generateOwnersReport(graph.getActionGraph(),options);
   printReport(options,report);
   return 0;
 }

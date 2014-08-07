@@ -5,20 +5,16 @@
     }
   }
 ;
-  String[] args=new String[]{"java/somefolder/badfolder/somefile.java","java/somefolder/perfect.java","com/test/subtest/random.java"};
-  ImmutableSortedSet<Path> inputs=MorePaths.asPaths(ImmutableSortedSet.copyOf(args));
-  BuildTarget target=BuildTarget.builder("//base/name","name").build();
-  BuildRule ownerRule=new StubBuildRule(target,inputs);
-  MutableDirectedGraph<BuildRule> mutableGraph=new MutableDirectedGraph<BuildRule>();
-  mutableGraph.addNode(ownerRule);
-  ActionGraph graph=new ActionGraph(mutableGraph);
-  AuditOwnerOptions options=getOptions(args);
+  ImmutableSet<String> inputs=ImmutableSet.of("java/somefolder/badfolder/somefile.java","java/somefolder/perfect.java","com/test/subtest/random.java");
+  ImmutableSet<Path> inputPaths=MorePaths.asPaths(inputs);
+  BuildTarget target=BuildTarget.builder("//base","name").build();
+  TargetNode<?> targetNode=createTargetNode(target,inputPaths);
   AuditOwnerCommand command=createAuditOwnerCommand(filesystem);
-  AuditOwnerCommand.OwnersReport report=command.generateOwnersReport(graph,options);
+  AuditOwnerCommand.OwnersReport report=command.generateOwnersReport(targetNode,inputs,false);
   assertTrue(report.nonFileInputs.isEmpty());
   assertTrue(report.nonExistentInputs.isEmpty());
   assertTrue(report.inputsWithNoOwners.isEmpty());
   assertEquals(inputs.size(),report.owners.size());
-  assertTrue(report.owners.containsKey(ownerRule));
-  assertEquals(ownerRule.getInputs(),report.owners.get(ownerRule));
+  assertTrue(report.owners.containsKey(targetNode));
+  assertEquals(targetNode.getInputs(),report.owners.get(targetNode));
 }
