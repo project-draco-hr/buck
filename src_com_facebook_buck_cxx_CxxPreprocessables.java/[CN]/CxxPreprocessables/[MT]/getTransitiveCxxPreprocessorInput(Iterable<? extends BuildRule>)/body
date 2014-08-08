@@ -1,0 +1,15 @@
+{
+  final MutableDirectedGraph<BuildRule> graph=new MutableDirectedGraph<>();
+  AbstractDependencyVisitor visitor=new AbstractDependencyVisitor(inputs){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      graph.addNode(rule);
+      for (      BuildRule dep : rule.getDeps()) {
+        graph.addEdge(rule,dep);
+      }
+      return rule.getDeps();
+    }
+  }
+;
+  visitor.start();
+  return CxxPreprocessorInput.concat(FluentIterable.from(ImmutableSortedSet.orderedBy(HasBuildTarget.BUILD_TARGET_COMPARATOR).addAll(graph.getNodes()).build()).filter(CxxPreprocessorDep.class).transform(CxxPreprocessorDep.GET_CXX_PREPROCESSOR_INPUT).toList());
+}
