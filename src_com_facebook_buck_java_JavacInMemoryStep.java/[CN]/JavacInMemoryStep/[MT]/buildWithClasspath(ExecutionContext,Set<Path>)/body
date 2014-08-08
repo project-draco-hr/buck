@@ -24,7 +24,18 @@
   List<String> classNamesForAnnotationProcessing=ImmutableList.of();
   Writer compilerOutputWriter=new PrintWriter(context.getStdErr());
   JavaCompiler.CompilationTask compilationTask=compiler.getTask(compilerOutputWriter,fileManager,diagnostics,options,classNamesForAnnotationProcessing,compilationUnits);
-  boolean isSuccess=compilationTask.call();
+  ProcessorBundle bundle=null;
+  boolean isSuccess;
+  try {
+    bundle=prepareProcessors(invokingRule.orNull(),options);
+    compilationTask.setProcessors(bundle.processors);
+    isSuccess=compilationTask.call();
+  }
+  finally {
+    if (bundle != null) {
+      bundle.close();
+    }
+  }
   if (isSuccess) {
     if (abiKeyFile != null) {
       try {
