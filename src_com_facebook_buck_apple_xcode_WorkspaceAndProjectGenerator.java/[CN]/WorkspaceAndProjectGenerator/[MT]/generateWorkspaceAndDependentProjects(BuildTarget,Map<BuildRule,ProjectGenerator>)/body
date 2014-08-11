@@ -9,7 +9,16 @@
   String workspaceName=workspaceBuildable.getSrcTarget().getBuildTarget().getShortName();
   Path outputDirectory=workspaceBuildable.getBuildTarget().getBasePath();
   WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,workspaceName,outputDirectory);
-  Iterable<BuildRule> allRules=partialGraph.getActionGraph().getNodes();
+  final ImmutableSet.Builder<BuildRule> allRulesBuilder=ImmutableSet.builder();
+  AbstractDependencyVisitor visitor=new AbstractDependencyVisitor(actualTargetRule){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      allRulesBuilder.add(rule);
+      return rule.getDeps();
+    }
+  }
+;
+  visitor.start();
+  Iterable<BuildRule> allRules=allRulesBuilder.build();
   SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,partialGraph,actualTargetRule,ImmutableSet.copyOf(allRules),workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),workspaceBuildable.getActionConfigNames());
   Multimap<Path,BuildRule> buildRulesByTargetBasePath=BuildRules.buildRulesByTargetBasePath(allRules);
   for (  Path basePath : buildRulesByTargetBasePath.keySet()) {
@@ -50,7 +59,7 @@
       Path projectPath=buildable.getProjectContainerPath().resolve();
       Path pbxprojectPath=projectPath.resolve("project.pbxproj");
       String targetName=rule.getBuildTarget().getShortName();
-      workspaceGenerator.addFilePath(DEPENDENCIES_GROUP,projectFilesystem.getPathForRelativePath(projectPath));
+      workspaceGenerator.addFilePath(DEPENDENCIES_GROUP,projectPath);
       ImmutableMap.Builder<String,String> targetNameToGIDMapBuilder=ImmutableMap.builder();
       ImmutableMap.Builder<String,String> targetNameToFileNameBuilder=ImmutableMap.builder();
       try (InputStream projectInputStream=projectFilesystem.newFileInputStream(pbxprojectPath)){
@@ -69,7 +78,7 @@
         PBXFileReference fakeProductReference=new PBXFileReference(targetFileName,targetFileName,PBXFileReference.SourceTree.BUILT_PRODUCTS_DIR);
         fakeTarget.setProductReference(fakeProductReference);
         schemeGenerator.addRuleToTargetMap(ImmutableMap.of(rule,fakeTarget));
-        schemeGenerator.addTargetToProjectPathMap(fakeTarget,projectFilesystem.getPathForRelativePath(projectPath));
+        schemeGenerator.addTargetToProjectPathMap(fakeTarget,projectPath);
       }
      }
   }
