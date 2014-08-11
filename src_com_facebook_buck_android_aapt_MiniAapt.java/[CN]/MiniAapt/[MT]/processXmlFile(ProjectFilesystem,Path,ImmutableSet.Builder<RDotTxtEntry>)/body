@@ -1,0 +1,28 @@
+{
+  try (InputStream stream=filesystem.newFileInputStream(xmlFile)){
+    Document dom=XmlDomParser.parse(stream);
+    NodeList nodesWithIds=(NodeList)ANDROID_ID_DEFINITION.evaluate(dom,XPathConstants.NODESET);
+    for (int i=0; i < nodesWithIds.getLength(); i++) {
+      String resourceName=nodesWithIds.item(i).getNodeValue();
+      if (!resourceName.startsWith(ID_DEFINITION_PREFIX)) {
+        throw new ResourceParseException("Invalid definition of a resource: '%s'",resourceName);
+      }
+      Preconditions.checkState(resourceName.startsWith(ID_DEFINITION_PREFIX));
+      resourceCollector.addIntResourceIfNotPresent(RType.ID,resourceName.substring(ID_DEFINITION_PREFIX.length()));
+    }
+    NodeList nodesUsingIds=(NodeList)ANDROID_ID_USAGE.evaluate(dom,XPathConstants.NODESET);
+    for (int i=0; i < nodesUsingIds.getLength(); i++) {
+      String resourceName=nodesUsingIds.item(i).getNodeValue();
+      Preconditions.checkState(resourceName.charAt(0) == '@');
+      int slashPosition=resourceName.indexOf('/');
+      Preconditions.checkState(slashPosition != -1);
+      String rawRType=resourceName.substring(1,slashPosition);
+      if (!RESOURCE_TYPES.containsKey(rawRType)) {
+        throw new ResourceParseException("Invalid reference '%s' in '%s'",resourceName,xmlFile);
+      }
+      RType rType=RESOURCE_TYPES.get(rawRType);
+      String name=resourceName.substring(slashPosition + 1);
+      references.add(new FakeRDotTxtEntry(IdType.INT,rType,sanitizeName(name)));
+    }
+  }
+ }

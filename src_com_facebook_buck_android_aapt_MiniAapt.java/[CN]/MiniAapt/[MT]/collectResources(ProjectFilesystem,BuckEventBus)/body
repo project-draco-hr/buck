@@ -1,0 +1,30 @@
+{
+  Collection<Path> contents=filesystem.getDirectoryContents(resDirectory);
+  for (  Path dir : contents) {
+    if (!filesystem.isDirectory(dir) && !filesystem.isIgnored(dir)) {
+      eventBus.post(ConsoleEvent.warning("MiniAapt [warning]: ignoring file '%s'.",dir));
+      continue;
+    }
+    String dirname=dir.getFileName().toString();
+    if (dirname.startsWith("values")) {
+      if (!dirname.equals("values") && !dirname.startsWith("values-")) {
+        throw new ResourceParseException("'%s' is not a valid values directory.",dir);
+      }
+      processValues(filesystem,eventBus,dir);
+      continue;
+    }
+    int dashIndex=dirname.indexOf('-');
+    if (dashIndex != -1) {
+      dirname=dirname.substring(0,dashIndex);
+    }
+    if (!RESOURCE_TYPES.containsKey(dirname)) {
+      throw new ResourceParseException("'%s' is not a valid resource sub-directory.",dir);
+    }
+    for (    Path resourceFile : filesystem.getDirectoryContents(dir)) {
+      String filename=resourceFile.getFileName().toString();
+      int dotIndex=filename.indexOf('.');
+      String resourceName=dotIndex != -1 ? filename.substring(0,dotIndex) : filename;
+      resourceCollector.addIntResourceIfNotPresent(RESOURCE_TYPES.get(dirname),resourceName);
+    }
+  }
+}
