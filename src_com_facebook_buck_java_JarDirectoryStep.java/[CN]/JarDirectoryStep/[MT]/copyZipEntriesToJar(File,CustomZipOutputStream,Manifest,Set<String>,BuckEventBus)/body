@@ -1,6 +1,6 @@
 {
   try (ZipFile zip=new ZipFile(file)){
-    for (Enumeration<? extends ZipEntry> entries=zip.entries(); entries.hasMoreElements(); ) {
+    zipEntryLoop:     for (Enumeration<? extends ZipEntry> entries=zip.entries(); entries.hasMoreElements(); ) {
       ZipEntry entry=entries.nextElement();
       String entryName=entry.getName();
       if (entryName.equals(JarFile.MANIFEST_NAME)) {
@@ -11,6 +11,12 @@
       if (!isDuplicateAllowed(entryName) && !alreadyAddedEntries.add(entryName)) {
         eventBus.post(ConsoleEvent.create(determineSeverity(entry),"Duplicate found when adding file to jar: %s",entryName));
         continue;
+      }
+      for (      Pattern p : blacklist) {
+        if (p.matcher(entryName).matches()) {
+          eventBus.post(ConsoleEvent.create(determineSeverity(entry),"Skipping adding file to jar: %s",entryName));
+          continue zipEntryLoop;
+        }
       }
       ZipEntry newEntry=new ZipEntry(entry);
       if (entry.getMethod() == ZipEntry.DEFLATED) {
