@@ -1,28 +1,27 @@
 {
-  File folder=new File(destination);
-  Files.createDirectories(folder.toPath());
+  Files.createDirectories(destination);
   ImmutableList.Builder<Path> filesWritten=ImmutableList.builder();
-  try (ZipFile zip=new ZipFile(new File(zipFile))){
+  try (ZipFile zip=new ZipFile(zipFile.toFile())){
     Enumeration<ZipArchiveEntry> entries=zip.getEntries();
     while (entries.hasMoreElements()) {
       ZipArchiveEntry entry=entries.nextElement();
       String fileName=entry.getName();
-      File target=new File(folder,fileName);
-      if (target.exists() && !overwriteExistingFiles) {
+      Path target=destination.resolve(fileName);
+      if (Files.exists(target) && !overwriteExistingFiles) {
         continue;
       }
       if (entry.isDirectory()) {
-        Files.createDirectories(target.toPath());
+        Files.createDirectories(target);
       }
  else {
-        Files.createDirectories(target.toPath().getParent());
-        filesWritten.add(target.toPath());
-        try (FileOutputStream out=new FileOutputStream(target)){
+        Files.createDirectories(target.getParent());
+        filesWritten.add(target);
+        try (FileOutputStream out=new FileOutputStream(target.toFile())){
           ByteStreams.copy(zip.getInputStream(entry),out);
         }
          Set<PosixFilePermission> permissions=MorePosixFilePermissions.fromMode(entry.getExternalAttributes() >> 16);
         if (permissions.contains(PosixFilePermission.OWNER_EXECUTE)) {
-          target.setExecutable(true,true);
+          target.toFile().setExecutable(true,true);
         }
       }
     }
