@@ -1,22 +1,28 @@
 {
   final ImmutableMap<BuildRule,PBXTarget> buildRuleToTargetMap=buildRuleToTargetMapBuilder.build();
   ImmutableMap<PBXTarget,Path> targetToProjectPathMap=targetToProjectPathMapBuilder.build();
-  List<BuildRule> orderedBuildRules=TopologicalSort.sort(partialGraph.getActionGraph(),new Predicate<BuildRule>(){
+class XcodeTargetPredicate implements Predicate<BuildRule> {
+    private final ImmutableSet<BuildRule> matches;
+    public XcodeTargetPredicate(    ImmutableSet<BuildRule> matches){
+      this.matches=Preconditions.checkNotNull(matches);
+    }
     @Override public boolean apply(    BuildRule input){
-      return buildRuleToTargetMap.containsKey(input) && includedRules.contains(input);
+      if (!AppleBuildRules.isXcodeTargetBuildRuleType(input.getType())) {
+        return false;
+      }
+      if (!matches.contains(input)) {
+        return false;
+      }
+      if (!buildRuleToTargetMap.containsKey(input)) {
+        throw new HumanReadableException("Scheme generation failed: No project containing required target %s was found.",input.getFullyQualifiedName());
+      }
+      return true;
     }
   }
-);
-  Set<BuildRule> nonTestRules=Sets.newLinkedHashSet();
-  Set<BuildRule> testRules=Sets.newLinkedHashSet();
+  List<BuildRule> orderedBuildRules=TopologicalSort.sort(partialGraph.getActionGraph(),new XcodeTargetPredicate(includedRules));
+  List<BuildRule> orderedTestRules=TopologicalSort.sort(partialGraph.getActionGraph(),new XcodeTargetPredicate(testRules));
   Map<BuildRule,XCScheme.BuildableReference> buildRuleToBuildableReferenceMap=Maps.newHashMap();
-  for (  BuildRule rule : orderedBuildRules) {
-    if (AppleBuildRules.isXcodeTargetTestBuildRuleType(rule.getType())) {
-      testRules.add(rule);
-    }
- else {
-      nonTestRules.add(rule);
-    }
+  for (  BuildRule rule : Iterables.concat(orderedBuildRules,orderedTestRules)) {
     PBXTarget target=buildRuleToTargetMap.get(rule);
     String blueprintName=target.getProductName();
     if (blueprintName == null) {
@@ -26,9 +32,9 @@
     buildRuleToBuildableReferenceMap.put(rule,buildableReference);
   }
   XCScheme.BuildAction buildAction=new XCScheme.BuildAction();
-  for (  BuildRule rule : Iterables.concat(nonTestRules,testRules)) {
+  for (  BuildRule rule : Iterables.concat(orderedBuildRules,orderedTestRules)) {
     EnumSet<XCScheme.BuildActionEntry.BuildFor> buildFor;
-    if (AppleBuildRules.isXcodeTargetTestBuildRuleType(rule.getType())) {
+    if (testRules.contains(rule)) {
       buildFor=XCScheme.BuildActionEntry.BuildFor.TEST_ONLY;
     }
  else {
@@ -39,7 +45,10 @@
     buildAction.addBuildAction(entry);
   }
   XCScheme.TestAction testAction=new XCScheme.TestAction(actionConfigNames.get(SchemeActionType.TEST));
-  for (  BuildRule rule : testRules) {
+  for (  BuildRule rule : orderedTestRules) {
+    if (!AppleBuildRules.isXcodeTargetTestBuildRuleType(rule.getType())) {
+      continue;
+    }
     XCScheme.BuildableReference buildableReference=buildRuleToBuildableReferenceMap.get(rule);
     XCScheme.TestableReference testableReference=new XCScheme.TestableReference(buildableReference);
     testAction.addTestableReference(testableReference);

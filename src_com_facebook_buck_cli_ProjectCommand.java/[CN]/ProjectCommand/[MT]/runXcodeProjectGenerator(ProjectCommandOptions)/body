@@ -1,24 +1,7 @@
 {
-  PartialGraph partialGraph;
+  PartialGraphs partialGraphs;
   try {
-    final ImmutableSet<String> defaultExcludePaths=options.getDefaultExcludePaths();
-    final ImmutableSet<BuildTarget> passedInTargetsSet=ImmutableSet.copyOf(getBuildTargets(options.getArgumentsFormattedAsBuildTargets()));
-    partialGraph=createPartialGraph(new RuleJsonPredicate(){
-      @Override public boolean isMatch(      Map<String,Object> rawParseData,      BuildRuleType buildRuleType,      BuildTarget buildTarget){
-        if (XcodeProjectConfigDescription.TYPE != buildRuleType) {
-          return false;
-        }
-        String targetName=buildTarget.getFullyQualifiedName();
-        for (        String prefix : defaultExcludePaths) {
-          if (targetName.startsWith("//" + prefix) && !passedInTargetsSet.contains(buildTarget)) {
-            LOG.debug("Ignoring build target %s (exclude_paths contains %s)",buildTarget,prefix);
-            return false;
-          }
-        }
-        return true;
-      }
-    }
-,ASSOCIATED_XCODE_PROJECTS_PREDICATE,options);
+    partialGraphs=createPartialGraphs(options);
   }
  catch (  BuildTargetException|BuildFileParseException e) {
     throw new HumanReadableException(e);
@@ -26,40 +9,47 @@
   ImmutableSet<BuildTarget> passedInTargetsSet;
   try {
     ImmutableSet<String> argumentsAsBuildTargets=options.getArgumentsFormattedAsBuildTargets();
-    passedInTargetsSet=getBuildTargets(argumentsAsBuildTargets);
+    passedInTargetsSet=ImmutableSet.copyOf(getBuildTargets(argumentsAsBuildTargets));
   }
  catch (  NoSuchBuildTargetException e) {
     throw new HumanReadableException(e);
   }
-  ExecutionContext executionContext=createExecutionContext(options,partialGraph.getActionGraph());
+  ExecutionContext executionContext=createExecutionContext(options,partialGraphs.getProjectGraph().getActionGraph());
   ImmutableSet.Builder<ProjectGenerator.Option> optionsBuilder=ImmutableSet.builder();
   if (options.getReadOnly()) {
     optionsBuilder.add(ProjectGenerator.Option.GENERATE_READ_ONLY_FILES);
   }
+  if (options.isWithTests()) {
+    optionsBuilder.add(ProjectGenerator.Option.INCLUDE_TESTS);
+  }
   if (options.getCombinedProject() != null) {
-    ProjectGenerator projectGenerator=new ProjectGenerator(partialGraph,passedInTargetsSet,getProjectFilesystem(),executionContext,getProjectFilesystem().getPathForRelativePath(Paths.get("_gen")),"GeneratedProject",optionsBuilder.addAll(ProjectGenerator.COMBINED_PROJECT_OPTIONS).build());
+    ProjectGenerator projectGenerator=new ProjectGenerator(partialGraphs.getProjectGraph(),passedInTargetsSet,getProjectFilesystem(),executionContext,getProjectFilesystem().getPathForRelativePath(Paths.get("_gen")),"GeneratedProject",optionsBuilder.addAll(ProjectGenerator.COMBINED_PROJECT_OPTIONS).build());
     projectGenerator.createXcodeProjects();
   }
  else   if (options.getWorkspaceAndProjects()) {
     ImmutableSet<BuildTarget> targets;
     if (passedInTargetsSet.isEmpty()) {
-      targets=getAllTargetsOfType(partialGraph.getActionGraph().getNodes(),XcodeWorkspaceConfigDescription.TYPE);
+      targets=getAllTargetsOfType(partialGraphs.getMainGraph().getActionGraph().getNodes(),XcodeWorkspaceConfigDescription.TYPE);
     }
  else {
       targets=passedInTargetsSet;
     }
-    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),partialGraph,executionContext,targets,optionsBuilder.build());
-    generator.generateWorkspacesAndDependentProjects();
+    LOG.debug("Generating workspace for config targets %s",targets);
+    Map<BuildRule,ProjectGenerator> projectGenerators=new HashMap<>();
+    for (    BuildTarget workspaceConfig : targets) {
+      WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),partialGraphs.getMainGraph(),partialGraphs.getTestGraph(),partialGraphs.getProjectGraph(),executionContext,workspaceConfig,optionsBuilder.build());
+      generator.generateWorkspaceAndDependentProjects(projectGenerators);
+    }
   }
  else {
     ImmutableSet<BuildTarget> targets;
     if (passedInTargetsSet.isEmpty()) {
-      targets=getAllTargetsOfType(partialGraph.getActionGraph().getNodes(),XcodeProjectConfigDescription.TYPE);
+      targets=getAllTargetsOfType(partialGraphs.getProjectGraph().getActionGraph().getNodes(),XcodeProjectConfigDescription.TYPE);
     }
  else {
       targets=passedInTargetsSet;
     }
-    SeparatedProjectsGenerator projectGenerator=new SeparatedProjectsGenerator(getProjectFilesystem(),partialGraph,executionContext,targets,optionsBuilder.build());
+    SeparatedProjectsGenerator projectGenerator=new SeparatedProjectsGenerator(getProjectFilesystem(),partialGraphs.getProjectGraph(),executionContext,targets,optionsBuilder.build());
     ImmutableSet<Path> generatedProjectPaths=projectGenerator.generateProjects();
     for (    Path path : generatedProjectPaths) {
       console.getStdOut().println(path.toString());
