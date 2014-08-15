@@ -1,0 +1,19 @@
+{
+  ImmutableSet<BuildTarget> buildTargets=parser.targetsInProjectFromRoots(roots,includes,eventBus,console,environment);
+  PartialGraph partialGraph=parseAndCreateGraphFromTargets(buildTargets,includes,parser,eventBus,console,environment);
+  for (int i=0; i < predicates.size(); i++) {
+    RuleJsonPredicate predicate=predicates.get(i);
+    AssociatedRulePredicate associatedRulePredicate=associatedRulePredicates.get(i);
+    PartialGraph associatedPartialGraph=PartialGraph.createPartialGraph(predicate,filesystem,includes,parser,eventBus,console,environment);
+    ImmutableSet.Builder<BuildTarget> associatedRulesBuilder=ImmutableSet.<BuildTarget>builder().addAll(roots);
+    for (    BuildTarget buildTarget : associatedPartialGraph.getTargets()) {
+      BuildRule buildRule=associatedPartialGraph.getActionGraph().findBuildRuleByTarget(buildTarget);
+      if (associatedRulePredicate.isMatch(buildRule,partialGraph.getActionGraph())) {
+        associatedRulesBuilder.add(buildRule.getBuildTarget());
+      }
+    }
+    ImmutableSet<BuildTarget> allTargets=parser.targetsInProjectFromRoots(associatedRulesBuilder.build(),includes,eventBus,console,environment);
+    partialGraph=parseAndCreateGraphFromTargets(allTargets,includes,parser,eventBus,console,environment);
+  }
+  return partialGraph;
+}
