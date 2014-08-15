@@ -1,20 +1,24 @@
-def main(argv):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--entry-point', default='__main__')
-    parser.add_argument('--python', default=sys.executable)
-    parser.add_argument('output')
-    args = parser.parse_args(argv[1:])
+def main():
+    parser = optparse.OptionParser(usage='usage: %prog [options] output')
+    parser.add_option('--entry-point', default='__main__')
+    parser.add_option('--python', default=sys.executable)
+    (options, args) = parser.parse_args()
+    if (len(args) == 1):
+        output = args[0]
+    else:
+        parser.error("'output' positional argument is required")
+        return 1
     manifest = json.load(sys.stdin)
     tmp_dir = tempfile.mkdtemp()
     try:
-        interpreter = PythonInterpreter(args.python, PythonInterpreter.from_binary(args.python).identity, extras={('setuptools', '1.0'): os.path.join(BUCK_ROOT, 'third-party/py/setuptools'), })
+        interpreter = PythonInterpreter(options.python, PythonInterpreter.from_binary(options.python).identity, extras={('setuptools', '1.0'): os.path.join(BUCK_ROOT, 'third-party/py/setuptools'), })
         pex_builder = PEXBuilder(path=tmp_dir, interpreter=interpreter)
         pex_builder.info.zip_safe = True
-        pex_builder.info.entry_point = args.entry_point
+        pex_builder.info.entry_point = options.entry_point
         for (dst, src) in manifest['modules'].iteritems():
             pex_builder.add_source(dereference_symlinks(src), dst)
         for (dst, src) in manifest['resources'].iteritems():
             pex_builder.add_resource(dereference_symlinks(src), dst)
-        pex_builder.build(args.output)
+        pex_builder.build(output)
     finally:
         shutil.rmtree(tmp_dir, True)
