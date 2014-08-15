@@ -19,6 +19,12 @@
   addResourcesBuildPhase(target,targetGroup,collectRecursiveResources(rule,resourceRuleType));
   addAssetCatalogBuildPhase(target,targetGroup,collectRecursiveAssetCatalogs(rule));
   addCoreDataModelBuildPhase(targetGroup,collectCoreDataModels(rule.getDeps()));
+  ImmutableSet.Builder<SourceTreePath> extensionsSourceTreePathsBuilder=ImmutableSet.builder();
+  Iterable<BuildRule> extensions=getRecursiveRuleDependenciesOfType(rule,AppleExtensionDescription.TYPE);
+  for (  BuildRule extension : extensions) {
+    extensionsSourceTreePathsBuilder.add(new SourceTreePath(PBXReference.SourceTree.BUILT_PRODUCTS_DIR,extension.getPathToOutputFile().getFileName()));
+  }
+  addCopyFilesBuildPhase(target,project.getMainGroup().getOrCreateChildGroupByName("Products"),PBXCopyFilesBuildPhase.Destination.PLUGINS,"",extensionsSourceTreePathsBuilder.build());
   PBXGroup productsGroup=project.getMainGroup().getOrCreateChildGroupByName("Products");
   String productName=getProductName(rule.getBuildTarget());
   String productOutputName=String.format(productOutputFormat,productName);
