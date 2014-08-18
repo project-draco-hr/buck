@@ -2,11 +2,12 @@
   JavaCompiler compiler=ToolProvider.getSystemJavaCompiler();
   Preconditions.checkNotNull(compiler,"If using JRE instead of JDK, ToolProvider.getSystemJavaCompiler() may be null.");
   StandardJavaFileManager fileManager=compiler.getStandardFileManager(null,null,null);
-  Iterable<? extends JavaFileObject> compilationUnits;
+  Iterable<? extends JavaFileObject> compilationUnits=ImmutableSet.of();
   try {
     compilationUnits=createCompilationUnits(fileManager,context.getProjectFilesystem().getAbsolutifier());
   }
  catch (  IOException e) {
+    close(fileManager,compilationUnits,null);
     e.printStackTrace(context.getStdErr());
     return 1;
   }
@@ -15,6 +16,7 @@
       context.getProjectFilesystem().writeLinesToPath(Iterables.transform(javaSourceFilePaths,Functions.toStringFunction()),pathToSrcsList.get());
     }
  catch (    IOException e) {
+      close(fileManager,compilationUnits,null);
       context.logError(e,"Cannot write list of .java files to compile to %s file! Terminating compilation.",pathToSrcsList.get());
       return 1;
     }
@@ -32,9 +34,7 @@
     isSuccess=compilationTask.call();
   }
   finally {
-    if (bundle != null) {
-      bundle.close();
-    }
+    close(fileManager,compilationUnits,bundle);
   }
   if (isSuccess) {
     if (abiKeyFile != null) {
