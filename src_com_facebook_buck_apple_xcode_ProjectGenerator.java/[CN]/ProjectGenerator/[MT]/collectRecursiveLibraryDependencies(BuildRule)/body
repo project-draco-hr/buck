@@ -1,5 +1,17 @@
 {
-  return FluentIterable.from(getRecursiveRuleDependenciesOfType(RecursiveRuleDependenciesMode.LINKING,rule,IosLibraryDescription.TYPE,XcodeNativeDescription.TYPE)).transform(new Function<BuildRule,PBXFileReference>(){
+  return FluentIterable.from(getRecursiveRuleDependenciesOfType(RecursiveRuleDependenciesMode.LINKING,rule,IosLibraryDescription.TYPE,AppleBundleDescription.TYPE,XcodeNativeDescription.TYPE)).filter(new Predicate<BuildRule>(){
+    @Override public boolean apply(    BuildRule input){
+      if (input.getType().equals(AppleBundleDescription.TYPE)) {
+        AppleBundle bundle=(AppleBundle)input;
+        Optional<AppleBundleExtension> extension=bundle.getExtensionValue();
+        return extension.isPresent() && extension.get() == AppleBundleExtension.FRAMEWORK;
+      }
+ else {
+        return true;
+      }
+    }
+  }
+).transform(new Function<BuildRule,PBXFileReference>(){
     @Override public PBXFileReference apply(    BuildRule input){
       return getLibraryFileReferenceForRule(input);
     }

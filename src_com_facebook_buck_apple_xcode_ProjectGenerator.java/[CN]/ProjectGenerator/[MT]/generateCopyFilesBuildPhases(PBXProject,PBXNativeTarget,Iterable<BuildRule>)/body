@@ -1,0 +1,23 @@
+{
+  ImmutableMap.Builder<PBXCopyFilesBuildPhase.Destination,ImmutableSet.Builder<BuildRule>> destinationRulesBuildersBuilder=ImmutableMap.builder();
+  for (  PBXCopyFilesBuildPhase.Destination destination : PBXCopyFilesBuildPhase.Destination.values()) {
+    destinationRulesBuildersBuilder.put(destination,ImmutableSet.<BuildRule>builder());
+  }
+  ImmutableMap<PBXCopyFilesBuildPhase.Destination,ImmutableSet.Builder<BuildRule>> destinationRulesBuilders=destinationRulesBuildersBuilder.build();
+  for (  BuildRule copiedRule : copiedRules) {
+    Optional<PBXCopyFilesBuildPhase.Destination> optionalDestination=getDestinationForRule(copiedRule);
+    if (optionalDestination.isPresent()) {
+      PBXCopyFilesBuildPhase.Destination destination=optionalDestination.get();
+      ImmutableSet.Builder<BuildRule> rulesBuilder=destinationRulesBuilders.get(destination);
+      rulesBuilder.add(copiedRule);
+    }
+  }
+  for (  PBXCopyFilesBuildPhase.Destination destination : destinationRulesBuilders.keySet()) {
+    ImmutableSet<BuildRule> rules=destinationRulesBuilders.get(destination).build();
+    ImmutableSet.Builder<SourceTreePath> copiedSourceTreePathsBuilder=ImmutableSet.builder();
+    for (    BuildRule rule : rules) {
+      copiedSourceTreePathsBuilder.add(getProductsSourceTreePathForRule(rule));
+    }
+    addCopyFilesBuildPhase(target,project.getMainGroup().getOrCreateChildGroupByName("Dependencies"),destination,"",copiedSourceTreePathsBuilder.build());
+  }
+}
