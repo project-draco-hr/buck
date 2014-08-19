@@ -1,0 +1,70 @@
+{
+  final ImmutableSet<BuildRuleType> requestedTypes=ImmutableSet.copyOf(types);
+  final ImmutableList.Builder<BuildRule> filteredRules=ImmutableList.builder();
+  AbstractAcyclicDepthFirstPostOrderTraversal<BuildRule> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildRule>(){
+    private boolean isNodeBundleBinary(    BuildRule node){
+      if (rule.getType().equals(AppleBundleDescription.TYPE)) {
+        AppleBundle bundle=(AppleBundle)rule;
+        return node == bundle.getBinary();
+      }
+ else {
+        return false;
+      }
+    }
+    @Override protected Iterator<BuildRule> findChildren(    BuildRule node) throws IOException {
+      ImmutableSortedSet<BuildRule> deps;
+      if (node != rule && !isNodeBundleBinary(node)) {
+switch (mode) {
+case LINKING:
+          if (node.getType().equals(IosLibraryDescription.TYPE)) {
+            IosLibrary library=(IosLibrary)node;
+            if (library.getLinkedDynamically()) {
+              deps=ImmutableSortedSet.of();
+            }
+ else {
+              deps=node.getDeps();
+            }
+          }
+ else           if (node.getType().equals(AppleBundleDescription.TYPE)) {
+            deps=ImmutableSortedSet.of();
+          }
+ else {
+            deps=node.getDeps();
+          }
+        break;
+case COPYING:
+      if (node.getType().equals(AppleBundleDescription.TYPE)) {
+        deps=ImmutableSortedSet.of();
+      }
+ else {
+        deps=node.getDeps();
+      }
+    break;
+case BUILDING:
+default :
+  deps=node.getDeps();
+break;
+}
+}
+ else {
+deps=node.getDeps();
+}
+return deps.iterator();
+}
+@Override protected void onNodeExplored(BuildRule node){
+if (node != rule && requestedTypes.contains(node.getType()) && (!isNodeBundleBinary(node) || mode == RecursiveRuleDependenciesMode.COMPLETE)) {
+filteredRules.add(node);
+}
+}
+@Override protected void onTraversalComplete(Iterable<BuildRule> nodesInExplorationOrder){
+}
+}
+;
+try {
+traversal.traverse(ImmutableList.of(rule));
+}
+ catch (AbstractAcyclicDepthFirstPostOrderTraversal.CycleException|IOException e) {
+throw new RuntimeException(e);
+}
+return filteredRules.build();
+}
