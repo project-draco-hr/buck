@@ -13,22 +13,24 @@
   }
   ImmutableMap.Builder<String,String> defaultSettingsBuilder=ImmutableMap.builder();
   defaultSettingsBuilder.put("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPathForRule(buildable.getHeaderPathPrefix()));
-  if (!includeFrameworksAndResources) {
+  if (!includeFrameworks) {
     defaultSettingsBuilder.put("CONFIGURATION_BUILD_DIR",getObjectOutputPathForRule(rule));
   }
   setTargetBuildConfigurations(rule,target,targetGroup,buildable.getConfigurations(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),ImmutableMap.<String,String>of());
   addRunScriptBuildPhasesForDependencies(rule,target);
   addBuildPhasesGroupsAndHeaderMapsForSourcesAndHeaders(rule.getBuildTarget(),target,targetGroup,buildable.getHeaderPathPrefix(),buildable.getUseBuckHeaderMaps(),buildable.getSrcs(),buildable.getPerFileFlags());
-  if (includeFrameworksAndResources) {
+  if (includeFrameworks) {
     ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
     frameworksBuilder.addAll(buildable.getFrameworks());
     collectRecursiveFrameworkDependencies(rule,frameworksBuilder);
     addFrameworksBuildPhase(rule.getBuildTarget(),target,project.getMainGroup().getOrCreateChildGroupByName("Frameworks"),frameworksBuilder.build(),collectRecursiveLibraryDependencies(rule));
+  }
+  if (includeResources) {
     addResourcesBuildPhase(target,targetGroup,collectRecursiveResources(rule,AppleResourceDescription.TYPE));
     addAssetCatalogBuildPhase(target,targetGroup,collectRecursiveAssetCatalogs(rule));
   }
   addCoreDataModelBuildPhase(targetGroup,collectCoreDataModels(rule.getDeps()));
-  if (includeFrameworksAndResources) {
+  if (includeResources) {
     ImmutableSet.Builder<SourceTreePath> extensionsSourceTreePathsBuilder=ImmutableSet.builder();
     Iterable<BuildRule> extensions=getRecursiveRuleDependenciesOfType(RecursiveRuleDependenciesMode.COPYING,rule,AppleExtensionDescription.TYPE);
     for (    BuildRule extension : extensions) {
