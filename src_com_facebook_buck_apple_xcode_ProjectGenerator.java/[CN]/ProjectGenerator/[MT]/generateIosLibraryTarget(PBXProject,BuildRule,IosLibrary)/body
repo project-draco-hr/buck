@@ -1,6 +1,11 @@
 {
   PBXNativeTarget target=new PBXNativeTarget(getXcodeTargetName(rule));
-  target.setProductType(PBXTarget.ProductType.IOS_LIBRARY);
+  if (buildable.getLinkedDynamically()) {
+    target.setProductType(PBXTarget.ProductType.DYNAMIC_LIBRARY);
+  }
+ else {
+    target.setProductType(PBXTarget.ProductType.STATIC_LIBRARY);
+  }
   setNativeTargetGid(target,buildable);
   PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(target.getName());
   BuildTarget buildTarget=rule.getBuildTarget();
@@ -12,11 +17,9 @@
   addRunScriptBuildPhasesForDependencies(rule,target);
   addBuildPhasesGroupsAndHeaderMapsForSourcesAndHeaders(buildTarget,target,targetGroup,buildable.getHeaderPathPrefix(),buildable.getUseBuckHeaderMaps(),buildable.getSrcs(),buildable.getPerFileFlags());
   addCoreDataModelBuildPhase(targetGroup,collectCoreDataModels(rule.getDeps()));
-  String productName=getProductName(buildTarget);
-  String libraryName="lib" + productName + ".a";
   PBXGroup productsGroup=project.getMainGroup().getOrCreateChildGroupByName("Products");
-  PBXFileReference productReference=new PBXFileReference(libraryName,libraryName,PBXReference.SourceTree.BUILT_PRODUCTS_DIR);
-  productsGroup.getChildren().add(productReference);
+  String libraryName=getProductOutputNameForRule(rule);
+  PBXFileReference productReference=productsGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.BUILT_PRODUCTS_DIR,Paths.get(libraryName)));
   target.setProductReference(productReference);
   project.getTargets().add(target);
   LOG.debug("Generated iOS library target %s",target);
