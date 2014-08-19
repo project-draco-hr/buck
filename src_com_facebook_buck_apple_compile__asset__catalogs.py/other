@@ -1,5 +1,5 @@
 "This script will compile an Xcode 5 asset catalog (*.xcassets) in a fashion\nthat is compatible with legacy bundle placement.  For instance, asset catalogs\nflatten all assets into a single namespace and all assets will be placed in\nthe main application bundle's resource path's root.  However, when using a\nbundle, the bundle's directory would be placed in the same place, thus\nallowing for a hierarchy.\n\nFor example, when building an application called Sample.app that references a\nResource.bundle in its Copy Resources build phase, the files in the bundle\nwould be placed at Sample.app/Resource.bundle/<files>.  If the bundle's image\nassets are moved to an asset catalog, the files are placed in at\nSample.app/<files>.  This creates namespacing issues for code that references\nthese resources.\n\nThis script manipulates the asset catalog compiler (actool) to place resources\nin the expected place."
-import argparse
+import optparse
 import errno
 import logging
 import os
@@ -11,40 +11,39 @@ import StringIO
 logger = logging.getLogger('compile_asset_catalog')
 ACTOOL_WARNING_REGEX = re.compile('(?P<asset_path>.*:)?\\s*warning:\\s*(?P<message>.*)')
 if (__name__ == '__main__'):
-    parser = argparse.ArgumentParser()
-    parser.add_argument('-t', '--target', required=True, help='Target operating system version for deployment')
-    parser.add_argument('-p', '--platform', required=True, help='Target platform.  Choices are iphonesimulator, iphoneos, and macosx.')
-    parser.add_argument('-d', '--device', action='append', type=str, help='Choices are iphone and ipad. May be specified multiple times. When platform is macosx, this option cannot be specified. Otherwise, this option must be specified.')
-    parser.add_argument('-b', '--bundles', action='store_true', help='Use the legacy output format, which copies asset catalogs to their sibling bundles. Without this option, all assets are copied to the root (or compiled into Assets.car)')
-    parser.add_argument('-o', '--output', required=True, help='Output directory for the specified asset catalog(s).')
-    parser.add_argument('-v', '--verbose', action='store_true', help='Print verbose output')
-    parser.add_argument('catalogs', metavar='catalog', type=str, nargs='+', help='Paths to asset catalogs to be compiled')
-    args = parser.parse_args()
-    logging.basicConfig(level=(logging.DEBUG if args.verbose else logging.INFO))
+    parser = optparse.OptionParser()
+    parser.add_option('-t', '--target', help='Target operating system version for deployment')
+    parser.add_option('-p', '--platform', help='Target platform.  Choices are iphonesimulator, iphoneos, and macosx.')
+    parser.add_option('-d', '--device', action='append', type=str, help='Choices are iphone and ipad. May be specified multiple times. When platform is macosx, this option cannot be specified. Otherwise, this option must be specified.')
+    parser.add_option('-b', '--bundles', action='store_true', help='Use the legacy output format, which copies asset catalogs to their sibling bundles. Without this option, all assets are copied to the root (or compiled into Assets.car)')
+    parser.add_option('-o', '--output', help='Output directory for the specified asset catalog(s).')
+    parser.add_option('-v', '--verbose', action='store_true', help='Print verbose output')
+    (opts, args) = parser.parse_args()
+    logging.basicConfig(level=(logging.DEBUG if opts.verbose else logging.INFO))
     logger.info('Compiling asset catalogs...')
-    args.catalogs = map(os.path.abspath, args.catalogs)
-    args.output = os.path.abspath(args.output)
-    for component in args.target.split('.'):
+    catalogs = map(os.path.abspath, args)
+    opts.output = os.path.abspath(opts.output)
+    for component in opts.target.split('.'):
         try:
             int(component)
         except:
-            raise ValueError((args.target + ': target must be a version string'))
-    if ((args.platform != 'iphonesimulator') and (args.platform != 'iphoneos') and (args.platform != 'macosx')):
-        raise ValueError((args.platform + ': platform must be either iphoneos, iphonesimulator, or macosx'))
-    if ((args.platform == 'macosx') and (args.device is not None)):
+            raise ValueError((opts.target + ': target must be a version string'))
+    if ((opts.platform != 'iphonesimulator') and (opts.platform != 'iphoneos') and (opts.platform != 'macosx')):
+        raise ValueError((opts.platform + ': platform must be either iphoneos, iphonesimulator, or macosx'))
+    if ((opts.platform == 'macosx') and (opts.device is not None)):
         raise ValueError('devices must not be specified when platform is macosx')
-    elif ((args.platform != 'macosx') and (args.device or (len(args.device) == 0))):
+    elif ((opts.platform != 'macosx') and (opts.device or (len(opts.device) == 0))):
         raise ValueError('devices must be specified when platform is iphoneos or iphonesimulator')
-    for device in args.device:
+    for device in opts.device:
         if ((device != 'iphone') and (device != 'ipad')):
             raise ValueError((device + ': device(s) must be either iphone or ipad'))
-    for path in args.catalogs:
+    for path in catalogs:
         if (os.path.splitext(os.path.basename(path))[1] != '.xcassets'):
             raise ValueError((path + ': catalog paths must have an xcassets extension'))
-    if (args.platform == 'macosx'):
-        args.device = ['mac']
+    if (opts.platform == 'macosx'):
+        opts.device = ['mac']
     exit_code = 0
-    if (not compile_asset_catalogs(args.target, args.platform, args.device, args.output, args.catalogs, args.bundles, args.verbose)):
+    if (not compile_asset_catalogs(opts.target, opts.platform, opts.device, opts.output, catalogs, opts.bundles, opts.verbose)):
         exit_code = 1
     logger.info('Done')
     sys.exit(exit_code)
