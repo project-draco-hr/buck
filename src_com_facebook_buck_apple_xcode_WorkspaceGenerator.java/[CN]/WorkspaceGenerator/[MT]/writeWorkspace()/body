@@ -9,25 +9,40 @@
     throw new RuntimeException(e);
   }
   DOMImplementation domImplementation=docBuilder.getDOMImplementation();
-  Document doc=domImplementation.createDocument(null,"Workspace",null);
+  final Document doc=domImplementation.createDocument(null,"Workspace",null);
   doc.setXmlVersion("1.0");
   Element rootElem=doc.getDocumentElement();
   rootElem.setAttribute("version","1.0");
-  for (  String groupName : projects.keySet()) {
-    Element targetElement=doc.getDocumentElement();
-    if (!groupName.isEmpty()) {
-      Element group=doc.createElement("Group");
-      group.setAttribute("location","container:");
-      group.setAttribute("name",groupName);
-      rootElem.appendChild(group);
-      targetElement=group;
+  final Stack<Element> groups=new Stack<>();
+  groups.push(rootElem);
+  FileVisitor<Map.Entry<String,WorkspaceNode>> visitor=new FileVisitor<Map.Entry<String,WorkspaceNode>>(){
+    @Override public FileVisitResult preVisitDirectory(    Map.Entry<String,WorkspaceNode> dir,    BasicFileAttributes attrs) throws IOException {
+      Preconditions.checkArgument(dir.getValue() instanceof WorkspaceGroup);
+      Element element=doc.createElement("Group");
+      element.setAttribute("location","container:");
+      element.setAttribute("name",dir.getKey());
+      groups.peek().appendChild(element);
+      groups.push(element);
+      return FileVisitResult.CONTINUE;
     }
-    for (    Path path : projects.get(groupName)) {
-      Element fileRef=doc.createElement("FileRef");
-      fileRef.setAttribute("location","container:" + outputDirectory.relativize(path).toString());
-      targetElement.appendChild(fileRef);
+    @Override public FileVisitResult visitFile(    Map.Entry<String,WorkspaceNode> file,    BasicFileAttributes attrs) throws IOException {
+      Preconditions.checkArgument(file.getValue() instanceof WorkspaceFileRef);
+      WorkspaceFileRef fileRef=(WorkspaceFileRef)file.getValue();
+      Element element=doc.createElement("FileRef");
+      element.setAttribute("location","container:" + outputDirectory.normalize().relativize(fileRef.getPath()).toString());
+      groups.peek().appendChild(element);
+      return FileVisitResult.CONTINUE;
+    }
+    @Override public FileVisitResult visitFileFailed(    Map.Entry<String,WorkspaceNode> file,    IOException exc) throws IOException {
+      return FileVisitResult.TERMINATE;
+    }
+    @Override public FileVisitResult postVisitDirectory(    Map.Entry<String,WorkspaceNode> dir,    IOException exc) throws IOException {
+      groups.pop();
+      return FileVisitResult.CONTINUE;
     }
   }
+;
+  walkNodeTree(visitor);
   Path projectWorkspaceDir=outputDirectory.resolve(workspaceName + ".xcworkspace");
   projectFilesystem.mkdirs(projectWorkspaceDir);
   Path serializedWorkspace=projectWorkspaceDir.resolve("contents.xcworkspacedata");

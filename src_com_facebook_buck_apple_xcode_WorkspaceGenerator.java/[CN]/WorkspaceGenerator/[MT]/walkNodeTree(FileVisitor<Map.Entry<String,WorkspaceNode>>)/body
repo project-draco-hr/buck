@@ -1,0 +1,29 @@
+{
+  Stack<Iterator<Map.Entry<String,WorkspaceNode>>> iterators=new Stack<>();
+  Stack<Map.Entry<String,WorkspaceNode>> groups=new Stack<>();
+  iterators.push(this.children.entrySet().iterator());
+  while (!iterators.isEmpty()) {
+    if (!iterators.peek().hasNext()) {
+      if (groups.isEmpty()) {
+        break;
+      }
+      visitor.postVisitDirectory(groups.pop(),null);
+      iterators.pop();
+      continue;
+    }
+    Map.Entry<String,WorkspaceNode> nextEntry=iterators.peek().next();
+    WorkspaceNode nextNode=nextEntry.getValue();
+    if (nextNode instanceof WorkspaceGroup) {
+      visitor.preVisitDirectory(nextEntry,null);
+      WorkspaceGroup nextGroup=(WorkspaceGroup)nextNode;
+      groups.push(nextEntry);
+      iterators.push(nextGroup.getChildren().entrySet().iterator());
+    }
+ else     if (nextNode instanceof WorkspaceFileRef) {
+      visitor.visitFile(nextEntry,null);
+    }
+ else {
+      throw new HumanReadableException("Expected a workspace to only contain groups and file references");
+    }
+  }
+}
