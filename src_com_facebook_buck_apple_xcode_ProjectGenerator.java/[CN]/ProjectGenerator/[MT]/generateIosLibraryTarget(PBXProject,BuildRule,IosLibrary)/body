@@ -1,26 +1,6 @@
 {
-  PBXNativeTarget target=new PBXNativeTarget(getXcodeTargetName(rule));
-  if (buildable.getLinkedDynamically()) {
-    target.setProductType(PBXTarget.ProductType.DYNAMIC_LIBRARY);
-  }
- else {
-    target.setProductType(PBXTarget.ProductType.STATIC_LIBRARY);
-  }
-  setNativeTargetGid(target,buildable);
-  PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(target.getName());
-  BuildTarget buildTarget=rule.getBuildTarget();
-  ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
-  if (buildable.getUseBuckHeaderMaps()) {
-    extraSettingsBuilder.put("USE_HEADERMAP","NO");
-  }
-  setTargetBuildConfigurations(rule,target,targetGroup,buildable.getConfigurations(),extraSettingsBuilder.build(),ImmutableMap.of("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPathForRule(buildable.getHeaderPathPrefix()),"CONFIGURATION_BUILD_DIR",getObjectOutputPathForRule(rule)),ImmutableMap.<String,String>of());
-  addRunScriptBuildPhasesForDependencies(rule,target);
-  addBuildPhasesGroupsAndHeaderMapsForSourcesAndHeaders(buildTarget,target,targetGroup,buildable.getHeaderPathPrefix(),buildable.getUseBuckHeaderMaps(),buildable.getSrcs(),buildable.getPerFileFlags());
-  addCoreDataModelBuildPhase(targetGroup,collectCoreDataModels(rule.getDeps()));
-  PBXGroup productsGroup=project.getMainGroup().getOrCreateChildGroupByName("Products");
-  String libraryName=getProductOutputNameForRule(rule);
-  PBXFileReference productReference=productsGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.BUILT_PRODUCTS_DIR,Paths.get(libraryName)));
-  target.setProductReference(productReference);
+  PBXTarget.ProductType productType=buildable.getLinkedDynamically() ? PBXTarget.ProductType.DYNAMIC_LIBRARY : PBXTarget.ProductType.STATIC_LIBRARY;
+  PBXNativeTarget target=generateBinaryTarget(project,rule,buildable,productType,IosLibrary.getOutputFileNameFormat(buildable.getLinkedDynamically()),false);
   project.getTargets().add(target);
   LOG.debug("Generated iOS library target %s",target);
   return target;
