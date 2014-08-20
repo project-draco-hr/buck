@@ -1,8 +1,10 @@
 {
+  boolean shouldPrintStdOut=options.contains(Option.PRINT_STD_OUT);
   @SuppressWarnings("resource") PrintStream stdOutToWriteTo=shouldPrintStdOut ? stdOutStream : new CapturingPrintStream();
-  InputStreamConsumer stdOut=new InputStreamConsumer(process.getInputStream(),stdOutToWriteTo,ansi);
+  InputStreamConsumer stdOut=new InputStreamConsumer(process.getInputStream(),stdOutToWriteTo,ansi,!shouldPrintStdOut);
+  boolean shouldPrintStdErr=options.contains(Option.PRINT_STD_ERR);
   @SuppressWarnings("resource") PrintStream stdErrToWriteTo=shouldPrintStdErr ? stdErrStream : new CapturingPrintStream();
-  InputStreamConsumer stdErr=new InputStreamConsumer(process.getErrorStream(),stdErrToWriteTo,ansi);
+  InputStreamConsumer stdErr=new InputStreamConsumer(process.getErrorStream(),stdErrToWriteTo,ansi,!shouldPrintStdErr);
   Thread stdOutConsumer=Threads.namedThread("ProcessExecutor (stdOut)",stdOut);
   stdOutConsumer.start();
   Thread stdErrConsumer=Threads.namedThread("ProcessExecutor (stdErr)",stdErr);
@@ -27,7 +29,7 @@
   String stdoutText=getDataIfNotPrinted(stdOutToWriteTo,shouldPrintStdOut);
   String stderrText=getDataIfNotPrinted(stdErrToWriteTo,shouldPrintStdErr);
   int exitCode=process.exitValue();
-  if (exitCode != 0 && !isSilent) {
+  if (exitCode != 0 && !options.contains(Option.IS_SILENT)) {
     if (!shouldPrintStdOut) {
       stdOutStream.print(stdoutText);
     }
