@@ -17,6 +17,22 @@
     result=Optional.of((PBXTarget)generateAppleBundleTarget(project,rule,bundle));
     nativeTargetRule=Optional.of((AbstractAppleNativeTargetBuildRule)bundle.getBinary());
   }
+ else   if (rule.getType().equals(AppleTestDescription.TYPE)) {
+    AppleTest test=(AppleTest)rule;
+    if (test.getTestBundle().getType().equals(AppleBundleDescription.TYPE)) {
+      AppleBundle bundle=(AppleBundle)test.getTestBundle();
+      if (bundle.getExtensionValue().isPresent() && AppleBuildRules.isXcodeTargetTestBundleExtension(bundle.getExtensionValue().get())) {
+        result=Optional.of((PBXTarget)generateAppleBundleTarget(project,bundle,bundle));
+        nativeTargetRule=Optional.of((AbstractAppleNativeTargetBuildRule)bundle.getBinary());
+      }
+ else {
+        throw new HumanReadableException("Incorrect extension: " + bundle.getExtensionString());
+      }
+    }
+ else {
+      throw new HumanReadableException("Test bundle should be a bundle: " + test.getTestBundle());
+    }
+  }
  else   if (rule.getType().equals(IosTestDescription.TYPE)) {
     IosTest test=(IosTest)rule;
     result=Optional.of((PBXTarget)generateIosTestTarget(project,rule,test));
