@@ -1,19 +1,23 @@
 {
-  final ImmutableSet<BuildRuleType> requestedTypes=ImmutableSet.copyOf(types);
   final ImmutableList.Builder<BuildRule> filteredRules=ImmutableList.builder();
   AbstractAcyclicDepthFirstPostOrderTraversal<BuildRule> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildRule>(){
-    private boolean isNodeBundleBinary(    BuildRule node){
-      if (rule.getType().equals(AppleBundleDescription.TYPE)) {
-        AppleBundle bundle=(AppleBundle)rule;
-        return node == bundle.getBinary();
-      }
- else {
-        return false;
-      }
-    }
     @Override protected Iterator<BuildRule> findChildren(    BuildRule node) throws IOException {
+      ImmutableSortedSet<BuildRule> defaultDeps=node.getDeps();
+      if (node.getType().equals(AppleBundleDescription.TYPE) && mode != RecursiveRuleDependenciesMode.COMPLETE) {
+        AppleBundle bundle=(AppleBundle)node;
+        ImmutableSortedSet.Builder<BuildRule> editedDeps=ImmutableSortedSet.naturalOrder();
+        for (        BuildRule rule : defaultDeps) {
+          if (rule != bundle.getBinary()) {
+            editedDeps.add(rule);
+          }
+ else {
+            editedDeps.addAll(bundle.getBinary().getDeps());
+          }
+        }
+        defaultDeps=editedDeps.build();
+      }
       ImmutableSortedSet<BuildRule> deps;
-      if (node != rule && !isNodeBundleBinary(node)) {
+      if (node != rule) {
 switch (mode) {
 case LINKING:
           if (node.getType().equals(AppleLibraryDescription.TYPE)) {
@@ -22,14 +26,14 @@ case LINKING:
               deps=ImmutableSortedSet.of();
             }
  else {
-              deps=node.getDeps();
+              deps=defaultDeps;
             }
           }
  else           if (node.getType().equals(AppleBundleDescription.TYPE)) {
             deps=ImmutableSortedSet.of();
           }
  else {
-            deps=node.getDeps();
+            deps=defaultDeps;
           }
         break;
 case COPYING:
@@ -37,22 +41,22 @@ case COPYING:
         deps=ImmutableSortedSet.of();
       }
  else {
-        deps=node.getDeps();
+        deps=defaultDeps;
       }
     break;
 case BUILDING:
 default :
-  deps=node.getDeps();
+  deps=defaultDeps;
 break;
 }
 }
  else {
-deps=node.getDeps();
+deps=defaultDeps;
 }
 return deps.iterator();
 }
 @Override protected void onNodeExplored(BuildRule node){
-if (node != rule && requestedTypes.contains(node.getType()) && (!isNodeBundleBinary(node) || mode == RecursiveRuleDependenciesMode.COMPLETE)) {
+if (node != rule && (!types.isPresent() || types.get().contains(node.getType()))) {
 filteredRules.add(node);
 }
 }

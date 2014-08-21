@@ -1,0 +1,31 @@
+{
+  BuildRuleParams libraryParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).setType(AppleLibraryDescription.TYPE).build();
+  AppleNativeTargetDescriptionArg libraryArg=appleLibraryDescription.createUnpopulatedConstructorArg();
+  libraryArg.configs=ImmutableMap.of();
+  libraryArg.srcs=ImmutableList.of();
+  libraryArg.frameworks=ImmutableSortedSet.of();
+  libraryArg.deps=Optional.absent();
+  libraryArg.gid=Optional.absent();
+  libraryArg.headerPathPrefix=Optional.absent();
+  libraryArg.useBuckHeaderMaps=Optional.absent();
+  BuildRule libraryRule=appleLibraryDescription.createBuildRule(libraryParams,new BuildRuleResolver(),libraryArg);
+  BuildRuleParams bundleParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bundle").build()).setDeps(ImmutableSortedSet.of(libraryRule)).setType(AppleBundleDescription.TYPE).build();
+  AppleBundleDescription.Arg bundleArg=appleBundleDescription.createUnpopulatedConstructorArg();
+  bundleArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
+  bundleArg.binary=libraryRule;
+  bundleArg.extension=Either.ofLeft(AppleBundleExtension.BUNDLE);
+  bundleArg.deps=Optional.of(ImmutableSortedSet.of(libraryRule));
+  BuildRule bundleRule=appleBundleDescription.createBuildRule(bundleParams,new BuildRuleResolver(),bundleArg);
+  BuildRuleParams rootParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","root").build()).setDeps(ImmutableSortedSet.of(bundleRule,libraryRule)).setType(AppleLibraryDescription.TYPE).build();
+  AppleNativeTargetDescriptionArg rootArg=appleLibraryDescription.createUnpopulatedConstructorArg();
+  rootArg.configs=ImmutableMap.of();
+  rootArg.srcs=ImmutableList.of();
+  rootArg.frameworks=ImmutableSortedSet.of();
+  rootArg.deps=Optional.of(ImmutableSortedSet.of(bundleRule,libraryRule));
+  rootArg.gid=Optional.absent();
+  rootArg.headerPathPrefix=Optional.absent();
+  rootArg.useBuckHeaderMaps=Optional.absent();
+  BuildRule rootRule=appleLibraryDescription.createBuildRule(rootParams,new BuildRuleResolver(),rootArg);
+  Iterable<BuildRule> rules=AppleBuildRules.getRecursiveRuleDependenciesOfTypes(AppleBuildRules.RecursiveRuleDependenciesMode.BUILDING,rootRule,Optional.<ImmutableSet<BuildRuleType>>absent());
+  assertTrue(Iterables.elementsEqual(ImmutableSortedSet.of(bundleRule,libraryRule),rules));
+}
