@@ -5,7 +5,6 @@
   }
   LOG.debug("Generating workspace for config target %s",workspaceConfigTarget);
   XcodeWorkspaceConfig workspaceBuildable=(XcodeWorkspaceConfig)workspaceTargetRule;
-  BuildRule actualTargetRule=workspaceBuildable.getSrcTarget();
   String workspaceName=workspaceBuildable.getSrcTarget().getBuildTarget().getShortName();
   Path outputDirectory=workspaceBuildable.getBuildTarget().getBasePath();
   WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,workspaceName,outputDirectory);
@@ -20,7 +19,8 @@
     }
   }
   ImmutableSet<BuildRule> testRules=testRulesBuilder.build();
-  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,projectTargetGraph,actualTargetRule,mainRules,testRules,workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),workspaceBuildable.getActionConfigNames());
+  ImmutableMap.Builder<BuildRule,PBXTarget> buildRuleToTargetMapBuilder=ImmutableMap.builder();
+  ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   Multimap<Path,BuildRule> buildRulesByTargetBasePath=BuildRules.buildRulesByTargetBasePath(Iterables.concat(mainRules,testRules));
   for (  Path basePath : buildRulesByTargetBasePath.keySet()) {
     Optional<BuildRule> xcodeProjectConfigRule=Optional.fromNullable(Iterables.getOnlyElement(projectTargetGraph.getActionGraph().getBuildRulesOfBuildableTypeInBasePath(XcodeProjectConfig.class,basePath),null));
@@ -43,9 +43,9 @@
         LOG.debug("Already generated project for rule %s, skipping",xcodeProjectConfig);
       }
       workspaceGenerator.addFilePath(generator.getProjectPath());
-      schemeGenerator.addRuleToTargetMap(generator.getBuildRuleToGeneratedTargetMap());
+      buildRuleToTargetMapBuilder.putAll(generator.getBuildRuleToGeneratedTargetMap());
       for (      PBXTarget target : generator.getBuildRuleToGeneratedTargetMap().values()) {
-        schemeGenerator.addTargetToProjectPathMap(target,generator.getProjectPath());
+        targetToProjectPathMapBuilder.put(target,generator.getProjectPath());
       }
     }
     Set<BuildRule> xcodeNativeProjectRules=Sets.newHashSet(Collections2.filter(buildRulesByTargetBasePath.get(basePath),new Predicate<BuildRule>(){
@@ -77,12 +77,13 @@
         fakeTarget.setGlobalID(targetGid);
         PBXFileReference fakeProductReference=new PBXFileReference(targetFileName,targetFileName,PBXFileReference.SourceTree.BUILT_PRODUCTS_DIR);
         fakeTarget.setProductReference(fakeProductReference);
-        schemeGenerator.addRuleToTargetMap(ImmutableMap.of(rule,fakeTarget));
-        schemeGenerator.addTargetToProjectPathMap(fakeTarget,projectPath);
+        buildRuleToTargetMapBuilder.put(rule,fakeTarget);
+        targetToProjectPathMapBuilder.put(fakeTarget,projectPath);
       }
      }
   }
   Path workspacePath=workspaceGenerator.writeWorkspace();
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,projectTargetGraph,workspaceBuildable.getSrcTarget(),mainRules,testRules,workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),workspaceBuildable.getActionConfigNames(),buildRuleToTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
   schemeGenerator.writeScheme();
   return workspacePath;
 }

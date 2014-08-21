@@ -1,13 +1,15 @@
 {
   BuildRule rootRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","root").build(),ImmutableSortedSet.<BuildRule>of(),iosLibraryDescription);
   PartialGraph partialGraph=createPartialGraphFromBuildRules(ImmutableSet.<BuildRule>of(rootRule));
-  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,partialGraph,rootRule,ImmutableSet.of(rootRule),ImmutableSet.<BuildRule>of(),"TestScheme",Paths.get("_gen/Foo.xcworkspace/scshareddata/xcshemes"),SchemeActionType.DEFAULT_CONFIG_NAMES);
+  ImmutableMap.Builder<BuildRule,PBXTarget> buildRuleToTargetMapBuilder=ImmutableMap.builder();
+  ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   PBXTarget rootTarget=new PBXNativeTarget("rootRule");
   rootTarget.setGlobalID("rootGID");
   rootTarget.setProductReference(new PBXFileReference("root.a","root.a",PBXReference.SourceTree.BUILT_PRODUCTS_DIR));
-  schemeGenerator.addRuleToTargetMap(rootRule,rootTarget);
+  buildRuleToTargetMapBuilder.put(rootRule,rootTarget);
   Path pbxprojectPath=Paths.get("foo/Foo.xcodeproj/project.pbxproj");
-  schemeGenerator.addTargetToProjectPathMap(rootTarget,pbxprojectPath);
+  targetToProjectPathMapBuilder.put(rootTarget,pbxprojectPath);
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,partialGraph,rootRule,ImmutableSet.of(rootRule),ImmutableSet.<BuildRule>of(),"TestScheme",Paths.get("_gen/Foo.xcworkspace/scshareddata/xcshemes"),SchemeActionType.DEFAULT_CONFIG_NAMES,buildRuleToTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
   Path schemePath=schemeGenerator.writeScheme();
   DocumentBuilderFactory dbFactory=DocumentBuilderFactory.newInstance();
   DocumentBuilder dBuilder=dbFactory.newDocumentBuilder();
