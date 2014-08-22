@@ -1,34 +1,6 @@
 {
-  final ImmutableSet<BuildRule> realTestRules=ImmutableSet.copyOf(Iterables.filter(testRules,new Predicate<BuildRule>(){
-    @Override public boolean apply(    @Nullable BuildRule input){
-      return AppleBuildRules.isXcodeTargetTestBuildRule(input);
-    }
-  }
-));
-  final List<BuildRule> orderedRealTestRules=TopologicalSort.sort(partialGraph.getActionGraph(),new Predicate<BuildRule>(){
-    @Override public boolean apply(    @Nullable BuildRule input){
-      return realTestRules.contains(input);
-    }
-  }
-);
-  ImmutableSet.Builder<BuildRule> recursiveTestRulesBuilder=ImmutableSet.builder();
-  for (  BuildRule testRule : realTestRules) {
-    Iterable<BuildRule> testRulesIterable=Iterables.concat(AppleBuildRules.getRecursiveRuleDependenciesOfTypes(AppleBuildRules.RecursiveRuleDependenciesMode.BUILDING,testRule,Optional.<ImmutableSet<BuildRuleType>>absent()),ImmutableSet.of(testRule));
-    recursiveTestRulesBuilder.addAll(testRulesIterable);
-  }
-  final ImmutableSet<BuildRule> includedTestRules=ImmutableSet.copyOf(Sets.difference(recursiveTestRulesBuilder.build(),ImmutableSet.copyOf(orderedBuildRules)));
-  List<BuildRule> orderedTestRules=TopologicalSort.sort(partialGraph.getActionGraph(),new Predicate<BuildRule>(){
-    @Override public boolean apply(    @Nullable BuildRule input){
-      if (!includedTestRules.contains(input) || !AppleBuildRules.isXcodeTargetBuildRuleType(input.getType())) {
-        return false;
-      }
-      expectTargetMapContainsRule(input);
-      return true;
-    }
-  }
-);
   Map<BuildRule,XCScheme.BuildableReference> buildRuleToBuildableReferenceMap=Maps.newHashMap();
-  for (  BuildRule rule : Iterables.concat(orderedBuildRules,orderedTestRules)) {
+  for (  BuildRule rule : Iterables.concat(orderedBuildRules,orderedTestBuildRules)) {
     PBXTarget target=buildRuleToTargetMap.get(rule);
     String blueprintName=target.getProductName();
     if (blueprintName == null) {
@@ -38,24 +10,14 @@
     buildRuleToBuildableReferenceMap.put(rule,buildableReference);
   }
   XCScheme.BuildAction buildAction=new XCScheme.BuildAction();
-  for (  BuildRule rule : Iterables.concat(orderedBuildRules,orderedTestRules)) {
-    EnumSet<XCScheme.BuildActionEntry.BuildFor> buildFor;
-    if (testRules.contains(rule)) {
-      buildFor=XCScheme.BuildActionEntry.BuildFor.TEST_ONLY;
-    }
- else {
-      buildFor=XCScheme.BuildActionEntry.BuildFor.DEFAULT;
-    }
-    XCScheme.BuildableReference buildableReference=buildRuleToBuildableReferenceMap.get(rule);
-    XCScheme.BuildActionEntry entry=new XCScheme.BuildActionEntry(buildableReference,buildFor);
-    buildAction.addBuildAction(entry);
+  for (  BuildRule rule : orderedBuildRules) {
+    addBuildActionForRule(buildRuleToBuildableReferenceMap.get(rule),XCScheme.BuildActionEntry.BuildFor.DEFAULT,buildAction);
+  }
+  for (  BuildRule rule : orderedTestBuildRules) {
+    addBuildActionForRule(buildRuleToBuildableReferenceMap.get(rule),XCScheme.BuildActionEntry.BuildFor.TEST_ONLY,buildAction);
   }
   XCScheme.TestAction testAction=new XCScheme.TestAction(actionConfigNames.get(SchemeActionType.TEST));
-  for (  BuildRule rule : orderedRealTestRules) {
-    if (rule.getType().equals(AppleTestDescription.TYPE)) {
-      AppleTest test=(AppleTest)rule;
-      rule=test.getTestBundle();
-    }
+  for (  BuildRule rule : orderedTestBundleRules) {
     XCScheme.BuildableReference buildableReference=buildRuleToBuildableReferenceMap.get(rule);
     XCScheme.TestableReference testableReference=new XCScheme.TestableReference(buildableReference);
     testAction.addTestableReference(testableReference);

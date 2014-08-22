@@ -1,0 +1,31 @@
+{
+  ImmutableSet.Builder<BuildRule> xcodeTargetTestRulesBuilder=ImmutableSet.builder();
+  if (testTargetGraph.isPresent()) {
+    xcodeTargetTestRulesBuilder.addAll(TopologicalSort.sort(testTargetGraph.get().getActionGraph(),new Predicate<BuildRule>(){
+      @Override public boolean apply(      @Nullable BuildRule input){
+        return AppleBuildRules.isXcodeTargetTestBuildRule(input);
+      }
+    }
+));
+  }
+  final ImmutableSet<BuildRule> xcodeTargetTestRules=xcodeTargetTestRulesBuilder.build();
+  for (  BuildRule buildRule : xcodeTargetTestRules) {
+    AppleTest testRule=(AppleTest)buildRule;
+    orderedTestBundleRulesBuilder.add(testRule.getTestBundle());
+  }
+  ImmutableSet.Builder<BuildRule> recursiveTestRulesBuilder=ImmutableSet.builder();
+  for (  BuildRule testRule : xcodeTargetTestRules) {
+    Iterable<BuildRule> testRulesIterable=Iterables.concat(AppleBuildRules.getRecursiveRuleDependenciesOfTypes(AppleBuildRules.RecursiveRuleDependenciesMode.BUILDING,testRule,Optional.<ImmutableSet<BuildRuleType>>absent()),ImmutableSet.of(testRule));
+    recursiveTestRulesBuilder.addAll(testRulesIterable);
+  }
+  final Set<BuildRule> includedTestRules=Sets.difference(recursiveTestRulesBuilder.build(),orderedBuildRules);
+  orderedTestBuildRulesBuilder.addAll(TopologicalSort.sort(actionGraph,new Predicate<BuildRule>(){
+    @Override public boolean apply(    @Nullable BuildRule input){
+      if (!includedTestRules.contains(input) || !AppleBuildRules.isXcodeTargetBuildRuleType(input.getType())) {
+        return false;
+      }
+      return true;
+    }
+  }
+));
+}

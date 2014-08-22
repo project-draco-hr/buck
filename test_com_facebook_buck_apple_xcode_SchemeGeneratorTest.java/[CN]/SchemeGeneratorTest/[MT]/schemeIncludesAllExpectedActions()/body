@@ -25,7 +25,6 @@
   arg.deps=Optional.of(ImmutableSortedSet.of(xctestRule));
   arg.sourceUnderTest=Optional.of(ImmutableSortedSet.<BuildRule>of(rootRule));
   BuildRule testRule=appleTestDescription.createBuildRule(params,new BuildRuleResolver(),arg);
-  PartialGraph partialGraph=createPartialGraphFromBuildRules(ImmutableSet.<BuildRule>of(rootRule,testRule));
   ImmutableMap.Builder<BuildRule,PBXTarget> buildRuleToTargetMapBuilder=ImmutableMap.builder();
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   PBXTarget rootTarget=new PBXNativeTarget("rootRule");
@@ -35,11 +34,16 @@
   PBXTarget testTarget=new PBXNativeTarget("testRule");
   testTarget.setGlobalID("testGID");
   testTarget.setProductReference(new PBXFileReference("test.a","test.a",PBXReference.SourceTree.BUILT_PRODUCTS_DIR));
-  buildRuleToTargetMapBuilder.put(xctestRule,testTarget);
+  buildRuleToTargetMapBuilder.put(testRule,testTarget);
+  PBXTarget testBundleTarget=new PBXNativeTarget("testBundleRule");
+  testBundleTarget.setGlobalID("testBundleGID");
+  testBundleTarget.setProductReference(new PBXFileReference("test.xctest","test.xctest",PBXReference.SourceTree.BUILT_PRODUCTS_DIR));
+  buildRuleToTargetMapBuilder.put(xctestRule,testBundleTarget);
   Path pbxprojectPath=Paths.get("foo/Foo.xcodeproj/project.pbxproj");
   targetToProjectPathMapBuilder.put(rootTarget,pbxprojectPath);
   targetToProjectPathMapBuilder.put(testTarget,pbxprojectPath);
-  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,partialGraph,rootRule,ImmutableSet.of(rootRule),ImmutableSet.of(testRule),"TestScheme",Paths.get("_gen/Foo.xcworkspace/scshareddata/xcshemes"),SchemeActionType.DEFAULT_CONFIG_NAMES,buildRuleToTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
+  targetToProjectPathMapBuilder.put(testBundleTarget,pbxprojectPath);
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,rootRule,ImmutableSet.of(rootRule),ImmutableSet.of(xctestRule),ImmutableSet.of(xctestRule),"TestScheme",Paths.get("_gen/Foo.xcworkspace/scshareddata/xcshemes"),SchemeActionType.DEFAULT_CONFIG_NAMES,buildRuleToTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
   Path schemePath=schemeGenerator.writeScheme();
   String schemeXml=projectFilesystem.readFileIfItExists(schemePath).get();
   System.out.println(schemeXml);
@@ -50,7 +54,7 @@
   XPath buildActionXpath=xpathFactory.newXPath();
   XPathExpression buildActionExpr=buildActionXpath.compile("//BuildAction//BuildableReference/@BlueprintIdentifier");
   NodeList buildActionNodes=(NodeList)buildActionExpr.evaluate(scheme,XPathConstants.NODESET);
-  List<String> expectedOrdering=ImmutableList.of("rootGID","testGID");
+  List<String> expectedOrdering=ImmutableList.of("rootGID","testBundleGID");
   List<String> actualOrdering=Lists.newArrayList();
   for (int i=0; i < buildActionNodes.getLength(); i++) {
     actualOrdering.add(buildActionNodes.item(i).getNodeValue());
@@ -59,7 +63,7 @@
   XPath testActionXpath=xpathFactory.newXPath();
   XPathExpression testActionExpr=testActionXpath.compile("//TestAction//BuildableReference/@BlueprintIdentifier");
   String testActionBlueprintIdentifier=(String)testActionExpr.evaluate(scheme,XPathConstants.STRING);
-  assertThat(testActionBlueprintIdentifier,equalTo("testGID"));
+  assertThat(testActionBlueprintIdentifier,equalTo("testBundleGID"));
   XPath launchActionXpath=xpathFactory.newXPath();
   XPathExpression launchActionExpr=launchActionXpath.compile("//LaunchAction//BuildableReference/@BlueprintIdentifier");
   String launchActionBlueprintIdentifier=(String)launchActionExpr.evaluate(scheme,XPathConstants.STRING);
