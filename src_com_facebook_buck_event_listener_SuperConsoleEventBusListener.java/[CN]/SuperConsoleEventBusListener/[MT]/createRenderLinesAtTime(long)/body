@@ -1,12 +1,16 @@
 {
   ImmutableList.Builder<String> lines=ImmutableList.builder();
-  long parseTime=logEventPair("PARSING BUILD FILES",currentTimeMillis,0L,parseStarted,parseFinished,lines);
+  long parseTime=logEventPair("PARSING BUILD FILES",Optional.<String>absent(),currentTimeMillis,0L,parseStarted,parseFinished,lines);
   if (parseTime != UNFINISHED_EVENT_PAIR) {
-    long buildTime=logEventPair("BUILDING",currentTimeMillis,parseTime,buildStarted,buildFinished,lines);
+    Optional<String> suffix=Optional.absent();
+    if (buildStarted != null && buildStarted.getNumRulesToBuild().isPresent()) {
+      suffix=Optional.of("(" + numRulesCompleted + "/"+ buildStarted.getNumRulesToBuild().get()+ " JOBS RUN)");
+    }
+    long buildTime=logEventPair("BUILDING",suffix,currentTimeMillis,parseTime,buildStarted,buildFinished,lines);
     if (buildTime == UNFINISHED_EVENT_PAIR) {
       renderRules(currentTimeMillis,lines);
     }
-    logEventPair("INSTALLING",currentTimeMillis,0L,installStarted,installFinished,lines);
+    logEventPair("INSTALLING",Optional.<String>absent(),currentTimeMillis,0L,installStarted,installFinished,lines);
   }
   renderLogMessages(lines);
   return lines.build();
