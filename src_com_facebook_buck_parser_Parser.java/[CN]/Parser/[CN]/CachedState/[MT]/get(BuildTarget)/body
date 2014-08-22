@@ -1,0 +1,35 @@
+{
+  TargetNode<?> toReturn=memoizedTargetNodes.get(buildTarget);
+  if (toReturn != null) {
+    return toReturn;
+  }
+  BuildTarget unflavored=buildTarget.getUnflavoredTarget();
+  List<Map<String,Object>> rules=state.getRawRules(unflavored.getBuildFilePath());
+  for (  Map<String,Object> map : rules) {
+    if (!buildTarget.getShortNameOnly().equals(map.get("name"))) {
+      continue;
+    }
+    BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(map);
+    targetsToFile.put(unflavored,normalize(Paths.get((String)map.get("buck.base_path"))).resolve("BUCK").toAbsolutePath());
+    Description<?> description=repository.getDescription(buildRuleType);
+    if (description == null) {
+      throw new HumanReadableException("Unrecognized rule %s while parsing %s%s.",buildRuleType,BuildTarget.BUILD_TARGET_PREFIX,unflavored.getBuildFilePath());
+    }
+    if ((description instanceof Flavored) && !((Flavored)description).hasFlavor(buildTarget.getFlavor())) {
+      throw new HumanReadableException("Unrecognized flavor in target %s while parsing %s%s.",buildTarget,BuildTarget.BUILD_TARGET_PREFIX,buildTarget.getBuildFilePath());
+    }
+    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(map,repository.getFilesystem(),buildTargetParser,buildTarget,ruleKeyBuilderFactory);
+    TargetNode<?> targetNode;
+    try {
+      targetNode=new TargetNode<>(description,factoryParams);
+    }
+ catch (    NoSuchBuildTargetException e) {
+      throw new HumanReadableException(e);
+    }
+    TargetNode<?> existingTargetNode=memoizedTargetNodes.put(buildTarget,targetNode);
+    if (existingTargetNode != null) {
+      throw new HumanReadableException("Duplicate definition for " + unflavored);
+    }
+  }
+  return memoizedTargetNodes.get(buildTarget);
+}
