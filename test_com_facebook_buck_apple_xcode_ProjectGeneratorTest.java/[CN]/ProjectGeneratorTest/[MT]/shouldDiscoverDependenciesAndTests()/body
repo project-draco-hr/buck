@@ -1,7 +1,14 @@
 {
   final BuildRule barLib=createBuildRuleWithDefaults(BuildTarget.builder("//bar","lib").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription);
   final BuildRule fooLib=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(barLib),appleLibraryDescription);
-  final BuildRule fooBin=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bin").build(),ImmutableSortedSet.of(fooLib),iosBinaryDescription);
+  BuildRule fooBinBinary=createBuildRuleWithDefaults(BuildTarget.builder("//foo","binbinary").build(),ImmutableSortedSet.of(fooLib),appleBinaryDescription);
+  BuildRuleParams fooBinParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bin").build()).setDeps(ImmutableSortedSet.of(fooBinBinary)).setType(AppleBundleDescription.TYPE).build();
+  AppleBundleDescription.Arg fooBinArg=appleBundleDescription.createUnpopulatedConstructorArg();
+  fooBinArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
+  fooBinArg.binary=fooBinBinary;
+  fooBinArg.extension=Either.ofLeft(AppleBundleExtension.APP);
+  fooBinArg.deps=Optional.absent();
+  BuildRule fooBin=appleBundleDescription.createBuildRule(fooBinParams,new BuildRuleResolver(),fooBinArg);
   final BuildRule bazLib=createBuildRuleWithDefaults(BuildTarget.builder("//baz","lib").build(),ImmutableSortedSet.of(fooLib),appleLibraryDescription);
   BuildRule bazTest;
 {

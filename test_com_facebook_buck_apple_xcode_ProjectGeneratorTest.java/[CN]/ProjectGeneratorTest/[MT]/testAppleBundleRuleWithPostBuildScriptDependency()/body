@@ -13,13 +13,19 @@
     }
   }
 );
-  BuildRule iosBinaryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bin").build(),ImmutableSortedSet.of(scriptRule,resourceRule),iosBinaryDescription);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(iosBinaryRule),ImmutableSet.of(iosBinaryRule.getBuildTarget()));
+  BuildRule dynamicLibraryDep=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.of(resourceRule),appleLibraryDescription);
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bundle").build()).setDeps(ImmutableSortedSet.of(dynamicLibraryDep,scriptRule)).setType(AppleBundleDescription.TYPE).build();
+  AppleBundleDescription.Arg arg=appleBundleDescription.createUnpopulatedConstructorArg();
+  arg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
+  arg.binary=dynamicLibraryDep;
+  arg.extension=Either.ofLeft(AppleBundleExtension.BUNDLE);
+  arg.deps=Optional.absent();
+  BuildRule bundleRule=appleBundleDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(bundleRule),ImmutableSet.of(bundleRule.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   PBXProject project=projectGenerator.getGeneratedProject();
-  assertThat(project.getTargets(),hasSize(1));
-  PBXTarget target=project.getTargets().get(0);
-  assertThat(target.getName(),equalTo("//foo:bin"));
+  PBXTarget target=ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(project,"//foo:bundle");
+  assertThat(target.getName(),equalTo("//foo:bundle"));
   assertThat(target.isa(),equalTo("PBXNativeTarget"));
   PBXShellScriptBuildPhase shellScriptBuildPhase=ProjectGeneratorTestUtils.getSingletonPhaseByType(target,PBXShellScriptBuildPhase.class);
   assertThat(shellScriptBuildPhase.getShellScript(),equalTo("/bin/bash -e -c script.sh"));

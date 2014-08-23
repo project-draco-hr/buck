@@ -1,7 +1,14 @@
 {
   BuildRule fooRule=createBuildRuleWithDefaults(BuildTarget.builder("//external","extFoo").build(),ImmutableSortedSet.<BuildRule>of(),xcodeNativeDescription);
   BuildRule barRule=createBuildRuleWithDefaults(BuildTarget.builder("//external","extBar").build(),ImmutableSortedSet.of(fooRule),xcodeNativeDescription);
-  BuildRule binaryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","foo").build(),ImmutableSortedSet.of(barRule),iosBinaryDescription);
+  BuildRule dynamicLibraryDep=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.of(barRule),appleLibraryDescription);
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","foo").build()).setDeps(ImmutableSortedSet.of(dynamicLibraryDep)).setType(AppleBundleDescription.TYPE).build();
+  AppleBundleDescription.Arg arg=appleBundleDescription.createUnpopulatedConstructorArg();
+  arg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
+  arg.binary=dynamicLibraryDep;
+  arg.extension=Either.ofLeft(AppleBundleExtension.BUNDLE);
+  arg.deps=Optional.absent();
+  BuildRule binaryRule=appleBundleDescription.createBuildRule(params,new BuildRuleResolver(),arg);
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(fooRule,barRule,binaryRule),ImmutableSet.of(binaryRule.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:foo");

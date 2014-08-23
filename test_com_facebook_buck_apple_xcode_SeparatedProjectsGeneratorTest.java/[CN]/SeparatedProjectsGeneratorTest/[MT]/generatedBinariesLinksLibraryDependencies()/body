@@ -1,6 +1,13 @@
 {
   BuildRule depRule=createBuildRuleWithDefaults(BuildTarget.builder("//elsewhere","somedep").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription);
-  BuildRule rule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bin").build(),ImmutableSortedSet.of(depRule),iosBinaryDescription);
+  BuildRule dynamicLibraryDep=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.of(depRule),appleLibraryDescription);
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bin").build()).setDeps(ImmutableSortedSet.of(dynamicLibraryDep)).setType(AppleBundleDescription.TYPE).build();
+  AppleBundleDescription.Arg arg=appleBundleDescription.createUnpopulatedConstructorArg();
+  arg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
+  arg.binary=dynamicLibraryDep;
+  arg.extension=Either.ofLeft(AppleBundleExtension.FRAMEWORK);
+  arg.deps=Optional.absent();
+  BuildRule rule=appleBundleDescription.createBuildRule(params,new BuildRuleResolver(),arg);
   BuildRule configRule=createXcodeProjectConfigRule("//foo/bar","fooproject",ImmutableSet.of(rule));
   PartialGraph partialGraph=createPartialGraphFromBuildRules(ImmutableSet.of(rule,configRule));
   SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(projectFilesystem,partialGraph,executionContext,ImmutableSet.of(configRule.getBuildTarget()),ImmutableSet.<ProjectGenerator.Option>of());
