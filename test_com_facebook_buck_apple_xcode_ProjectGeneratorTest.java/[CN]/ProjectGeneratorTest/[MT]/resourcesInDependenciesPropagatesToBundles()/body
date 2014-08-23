@@ -1,0 +1,24 @@
+{
+  BuildRule resourceRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","res").build(),ImmutableSortedSet.<BuildRule>of(),appleResourceDescription,new Function<AppleResourceDescription.Arg,AppleResourceDescription.Arg>(){
+    @Override public AppleResourceDescription.Arg apply(    AppleResourceDescription.Arg input){
+      input.files=ImmutableSet.<SourcePath>of(new TestSourcePath("foo.png"));
+      input.dirs=ImmutableSet.of(Paths.get("foodir"));
+      return input;
+    }
+  }
+);
+  BuildRule libraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(resourceRule),appleLibraryDescription);
+  BuildRule bundleLibraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bundlelib").build(),ImmutableSortedSet.of(libraryRule),appleLibraryDescription);
+  BuildRuleParams bundleParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bundle").build()).setDeps(ImmutableSortedSet.of(bundleLibraryRule)).setType(AppleBundleDescription.TYPE).build();
+  AppleBundleDescription.Arg bundleArg=appleBundleDescription.createUnpopulatedConstructorArg();
+  bundleArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
+  bundleArg.binary=bundleLibraryRule;
+  bundleArg.extension=Either.ofLeft(AppleBundleExtension.BUNDLE);
+  bundleArg.deps=Optional.of(ImmutableSortedSet.of(bundleLibraryRule));
+  BuildRule bundleRule=appleBundleDescription.createBuildRule(bundleParams,new BuildRuleResolver(),bundleArg);
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(resourceRule,libraryRule,bundleRule),ImmutableSet.of(bundleRule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXProject generatedProject=projectGenerator.getGeneratedProject();
+  PBXTarget bundleTarget=assertTargetExistsAndReturnTarget(generatedProject,"//foo:bundle");
+  assertHasSingletonResourcesPhaseWithEntries(bundleTarget,"foo.png","foodir");
+}

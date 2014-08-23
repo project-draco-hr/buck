@@ -15,13 +15,17 @@
   }
 );
   BuildRule libraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(assetCatalog1,assetCatalog2),appleLibraryDescription);
-  BuildRule testRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","test").build(),ImmutableSortedSet.of(libraryRule),iosTestDescription);
-  BuildRule binaryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bin").build(),ImmutableSortedSet.of(libraryRule),iosBinaryDescription);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(assetCatalog1,assetCatalog2,libraryRule,testRule,binaryRule),ImmutableSet.of(testRule.getBuildTarget(),binaryRule.getBuildTarget()));
+  BuildRule bundleLibraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bundlelib").build(),ImmutableSortedSet.of(libraryRule),appleLibraryDescription);
+  BuildRuleParams bundleParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bundle").build()).setDeps(ImmutableSortedSet.of(bundleLibraryRule)).setType(AppleBundleDescription.TYPE).build();
+  AppleBundleDescription.Arg bundleArg=appleBundleDescription.createUnpopulatedConstructorArg();
+  bundleArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
+  bundleArg.binary=bundleLibraryRule;
+  bundleArg.extension=Either.ofLeft(AppleBundleExtension.BUNDLE);
+  bundleArg.deps=Optional.of(ImmutableSortedSet.of(bundleLibraryRule));
+  BuildRule bundleRule=appleBundleDescription.createBuildRule(bundleParams,new BuildRuleResolver(),bundleArg);
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(assetCatalog1,assetCatalog2,libraryRule,bundleRule),ImmutableSet.of(bundleRule.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   PBXProject generatedProject=projectGenerator.getGeneratedProject();
-  PBXTarget testTarget=assertTargetExistsAndReturnTarget(generatedProject,"//foo:test");
-  assertTrue(hasShellScriptPhaseToCompileCommonAndSplitAssetCatalogs(testTarget));
-  PBXTarget binTarget=assertTargetExistsAndReturnTarget(generatedProject,"//foo:bin");
-  assertTrue(hasShellScriptPhaseToCompileCommonAndSplitAssetCatalogs(binTarget));
+  PBXTarget bundleTarget=assertTargetExistsAndReturnTarget(generatedProject,"//foo:bundle");
+  assertTrue(hasShellScriptPhaseToCompileCommonAndSplitAssetCatalogs(bundleTarget));
 }
