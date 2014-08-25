@@ -1,0 +1,26 @@
+{
+  ImmutableList.Builder<CxxSource> lexYaccCxxSourcesBuilder=ImmutableList.builder();
+  ImmutableMap.Builder<Path,SourcePath> lexYaccHeadersBuilder=ImmutableMap.builder();
+  for (  ImmutableMap.Entry<String,SourcePath> ent : lexSrcs.entrySet()) {
+    final String name=ent.getKey();
+    final SourcePath source=ent.getValue();
+    BuildTarget target=createLexBuildTarget(params.getBuildTarget(),name);
+    Path outputSource=getLexSourceOutputPath(target,name);
+    Path outputHeader=getLexHeaderOutputPath(target,name);
+    Lex lex=new Lex(params.copyWithChanges(LEX_TYPE,target,ImmutableSortedSet.copyOf(SourcePaths.filterBuildRuleInputs(ImmutableList.of(source))),ImmutableSortedSet.<BuildRule>of()),new PathSourcePath(config.getLex()),ImmutableList.<String>builder().addAll(config.getLexFlags()).addAll(lexFlags).build(),outputSource,outputHeader,source);
+    resolver.addToIndex(lex);
+    lexYaccCxxSourcesBuilder.add(new CxxSource(name + ".cc",new BuildRuleSourcePath(lex,outputSource)));
+    lexYaccHeadersBuilder.put(params.getBuildTarget().getBasePath().resolve(name + ".h"),new BuildRuleSourcePath(lex,outputHeader));
+  }
+  for (  ImmutableMap.Entry<String,SourcePath> ent : yaccSrcs.entrySet()) {
+    final String name=ent.getKey();
+    final SourcePath source=ent.getValue();
+    BuildTarget target=createYaccBuildTarget(params.getBuildTarget(),name);
+    Path outputPrefix=getYaccOutputPrefix(target,Files.getNameWithoutExtension(name));
+    Yacc yacc=new Yacc(params.copyWithChanges(YACC_TYPE,target,ImmutableSortedSet.copyOf(SourcePaths.filterBuildRuleInputs(ImmutableList.of(source))),ImmutableSortedSet.<BuildRule>of()),new PathSourcePath(config.getYacc()),ImmutableList.<String>builder().addAll(config.getYaccFlags()).addAll(yaccFlags).build(),outputPrefix,source);
+    resolver.addToIndex(yacc);
+    lexYaccCxxSourcesBuilder.add(new CxxSource(name + ".cc",new BuildRuleSourcePath(yacc,Yacc.getSourceOutputPath(outputPrefix))));
+    lexYaccHeadersBuilder.put(params.getBuildTarget().getBasePath().resolve(name + ".h"),new BuildRuleSourcePath(yacc,Yacc.getHeaderOutputPath(outputPrefix)));
+  }
+  return new CxxHeaderSourceSpec(lexYaccHeadersBuilder.build(),lexYaccCxxSourcesBuilder.build());
+}
