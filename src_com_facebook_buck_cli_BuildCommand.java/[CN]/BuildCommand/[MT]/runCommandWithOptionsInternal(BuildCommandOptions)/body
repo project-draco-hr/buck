@@ -15,6 +15,12 @@
     }
     return 1;
   }
+  if (getParser().getParseStartTime().isPresent()) {
+    getBuckEventBus().post(BuildEvent.started(buildTargets),getParser().getParseStartTime().get());
+  }
+ else {
+    getBuckEventBus().post(BuildEvent.started(buildTargets));
+  }
   ActionGraph actionGraph;
   try {
     actionGraph=getParser().parseBuildFilesForTargets(buildTargets,options.getDefaultIncludes(),getBuckEventBus(),console,environment);
@@ -23,13 +29,8 @@
     console.printBuildFailureWithoutStacktrace(e);
     return 1;
   }
-  int numRulesToBuild=getNumRulesToBuild(buildTargets,actionGraph);
-  if (getParser().getParseStartTime().isPresent()) {
-    getBuckEventBus().post(BuildEvent.started(buildTargets,numRulesToBuild),getParser().getParseStartTime().get());
-  }
- else {
-    getBuckEventBus().post(BuildEvent.started(buildTargets,numRulesToBuild));
-  }
+  int numRules=getNumRulesToBuild(buildTargets,actionGraph);
+  getBuckEventBus().post(BuildEvent.ruleCountCalculated(buildTargets,numRules));
   build=options.createBuild(options.getBuckConfig(),actionGraph,getProjectFilesystem(),getAndroidDirectoryResolver(),getBuildEngine(),artifactCache,console,getBuckEventBus(),Optional.<TargetDevice>absent(),getCommandRunnerParams().getPlatform(),getCommandRunnerParams().getEnvironment());
   int exitCode=0;
   try {
