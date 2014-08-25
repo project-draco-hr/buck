@@ -1,0 +1,19 @@
+{
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildTarget thriftTarget=BuildTargetFactory.newInstance("//bar:thrift_compiler");
+  FakeBuildRule implicitDep=createFakeBuildRule("//foo:implicit_dep");
+  String language="fake";
+  Flavor flavor=new Flavor("fake");
+  ImmutableSet<String> options=ImmutableSet.of();
+  ImmutableSet<BuildTarget> implicitDeps=ImmutableSet.of(implicitDep.getBuildTarget());
+  BuildTarget unflavoredTarget=BuildTargetFactory.newInstance("//:thrift");
+  BuildTarget flavoredTarget=BuildTargets.createFlavoredBuildTarget(unflavoredTarget,flavor);
+  BuildTargetParser parser=new BuildTargetParser();
+  BuildRuleFactoryParams params=new BuildRuleFactoryParams(Maps.<String,Object>newHashMap(),filesystem,parser,flavoredTarget,new FakeRuleKeyBuilderFactory());
+  FakeBuckConfig buckConfig=new FakeBuckConfig(ImmutableMap.<String,Map<String,String>>of("thrift",ImmutableMap.of("compiler_target",thriftTarget.toString())));
+  ThriftBuckConfig thriftBuckConfig=new ThriftBuckConfig(buckConfig);
+  ThriftLanguageSpecificEnhancer enhancer=new FakeThriftLanguageSpecificEnhancer(language,flavor,implicitDeps,options);
+  ThriftLibraryDescription desc=new ThriftLibraryDescription(thriftBuckConfig,ImmutableList.of(enhancer));
+  Iterable<String> results=desc.findDepsFromParams(params);
+  assertEquals(FluentIterable.from(ImmutableSet.<BuildTarget>builder().add(unflavoredTarget).add(thriftTarget).addAll(implicitDeps).build()).transform(Functions.toStringFunction()).toSet(),ImmutableSet.copyOf(results));
+}

@@ -1,0 +1,22 @@
+{
+  Optional<Path> compilerPath=getCompilerPath();
+  Optional<BuildTarget> compilerTarget=getCompilerTarget();
+  if (compilerTarget.isPresent() && compilerPath.isPresent()) {
+    throw new HumanReadableException("Cannot set both thrift:compiler_target and thrift:compiler_path");
+  }
+  SourcePath sourcePath;
+  if (compilerTarget.isPresent()) {
+    BuildRule rule=resolver.get(compilerTarget.get());
+    if (rule == null) {
+      throw new HumanReadableException(".buckconfig: thrift:compiler_target rule \"%s\" does not exists",compilerTarget.get());
+    }
+    sourcePath=new BuildRuleSourcePath(rule);
+  }
+ else   if (compilerPath.isPresent()) {
+    sourcePath=new PathSourcePath(compilerPath.get());
+  }
+ else {
+    throw new HumanReadableException(".buckconfig: must set either thrift:compiler_target or thrift:compiler_path");
+  }
+  return sourcePath;
+}

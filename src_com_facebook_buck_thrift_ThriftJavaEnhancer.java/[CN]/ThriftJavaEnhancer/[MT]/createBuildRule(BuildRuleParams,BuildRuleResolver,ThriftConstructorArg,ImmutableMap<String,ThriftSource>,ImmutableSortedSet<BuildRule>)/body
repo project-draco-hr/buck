@@ -1,0 +1,17 @@
+{
+  ImmutableSortedSet.Builder<BuildRule> sourceZipsBuilder=ImmutableSortedSet.naturalOrder();
+  for (  ImmutableMap.Entry<String,ThriftSource> ent : sources.entrySet()) {
+    String name=ent.getKey();
+    BuildRule compilerRule=ent.getValue().getCompileRule();
+    Path sourceDirectory=ent.getValue().getOutputDir();
+    BuildTarget sourceZipTarget=getSourceZipBuildTarget(params.getBuildTarget(),name);
+    Path sourceZip=getSourceZipOutputPath(params.getBuildTarget(),name);
+    sourceZipsBuilder.add(new SrcZip(params.copyWithChanges(SOURCE_ZIP_TYPE,sourceZipTarget,ImmutableSortedSet.of(compilerRule),ImmutableSortedSet.<BuildRule>of()),sourceZip,sourceDirectory));
+  }
+  ImmutableSortedSet<BuildRule> sourceZips=sourceZipsBuilder.build();
+  resolver.addAllToIndex(sourceZips);
+  BuildRuleParams javaParams=params.copyWithChanges(JavaLibraryDescription.TYPE,BuildTargets.createFlavoredBuildTarget(params.getBuildTarget().getUnflavoredTarget(),getFlavor()),ImmutableSortedSet.<BuildRule>naturalOrder().addAll(sourceZips).addAll(deps).build(),ImmutableSortedSet.<BuildRule>of());
+  JavacOptions javacOptions=JavacOptions.builder().setJavaCompilerEnvironment(javacEnv).build();
+  DefaultJavaLibrary defaultJavaLibrary=new DefaultJavaLibrary(javaParams,FluentIterable.from(sourceZips).transform(SourcePaths.TO_BUILD_RULE_SOURCE_PATH).toSortedSet(Ordering.natural()),ImmutableSet.<SourcePath>of(),Optional.<Path>absent(),ImmutableList.<String>of(),ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of(),ImmutableSet.<Path>of(),javacOptions,Optional.<Path>absent());
+  return defaultJavaLibrary;
+}

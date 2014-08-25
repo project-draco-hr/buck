@@ -1,0 +1,24 @@
+{
+  Optional<Flavor> flavor=getLanguageFlavor(params.target);
+  if (!flavor.isPresent()) {
+    return ImmutableList.of();
+  }
+  List<BuildTarget> deps=Lists.newArrayList();
+  deps.add(params.target.getUnflavoredTarget());
+  for (  String rawTarget : params.getOptionalListAttribute("deps")) {
+    BuildTarget target=params.resolveBuildTarget(rawTarget);
+    if (getLanguageFlavor(target).isPresent()) {
+      throw new HumanReadableException(String.format("%s: parameter \"deps\": target \"%s\" must not specify a language flavor",params.target,target));
+    }
+    BuildTarget flavoredTarget=BuildTargets.extendFlavoredBuildTarget(target,flavor.get());
+    deps.add(flavoredTarget);
+  }
+  Optional<BuildTarget> thriftTarget=thriftBuckConfig.getCompilerTarget();
+  if (thriftTarget.isPresent()) {
+    deps.add(thriftTarget.get());
+  }
+  ThriftLanguageSpecificEnhancer enhancer=enhancers.get(flavor.get());
+  ImmutableSet<BuildTarget> implicitDeps=enhancer.getImplicitDepsFromParams(params);
+  deps.addAll(implicitDeps);
+  return Iterables.transform(deps,Functions.toStringFunction());
+}
