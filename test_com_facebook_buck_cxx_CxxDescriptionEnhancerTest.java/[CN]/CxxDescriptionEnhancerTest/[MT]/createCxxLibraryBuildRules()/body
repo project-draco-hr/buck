@@ -14,6 +14,7 @@
   final Path staticLibraryOutput=Paths.get("output/path/lib.a");
   final BuildRule sharedLibraryDep=createFakeBuildRule("//:shared");
   final Path sharedLibraryOutput=Paths.get("output/path/lib.so");
+  final String sharedLibrarySoname="soname";
   BuildTarget depTarget=BuildTargetFactory.newInstance("//:dep");
   BuildRuleParams depParams=BuildRuleParamsFactory.createTrivialBuildRuleParams(depTarget);
   CxxLibrary dep=new CxxLibrary(depParams){
@@ -22,6 +23,9 @@
     }
     @Override public NativeLinkableInput getNativeLinkableInput(    Type type){
       return type == Type.STATIC ? new NativeLinkableInput(ImmutableSet.of(staticLibraryDep.getBuildTarget()),ImmutableList.of(staticLibraryOutput),ImmutableList.of(staticLibraryOutput.toString())) : new NativeLinkableInput(ImmutableSet.of(sharedLibraryDep.getBuildTarget()),ImmutableList.of(sharedLibraryOutput),ImmutableList.of(sharedLibraryOutput.toString()));
+    }
+    @Override public PythonPackageComponents getPythonPackageComponents(){
+      return new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(sharedLibraryOutput)));
     }
   }
 ;
@@ -49,4 +53,6 @@
   BuildRule sharedCompileRule2=resolver.get(CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName,true));
   assertNotNull(sharedCompileRule2);
   assertEquals(ImmutableSet.of(genSourceTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderTarget(target),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),FluentIterable.from(sharedCompileRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  PythonPackageComponents expectedPythonPackageComponents=new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(CxxDescriptionEnhancer.getSharedLibrarySoname(target)),new BuildRuleSourcePath(sharedRule)));
+  assertEquals(expectedPythonPackageComponents,rule.getPythonPackageComponents());
 }

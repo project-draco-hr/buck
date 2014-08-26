@@ -7,9 +7,8 @@
   resolver.addToIndex(archive);
   ImmutableList<SourcePath> picObjects=createPreprocessAndCompileBuildRules(params,resolver,cxxBuckConfig,cxxPreprocessorInput,compilerFlags,true,sources);
   final BuildTarget sharedLibraryTarget=createSharedLibraryBuildTarget(params.getBuildTarget());
-  String sharedLibraryName=String.format("lib%s.so",sharedLibraryTarget.getShortNameOnly());
-  final String sharedLibrarySoname=String.format("lib%s_%s.so",params.getBuildTarget().getBaseName().substring(2).replace('/','_'),params.getBuildTarget().getShortNameOnly());
-  final Path sharedLibraryPath=BuildTargets.getBinPath(sharedLibraryTarget,"%s/" + sharedLibraryName);
+  final String sharedLibrarySoname=getSharedLibrarySoname(params.getBuildTarget());
+  final Path sharedLibraryPath=getSharedLibraryOutputPath(params.getBuildTarget());
   final CxxLink sharedLibraryBuildRule=CxxLinkableEnhancer.createCxxLinkableBuildRule(params,resolver,cxxBuckConfig.getLd().or(CxxLinkables.DEFAULT_LINKER_PATH),cxxBuckConfig.getCxxLdFlags(),cxxBuckConfig.getLdFlags(),sharedLibraryTarget,CxxLinkableEnhancer.LinkType.SHARED,Optional.of(sharedLibrarySoname),sharedLibraryPath,picObjects,NativeLinkable.Type.SHARED,params.getDeps());
   resolver.addToIndex(sharedLibraryBuildRule);
   return new CxxLibrary(params){
@@ -27,6 +26,9 @@
       }
       final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
       return new NativeLinkableInput(ImmutableSet.of(type == Type.STATIC ? staticLibraryTarget : sharedLibraryTarget),ImmutableList.<Path>of(),linkerArgs);
+    }
+    @Override public PythonPackageComponents getPythonPackageComponents(){
+      return new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new BuildRuleSourcePath(sharedLibraryBuildRule)));
     }
   }
 ;

@@ -8,12 +8,16 @@
   final Path archiveOutput=Paths.get("output/path/lib.a");
   final BuildTarget sharedLibraryTarget=BuildTargetFactory.newInstance("//:shared");
   final Path sharedLibraryOutput=Paths.get("output/path/lib.so");
+  final String sharedLibrarySoname="lib.so";
   CxxLibrary cxxLibrary=new CxxLibrary(params){
     @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
       return new CxxPreprocessorInput(ImmutableSet.of(headerTarget,headerSymlinkTreeTarget),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableList.of(headerSymlinkTreeRoot),ImmutableList.<Path>of());
     }
     @Override public NativeLinkableInput getNativeLinkableInput(    Type type){
       return type == Type.STATIC ? new NativeLinkableInput(ImmutableSet.of(archiveTarget),ImmutableList.of(archiveOutput),ImmutableList.of(archiveOutput.toString())) : new NativeLinkableInput(ImmutableSet.of(sharedLibraryTarget),ImmutableList.of(sharedLibraryOutput),ImmutableList.of(sharedLibraryOutput.toString()));
+    }
+    @Override public PythonPackageComponents getPythonPackageComponents(){
+      return new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(sharedLibraryOutput)));
     }
   }
 ;
@@ -23,6 +27,8 @@
   assertEquals(expectedStaticNativeLinkableInput,cxxLibrary.getNativeLinkableInput(NativeLinkable.Type.STATIC));
   NativeLinkableInput expectedSharedNativeLinkableInput=new NativeLinkableInput(ImmutableSet.of(sharedLibraryTarget),ImmutableList.of(sharedLibraryOutput),ImmutableList.of(sharedLibraryOutput.toString()));
   assertEquals(expectedSharedNativeLinkableInput,cxxLibrary.getNativeLinkableInput(NativeLinkable.Type.SHARED));
+  PythonPackageComponents expectedPythonPackageComponents=new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(sharedLibraryOutput)));
+  assertEquals(expectedPythonPackageComponents,cxxLibrary.getPythonPackageComponents());
   assertEquals(ImmutableList.<Step>of(),cxxLibrary.getBuildSteps(null,null));
   assertNull(cxxLibrary.getPathToOutputFile());
   assertTrue(ImmutableList.copyOf(cxxLibrary.getInputsToCompareToOutput()).isEmpty());
