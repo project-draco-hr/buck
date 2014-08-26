@@ -1,0 +1,17 @@
+{
+  Preconditions.checkState(!soname.isPresent() || linkType.equals(LinkType.SHARED));
+  NativeLinkableInput linkableInput=NativeLinkableInput.concat(FluentIterable.from(topoSort(nativeLinkableDeps).reverse()).filter(NativeLinkable.class).transform(NativeLinkables.getNativeLinkableInput(depType)));
+  BuildRuleParams linkParams=params.copyWithChanges(NativeLinkable.NATIVE_LINKABLE_TYPE,target,ImmutableSortedSet.copyOf(Iterables.concat(SourcePaths.filterBuildRuleInputs(objects),BuildRules.toBuildRulesFor(target,resolver,linkableInput.getTargets(),false))),ImmutableSortedSet.<BuildRule>of());
+  ImmutableList.Builder<String> argsBuilder=ImmutableList.builder();
+  if (linkType == LinkType.SHARED) {
+    argsBuilder.add("-shared");
+  }
+  if (soname.isPresent()) {
+    argsBuilder.add("-Xlinker","-soname=" + soname.get());
+  }
+  argsBuilder.addAll(cxxLdFlags);
+  argsBuilder.addAll(MoreIterables.zipAndConcat(Iterables.cycle("-Xlinker"),ldFlags));
+  argsBuilder.addAll(MoreIterables.zipAndConcat(Iterables.cycle("-Xlinker"),Iterables.concat(FluentIterable.from(objects).transform(SourcePaths.TO_PATH).transform(Functions.toStringFunction()),linkableInput.getArgs())));
+  ImmutableList<String> args=argsBuilder.build();
+  return new CxxLink(linkParams,linker,output,ImmutableList.<SourcePath>builder().addAll(objects).addAll(SourcePaths.toSourcePathsSortedByNaturalOrder(linkableInput.getInputs())).build(),args);
+}

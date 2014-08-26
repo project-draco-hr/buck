@@ -1,24 +1,32 @@
 {
-  ImmutableList<SourcePath> objects=createPreprocessAndCompileBuildRules(params,resolver,cxxBuckConfig,preprocessorFlags,headers,compilerFlags,sources);
+  CxxPreprocessorInput cxxPreprocessorInput=createHeaderBuildRules(params,resolver,cxxBuckConfig,preprocessorFlags,headers);
+  ImmutableList<SourcePath> objects=createPreprocessAndCompileBuildRules(params,resolver,cxxBuckConfig,cxxPreprocessorInput,compilerFlags,false,sources);
   final BuildTarget staticLibraryTarget=createStaticLibraryBuildTarget(params.getBuildTarget());
   final Path staticLibraryPath=Archives.getArchiveOutputPath(staticLibraryTarget);
   Archive archive=Archives.createArchiveRule(staticLibraryTarget,params,cxxBuckConfig.getAr().or(Archives.DEFAULT_ARCHIVE_PATH),staticLibraryPath,objects);
   resolver.addToIndex(archive);
+  ImmutableList<SourcePath> picObjects=createPreprocessAndCompileBuildRules(params,resolver,cxxBuckConfig,cxxPreprocessorInput,compilerFlags,true,sources);
+  final BuildTarget sharedLibraryTarget=createSharedLibraryBuildTarget(params.getBuildTarget());
+  String sharedLibraryName=String.format("lib%s.so",sharedLibraryTarget.getShortNameOnly());
+  final String sharedLibrarySoname=String.format("lib%s_%s.so",params.getBuildTarget().getBaseName().substring(2).replace('/','_'),params.getBuildTarget().getShortNameOnly());
+  final Path sharedLibraryPath=BuildTargets.getBinPath(sharedLibraryTarget,"%s/" + sharedLibraryName);
+  final CxxLink sharedLibraryBuildRule=CxxLinkableEnhancer.createCxxLinkableBuildRule(params,resolver,cxxBuckConfig.getLd().or(CxxLinkables.DEFAULT_LINKER_PATH),cxxBuckConfig.getCxxLdFlags(),cxxBuckConfig.getLdFlags(),sharedLibraryTarget,CxxLinkableEnhancer.LinkType.SHARED,Optional.of(sharedLibrarySoname),sharedLibraryPath,picObjects,NativeLinkable.Type.SHARED,params.getDeps());
+  resolver.addToIndex(sharedLibraryBuildRule);
   return new CxxLibrary(params){
     @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
       return new CxxPreprocessorInput(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderTarget(params.getBuildTarget()),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(params.getBuildTarget())),propagatedPpFlags,propagatedPpFlags,ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(params.getBuildTarget())),ImmutableList.<Path>of());
     }
-    @Override public NativeLinkableInput getNativeLinkableInput(){
+    @Override public NativeLinkableInput getNativeLinkableInput(    NativeLinkable.Type type){
       ImmutableList.Builder<String> linkerArgsBuilder=ImmutableList.builder();
-      if (linkWhole) {
+      if (linkWhole && type == Type.STATIC) {
         linkerArgsBuilder.add("--whole-archive");
       }
-      linkerArgsBuilder.add(staticLibraryPath.toString());
-      if (linkWhole) {
+      linkerArgsBuilder.add(type == Type.STATIC ? staticLibraryPath.toString() : sharedLibraryPath.toString());
+      if (linkWhole && type == Type.STATIC) {
         linkerArgsBuilder.add("--no-whole-archive");
       }
       final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
-      return new NativeLinkableInput(ImmutableSet.of(staticLibraryTarget),ImmutableList.<Path>of(),linkerArgs);
+      return new NativeLinkableInput(ImmutableSet.of(type == Type.STATIC ? staticLibraryTarget : sharedLibraryTarget),ImmutableList.<Path>of(),linkerArgs);
     }
   }
 ;
