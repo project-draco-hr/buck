@@ -2,8 +2,11 @@
   File projectRoot=new File(".");
   int exitCode=FAIL_EXIT_CODE;
   BuildId buildId=new BuildId();
-  CommandThreadAssociation commandThreadAssociation=new CommandThreadAssociation(buildId.toString());
+  CommandThreadAssociation commandThreadAssociation=null;
+  ConsoleHandlerRedirector consoleHandlerRedirector=null;
   try {
+    commandThreadAssociation=new CommandThreadAssociation(buildId.toString());
+    consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),stdErr,Optional.<OutputStream>absent());
     exitCode=tryRunMainWithExitCode(buildId,projectRoot,context,args);
   }
  catch (  Throwable t) {
@@ -11,7 +14,12 @@
   }
  finally {
     LogConfig.flushLogs();
-    commandThreadAssociation.stop();
+    if (commandThreadAssociation != null) {
+      commandThreadAssociation.stop();
+    }
+    if (consoleHandlerRedirector != null) {
+      consoleHandlerRedirector.close();
+    }
     System.exit(exitCode);
   }
 }

@@ -1,10 +1,18 @@
 {
-  if (writer != null && isLoggable(record)) {
-    try {
-      writer.write(getFormatter().format(record));
+  if (closed || !(isLoggable(record) || isLoggableWithRegisteredLogLevel(record))) {
+    return;
+  }
+  Iterable<OutputStreamWriter> outputStreamWriters=getOutputStreamWritersForRecord(record);
+  try {
+    String formatted=getFormatter().format(record);
+    for (    OutputStreamWriter outputStreamWriter : outputStreamWriters) {
+      outputStreamWriter.write(formatted);
+      if (record.getLevel().intValue() >= Level.SEVERE.intValue()) {
+        outputStreamWriter.flush();
+      }
     }
- catch (    IOException e) {
-      throw new IOError(e);
-    }
+  }
+ catch (  IOException e) {
+    throw new IOError(e);
   }
 }
