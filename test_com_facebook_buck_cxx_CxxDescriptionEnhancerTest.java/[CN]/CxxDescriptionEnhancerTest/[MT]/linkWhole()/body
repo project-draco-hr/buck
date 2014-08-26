@@ -1,0 +1,14 @@
+{
+  FakeBuckConfig buckConfig=new FakeBuckConfig();
+  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(buckConfig);
+  BuildTarget target=BuildTargetFactory.newInstance("//:test");
+  BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
+  String sourceName="test.cc";
+  CxxSource source=new CxxSource(sourceName,new TestSourcePath(sourceName),CxxCompilableEnhancer.getCompileOutputPath(target,sourceName));
+  CxxLibrary normal=CxxDescriptionEnhancer.createCxxLibraryBuildRules(params,new BuildRuleResolver(),cxxBuckConfig,ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableList.<String>of(),ImmutableList.of(source),false);
+  assertFalse(normal.getNativeLinkableInput().getArgs().contains("--whole-archive"));
+  assertFalse(normal.getNativeLinkableInput().getArgs().contains("--no-whole-archive"));
+  CxxLibrary linkWhole=CxxDescriptionEnhancer.createCxxLibraryBuildRules(params,new BuildRuleResolver(),cxxBuckConfig,ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableList.<String>of(),ImmutableList.of(source),true);
+  assertTrue(linkWhole.getNativeLinkableInput().getArgs().contains("--whole-archive"));
+  assertTrue(linkWhole.getNativeLinkableInput().getArgs().contains("--no-whole-archive"));
+}

@@ -9,7 +9,16 @@
       return new CxxPreprocessorInput(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderTarget(params.getBuildTarget()),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(params.getBuildTarget())),propagatedPpFlags,propagatedPpFlags,ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(params.getBuildTarget())),ImmutableList.<Path>of());
     }
     @Override public NativeLinkableInput getNativeLinkableInput(){
-      return new NativeLinkableInput(ImmutableSet.of(staticLibraryTarget),ImmutableList.<Path>of(),ImmutableList.of(staticLibraryPath.toString()));
+      ImmutableList.Builder<String> linkerArgsBuilder=ImmutableList.builder();
+      if (linkWhole) {
+        linkerArgsBuilder.add("--whole-archive");
+      }
+      linkerArgsBuilder.add(staticLibraryPath.toString());
+      if (linkWhole) {
+        linkerArgsBuilder.add("--no-whole-archive");
+      }
+      final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
+      return new NativeLinkableInput(ImmutableSet.of(staticLibraryTarget),ImmutableList.<Path>of(),linkerArgs);
     }
   }
 ;
