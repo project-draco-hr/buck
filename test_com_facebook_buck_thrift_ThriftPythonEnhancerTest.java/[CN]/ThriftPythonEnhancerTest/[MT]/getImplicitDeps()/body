@@ -1,0 +1,15 @@
+{
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildTargetParser parser=new BuildTargetParser();
+  ImmutableMap<String,BuildTarget> config=ImmutableMap.of("python_library",BuildTargetFactory.newInstance("//:python_library"),"python_twisted_library",BuildTargetFactory.newInstance("//:python_twisted_library"));
+  ImmutableMap.Builder<String,String> strConfig=ImmutableMap.builder();
+  for (  ImmutableMap.Entry<String,BuildTarget> ent : config.entrySet()) {
+    strConfig.put(ent.getKey(),ent.getValue().toString());
+  }
+  FakeBuckConfig buckConfig=new FakeBuckConfig(ImmutableMap.<String,Map<String,String>>of("thrift",strConfig.build()));
+  ThriftBuckConfig thriftBuckConfig=new ThriftBuckConfig(buckConfig);
+  ThriftPythonEnhancer enhancer=new ThriftPythonEnhancer(thriftBuckConfig,ThriftPythonEnhancer.Type.NORMAL);
+  ThriftPythonEnhancer twistedEnhancer=new ThriftPythonEnhancer(thriftBuckConfig,ThriftPythonEnhancer.Type.TWISTED);
+  expectImplicitDeps(enhancer,filesystem,parser,ImmutableSet.<String>of(),ImmutableSet.of(config.get("python_library")));
+  expectImplicitDeps(twistedEnhancer,filesystem,parser,ImmutableSet.of("twisted"),ImmutableSet.of(config.get("python_library"),config.get("python_twisted_library")));
+}

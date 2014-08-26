@@ -1,0 +1,17 @@
+{
+  Path baseModule=params.getBuildTarget().getBasePath();
+  ImmutableMap.Builder<Path,SourcePath> modulesBuilder=ImmutableMap.builder();
+  for (  ImmutableMap.Entry<String,ThriftSource> ent : sources.entrySet()) {
+    String thriftBaseName=Files.getNameWithoutExtension(ent.getKey());
+    ThriftSource source=ent.getValue();
+    Path outputDir=source.getOutputDir();
+    for (    String partialName : getGeneratedThriftSources(source.getServices())) {
+      Path module=baseModule.resolve(thriftBaseName).resolve(partialName);
+      Path path=outputDir.resolve("gen-" + getLanguage()).resolve(module);
+      modulesBuilder.put(module,new BuildRuleSourcePath(source.getCompileRule(),path));
+    }
+  }
+  ImmutableMap<Path,SourcePath> modules=modulesBuilder.build();
+  BuildRuleParams langParams=params.copyWithChanges(PythonLibraryDescription.TYPE,params.getBuildTarget(),deps,ImmutableSortedSet.<BuildRule>of());
+  return new PythonLibrary(langParams,modules,ImmutableMap.<Path,SourcePath>of());
+}
