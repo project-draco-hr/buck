@@ -1,0 +1,27 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  final BuildRule sharedLibraryDep=createFakeBuildRule("//:shared");
+  final Path sharedLibraryOutput=Paths.get("output/path/lib.so");
+  final String sharedLibrarySoname="soname";
+  BuildTarget depTarget=BuildTargetFactory.newInstance("//:dep");
+  BuildRuleParams depParams=BuildRuleParamsFactory.createTrivialBuildRuleParams(depTarget);
+  CxxLibrary dep=new CxxLibrary(depParams){
+    @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
+      return new CxxPreprocessorInput(ImmutableSet.<BuildTarget>of(),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableList.<Path>of(),ImmutableList.<Path>of());
+    }
+    @Override public NativeLinkableInput getNativeLinkableInput(    Type type){
+      return type == Type.STATIC ? new NativeLinkableInput(ImmutableList.<SourcePath>of(),ImmutableList.<String>of()) : new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildRuleSourcePath(sharedLibraryDep,sharedLibraryOutput)),ImmutableList.of(sharedLibraryOutput.toString()));
+    }
+    @Override public PythonPackageComponents getPythonPackageComponents(){
+      return new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(sharedLibraryOutput)));
+    }
+  }
+;
+  resolver.addToIndex(sharedLibraryDep);
+  CxxPythonExtensionDescription.Arg arg=getDefaultArg();
+  arg.deps=Optional.of(ImmutableSortedSet.<BuildRule>of(dep));
+  BuildRuleParams newParams=params.copyWithDeps(ImmutableSortedSet.<BuildRule>of(dep),ImmutableSortedSet.<BuildRule>of());
+  CxxPythonExtension extension=desc.createBuildRule(newParams,resolver,arg);
+  CxxLink cxxLink=extension.getRule();
+  assertEquals(ImmutableSortedSet.of(sharedLibraryDep),cxxLink.getDeps());
+}
