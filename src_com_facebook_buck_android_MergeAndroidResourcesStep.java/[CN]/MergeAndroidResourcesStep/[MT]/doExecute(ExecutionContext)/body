@@ -1,8 +1,8 @@
 {
   ProjectFilesystem filesystem=context.getProjectFilesystem();
-  ImmutableMap.Builder<Path,String> symbolsFileToRDotJavaPackage=ImmutableMap.builder();
+  ImmutableMap.Builder<Path,String> rDotTxtToPackage=ImmutableMap.builder();
   for (  HasAndroidResourceDeps res : androidResourceDeps) {
-    symbolsFileToRDotJavaPackage.put(res.getPathToTextSymbolsFile(),res.getRDotJavaPackage());
+    rDotTxtToPackage.put(res.getPathToTextSymbolsFile(),res.getRDotJavaPackage());
   }
   Optional<ImmutableMap<RDotTxtEntry,String>> uberRDotTxtIds;
   if (uberRDotTxt.isPresent()) {
@@ -16,6 +16,11 @@
  else {
     uberRDotTxtIds=Optional.absent();
   }
-  SortedSetMultimap<String,RDotTxtEntry> rDotJavaPackageToResources=sortSymbols(symbolsFileToRDotJavaPackage.build(),uberRDotTxtIds,context);
+  ImmutableMap<Path,String> symbolsFileToRDotJavaPackage=rDotTxtToPackage.build();
+  SortedSetMultimap<String,RDotTxtEntry> rDotJavaPackageToResources=sortSymbols(symbolsFileToRDotJavaPackage,uberRDotTxtIds,context);
   writePerPackageRDotJava(rDotJavaPackageToResources,filesystem);
+  Set<String> emptyPackages=Sets.difference(ImmutableSet.copyOf(symbolsFileToRDotJavaPackage.values()),rDotJavaPackageToResources.keySet());
+  if (!emptyPackages.isEmpty()) {
+    writeEmptyRDotJavaForPackages(emptyPackages,filesystem);
+  }
 }
