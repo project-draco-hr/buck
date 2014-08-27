@@ -1,0 +1,27 @@
+{
+  BuildRuleResolver resolver;
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:lib");
+  BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
+  String sourceName="main.py";
+  SourcePath source=new TestSourcePath("foo/" + sourceName,sourceName);
+  PythonTestDescription desc=new PythonTestDescription(PEX_PATH,TEST_MAIN,new PythonEnvironment(Paths.get("python"),new PythonVersion("2.5")));
+  PythonTestDescription.Arg arg=desc.createUnpopulatedConstructorArg();
+  arg.deps=Optional.absent();
+  arg.resources=Optional.absent();
+  arg.contacts=Optional.absent();
+  arg.labels=Optional.absent();
+  arg.sourceUnderTest=Optional.absent();
+  arg.srcs=Optional.of(ImmutableSortedSet.of(source));
+  arg.baseModule=Optional.absent();
+  resolver=new BuildRuleResolver();
+  desc.createBuildRule(params,resolver,arg);
+  PythonBinary normalRule=(PythonBinary)resolver.get(desc.getBinaryBuildTarget(target));
+  assertNotNull(normalRule);
+  assertTrue(normalRule.getComponents().getModules().containsKey(target.getBasePath().resolve(sourceName)));
+  arg.baseModule=Optional.of("blah");
+  resolver=new BuildRuleResolver();
+  desc.createBuildRule(params,resolver,arg);
+  PythonBinary baseModuleRule=(PythonBinary)resolver.get(desc.getBinaryBuildTarget(target));
+  assertNotNull(baseModuleRule);
+  assertTrue(baseModuleRule.getComponents().getModules().containsKey(Paths.get(arg.baseModule.get()).resolve(sourceName)));
+}

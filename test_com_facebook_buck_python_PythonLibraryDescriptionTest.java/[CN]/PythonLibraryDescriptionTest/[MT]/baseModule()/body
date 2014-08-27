@@ -1,0 +1,18 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:lib");
+  BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
+  String sourceName="main.py";
+  SourcePath source=new TestSourcePath("foo/" + sourceName,sourceName);
+  PythonLibraryDescription desc=new PythonLibraryDescription();
+  PythonLibraryDescription.Arg arg=desc.createUnpopulatedConstructorArg();
+  arg.deps=Optional.absent();
+  arg.resources=Optional.absent();
+  arg.srcs=Optional.of(ImmutableSortedSet.of(source));
+  arg.baseModule=Optional.absent();
+  PythonLibrary normalRule=desc.createBuildRule(params,resolver,arg);
+  assertEquals(ImmutableMap.of(target.getBasePath().resolve(sourceName),source),normalRule.getSrcs());
+  arg.baseModule=Optional.of("blah");
+  PythonLibrary baseModuleRule=desc.createBuildRule(params,resolver,arg);
+  assertEquals(ImmutableMap.of(Paths.get(arg.baseModule.get()).resolve(sourceName),source),baseModuleRule.getSrcs());
+}
