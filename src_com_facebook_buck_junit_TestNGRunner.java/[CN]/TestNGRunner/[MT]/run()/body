@@ -1,0 +1,33 @@
+{
+  System.out.println("TestNGRunner started!");
+  for (  String className : testClassNames) {
+    System.out.println("TestNGRunner handling " + className);
+    final Class<?> testClass=Class.forName(className);
+    List<TestResult> results;
+    if (!isTestClass(testClass)) {
+      results=Collections.emptyList();
+    }
+ else {
+      results=new ArrayList<>();
+      TestNGWrapper tester=new TestNGWrapper();
+      tester.setAnnoTransformer(new FilteringAnnotationTransformer());
+      tester.setXmlSuites(Collections.singletonList(createXmlSuite(testClass)));
+      TestListener listener=new TestListener(results);
+      tester.addListener(new TestListener(results));
+      try {
+        System.out.println("TestNGRunner running " + className);
+        tester.initializeSuitesAndJarFile();
+        tester.runSuitesLocally();
+      }
+ catch (      Throwable e) {
+        listener.onFinish(null);
+        System.out.println("TestNGRunner caught an exception");
+        e.printStackTrace();
+        results.add(new TestResult(className,"<TestNG failure>",0,ResultType.FAILURE,e,"",""));
+      }
+      System.out.println("TestNGRunner tested " + className + ", got "+ results.size());
+    }
+    writeResult(className,results);
+  }
+  System.out.println("TestNGRunner done!");
+}

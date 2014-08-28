@@ -1,0 +1,33 @@
+{
+  resultListener.testFinished(description);
+  resultListener.testRunFinished(result);
+  resultListener=null;
+  System.setOut(originalOut);
+  System.setErr(originalErr);
+  stdOutStream.flush();
+  stdErrStream.flush();
+  int numFailures=result.getFailureCount();
+  String className=description.getClassName();
+  String methodName=description.getMethodName();
+  if (numFailures < 0) {
+    throw new IllegalStateException(String.format("Unexpected number of failures while testing %s#%s(): %d (%s)",className,methodName,numFailures,result.getFailures()));
+  }
+  Failure failure;
+  ResultType type;
+  if (assumptionFailure != null) {
+    failure=assumptionFailure;
+    type=ResultType.ASSUMPTION_VIOLATION;
+    assumptionFailure=null;
+  }
+ else   if (numFailures == 0) {
+    failure=null;
+    type=ResultType.SUCCESS;
+  }
+ else {
+    failure=result.getFailures().get(0);
+    type=ResultType.FAILURE;
+  }
+  String stdOut=rawStdOutBytes.size() == 0 ? null : rawStdOutBytes.toString(ENCODING);
+  String stdErr=rawStdErrBytes.size() == 0 ? null : rawStdErrBytes.toString(ENCODING);
+  results.add(new TestResult(className,methodName,result.getRunTime(),type,failure == null ? null : failure.getException(),stdOut,stdErr));
+}
