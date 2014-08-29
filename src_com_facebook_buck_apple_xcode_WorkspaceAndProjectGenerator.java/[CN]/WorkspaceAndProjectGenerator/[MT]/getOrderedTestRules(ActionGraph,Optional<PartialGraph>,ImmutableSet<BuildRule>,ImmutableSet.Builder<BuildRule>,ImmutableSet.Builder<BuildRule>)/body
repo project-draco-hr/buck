@@ -1,22 +1,19 @@
 {
-  ImmutableSet.Builder<BuildRule> xcodeTargetTestRulesBuilder=ImmutableSet.builder();
+  LOG.debug("Getting ordered test rules, build rules %s",orderedBuildRules);
+  final ImmutableSet.Builder<BuildRule> recursiveTestRulesBuilder=ImmutableSet.builder();
   if (testTargetGraph.isPresent()) {
-    xcodeTargetTestRulesBuilder.addAll(TopologicalSort.sort(testTargetGraph.get().getActionGraph(),new Predicate<BuildRule>(){
-      @Override public boolean apply(      @Nullable BuildRule input){
-        return AppleBuildRules.isXcodeTargetTestBuildRule(input);
+    ImmutableMultimap<BuildRule,AppleTest> sourceRuleToTestRules=getSourceRuleToTestRulesMap(testTargetGraph.get().getActionGraph().getNodes());
+    for (    BuildRule rule : orderedBuildRules) {
+      LOG.verbose("Checking if rule %s has any tests covering it..",rule);
+      for (      AppleTest testRule : sourceRuleToTestRules.get(rule)) {
+        BuildRule testBundleRule=testRule.getTestBundle();
+        Iterable<BuildRule> testBundleRuleDependencies=AppleBuildRules.getRecursiveRuleDependenciesOfTypes(AppleBuildRules.RecursiveRuleDependenciesMode.BUILDING,testBundleRule,Optional.<ImmutableSet<BuildRuleType>>absent());
+        LOG.verbose("Including rule %s -> test rule %s, bundle rule %s, dependencies %s",rule,testRule,testBundleRule,testBundleRuleDependencies);
+        recursiveTestRulesBuilder.addAll(testBundleRuleDependencies);
+        recursiveTestRulesBuilder.add(testBundleRule);
+        orderedTestBundleRulesBuilder.add(testBundleRule);
       }
     }
-));
-  }
-  final ImmutableSet<BuildRule> xcodeTargetTestRules=xcodeTargetTestRulesBuilder.build();
-  for (  BuildRule buildRule : xcodeTargetTestRules) {
-    AppleTest testRule=(AppleTest)buildRule;
-    orderedTestBundleRulesBuilder.add(testRule.getTestBundle());
-  }
-  ImmutableSet.Builder<BuildRule> recursiveTestRulesBuilder=ImmutableSet.builder();
-  for (  BuildRule testRule : xcodeTargetTestRules) {
-    Iterable<BuildRule> testRulesIterable=Iterables.concat(AppleBuildRules.getRecursiveRuleDependenciesOfTypes(AppleBuildRules.RecursiveRuleDependenciesMode.BUILDING,testRule,Optional.<ImmutableSet<BuildRuleType>>absent()),ImmutableSet.of(testRule));
-    recursiveTestRulesBuilder.addAll(testRulesIterable);
   }
   final Set<BuildRule> includedTestRules=Sets.difference(recursiveTestRulesBuilder.build(),orderedBuildRules);
   orderedTestBuildRulesBuilder.addAll(TopologicalSort.sort(actionGraph,new Predicate<BuildRule>(){
