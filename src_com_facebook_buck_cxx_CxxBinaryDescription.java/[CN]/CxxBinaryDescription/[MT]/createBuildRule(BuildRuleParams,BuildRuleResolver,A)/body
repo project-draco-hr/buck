@@ -3,5 +3,8 @@
   ImmutableMap<Path,SourcePath> headers=CxxDescriptionEnhancer.parseHeaders(params.getBuildTarget(),args.headers.or((ImmutableList.<SourcePath>of())));
   CxxPreprocessorInput cxxPreprocessorInput=CxxDescriptionEnhancer.createHeaderBuildRules(params,resolver,cxxBuckConfig,args.preprocessorFlags.or(ImmutableList.<String>of()),headers);
   ImmutableList<SourcePath> objects=CxxDescriptionEnhancer.createPreprocessAndCompileBuildRules(params,resolver,cxxBuckConfig,cxxPreprocessorInput,args.compilerFlags.or(ImmutableList.<String>of()),false,srcs);
-  return CxxLinkableEnhancer.createCxxLinkableBuildRule(params,resolver,cxxBuckConfig.getLd().or(CxxLinkables.DEFAULT_LINKER_PATH),cxxBuckConfig.getCxxLdFlags(),cxxBuckConfig.getLdFlags(),params.getBuildTarget(),CxxLinkableEnhancer.LinkType.EXECUTABLE,Optional.<String>absent(),getOutputPath(params.getBuildTarget()),objects,NativeLinkable.Type.STATIC,params.getDeps());
+  Path output=getOutputPath(params.getBuildTarget());
+  CxxLink cxxLink=CxxLinkableEnhancer.createCxxLinkableBuildRule(params,resolver,cxxBuckConfig.getLd().or(CxxLinkables.DEFAULT_LINKER_PATH),cxxBuckConfig.getCxxLdFlags(),cxxBuckConfig.getLdFlags(),createCxxLinkTarget(params.getBuildTarget()),CxxLinkableEnhancer.LinkType.EXECUTABLE,Optional.<String>absent(),output,objects,NativeLinkable.Type.STATIC,params.getDeps());
+  resolver.addToIndex(cxxLink);
+  return new CxxBinary(params.copyWithDeps(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).add(cxxLink).build(),params.getExtraDeps()),output,cxxLink);
 }
