@@ -1,15 +1,19 @@
 {
-  final MutableDirectedGraph<BuildRule> graph=new MutableDirectedGraph<>();
+  final Map<BuildTarget,CxxPreprocessorInput> deps=Maps.newTreeMap();
   AbstractDependencyVisitor visitor=new AbstractDependencyVisitor(inputs){
     @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
-      graph.addNode(rule);
-      for (      BuildRule dep : rule.getDeps()) {
-        graph.addEdge(rule,dep);
+      if (rule instanceof CxxPreprocessorDep) {
+        CxxPreprocessorDep dep=(CxxPreprocessorDep)rule;
+        Preconditions.checkState(!deps.containsKey(rule.getBuildTarget()));
+        deps.put(rule.getBuildTarget(),dep.getCxxPreprocessorInput());
+        return rule.getDeps();
       }
-      return rule.getDeps();
+ else {
+        return ImmutableSet.of();
+      }
     }
   }
 ;
   visitor.start();
-  return CxxPreprocessorInput.concat(FluentIterable.from(ImmutableSortedSet.orderedBy(HasBuildTarget.BUILD_TARGET_COMPARATOR).addAll(graph.getNodes()).build()).filter(CxxPreprocessorDep.class).transform(CxxPreprocessorDep.GET_CXX_PREPROCESSOR_INPUT).toList());
+  return CxxPreprocessorInput.concat(deps.values());
 }
