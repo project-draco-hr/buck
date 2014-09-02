@@ -1,40 +1,41 @@
 def launch_buckd(self):
-    self._build()
-    self._setup_watchman_watch()
-    self._buck_project.create_buckd_tmp_dir()
-    buckd_tmp_dir = self._buck_project.buckd_tmp_dir
-    '\n        Use SoftRefLRUPolicyMSPerMB for immediate GC of javac output.\n        Set timeout to 60s (longer than the biggest GC pause seen for a 2GB\n        heap) and GC target to 15s. This means that the GC has to miss its\n        target by 100% or many 500ms heartbeats must be missed before a client\n        disconnection occurs. Specify port 0 to allow Nailgun to find an\n        available port, then parse the port number out of the first log entry.\n        '
-    command = ['java']
-    command.extend(self._get_java_args(self._buck_version_uid))
-    command.append('-Dbuck.buckd_launch_time_nanos={0}'.format(monotonic_time_nanos()))
-    command.append('-Dbuck.buckd_watcher=Watchman')
-    command.append('-XX:MaxGCPauseMillis={0}'.format(GC_MAX_PAUSE_TARGET))
-    command.append('-XX:SoftRefLRUPolicyMSPerMB=0')
-    command.append('-Djava.io.tmpdir={0}'.format(buckd_tmp_dir))
-    command.append('-classpath')
-    command.append(self._get_java_classpath())
-    command.append('com.martiansoftware.nailgun.NGServer')
-    command.append('localhost:0')
-    command.append('{0}'.format(BUCKD_CLIENT_TIMEOUT_MILLIS))
-    '\n        We want to launch the buckd process in such a way that it finds the\n        terminal as a tty while being able to read its output. We also want to\n        shut up any nailgun output. If we simply redirect stdout/stderr to a\n        file, the super console no longer works on subsequent invocations of\n        buck. So use a pseudo-terminal to interact with it.\n        '
-    (master, slave) = pty.openpty()
-    '\n        Change the process group of the child buckd process so that when this\n        script is interrupted, it does not kill buckd.\n        '
+    with Tracing('BuckRepo.launch_buckd'):
+        self._build()
+        self._setup_watchman_watch()
+        self._buck_project.create_buckd_tmp_dir()
+        buckd_tmp_dir = self._buck_project.buckd_tmp_dir
+        '\n            Use SoftRefLRUPolicyMSPerMB for immediate GC of javac output.\n            Set timeout to 60s (longer than the biggest GC pause seen for a 2GB\n            heap) and GC target to 15s. This means that the GC has to miss its\n            target by 100% or many 500ms heartbeats must be missed before a client\n            disconnection occurs. Specify port 0 to allow Nailgun to find an\n            available port, then parse the port number out of the first log entry.\n            '
+        command = ['java']
+        command.extend(self._get_java_args(self._buck_version_uid))
+        command.append('-Dbuck.buckd_launch_time_nanos={0}'.format(monotonic_time_nanos()))
+        command.append('-Dbuck.buckd_watcher=Watchman')
+        command.append('-XX:MaxGCPauseMillis={0}'.format(GC_MAX_PAUSE_TARGET))
+        command.append('-XX:SoftRefLRUPolicyMSPerMB=0')
+        command.append('-Djava.io.tmpdir={0}'.format(buckd_tmp_dir))
+        command.append('-classpath')
+        command.append(self._get_java_classpath())
+        command.append('com.martiansoftware.nailgun.NGServer')
+        command.append('localhost:0')
+        command.append('{0}'.format(BUCKD_CLIENT_TIMEOUT_MILLIS))
+        '\n            We want to launch the buckd process in such a way that it finds the\n            terminal as a tty while being able to read its output. We also want to\n            shut up any nailgun output. If we simply redirect stdout/stderr to a\n            file, the super console no longer works on subsequent invocations of\n            buck. So use a pseudo-terminal to interact with it.\n            '
+        (master, slave) = pty.openpty()
+        '\n            Change the process group of the child buckd process so that when this\n            script is interrupted, it does not kill buckd.\n            '
 
-    def preexec_func():
-        os.setpgrp()
-    process = subprocess.Popen(command, cwd=self._buck_project.root, stdout=slave, stderr=slave, preexec_fn=preexec_func)
-    self._buck_project.save_buckd_pid(process.pid)
-    stdout = os.fdopen(master)
-    for i in range(100):
-        line = stdout.readline().strip()
-        match = BUCKD_LOG_FILE_PATTERN.match(line)
-        if match:
-            buckd_port = match.group(1)
-            break
-        time.sleep(0.1)
-    else:
-        print('nailgun server did not respond after 10s. Aborting buckd.', file=sys.stderr)
-        return
-    self._buck_project.save_buckd_port(buckd_port)
-    self._buck_project.save_buckd_version(self._buck_version_uid)
-    self._buck_project.update_buckd_run_count(0)
+        def preexec_func():
+            os.setpgrp()
+        process = subprocess.Popen(command, cwd=self._buck_project.root, stdout=slave, stderr=slave, preexec_fn=preexec_func)
+        self._buck_project.save_buckd_pid(process.pid)
+        stdout = os.fdopen(master)
+        for i in range(100):
+            line = stdout.readline().strip()
+            match = BUCKD_LOG_FILE_PATTERN.match(line)
+            if match:
+                buckd_port = match.group(1)
+                break
+            time.sleep(0.1)
+        else:
+            print('nailgun server did not respond after 10s. Aborting buckd.', file=sys.stderr)
+            return
+        self._buck_project.save_buckd_port(buckd_port)
+        self._buck_project.save_buckd_version(self._buck_version_uid)
+        self._buck_project.update_buckd_run_count(0)
