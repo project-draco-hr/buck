@@ -1,15 +1,14 @@
 {
   Preconditions.checkNotNull(absolutePath);
   Preconditions.checkArgument(absolutePath.isAbsolute());
-  Path root=absolutePath.toRealPath();
-  if (cachedRepositories.containsKey(root)) {
-    return cachedRepositories.get(root);
+  if (cachedRepositories.containsKey(absolutePath)) {
+    return cachedRepositories.get(absolutePath);
   }
-  if (!canonicalPathNames.containsKey(root)) {
-    throw new HumanReadableException("No repository name known for " + root);
+  if (!canonicalPathNames.containsKey(absolutePath)) {
+    throw new HumanReadableException("No repository name known for " + absolutePath);
   }
-  Optional<String> name=canonicalPathNames.get(root);
-  ProjectFilesystem projectFilesystem=new ProjectFilesystem(root,BuckConfig.createDefaultBuckConfig(new ProjectFilesystem(root),platform,clientEnvironment).getIgnorePaths());
+  Optional<String> name=canonicalPathNames.get(absolutePath);
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(absolutePath,BuckConfig.createDefaultBuckConfig(new ProjectFilesystem(absolutePath),platform,clientEnvironment).getIgnorePaths());
   BuckConfig config=BuckConfig.createDefaultBuckConfig(projectFilesystem,platform,clientEnvironment);
   PropertyFinder propertyFinder=new DefaultPropertyFinder(projectFilesystem,clientEnvironment);
   AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(projectFilesystem,config.getNdkVersion(),propertyFinder);
@@ -18,7 +17,7 @@
   JavaCompilerEnvironment javacEnv=javaConfig.getJavaCompilerEnvironment(processExecutor);
   KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createInstance(config,androidDirectoryResolver,javacEnv);
   Repository repository=new Repository(name,projectFilesystem,buildRuleTypes,config,this,androidDirectoryResolver);
-  cachedRepositories.put(root,repository);
+  cachedRepositories.put(absolutePath,repository);
   updateCanonicalNames(repository.getBuckConfig().getRepositoryPaths());
   return repository;
 }

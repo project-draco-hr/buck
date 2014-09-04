@@ -14,7 +14,7 @@
   final Console console=new Console(verbosity,stdOut,stdErr,bootstrapConfig.createAnsi(color));
   Path canonicalRootPath=projectRoot.toPath().toRealPath();
   RepositoryFactory repositoryFactory=new RepositoryFactory(clientEnvironment,platform,console,canonicalRootPath);
-  Repository rootRepository=repositoryFactory.getRepositoryByAbsolutePath(canonicalRootPath);
+  Repository rootRepository=repositoryFactory.getRootRepository();
   if (commandParseResult.getErrorText().isPresent()) {
     console.getStdErr().println(commandParseResult.getErrorText().get());
   }
@@ -41,7 +41,7 @@
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment,rootRepository.getBuckConfig());BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
     artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
-    Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,clock);
+    Optional<WebServer> webServer=getWebServerIfDaemon(context,repositoryFactory,clock);
     eventListeners=addEventListeners(buildEventBus,rootRepository.getFilesystem(),rootRepository.getBuckConfig(),webServer,clock,console,consoleListener,rootRepository.getKnownBuildRuleTypes(),clientEnvironment);
     ImmutableList<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
     Command executingCommand=commandParseResult.getCommand().get();
@@ -51,14 +51,14 @@
     Parser parser=null;
     if (isDaemon) {
       try {
-        parser=getParserFromDaemon(context,rootRepository,commandEvent,buildEventBus,clock);
+        parser=getParserFromDaemon(context,repositoryFactory,commandEvent,buildEventBus,clock);
       }
  catch (      WatchmanWatcherException|IOException e) {
         buildEventBus.post(ConsoleEvent.warning("Watchman threw an exception while parsing file changes.\n%s",e.getMessage()));
       }
     }
     if (parser == null) {
-      parser=new Parser(rootRepository,rootRepository.getBuckConfig().getPythonInterpreter(),rootRepository.getBuckConfig().getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(rootRepository.getFilesystem())));
+      parser=Parser.createParser(repositoryFactory,rootRepository.getBuckConfig().getPythonInterpreter(),rootRepository.getBuckConfig().getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(rootRepository.getFilesystem())));
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootRepository.getFilesystem());
     CachingBuildEngine buildEngine=new CachingBuildEngine();

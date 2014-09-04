@@ -1,0 +1,19 @@
+{
+  Path rootPath=repositoryFactory.getRootRepository().getFilesystem().getRootPath();
+  if (daemon == null) {
+    LOG.debug("Starting up daemon for project root [%s]",rootPath);
+    daemon=new Daemon(repositoryFactory,clock,objectMapper);
+  }
+ else {
+    Path parserRoot=daemon.getParser().getProjectRoot();
+    if (!rootPath.equals(parserRoot)) {
+      throw new HumanReadableException(String.format("Unsupported root path change from %s to %s",rootPath,parserRoot));
+    }
+    if (!daemon.repository.equals(repositoryFactory.getRootRepository())) {
+      LOG.info("Shutting down and restarting daemon on config or directory resolver change.");
+      daemon.close();
+      daemon=new Daemon(repositoryFactory,clock,objectMapper);
+    }
+  }
+  return daemon;
+}

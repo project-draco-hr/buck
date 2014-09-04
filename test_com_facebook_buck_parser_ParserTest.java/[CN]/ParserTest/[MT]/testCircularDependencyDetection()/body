@@ -1,13 +1,16 @@
 {
-  ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
-  BuildTargetParser buildTargetParser=new BuildTargetParser(projectFilesystem){
+  ProjectFilesystem filesystem=new AllExistingProjectFilesystem();
+  Repository fakeRepo=new TestRepositoryBuilder().setFilesystem(filesystem).build();
+  FakeRepositoryFactory fakeFactory=new FakeRepositoryFactory();
+  fakeFactory.setRootRepoForTesting(fakeRepo);
+  BuildTargetParser buildTargetParser=new BuildTargetParser(new FakeProjectFilesystem()){
     @Override public BuildTarget parse(    String buildTargetName,    ParseContext parseContext) throws NoSuchBuildTargetException {
       return BuildTargetFactory.newInstance(buildTargetName);
     }
   }
 ;
   final BuildFileTree buildFiles=createMock(BuildFileTree.class);
-  Parser parser=createParser(ofInstance(buildFiles),circularBuildTargets(),createDoNothingBuildFileParserFactory(),buildTargetParser);
+  Parser parser=createParser(ofInstance(buildFiles),circularBuildTargets(),createDoNothingBuildFileParserFactory(),buildTargetParser,fakeFactory);
   replayAll();
   BuildTarget rootNode=BuildTargetFactory.newInstance("//:A");
   Iterable<BuildTarget> buildTargets=ImmutableSet.of(rootNode);
