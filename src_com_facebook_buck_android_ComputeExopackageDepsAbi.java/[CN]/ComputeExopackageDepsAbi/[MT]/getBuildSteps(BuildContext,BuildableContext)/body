@@ -4,10 +4,16 @@
       try {
         ProjectFilesystem filesystem=context.getProjectFilesystem();
         final Hasher hasher=Hashing.sha1().newHasher();
-        hasher.putUnencodedChars(aaptPackageResources.getResourcePackageHash().toString());
-        hasher.putUnencodedChars(preDexMerge.get().getPrimaryDexHash().toString());
+        String resourceApkHash=aaptPackageResources.getResourcePackageHash().toString();
+        LOG.verbose("resource apk = %s",resourceApkHash);
+        hasher.putUnencodedChars(resourceApkHash);
+        String primaryDexHash=preDexMerge.get().getPrimaryDexHash().toString();
+        LOG.verbose("primary dex = %s",primaryDexHash);
+        hasher.putUnencodedChars(primaryDexHash);
         if (packageStringAssets.isPresent()) {
-          hasher.putUnencodedChars(packageStringAssets.get().getStringAssetsZipHash().toString());
+          String stringAssetsHash=packageStringAssets.get().getStringAssetsZipHash().toString();
+          LOG.verbose("string assets = %s",stringAssetsHash);
+          hasher.putUnencodedChars(stringAssetsHash);
         }
         ImmutableSortedMap.Builder<Path,String> filesToHash=ImmutableSortedMap.naturalOrder();
         for (        final Path libDir : packageableCollection.nativeLibsDirectories) {
@@ -29,12 +35,16 @@
           Path path=entry.getKey();
           hasher.putUnencodedChars(path.toString());
           hasher.putByte((byte)0);
-          hasher.putUnencodedChars(filesystem.computeSha1(path));
+          String fileSha1=filesystem.computeSha1(path);
+          hasher.putUnencodedChars(fileSha1);
           hasher.putByte((byte)0);
           hasher.putUnencodedChars(entry.getValue());
           hasher.putByte((byte)0);
+          LOG.verbose("file %s(%s) = %s",path,entry.getValue(),fileSha1);
         }
-        buildableContext.addMetadata(METADATA_KEY,hasher.hash().toString());
+        String abiHash=hasher.hash().toString();
+        LOG.verbose("ABI hash = %s",abiHash);
+        buildableContext.addMetadata(METADATA_KEY,abiHash);
         return 0;
       }
  catch (      IOException e) {
