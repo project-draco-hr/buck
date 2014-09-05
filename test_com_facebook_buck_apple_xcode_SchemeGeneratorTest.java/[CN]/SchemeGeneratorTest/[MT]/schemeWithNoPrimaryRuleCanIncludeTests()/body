@@ -1,5 +1,4 @@
 {
-  BuildRule rootRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","root").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription);
   BuildRuleParams libraryParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).setType(AppleLibraryDescription.TYPE).build();
   AppleNativeTargetDescriptionArg libraryArg=appleLibraryDescription.createUnpopulatedConstructorArg();
   libraryArg.configs=Optional.of(ImmutableMap.<String,ImmutableList<Either<SourcePath,ImmutableMap<String,String>>>>of());
@@ -23,14 +22,14 @@
   arg.contacts=Optional.of(ImmutableSortedSet.<String>of());
   arg.labels=Optional.of(ImmutableSortedSet.<Label>of());
   arg.deps=Optional.of(ImmutableSortedSet.of(xctestRule));
-  arg.sourceUnderTest=Optional.of(ImmutableSortedSet.<BuildRule>of(rootRule));
+  arg.sourceUnderTest=Optional.of(ImmutableSortedSet.<BuildRule>of(libraryRule));
   BuildRule testRule=appleTestDescription.createBuildRule(params,new BuildRuleResolver(),arg);
   ImmutableMap.Builder<BuildRule,PBXTarget> buildRuleToTargetMapBuilder=ImmutableMap.builder();
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
-  PBXTarget rootTarget=new PBXNativeTarget("rootRule",PBXTarget.ProductType.STATIC_LIBRARY);
-  rootTarget.setGlobalID("rootGID");
-  rootTarget.setProductReference(new PBXFileReference("root.a","root.a",PBXReference.SourceTree.BUILT_PRODUCTS_DIR));
-  buildRuleToTargetMapBuilder.put(rootRule,rootTarget);
+  PBXTarget testLibraryTarget=new PBXNativeTarget("testLibrary",PBXTarget.ProductType.STATIC_LIBRARY);
+  testLibraryTarget.setGlobalID("testLibraryGID");
+  testLibraryTarget.setProductReference(new PBXFileReference("lib.a","lib.a",PBXReference.SourceTree.BUILT_PRODUCTS_DIR));
+  buildRuleToTargetMapBuilder.put(libraryRule,testLibraryTarget);
   PBXTarget testTarget=new PBXNativeTarget("testRule",PBXTarget.ProductType.STATIC_LIBRARY);
   testTarget.setGlobalID("testGID");
   testTarget.setProductReference(new PBXFileReference("test.a","test.a",PBXReference.SourceTree.BUILT_PRODUCTS_DIR));
@@ -40,10 +39,10 @@
   testBundleTarget.setProductReference(new PBXFileReference("test.xctest","test.xctest",PBXReference.SourceTree.BUILT_PRODUCTS_DIR));
   buildRuleToTargetMapBuilder.put(xctestRule,testBundleTarget);
   Path pbxprojectPath=Paths.get("foo/Foo.xcodeproj/project.pbxproj");
-  targetToProjectPathMapBuilder.put(rootTarget,pbxprojectPath);
+  targetToProjectPathMapBuilder.put(testLibraryTarget,pbxprojectPath);
   targetToProjectPathMapBuilder.put(testTarget,pbxprojectPath);
   targetToProjectPathMapBuilder.put(testBundleTarget,pbxprojectPath);
-  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,Optional.of(rootRule),ImmutableSet.of(rootRule),ImmutableSet.of(xctestRule),ImmutableSet.of(xctestRule),"TestScheme",Paths.get("_gen/Foo.xcworkspace/scshareddata/xcshemes"),SchemeActionType.DEFAULT_CONFIG_NAMES,buildRuleToTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,Optional.<BuildRule>absent(),ImmutableSet.<BuildRule>of(),ImmutableSet.of(xctestRule),ImmutableSet.of(xctestRule),"TestScheme",Paths.get("_gen/Foo.xcworkspace/scshareddata/xcshemes"),SchemeActionType.DEFAULT_CONFIG_NAMES,buildRuleToTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
   Path schemePath=schemeGenerator.writeScheme();
   String schemeXml=projectFilesystem.readFileIfItExists(schemePath).get();
   System.out.println(schemeXml);
@@ -54,7 +53,7 @@
   XPath buildActionXpath=xpathFactory.newXPath();
   XPathExpression buildActionExpr=buildActionXpath.compile("//BuildAction//BuildableReference/@BlueprintIdentifier");
   NodeList buildActionNodes=(NodeList)buildActionExpr.evaluate(scheme,XPathConstants.NODESET);
-  List<String> expectedOrdering=ImmutableList.of("rootGID","testBundleGID");
+  List<String> expectedOrdering=ImmutableList.of("testBundleGID");
   List<String> actualOrdering=Lists.newArrayList();
   for (int i=0; i < buildActionNodes.getLength(); i++) {
     actualOrdering.add(buildActionNodes.item(i).getNodeValue());
@@ -67,9 +66,9 @@
   XPath launchActionXpath=xpathFactory.newXPath();
   XPathExpression launchActionExpr=launchActionXpath.compile("//LaunchAction//BuildableReference/@BlueprintIdentifier");
   String launchActionBlueprintIdentifier=(String)launchActionExpr.evaluate(scheme,XPathConstants.STRING);
-  assertThat(launchActionBlueprintIdentifier,equalTo("rootGID"));
+  assertThat(launchActionBlueprintIdentifier,equalTo(""));
   XPath profileActionXpath=xpathFactory.newXPath();
   XPathExpression profileActionExpr=profileActionXpath.compile("//ProfileAction//BuildableReference/@BlueprintIdentifier");
   String profileActionBlueprintIdentifier=(String)profileActionExpr.evaluate(scheme,XPathConstants.STRING);
-  assertThat(profileActionBlueprintIdentifier,equalTo("rootGID"));
+  assertThat(profileActionBlueprintIdentifier,equalTo(""));
 }
