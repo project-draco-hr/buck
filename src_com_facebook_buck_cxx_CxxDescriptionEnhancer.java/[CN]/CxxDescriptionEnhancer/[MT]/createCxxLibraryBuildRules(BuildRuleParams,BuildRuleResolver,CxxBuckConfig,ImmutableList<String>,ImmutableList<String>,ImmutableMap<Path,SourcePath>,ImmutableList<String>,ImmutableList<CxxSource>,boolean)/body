@@ -1,5 +1,6 @@
 {
-  CxxPreprocessorInput cxxPreprocessorInput=createHeaderBuildRules(params,resolver,cxxBuckConfig,preprocessorFlags,headers);
+  final SymlinkTree headerSymlinkTree=createHeaderSymlinkTreeBuildRule(params,resolver,headers);
+  CxxPreprocessorInput cxxPreprocessorInput=combineCxxPreprocessorInput(params,cxxBuckConfig,preprocessorFlags,headerSymlinkTree,headers);
   ImmutableList<SourcePath> objects=createPreprocessAndCompileBuildRules(params,resolver,cxxBuckConfig,cxxPreprocessorInput,compilerFlags,false,sources);
   final BuildTarget staticLibraryTarget=createStaticLibraryBuildTarget(params.getBuildTarget());
   final Path staticLibraryPath=Archives.getArchiveOutputPath(staticLibraryTarget);
@@ -13,7 +14,7 @@
   resolver.addToIndex(sharedLibraryBuildRule);
   return new CxxLibrary(params){
     @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
-      return new CxxPreprocessorInput(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderTarget(params.getBuildTarget()),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(params.getBuildTarget())),propagatedPpFlags,propagatedPpFlags,ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(params.getBuildTarget())),ImmutableList.<Path>of());
+      return new CxxPreprocessorInput(ImmutableSet.of(headerSymlinkTree.getBuildTarget()),propagatedPpFlags,propagatedPpFlags,headers,ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(params.getBuildTarget())),ImmutableList.<Path>of());
     }
     @Override public NativeLinkableInput getNativeLinkableInput(    NativeLinkable.Type type){
       ImmutableList.Builder<String> linkerArgsBuilder=ImmutableList.builder();
