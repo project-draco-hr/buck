@@ -3,13 +3,13 @@
   ImmutableList<SourcePath> objects=createPreprocessAndCompileBuildRules(params,resolver,cxxBuckConfig,cxxPreprocessorInput,compilerFlags,false,sources);
   final BuildTarget staticLibraryTarget=createStaticLibraryBuildTarget(params.getBuildTarget());
   final Path staticLibraryPath=Archives.getArchiveOutputPath(staticLibraryTarget);
-  Archive archive=Archives.createArchiveRule(staticLibraryTarget,params,cxxBuckConfig.getAr().or(Archives.DEFAULT_ARCHIVE_PATH),staticLibraryPath,objects);
-  resolver.addToIndex(archive);
+  final Archive staticLibraryBuildRule=Archives.createArchiveRule(staticLibraryTarget,params,cxxBuckConfig.getAr().or(Archives.DEFAULT_ARCHIVE_PATH),staticLibraryPath,objects);
+  resolver.addToIndex(staticLibraryBuildRule);
   ImmutableList<SourcePath> picObjects=createPreprocessAndCompileBuildRules(params,resolver,cxxBuckConfig,cxxPreprocessorInput,compilerFlags,true,sources);
   final BuildTarget sharedLibraryTarget=createSharedLibraryBuildTarget(params.getBuildTarget());
   final String sharedLibrarySoname=getSharedLibrarySoname(params.getBuildTarget());
   final Path sharedLibraryPath=getSharedLibraryOutputPath(params.getBuildTarget());
-  final CxxLink sharedLibraryBuildRule=CxxLinkableEnhancer.createCxxLinkableBuildRule(params,resolver,cxxBuckConfig.getLd().or(CxxLinkables.DEFAULT_LINKER_PATH),cxxBuckConfig.getCxxLdFlags(),cxxBuckConfig.getLdFlags(),sharedLibraryTarget,CxxLinkableEnhancer.LinkType.SHARED,Optional.of(sharedLibrarySoname),sharedLibraryPath,picObjects,NativeLinkable.Type.SHARED,params.getDeps());
+  final CxxLink sharedLibraryBuildRule=CxxLinkableEnhancer.createCxxLinkableBuildRule(params,cxxBuckConfig.getLd().or(CxxLinkables.DEFAULT_LINKER_PATH),cxxBuckConfig.getCxxLdFlags(),cxxBuckConfig.getLdFlags(),sharedLibraryTarget,CxxLinkableEnhancer.LinkType.SHARED,Optional.of(sharedLibrarySoname),sharedLibraryPath,picObjects,NativeLinkable.Type.SHARED,params.getDeps());
   resolver.addToIndex(sharedLibraryBuildRule);
   return new CxxLibrary(params){
     @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
@@ -25,7 +25,7 @@
         linkerArgsBuilder.add("--no-whole-archive");
       }
       final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
-      return new NativeLinkableInput(ImmutableSet.of(type == Type.STATIC ? staticLibraryTarget : sharedLibraryTarget),ImmutableList.<Path>of(),linkerArgs);
+      return new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildRuleSourcePath(type == Type.STATIC ? staticLibraryBuildRule : sharedLibraryBuildRule)),linkerArgs);
     }
     @Override public PythonPackageComponents getPythonPackageComponents(){
       return new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new BuildRuleSourcePath(sharedLibraryBuildRule)));
