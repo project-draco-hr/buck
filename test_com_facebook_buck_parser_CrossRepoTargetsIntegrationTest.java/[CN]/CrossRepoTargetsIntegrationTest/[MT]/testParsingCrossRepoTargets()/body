@@ -1,0 +1,20 @@
+{
+  ProjectWorkspace external=TestDataHelper.createProjectWorkspaceForScenario(this,"crossrepo_external",externalFolder);
+  external.setUp();
+  ProjectWorkspace main=TestDataHelper.createProjectWorkspaceForScenario(this,"crossrepo_main",mainFolder);
+  main.setUp();
+  String repositoriesSection="[repositories]\n" + "external = " + externalFolder.getRoot() + "\n";
+  Files.append(repositoriesSection,main.getFile(".buckconfig"),Charset.defaultCharset());
+  TestConsole console=new TestConsole();
+  RepositoryFactory repositoryFactory=new RepositoryFactory(ImmutableMap.copyOf(System.getenv()),Platform.detect(),console,mainFolder.getRoot().toPath());
+  Repository mainRepo=repositoryFactory.getRepositoryByAbsolutePath(mainFolder.getRoot().toPath());
+  Parser parser=Parser.createParser(repositoryFactory,mainRepo.getBuckConfig().getPythonInterpreter(),ImmutableSet.<Pattern>of(),new FakeRuleKeyBuilderFactory());
+  BuildTarget mainTarget=BuildTarget.builder("//","main").build();
+  BuildTarget externalTarget=BuildTarget.builder("//","external").setRepository("external").build();
+  ActionGraph graph=parser.parseBuildFilesForTargets(ImmutableList.of(mainTarget),ImmutableList.<String>of(),BuckEventBusFactory.newInstance(),console,ImmutableMap.<String,String>of());
+  BuildRule mainRule=graph.findBuildRuleByTarget(mainTarget);
+  assertEquals(mainTarget,mainRule.getBuildTarget());
+  BuildRule externalRule=graph.findBuildRuleByTarget(externalTarget);
+  assertEquals(externalTarget,externalRule.getBuildTarget());
+  assertEquals(externalRule,mainRule.getDeps().first());
+}

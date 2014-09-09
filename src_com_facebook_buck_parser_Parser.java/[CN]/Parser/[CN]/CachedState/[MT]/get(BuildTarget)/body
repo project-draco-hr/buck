@@ -3,8 +3,16 @@
   if (toReturn != null) {
     return toReturn;
   }
+  Repository targetRepo=repositoryFactory.getRepositoryByCanonicalName(buildTarget.getRepository());
+  Path buildFilePath;
+  try {
+    buildFilePath=targetRepo.getAbsolutePathToBuildFile(buildTarget);
+  }
+ catch (  Repository.MissingBuildFileException e) {
+    throw new HumanReadableException(e);
+  }
   BuildTarget unflavored=buildTarget.getUnflavoredTarget();
-  List<Map<String,Object>> rules=state.getRawRules(unflavored.getBuildFilePath());
+  List<Map<String,Object>> rules=state.getRawRules(buildFilePath);
   for (  Map<String,Object> map : rules) {
     if (!buildTarget.getShortNameOnly().equals(map.get("name"))) {
       continue;
@@ -18,7 +26,7 @@
     if ((description instanceof Flavored) && !((Flavored)description).hasFlavors(buildTarget.getFlavors())) {
       throw new HumanReadableException("Unrecognized flavor in target %s while parsing %s%s.",buildTarget,BuildTarget.BUILD_TARGET_PREFIX,buildTarget.getBuildFilePath());
     }
-    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(map,repository.getFilesystem(),buildTargetParser,buildTarget,ruleKeyBuilderFactory);
+    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(map,targetRepo.getFilesystem(),targetRepo.getBuildTargetParser(),buildTarget,ruleKeyBuilderFactory);
     TargetNode<?> targetNode;
     try {
       targetNode=new TargetNode<>(description,factoryParams);
