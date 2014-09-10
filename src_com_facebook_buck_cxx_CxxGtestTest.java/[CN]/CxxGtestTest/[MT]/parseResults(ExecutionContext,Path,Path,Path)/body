@@ -1,0 +1,41 @@
+{
+  ImmutableList.Builder<TestResultSummary> summariesBuilder=ImmutableList.builder();
+  List<String> outputLines=context.getProjectFilesystem().readLines(output);
+  Optional<String> currentTest=Optional.absent();
+  Map<String,List<String>> stdout=Maps.newHashMap();
+  for (  String line : outputLines) {
+    Matcher matcher;
+    if ((matcher=START.matcher(line.trim())).matches()) {
+      String test=matcher.group(1);
+      currentTest=Optional.of(test);
+      stdout.put(test,Lists.<String>newArrayList());
+    }
+ else     if (END.matcher(line.trim()).matches()) {
+      currentTest=Optional.absent();
+    }
+ else     if (currentTest.isPresent()) {
+      stdout.get(currentTest.get()).add(line);
+    }
+  }
+  Document doc=XmlDomParser.parse(results.toFile());
+  Node testsuites=doc.getElementsByTagName("testsuites").item(0);
+  Node testsuite=testsuites.getChildNodes().item(1);
+  NodeList testcases=testsuite.getChildNodes();
+  for (int index=1; index < testcases.getLength(); index+=2) {
+    Node testcase=testcases.item(index);
+    NamedNodeMap attributes=testcase.getAttributes();
+    String testCase=attributes.getNamedItem("classname").getNodeValue();
+    String testName=attributes.getNamedItem("name").getNodeValue();
+    String testFull=String.format("%s.%s",testCase,testName);
+    Double time=Double.parseDouble(attributes.getNamedItem("time").getNodeValue()) * 1000;
+    ResultType type=ResultType.SUCCESS;
+    String message="";
+    if (testcase.getChildNodes().getLength() > 0) {
+      Node failure=testcase.getChildNodes().item(1);
+      type=ResultType.FAILURE;
+      message=failure.getAttributes().getNamedItem("message").getNodeValue();
+    }
+    summariesBuilder.add(new TestResultSummary(testCase,testName,type,time.longValue(),message,"",Joiner.on(System.lineSeparator()).join(stdout.get(testFull)),""));
+  }
+  return summariesBuilder.build();
+}

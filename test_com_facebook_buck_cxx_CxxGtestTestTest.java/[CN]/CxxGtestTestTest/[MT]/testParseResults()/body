@@ -1,0 +1,17 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"gtest",tmp);
+  workspace.setUp();
+  ImmutableList<String> samples=ImmutableList.of("simple_success","simple_failure","simple_failure_with_output");
+  BuildTarget target=BuildTargetFactory.newInstance("//:test");
+  CxxGtestTest test=new CxxGtestTest(BuildRuleParamsFactory.createTrivialBuildRuleParams(target),Paths.get(""),ImmutableSet.<Label>of(),ImmutableSet.<String>of(),ImmutableSet.<BuildRule>of());
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(new ProjectFilesystem(tmp.getRoot().toPath())).build();
+  for (  String sample : samples) {
+    Path exitCode=Paths.get("unused");
+    Path output=workspace.resolve(Paths.get(sample)).resolve("output");
+    Path results=workspace.resolve(Paths.get(sample)).resolve("results");
+    Path summaries=workspace.resolve(Paths.get(sample)).resolve("summaries");
+    List<TestResultSummary> expectedSummaries=mapper.readValue(summaries.toFile(),SUMMARIES_REFERENCE);
+    ImmutableList<TestResultSummary> actualSummaries=test.parseResults(context,exitCode,output,results);
+    assertEquals(sample,expectedSummaries,actualSummaries);
+  }
+}
