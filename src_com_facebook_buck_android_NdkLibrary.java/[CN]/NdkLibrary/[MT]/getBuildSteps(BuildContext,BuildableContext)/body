@@ -4,6 +4,26 @@
   Step mkDirStep=new MakeCleanDirectoryStep(genDirectory);
   Step copyStep=CopyStep.forDirectory(binDirectory,genDirectory,CopyStep.DirectoryMode.CONTENTS_ONLY);
   buildableContext.recordArtifactsInDirectory(genDirectory);
-  buildableContext.recordArtifactsInDirectory(buildArtifactsDirectory);
-  return ImmutableList.of(nkdBuildStep,mkDirStep,copyStep);
+  Step cacheUnstrippedObjs=new AbstractExecutionStep("cache_unstripped_so"){
+    @Override public int execute(    ExecutionContext context){
+      try {
+        Set<Path> unstrippedSharedObjs=context.getProjectFilesystem().getFilesUnderPath(buildArtifactsDirectory,new Predicate<Path>(){
+          @Override public boolean apply(          Path input){
+            return input.toString().endsWith(".so");
+          }
+        }
+);
+        for (        Path path : unstrippedSharedObjs) {
+          buildableContext.recordArtifact(path);
+        }
+      }
+ catch (      IOException e) {
+        context.logError(e,"Failed to cache intermediate artifacts of %s.",getBuildTarget());
+        return 1;
+      }
+      return 0;
+    }
+  }
+;
+  return ImmutableList.of(nkdBuildStep,mkDirStep,copyStep,cacheUnstrippedObjs);
 }
