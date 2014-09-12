@@ -1,0 +1,19 @@
+{
+  final HttpURLConnection connection=EasyMock.createNiceMock(HttpURLConnection.class);
+  EasyMock.expect(connection.getResponseCode()).andStubReturn(HTTP_FORBIDDEN);
+  EasyMock.replay(connection);
+  Downloader downloader=new Downloader(Optional.<Proxy>absent(),Optional.<String>absent()){
+    @Override protected HttpURLConnection createConnection(    URI uri) throws IOException {
+      return connection;
+    }
+  }
+;
+  try {
+    downloader.fetch(eventBus,new URI("http://example.com"),neverUsed);
+    fail();
+  }
+ catch (  HumanReadableException e) {
+    assertTrue(e.getMessage().contains("Unable to download"));
+  }
+  EasyMock.verify(connection);
+}

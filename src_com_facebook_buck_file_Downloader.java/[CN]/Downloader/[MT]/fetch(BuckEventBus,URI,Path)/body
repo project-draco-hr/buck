@@ -1,0 +1,30 @@
+{
+  if ("mvn".equals(uri.getScheme())) {
+    uri=MavenUrlDecoder.toHttpUrl(mavenRepo,uri);
+  }
+  eventBus.post(DownloadEvent.started(uri));
+  try {
+    HttpURLConnection connection=createConnection(uri);
+    if (HttpURLConnection.HTTP_OK != connection.getResponseCode()) {
+      throw new HumanReadableException("Unable to download %s: %s",uri,connection.getResponseMessage());
+    }
+    long contentLength=connection.getContentLengthLong();
+    try (InputStream is=new BufferedInputStream(connection.getInputStream());OutputStream os=new BufferedOutputStream(Files.newOutputStream(output))){
+      long read=0;
+      while (true) {
+        int r=is.read();
+        read++;
+        if (r == -1) {
+          break;
+        }
+        if (read % PROGRESS_REPORT_EVERY_N_BYTES == 0) {
+          eventBus.post(new DownloadProgressEvent(uri,contentLength,read));
+        }
+        os.write(r);
+      }
+    }
+   }
+  finally {
+    eventBus.post(DownloadEvent.finished(uri));
+  }
+}
