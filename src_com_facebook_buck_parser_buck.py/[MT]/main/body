@@ -17,12 +17,18 @@ def main():
             if (BUILD_RULES_FILE_NAME in filenames):
                 build_file = os.path.join(dirpath, BUILD_RULES_FILE_NAME)
                 build_files.append(build_file)
-    buildFileProcessor = BuildFileProcessor(project_root, (options.include or []), options.server)
+    buildFileProcessor = BuildFileProcessor(project_root, implicit_includes=(options.include or []))
     for build_file in build_files:
-        buildFileProcessor.process(build_file)
+        values = buildFileProcessor.process(build_file)
+        if options.server:
+            print json.dumps(values)
+        else:
+            for value in values:
+                print json.dumps(value)
     if options.server:
         for build_file in iter(sys.stdin.readline, ''):
-            buildFileProcessor.process(build_file.rstrip())
+            values = buildFileProcessor.process(build_file.rstrip())
+            print json.dumps(values)
     try:
         sys.stdout.close()
     except IOError:

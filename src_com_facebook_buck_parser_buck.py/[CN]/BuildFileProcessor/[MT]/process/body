@@ -1,17 +1,6 @@
-def process(self, build_file):
-    'Process an individual build file and output JSON to stdout.'
-    build_env = copy.copy(self.root_build_env)
-    relative_path_to_build_file = os.path.relpath(build_file, self.project_root).replace('\\', '/')
-    build_env['BASE'] = relative_path_to_build_file[:self.len_suffix]
-    build_env['BUILD_FILE_DIRECTORY'] = os.path.dirname(build_file)
-    build_env['RULES'] = {}
-    build_env['BUILD_FILE_SYMBOL_TABLE'] = copy.copy(self.root_build_env['BUILD_FILE_SYMBOL_TABLE'])
-    update_lazy_functions(build_env['LAZY_FUNCTIONS'], build_env)
-    execfile(os.path.join(self.project_root, build_file), build_env['BUILD_FILE_SYMBOL_TABLE'])
-    values = build_env['RULES'].values()
-    values.append({'__includes': ([build_file] + build_env['INCLUDES']), })
-    if self.server:
-        print json.dumps(values)
-    else:
-        for value in values:
-            print json.dumps(value)
+def process(self, path):
+    "\n        Process a build file returning a dict of it's rules and includes.\n        "
+    (build_env, mod) = self._process_build_file(os.path.join(self._project_root, path), implicit_includes=self._implicit_includes)
+    values = build_env.rules.values()
+    values.append({'__includes': ([path] + sorted(build_env.includes)), })
+    return values
