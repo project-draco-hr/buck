@@ -1,0 +1,28 @@
+{
+  this.doStore=doStore;
+  this.buckEventBus=Preconditions.checkNotNull(buckEventBus);
+  this.fileHashCache=Preconditions.checkNotNull(fileHashCache);
+  this.numConnectionExceptionReports=new AtomicInteger(0);
+  this.timeoutSeconds=timeoutSeconds;
+  this.context=Preconditions.checkNotNull(context);
+  ExecutorService connectionService=MoreExecutors.getExitingExecutorService((ThreadPoolExecutor)Executors.newFixedThreadPool(1),0,TimeUnit.SECONDS);
+  this.keyspaceAndTtlFuture=connectionService.submit(new Callable<KeyspaceAndTtl>(){
+    @Override public KeyspaceAndTtl call() throws ConnectionException {
+      context.start();
+      Keyspace keyspace=context.getClient();
+      try {
+        verifyMagic(keyspace);
+        int ttl=getTtl(keyspace);
+        return new KeyspaceAndTtl(keyspace,ttl);
+      }
+ catch (      ConnectionException e) {
+        reportConnectionFailure("Attempting to get keyspace and ttl from server.",e);
+        throw e;
+      }
+    }
+  }
+);
+  this.futures=Sets.newSetFromMap(new ConcurrentHashMap<ListenableFuture<OperationResult<Void>>,Boolean>());
+  this.isWaitingToClose=new AtomicBoolean(false);
+  this.isKilled=new AtomicBoolean(false);
+}

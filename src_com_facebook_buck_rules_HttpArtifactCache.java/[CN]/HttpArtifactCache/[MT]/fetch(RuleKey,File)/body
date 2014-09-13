@@ -23,11 +23,29 @@ catch (  IOException e) {
   }
 switch (responseCode) {
 case HttpURLConnection.HTTP_OK:
-    try {
-      Path path=file.toPath();
-      projectFilesystem.createParentDirs(path);
-      projectFilesystem.copyToPath(connection.getInputStream(),path,StandardCopyOption.REPLACE_EXISTING);
-    }
+    try (InputStream input=connection.getInputStream()){
+      try (ObjectInputStream objectStream=new ObjectInputStream(input)){
+        HashCode expectedHashCode;
+        try {
+          expectedHashCode=(HashCode)objectStream.readObject();
+        }
+ catch (        ClassNotFoundException|ClassCastException e) {
+          logger.warn("fetch(%s): could not deserialize artifact checksum",ruleKey);
+          return CacheResult.MISS;
+        }
+        Path path=file.toPath();
+        projectFilesystem.createParentDirs(path);
+        Path temp=projectFilesystem.createTempFile(path.getParent(),path.getFileName().toString(),".tmp");
+        projectFilesystem.copyToPath(input,temp,StandardCopyOption.REPLACE_EXISTING);
+        HashCode actualHashCode=fileHashCache.get(temp);
+        if (!expectedHashCode.equals(actualHashCode)) {
+          logger.warn("fetch(%s): artifact had invalid checksum",ruleKey);
+          projectFilesystem.deleteFileAtPath(temp);
+          return CacheResult.MISS;
+        }
+        projectFilesystem.move(temp,path,StandardCopyOption.REPLACE_EXISTING);
+      }
+     }
  catch (    IOException e) {
       logger.warn(e,"fetch(%s): [write] IOException: %s",ruleKey,e.getMessage());
       return CacheResult.MISS;

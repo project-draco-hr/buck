@@ -18,10 +18,29 @@
   try {
     Column<String> column=result.getResult().getColumnByName(ARTIFACT_COLUMN_NAME);
     if (column != null) {
-      byte[] artifact=column.getByteArrayValue();
-      Files.createParentDirs(output);
-      Files.write(artifact,output);
-      if (System.currentTimeMillis() * 1000L - column.getTimestamp() > ttl * 1000000L / 2L) {
+      ByteArrayInputStream dataStream=new ByteArrayInputStream(column.getByteArrayValue());
+      try (ObjectInputStream objectStream=new ObjectInputStream(dataStream)){
+        HashCode expectedHashCode;
+        try {
+          expectedHashCode=(HashCode)objectStream.readObject();
+        }
+ catch (        ClassNotFoundException|ClassCastException e) {
+          buckEventBus.post(ThrowableConsoleEvent.create(e,"Could not deserialize artifact checksum from %s:%s.",ruleKey,output.getPath()));
+          return CacheResult.MISS;
+        }
+        Path path=output.toPath();
+        Files.createDirectories(path.getParent());
+        Path temp=Files.createTempFile(path.getParent(),path.getFileName().toString(),".tmp");
+        Files.copy(dataStream,temp,StandardCopyOption.REPLACE_EXISTING);
+        HashCode actualHashCode=fileHashCache.get(temp);
+        if (!expectedHashCode.equals(actualHashCode)) {
+          buckEventBus.post(new CassandraChecksumMismatchEvent(expectedHashCode,actualHashCode));
+          Files.delete(temp);
+          return CacheResult.MISS;
+        }
+        Files.move(temp,path,StandardCopyOption.REPLACE_EXISTING);
+      }
+       if (System.currentTimeMillis() * 1000L - column.getTimestamp() > ttl * 1000000L / 2L) {
         store(ruleKey,output);
       }
       success=CacheResult.CASSANDRA_HIT;

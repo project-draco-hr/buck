@@ -4,12 +4,13 @@
   Capture<String> successMessage=new Capture<>();
   console.printSuccess(capture(successMessage));
   CommandRunnerParamsForTesting commandRunnerParams=CommandRunnerParamsForTesting.builder().setConsole(console).build();
-  CacheCommand cacheCommand=new CacheCommand(commandRunnerParams);
+  FileHashCache fileHashCache=FakeFileHashCache.createFromStrings(Maps.<String,String>newHashMap());
+  CacheCommand cacheCommand=new CacheCommand(commandRunnerParams,fileHashCache);
   BuckConfig buckConfig=createMock(BuckConfig.class);
   CassandraArtifactCache cassandra=createMock(CassandraArtifactCache.class);
   expect(cassandra.fetch(eq(new RuleKey(ruleKeyHash)),capture(new Capture<File>()))).andReturn(CacheResult.CASSANDRA_HIT);
   Capture<BuckEventBus> buckEventBus=new Capture<>();
-  expect(buckConfig.createCassandraArtifactCache(eq(Optional.<String>absent()),capture(buckEventBus))).andReturn(cassandra);
+  expect(buckConfig.createCassandraArtifactCache(eq(Optional.<String>absent()),capture(buckEventBus),anyObject(FileHashCache.class))).andReturn(cassandra);
   replayAll();
   CacheCommandOptions options=new CacheCommandOptions(buckConfig);
   options.setArguments(ImmutableList.of(ruleKeyHash));

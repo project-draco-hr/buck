@@ -7,13 +7,26 @@
     return;
   }
   try {
-    Keyspace keyspace=keyspaceAndTtl.get().getKeyspace();
-    int ttl=keyspaceAndTtl.get().getTtl();
-    MutationBatch mutationBatch=keyspace.prepareMutationBatch();
-    mutationBatch.withRow(CF_ARTIFACT,ruleKey.toString()).setDefaultTtl(ttl).putColumn(ARTIFACT_COLUMN_NAME,Files.toByteArray(output));
-    ListenableFuture<OperationResult<Void>> mutationFuture=mutationBatch.executeAsync();
-    trackFuture(mutationFuture);
-  }
+    ByteArrayOutputStream dataStream=new ByteArrayOutputStream();
+    try (ObjectOutputStream objectStream=new ObjectOutputStream(dataStream)){
+      HashCode hashCode=fileHashCache.get(output.toPath());
+      try {
+        objectStream.writeObject(hashCode);
+        objectStream.flush();
+      }
+ catch (      NotSerializableException e) {
+        buckEventBus.post(ThrowableConsoleEvent.create(e,"Artifact store(%s, %s) error: %s",ruleKey,output.getPath()));
+        return;
+      }
+      Files.copy(output.toPath(),dataStream);
+      Keyspace keyspace=keyspaceAndTtl.get().getKeyspace();
+      int ttl=keyspaceAndTtl.get().getTtl();
+      MutationBatch mutationBatch=keyspace.prepareMutationBatch();
+      mutationBatch.withRow(CF_ARTIFACT,ruleKey.toString()).setDefaultTtl(ttl).putColumn(ARTIFACT_COLUMN_NAME,dataStream.toByteArray());
+      ListenableFuture<OperationResult<Void>> mutationFuture=mutationBatch.executeAsync();
+      trackFuture(mutationFuture);
+    }
+   }
  catch (  ConnectionException e) {
     reportConnectionFailure("Attempting to store " + ruleKey + ".",e);
   }

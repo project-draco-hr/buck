@@ -38,9 +38,10 @@
       return BUSY_EXIT_CODE;
     }
   }
+  DefaultFileHashCache fileHashCache=new DefaultFileHashCache(rootRepository.getFilesystem());
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,verbosity,executionEnvironment,rootRepository.getBuckConfig());BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
-    artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
+    artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus,fileHashCache);
     Optional<WebServer> webServer=getWebServerIfDaemon(context,repositoryFactory,clock);
     eventListeners=addEventListeners(buildEventBus,rootRepository.getFilesystem(),rootRepository.getBuckConfig(),webServer,clock,console,consoleListener,rootRepository.getKnownBuildRuleTypes(),clientEnvironment);
     ImmutableList<String> remainingArgs=ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length));
@@ -58,7 +59,7 @@
       }
     }
     if (parser == null) {
-      parser=Parser.createParser(repositoryFactory,rootRepository.getBuckConfig().getPythonInterpreter(),rootRepository.getBuckConfig().getTempFilePatterns(),createRuleKeyBuilderFactory(new DefaultFileHashCache(rootRepository.getFilesystem())));
+      parser=Parser.createParser(repositoryFactory,rootRepository.getBuckConfig().getPythonInterpreter(),rootRepository.getBuckConfig().getTempFilePatterns(),createRuleKeyBuilderFactory(fileHashCache));
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootRepository.getFilesystem());
     CachingBuildEngine buildEngine=new CachingBuildEngine();
