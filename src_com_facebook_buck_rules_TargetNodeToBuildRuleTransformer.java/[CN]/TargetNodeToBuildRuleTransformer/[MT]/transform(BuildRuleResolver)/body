@@ -1,0 +1,21 @@
+{
+  BuildRuleFactoryParams ruleFactoryParams=targetNode.getRuleFactoryParams();
+  Description<T> description=targetNode.getDescription();
+  ConstructorArgMarshaller inspector=new ConstructorArgMarshaller();
+  T arg=description.createUnpopulatedConstructorArg();
+  try {
+    inspector.populate(ruleResolver,ruleFactoryParams.getProjectFilesystem(),ruleFactoryParams,arg);
+  }
+ catch (  ConstructorArgMarshalException e) {
+    throw new HumanReadableException("%s: %s",targetNode.getBuildTarget(),e.getMessage());
+  }
+  ImmutableSortedSet.Builder<BuildRule> declaredRules=expandRules(ruleResolver,targetNode.getDeclaredDeps());
+  ImmutableSortedSet.Builder<BuildRule> extraRules=expandRules(ruleResolver,targetNode.getExtraDeps());
+  BuildRuleParams params=new BuildRuleParams(targetNode.getBuildTarget(),declaredRules.build(),extraRules.build(),getVisibilityPatterns(targetNode),ruleFactoryParams.getProjectFilesystem(),ruleFactoryParams.getRuleKeyBuilderFactory(),description.getBuildRuleType());
+  BuildRule buildRule=description.createBuildRule(params,ruleResolver,arg);
+  if (description instanceof FlavorableDescription && !targetNode.getBuildTarget().isFlavored()) {
+    FlavorableDescription<T> flavorable=(FlavorableDescription<T>)description;
+    flavorable.registerFlavors(arg,buildRule,ruleFactoryParams.getProjectFilesystem(),ruleFactoryParams.getRuleKeyBuilderFactory(),ruleResolver);
+  }
+  return buildRule;
+}
