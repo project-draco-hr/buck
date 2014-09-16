@@ -1,7 +1,7 @@
 {
-  PartialGraphs partialGraphs;
+  ActionGraphs actionGraphs;
   try {
-    partialGraphs=createPartialGraphs(options);
+    actionGraphs=createPartialGraphs(options);
   }
  catch (  BuildTargetException|BuildFileParseException e) {
     throw new HumanReadableException(e);
@@ -14,7 +14,7 @@
  catch (  NoSuchBuildTargetException e) {
     throw new HumanReadableException(e);
   }
-  ExecutionContext executionContext=createExecutionContext(options,partialGraphs.getProjectGraph().getActionGraph());
+  ExecutionContext executionContext=createExecutionContext(options,actionGraphs.getProjectGraph());
   ImmutableSet.Builder<ProjectGenerator.Option> optionsBuilder=ImmutableSet.builder();
   if (options.getReadOnly()) {
     optionsBuilder.add(ProjectGenerator.Option.GENERATE_READ_ONLY_FILES);
@@ -23,13 +23,13 @@
     optionsBuilder.add(ProjectGenerator.Option.INCLUDE_TESTS);
   }
   if (options.getCombinedProject() != null) {
-    ProjectGenerator projectGenerator=new ProjectGenerator(partialGraphs.getProjectGraph().getActionGraph().getNodes(),passedInTargetsSet,getProjectFilesystem(),executionContext,getProjectFilesystem().getPathForRelativePath(Paths.get("_gen")),"GeneratedProject",optionsBuilder.addAll(ProjectGenerator.COMBINED_PROJECT_OPTIONS).build());
+    ProjectGenerator projectGenerator=new ProjectGenerator(actionGraphs.getProjectGraph().getNodes(),passedInTargetsSet,getProjectFilesystem(),executionContext,getProjectFilesystem().getPathForRelativePath(Paths.get("_gen")),"GeneratedProject",optionsBuilder.addAll(ProjectGenerator.COMBINED_PROJECT_OPTIONS).build());
     projectGenerator.createXcodeProjects();
   }
  else   if (options.getWorkspaceAndProjects()) {
     ImmutableSet<BuildTarget> targets;
     if (passedInTargetsSet.isEmpty()) {
-      targets=getAllTargetsOfType(partialGraphs.getMainGraph().getActionGraph().getNodes(),XcodeWorkspaceConfigDescription.TYPE);
+      targets=getAllTargetsOfType(actionGraphs.getMainGraph().getNodes(),XcodeWorkspaceConfigDescription.TYPE);
     }
  else {
       targets=passedInTargetsSet;
@@ -37,31 +37,31 @@
     LOG.debug("Generating workspace for config targets %s",targets);
     Map<BuildRule,ProjectGenerator> projectGenerators=new HashMap<>();
     for (    BuildTarget workspaceConfig : targets) {
-      BuildRule workspaceRule=partialGraphs.getMainGraph().getActionGraph().findBuildRuleByTarget(workspaceConfig);
+      BuildRule workspaceRule=actionGraphs.getMainGraph().findBuildRuleByTarget(workspaceConfig);
       if (!(workspaceRule instanceof XcodeWorkspaceConfig)) {
         throw new HumanReadableException("%s must be a xcode_workspace_config",workspaceRule.getFullyQualifiedName());
       }
       Iterable<BuildRule> testBuildRules;
-      if (partialGraphs.getTestGraph().isPresent()) {
-        testBuildRules=partialGraphs.getTestGraph().get().getActionGraph().getNodes();
+      if (actionGraphs.getTestGraph().isPresent()) {
+        testBuildRules=actionGraphs.getTestGraph().get().getNodes();
       }
  else {
         testBuildRules=Collections.emptySet();
       }
       XcodeWorkspaceConfig workspaceConfigRule=(XcodeWorkspaceConfig)workspaceRule;
-      WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),partialGraphs.getProjectGraph().getActionGraph(),executionContext,workspaceConfigRule,optionsBuilder.build(),AppleBuildRules.getSourceRuleToTestRulesMap(testBuildRules),workspaceConfigRule.getExtraTests());
+      WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),actionGraphs.getProjectGraph(),executionContext,workspaceConfigRule,optionsBuilder.build(),AppleBuildRules.getSourceRuleToTestRulesMap(testBuildRules),workspaceConfigRule.getExtraTests());
       generator.generateWorkspaceAndDependentProjects(projectGenerators);
     }
   }
  else {
     ImmutableSet<BuildTarget> targets;
     if (passedInTargetsSet.isEmpty()) {
-      targets=getAllTargetsOfType(partialGraphs.getProjectGraph().getActionGraph().getNodes(),XcodeProjectConfigDescription.TYPE);
+      targets=getAllTargetsOfType(actionGraphs.getProjectGraph().getNodes(),XcodeProjectConfigDescription.TYPE);
     }
  else {
       targets=passedInTargetsSet;
     }
-    SeparatedProjectsGenerator projectGenerator=new SeparatedProjectsGenerator(getProjectFilesystem(),partialGraphs.getProjectGraph().getActionGraph(),executionContext,targets,optionsBuilder.build());
+    SeparatedProjectsGenerator projectGenerator=new SeparatedProjectsGenerator(getProjectFilesystem(),actionGraphs.getProjectGraph(),executionContext,targets,optionsBuilder.build());
     projectGenerator.generateProjects();
   }
   return 0;
