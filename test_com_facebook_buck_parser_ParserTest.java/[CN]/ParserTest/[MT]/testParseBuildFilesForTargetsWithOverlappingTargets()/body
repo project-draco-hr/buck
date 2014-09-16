@@ -6,12 +6,13 @@
   BuckEventBus eventBus=BuckEventBusFactory.newInstance();
   FakeBuckEventListener listener=new FakeBuckEventListener();
   eventBus.register(listener);
-  ActionGraph graph=testParser.parseBuildFilesForTargets(buildTargets,defaultIncludes,eventBus,new TestConsole(),ImmutableMap.<String,String>of());
-  BuildRule fooRule=graph.findBuildRuleByTarget(fooTarget);
+  TargetGraph targetGraph=testParser.parseBuildFilesForTargets(buildTargets,defaultIncludes,eventBus,new TestConsole(),ImmutableMap.<String,String>of());
+  ActionGraph actionGraph=targetGraph.buildActionGraph();
+  BuildRule fooRule=actionGraph.findBuildRuleByTarget(fooTarget);
   assertNotNull(fooRule);
-  BuildRule barRule=graph.findBuildRuleByTarget(barTarget);
+  BuildRule barRule=actionGraph.findBuildRuleByTarget(barTarget);
   assertNotNull(barRule);
-  ImmutableList<ParseEvent> expected=ImmutableList.of(TestEventConfigerator.configureTestEvent(ParseEvent.started(buildTargets),eventBus),TestEventConfigerator.configureTestEvent(ParseEvent.finished(buildTargets,Optional.of(graph)),eventBus));
+  ImmutableList<ParseEvent> expected=ImmutableList.of(TestEventConfigerator.configureTestEvent(ParseEvent.started(buildTargets),eventBus),TestEventConfigerator.configureTestEvent(ParseEvent.finished(buildTargets,Optional.of(targetGraph)),eventBus));
   Iterable<ParseEvent> events=Iterables.filter(listener.getEvents(),ParseEvent.class);
   assertEquals(expected,ImmutableList.copyOf(events));
 }
