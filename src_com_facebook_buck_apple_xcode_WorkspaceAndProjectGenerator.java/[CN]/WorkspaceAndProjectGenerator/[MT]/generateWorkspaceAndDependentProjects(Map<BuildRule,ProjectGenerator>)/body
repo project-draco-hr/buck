@@ -12,10 +12,10 @@
   }
   ImmutableSet.Builder<BuildRule> orderedTestBuildRulesBuilder=ImmutableSet.builder();
   ImmutableSet.Builder<BuildRule> orderedTestBundleRulesBuilder=ImmutableSet.builder();
-  getOrderedTestRules(projectTargetGraph.getActionGraph(),sourceRuleToTestRules,orderedBuildRules,extraTestBundleRules,orderedTestBuildRulesBuilder,orderedTestBundleRulesBuilder);
+  getOrderedTestRules(projectGraph,sourceRuleToTestRules,orderedBuildRules,extraTestBundleRules,orderedTestBuildRulesBuilder,orderedTestBundleRulesBuilder);
   ImmutableMap.Builder<BuildRule,PBXTarget> buildRuleToTargetMapBuilder=ImmutableMap.builder();
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
-  for (  XcodeProjectConfig xcodeProjectConfig : Iterables.filter(projectTargetGraph.getActionGraph().getNodes(),XcodeProjectConfig.class)) {
+  for (  XcodeProjectConfig xcodeProjectConfig : Iterables.filter(projectGraph.getNodes(),XcodeProjectConfig.class)) {
     ImmutableSet.Builder<BuildTarget> initialTargetsBuilder=ImmutableSet.builder();
     for (    BuildRule memberRule : xcodeProjectConfig.getRules()) {
       initialTargetsBuilder.add(memberRule.getBuildTarget());
@@ -24,7 +24,7 @@
     ProjectGenerator generator=projectGenerators.get(xcodeProjectConfig);
     if (generator == null) {
       LOG.debug("Generating project for rule %s",xcodeProjectConfig);
-      generator=new ProjectGenerator(projectTargetGraph.getActionGraph().getNodes(),initialTargets,projectFilesystem,executionContext,xcodeProjectConfig.getBuildTarget().getBasePath(),xcodeProjectConfig.getProjectName(),projectGeneratorOptions);
+      generator=new ProjectGenerator(projectGraph.getNodes(),initialTargets,projectFilesystem,executionContext,xcodeProjectConfig.getBuildTarget().getBasePath(),xcodeProjectConfig.getProjectName(),projectGeneratorOptions);
       generator.createXcodeProjects();
       projectGenerators.put(xcodeProjectConfig,generator);
     }
@@ -37,7 +37,7 @@
       targetToProjectPathMapBuilder.put(target,generator.getProjectPath());
     }
   }
-  for (  XcodeNative buildable : Iterables.filter(projectTargetGraph.getActionGraph().getNodes(),XcodeNative.class)) {
+  for (  XcodeNative buildable : Iterables.filter(projectGraph.getNodes(),XcodeNative.class)) {
     Path projectPath=buildable.getProjectContainerPath().resolve();
     Path pbxprojectPath=projectPath.resolve("project.pbxproj");
     String targetName=buildable.getTargetName();
