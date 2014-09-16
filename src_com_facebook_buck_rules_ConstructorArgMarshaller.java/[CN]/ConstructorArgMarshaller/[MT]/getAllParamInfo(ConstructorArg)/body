@@ -1,11 +1,21 @@
 {
-  Class<?> argClass=dto.getClass();
-  ImmutableSet.Builder<ParamInfo> allInfo=ImmutableSet.builder();
-  for (  Field field : argClass.getFields()) {
-    if (Modifier.isFinal(field.getModifiers())) {
-      continue;
+  final Class<? extends ConstructorArg> argClass=dto.getClass();
+  try {
+    return coercedTypes.get(argClass,new Callable<ImmutableSet<ParamInfo>>(){
+      @Override public ImmutableSet<ParamInfo> call(){
+        ImmutableSet.Builder<ParamInfo> allInfo=ImmutableSet.builder();
+        for (        Field field : argClass.getFields()) {
+          if (Modifier.isFinal(field.getModifiers())) {
+            continue;
+          }
+          allInfo.add(new ParamInfo(typeCoercerFactory,field));
+        }
+        return allInfo.build();
+      }
     }
-    allInfo.add(new ParamInfo(typeCoercerFactory,field));
+);
   }
-  return allInfo.build();
+ catch (  ExecutionException e) {
+    throw new RuntimeException(e);
+  }
 }
