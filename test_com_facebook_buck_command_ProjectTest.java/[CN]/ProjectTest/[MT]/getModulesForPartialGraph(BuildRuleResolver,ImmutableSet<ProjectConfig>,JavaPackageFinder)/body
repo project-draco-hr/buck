@@ -2,14 +2,7 @@
   if (javaPackageFinder == null) {
     javaPackageFinder=new FakeJavaPackageFinder();
   }
-  ActionGraph graph=RuleMap.createGraphFromBuildRules(ruleResolver);
-  ImmutableSet<BuildTarget> targets=ImmutableSet.copyOf(Iterables.transform(projectConfigs,new Function<BuildRule,BuildTarget>(){
-    @Override public BuildTarget apply(    BuildRule rule){
-      return rule.getBuildTarget();
-    }
-  }
-));
-  PartialGraph partialGraph=PartialGraphFactory.newInstance(graph,targets);
+  ActionGraph actionGraph=RuleMap.createGraphFromBuildRules(ruleResolver);
   ExecutionContext executionContext=EasyMock.createMock(ExecutionContext.class);
   ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
   Properties keystoreProperties=new Properties();
@@ -18,7 +11,7 @@
   keystoreProperties.put("key.alias.password","android");
   EasyMock.expect(projectFilesystem.readPropertiesFile(Paths.get("keystore/debug.keystore.properties"))).andReturn(keystoreProperties).anyTimes();
   ImmutableMap<Path,String> basePathToAliasMap=ImmutableMap.of();
-  Project project=new Project(partialGraph,basePathToAliasMap,javaPackageFinder,executionContext,projectFilesystem,Optional.<String>absent(),Optional.<String>absent(),BuckTestConstant.PYTHON_INTERPRETER,new ObjectMapper());
+  Project project=new Project(projectConfigs,actionGraph,basePathToAliasMap,javaPackageFinder,executionContext,projectFilesystem,Optional.<String>absent(),Optional.<String>absent(),BuckTestConstant.PYTHON_INTERPRETER,new ObjectMapper());
   EasyMock.replay(executionContext,projectFilesystem);
   List<Module> modules=project.createModulesForProjectConfigs();
   EasyMock.verify(executionContext,projectFilesystem);

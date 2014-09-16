@@ -5,11 +5,11 @@
   EasyMock.replay(javaPackageFinder);
   ProjectWithModules projectWithModules=createPartialGraphForTesting(javaPackageFinder);
   Project project=projectWithModules.project;
-  PartialGraph partialGraph=project.getPartialGraph();
+  ActionGraph actionGraph=project.getActionGraph();
   List<Module> modules=projectWithModules.modules;
   assertEquals("Should be one module for the java_library, one for the android_library, " + "one module for the android_resource, and one for each android_binary",5,modules.size());
   Module javaLibraryModule=modules.get(0);
-  assertSame(getRuleById("//java/src/com/facebook/exportlib:exportlib",partialGraph),javaLibraryModule.srcRule);
+  assertSame(getRuleById("//java/src/com/facebook/exportlib:exportlib",actionGraph),javaLibraryModule.srcRule);
   assertEquals("module_java_src_com_facebook_exportlib",javaLibraryModule.name);
   assertEquals("java/src/com/facebook/exportlib/module_java_src_com_facebook_exportlib.iml",javaLibraryModule.pathToImlFile);
   assertListEquals(ImmutableList.of(SourceFolder.SRC),javaLibraryModule.sourceFolders);
@@ -18,7 +18,7 @@
   guavaAsProvidedDep.scope="PROVIDED";
   assertListEquals(ImmutableList.of(DependentModule.newSourceFolder(),guavaAsProvidedDep,DependentModule.newStandardJdk()),javaLibraryModule.dependencies);
   Module androidLibraryModule=modules.get(1);
-  assertSame(getRuleById("//java/src/com/facebook/base:base",partialGraph),androidLibraryModule.srcRule);
+  assertSame(getRuleById("//java/src/com/facebook/base:base",actionGraph),androidLibraryModule.srcRule);
   assertEquals("module_java_src_com_facebook_base",androidLibraryModule.name);
   assertEquals("java/src/com/facebook/base/module_java_src_com_facebook_base.iml",androidLibraryModule.pathToImlFile);
   assertListEquals(ImmutableList.of(SourceFolder.SRC,new SourceFolder("file://$MODULE_DIR$/src-gen",false),SourceFolder.GEN),androidLibraryModule.sourceFolders);
@@ -31,10 +31,10 @@
   DependentModule exportDepsAsProvidedDep=DependentModule.newModule(BuildTargetFactory.newInstance("//java/src/com/facebook/exportlib:exportlib"),"module_java_src_com_facebook_exportlib");
   assertListEquals(ImmutableList.of(DependentModule.newSourceFolder(),guavaAsProvidedDep,androidResourceAsProvidedDep,childAsProvidedDep,exportDepsAsProvidedDep,inheritedJdk),androidLibraryModule.dependencies);
   Module androidResourceModule=modules.get(2);
-  assertSame(getRuleById("//android_res/base:res",partialGraph),androidResourceModule.srcRule);
+  assertSame(getRuleById("//android_res/base:res",actionGraph),androidResourceModule.srcRule);
   assertEquals("/res",androidResourceModule.resFolder);
   Module androidBinaryModuleNoDx=modules.get(3);
-  assertSame(getRuleById("//foo:app",partialGraph),androidBinaryModuleNoDx.srcRule);
+  assertSame(getRuleById("//foo:app",actionGraph),androidBinaryModuleNoDx.srcRule);
   assertEquals("module_foo",androidBinaryModuleNoDx.name);
   assertEquals("foo/module_foo.iml",androidBinaryModuleNoDx.pathToImlFile);
   assertListEquals(ImmutableList.of(SourceFolder.GEN),androidBinaryModuleNoDx.sourceFolders);
@@ -47,7 +47,7 @@
   DependentModule androidLibraryDep=DependentModule.newModule(androidLibraryModule.srcRule.getBuildTarget(),"module_java_src_com_facebook_base");
   assertEquals(ImmutableList.of(DependentModule.newSourceFolder(),guavaAsProvidedDep,androidLibraryDep,androidResourceAsProvidedDep,childAsProvidedDep,exportDepsAsProvidedDep,grandchildAsProvidedDep,inheritedJdk),androidBinaryModuleNoDx.dependencies);
   Module androidBinaryModuleEmptyNoDx=modules.get(4);
-  assertSame(getRuleById("//bar:app",partialGraph),androidBinaryModuleEmptyNoDx.srcRule);
+  assertSame(getRuleById("//bar:app",actionGraph),androidBinaryModuleEmptyNoDx.srcRule);
   assertEquals("module_bar",androidBinaryModuleEmptyNoDx.name);
   assertEquals("bar/module_bar.iml",androidBinaryModuleEmptyNoDx.pathToImlFile);
   assertListEquals(ImmutableList.of(SourceFolder.GEN),androidBinaryModuleEmptyNoDx.sourceFolders);
@@ -58,6 +58,6 @@
   assertEquals("../keystore/debug.keystore",androidBinaryModuleEmptyNoDx.keystorePath);
   DependentModule guavaAsCompiledDep=DependentModule.newLibrary(guava.getBuildTarget(),"third_party_guava_guava_10_0_1_jar");
   assertEquals("Important that Guava is listed as a 'COMPILED' dependency here because it is " + "only listed as a 'PROVIDED' dependency earlier.",ImmutableList.of(DependentModule.newSourceFolder(),guavaAsCompiledDep,androidLibraryDep,androidResourceAsProvidedDep,childAsProvidedDep,exportDepsAsProvidedDep,grandchildAsProvidedDep,inheritedJdk),androidBinaryModuleEmptyNoDx.dependencies);
-  BuildRule guava=getRuleById("//third_party/guava:guava",partialGraph);
+  BuildRule guava=getRuleById("//third_party/guava:guava",actionGraph);
   assertSame(guava,Iterables.getOnlyElement(project.getLibraryJars()));
 }
