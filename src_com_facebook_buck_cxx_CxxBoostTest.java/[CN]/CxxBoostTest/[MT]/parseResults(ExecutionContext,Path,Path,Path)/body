@@ -1,0 +1,48 @@
+{
+  ImmutableList.Builder<TestResultSummary> summariesBuilder=ImmutableList.builder();
+  Map<String,String> messages=Maps.newHashMap();
+  Map<String,List<String>> stdout=Maps.newHashMap();
+  Map<String,Long> times=Maps.newHashMap();
+  try (BufferedReader reader=Files.newBufferedReader(output,Charsets.US_ASCII)){
+    Stack<String> testSuite=new Stack<>();
+    Optional<String> currentTest=Optional.absent();
+    String line;
+    while ((line=reader.readLine()) != null) {
+      Matcher matcher;
+      if ((matcher=SUITE_START.matcher(line)).matches()) {
+        String suite=matcher.group(1);
+        testSuite.push(suite);
+      }
+ else       if ((matcher=SUITE_END.matcher(line)).matches()) {
+        String suite=matcher.group(1);
+        Preconditions.checkState(testSuite.peek().equals(suite));
+        testSuite.pop();
+      }
+ else       if ((matcher=CASE_START.matcher(line)).matches()) {
+        String test=Joiner.on(".").join(testSuite) + "." + matcher.group(1);
+        currentTest=Optional.of(test);
+        stdout.put(test,Lists.<String>newArrayList());
+      }
+ else       if ((matcher=CASE_END.matcher(line)).matches()) {
+        String test=Joiner.on(".").join(testSuite) + "." + matcher.group(1);
+        Preconditions.checkState(currentTest.isPresent() && currentTest.get().equals(test));
+        String time=matcher.group(2);
+        times.put(test,time == null ? 0 : Long.valueOf(time));
+        currentTest=Optional.absent();
+      }
+ else       if (currentTest.isPresent()) {
+        if (ERROR.matcher(line).matches()) {
+          messages.put(currentTest.get(),line);
+        }
+ else {
+          stdout.get(currentTest.get()).add(line);
+        }
+      }
+    }
+  }
+   Document doc=XmlDomParser.parse(results.toFile());
+  Node testResult=doc.getElementsByTagName("TestResult").item(0);
+  Node testSuite=testResult.getFirstChild();
+  visitTestSuite(summariesBuilder,messages,stdout,times,"",testSuite);
+  return summariesBuilder.build();
+}

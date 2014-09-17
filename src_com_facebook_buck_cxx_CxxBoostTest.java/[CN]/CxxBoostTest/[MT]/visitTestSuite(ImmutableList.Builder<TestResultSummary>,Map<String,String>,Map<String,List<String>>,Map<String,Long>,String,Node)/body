@@ -1,0 +1,29 @@
+{
+  NamedNodeMap attributes=testSuite.getAttributes();
+  String suiteName=attributes.getNamedItem("name").getNodeValue();
+  if (!prefix.isEmpty()) {
+    suiteName=prefix + "." + suiteName;
+  }
+  NodeList testCases=testSuite.getChildNodes();
+  for (int index=0; index < testCases.getLength(); index++) {
+    Node testCase=testCases.item(index);
+    if (!testCase.getNodeName().equals("TestCase")) {
+      visitTestSuite(builder,messages,stdout,times,suiteName,testCase);
+      continue;
+    }
+    NamedNodeMap attrs=testCase.getAttributes();
+    String caseName=attrs.getNamedItem("name").getNodeValue();
+    String test=String.format("%s.%s",suiteName,caseName);
+    Long time=Optional.fromNullable(times.get(test)).or(0L);
+    String resultString=attrs.getNamedItem("result").getNodeValue();
+    ResultType result=ResultType.SUCCESS;
+    String output="";
+    String message="";
+    if (!"passed".equals(resultString)) {
+      result=ResultType.FAILURE;
+      message=messages.get(test);
+      output=Joiner.on("\n").join(stdout.get(test));
+    }
+    builder.add(new TestResultSummary(suiteName,caseName,result,time,message,"",output,""));
+  }
+}
