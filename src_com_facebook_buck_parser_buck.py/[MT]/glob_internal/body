@@ -1,0 +1,29 @@
+def glob_internal(includes, excludes, include_dotfiles, search_base):
+    assert (not isinstance(includes, basestring)), 'The first argument to glob() must be a list of strings.'
+    assert (not isinstance(excludes, basestring)), 'The excludes argument must be a list of strings.'
+
+    def includes_iterator():
+        for pattern in includes:
+            for path in search_base.glob(pattern):
+                if (path.is_file() and (include_dotfiles or (not path.name.startswith('.')))):
+                    yield path.relative_to(search_base)
+
+    def is_special(pat):
+        return (('*' in pat) or ('?' in pat) or ('[' in pat))
+    non_special_excludes = set()
+    match_excludes = set()
+    for pattern in excludes:
+        if is_special(pattern):
+            match_excludes.add(pattern)
+        else:
+            non_special_excludes.add(pattern)
+
+    def exclusion(path):
+        if (str(path) in non_special_excludes):
+            return True
+        for pattern in match_excludes:
+            result = path.match(pattern, match_entire=True)
+            if result:
+                return True
+        return False
+    return sorted(set([str(p) for p in includes_iterator() if (not exclusion(p))]))
