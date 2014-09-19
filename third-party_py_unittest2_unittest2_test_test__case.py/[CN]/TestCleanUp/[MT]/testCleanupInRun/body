@@ -1,0 +1,40 @@
+def testCleanupInRun(self):
+    blowUp = False
+    ordering = []
+
+
+    class TestableTest(unittest2.TestCase):
+
+        def setUp(self):
+            ordering.append('setUp')
+            if blowUp:
+                raise Exception('foo')
+
+        def testNothing(self):
+            ordering.append('test')
+
+        def tearDown(self):
+            ordering.append('tearDown')
+    test = TestableTest('testNothing')
+
+    def cleanup1():
+        ordering.append('cleanup1')
+
+    def cleanup2():
+        ordering.append('cleanup2')
+    test.addCleanup(cleanup1)
+    test.addCleanup(cleanup2)
+
+    def success(some_test):
+        self.assertEqual(some_test, test)
+        ordering.append('success')
+    result = unittest2.TestResult()
+    result.addSuccess = success
+    test.run(result)
+    self.assertEqual(ordering, ['setUp', 'test', 'tearDown', 'cleanup2', 'cleanup1', 'success'])
+    blowUp = True
+    ordering = []
+    test = TestableTest('testNothing')
+    test.addCleanup(cleanup1)
+    test.run(result)
+    self.assertEqual(ordering, ['setUp', 'cleanup1'])

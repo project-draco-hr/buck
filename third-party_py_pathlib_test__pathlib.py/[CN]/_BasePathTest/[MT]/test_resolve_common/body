@@ -1,0 +1,21 @@
+@with_symlinks
+def test_resolve_common(self):
+    P = self.cls
+    p = P(BASE, 'foo')
+    with self.assertRaises(OSError) as cm:
+        p.resolve()
+    self.assertEqual(cm.exception.errno, errno.ENOENT)
+    p = P(BASE, 'dirB', 'fileB')
+    self._check_resolve_relative(p, p)
+    p = P(BASE, 'linkA')
+    self._check_resolve_relative(p, P(BASE, 'fileA'))
+    p = P(BASE, 'dirA', 'linkC', 'fileB')
+    self._check_resolve_relative(p, P(BASE, 'dirB', 'fileB'))
+    p = P(BASE, 'dirB', 'linkD', 'fileB')
+    self._check_resolve_relative(p, P(BASE, 'dirB', 'fileB'))
+    d = tempfile.mkdtemp(suffix='-dirD')
+    self.addCleanup(shutil.rmtree, d)
+    os.symlink(os.path.join(d), join('dirA', 'linkX'))
+    os.symlink(join('dirB'), os.path.join(d, 'linkY'))
+    p = P(BASE, 'dirA', 'linkX', 'linkY', 'fileB')
+    self._check_resolve_absolute(p, P(BASE, 'dirB', 'fileB'))

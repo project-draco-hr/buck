@@ -1,0 +1,21 @@
+def _handleModuleFixture(self, test, result):
+    previousModule = self._get_previous_module(result)
+    currentModule = test.__class__.__module__
+    if (currentModule == previousModule):
+        return
+    self._handleModuleTearDown(result)
+    result._moduleSetUpFailed = False
+    try:
+        module = sys.modules[currentModule]
+    except KeyError:
+        return
+    setUpModule = getattr(module, 'setUpModule', None)
+    if (setUpModule is not None):
+        try:
+            setUpModule()
+        except Exception as e:
+            if isinstance(result, _DebugResult):
+                raise
+            result._moduleSetUpFailed = True
+            errorName = ('setUpModule (%s)' % currentModule)
+            self._addClassOrModuleLevelException(result, e, errorName)

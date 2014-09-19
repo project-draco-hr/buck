@@ -1,0 +1,33 @@
+def resolve(self, path):
+    sep = self.sep
+    accessor = path._accessor
+    seen = {}
+
+    def _resolve(path, rest):
+        if rest.startswith(sep):
+            path = ''
+        for name in rest.split(sep):
+            if ((not name) or (name == '.')):
+                continue
+            if (name == '..'):
+                (path, _, _) = path.rpartition(sep)
+                continue
+            newpath = ((path + sep) + name)
+            if (newpath in seen):
+                path = seen[newpath]
+                if (path is not None):
+                    continue
+                raise RuntimeError(('Symlink loop from %r' % newpath))
+            try:
+                target = accessor.readlink(newpath)
+            except OSError as e:
+                if (e.errno != EINVAL):
+                    raise
+                path = newpath
+            else:
+                seen[newpath] = None
+                path = _resolve(path, target)
+                seen[newpath] = path
+        return path
+    base = ('' if path.is_absolute() else os.getcwd())
+    return (_resolve(base, str(path)) or sep)

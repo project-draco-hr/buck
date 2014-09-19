@@ -1,0 +1,18 @@
+def test_discover_with_modules_that_fail_to_import(self):
+    loader = unittest2.TestLoader()
+    listdir = os.listdir
+    os.listdir = (lambda _: ['test_this_does_not_exist.py'])
+    isfile = os.path.isfile
+    os.path.isfile = (lambda _: True)
+    orig_sys_path = sys.path[:]
+
+    def restore():
+        os.path.isfile = isfile
+        os.listdir = listdir
+        sys.path[:] = orig_sys_path
+    self.addCleanup(restore)
+    suite = loader.discover('.')
+    self.assertIn(os.getcwd(), sys.path)
+    self.assertEqual(suite.countTestCases(), 1)
+    test = list(list(suite)[0])[0]
+    self.assertRaises(ImportError, (lambda : test.test_this_does_not_exist()))

@@ -1,0 +1,19 @@
+def _handleModuleTearDown(self, result):
+    previousModule = self._get_previous_module(result)
+    if (previousModule is None):
+        return
+    if result._moduleSetUpFailed:
+        return
+    try:
+        module = sys.modules[previousModule]
+    except KeyError:
+        return
+    tearDownModule = getattr(module, 'tearDownModule', None)
+    if (tearDownModule is not None):
+        try:
+            tearDownModule()
+        except Exception as e:
+            if isinstance(result, _DebugResult):
+                raise
+            errorName = ('tearDownModule (%s)' % previousModule)
+            self._addClassOrModuleLevelException(result, e, errorName)

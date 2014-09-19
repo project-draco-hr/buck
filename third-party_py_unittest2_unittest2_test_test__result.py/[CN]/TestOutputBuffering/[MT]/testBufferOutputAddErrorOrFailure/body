@@ -1,0 +1,23 @@
+def testBufferOutputAddErrorOrFailure(self):
+    for (message_attr, add_attr, include_error) in [('errors', 'addError', True), ('failures', 'addFailure', False), ('errors', 'addError', True), ('failures', 'addFailure', False)]:
+        result = self.getStartedResult()
+        result._original_stderr = StringIO()
+        result._original_stdout = StringIO()
+        print  >> sys.stdout, 'foo'
+        if include_error:
+            print  >> sys.stderr, 'bar'
+        addFunction = getattr(result, add_attr)
+        addFunction(self, (None, None, None))
+        result.stopTest(self)
+        result_list = getattr(result, message_attr)
+        self.assertEqual(len(result_list), 1)
+        (test, message) = result_list[0]
+        expectedOutMessage = textwrap.dedent('\n                Stdout:\n                foo\n            ')
+        expectedErrMessage = ''
+        if include_error:
+            expectedErrMessage = textwrap.dedent('\n                Stderr:\n                bar\n            ')
+        expectedFullMessage = ('None\n%s%s' % (expectedOutMessage, expectedErrMessage))
+        self.assertIs(test, self)
+        self.assertEqual(result._original_stdout.getvalue(), expectedOutMessage)
+        self.assertEqual(result._original_stderr.getvalue(), expectedErrMessage)
+        self.assertMultiLineEqual(message, expectedFullMessage)

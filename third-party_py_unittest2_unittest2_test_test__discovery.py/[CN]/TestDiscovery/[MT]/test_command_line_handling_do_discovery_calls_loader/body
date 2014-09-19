@@ -1,0 +1,72 @@
+def test_command_line_handling_do_discovery_calls_loader(self):
+    program = object.__new__(unittest2.TestProgram)
+
+
+    class Loader(object):
+        args = []
+
+        def discover(self, start_dir, pattern, top_level_dir):
+            self.args.append((start_dir, pattern, top_level_dir))
+            return 'tests'
+    program._do_discovery(['-v'], Loader=Loader)
+    self.assertEqual(program.verbosity, 2)
+    self.assertEqual(program.test, 'tests')
+    self.assertEqual(Loader.args, [('.', 'test*.py', None)])
+    Loader.args = []
+    program = object.__new__(unittest2.TestProgram)
+    program._do_discovery(['--verbose'], Loader=Loader)
+    self.assertEqual(program.test, 'tests')
+    self.assertEqual(Loader.args, [('.', 'test*.py', None)])
+    Loader.args = []
+    program = object.__new__(unittest2.TestProgram)
+    program._do_discovery([], Loader=Loader)
+    self.assertEqual(program.test, 'tests')
+    self.assertEqual(Loader.args, [('.', 'test*.py', None)])
+    Loader.args = []
+    program = object.__new__(unittest2.TestProgram)
+    program._do_discovery(['fish'], Loader=Loader)
+    self.assertEqual(program.test, 'tests')
+    self.assertEqual(Loader.args, [('fish', 'test*.py', None)])
+    Loader.args = []
+    program = object.__new__(unittest2.TestProgram)
+    program._do_discovery(['fish', 'eggs'], Loader=Loader)
+    self.assertEqual(program.test, 'tests')
+    self.assertEqual(Loader.args, [('fish', 'eggs', None)])
+    Loader.args = []
+    program = object.__new__(unittest2.TestProgram)
+    program._do_discovery(['fish', 'eggs', 'ham'], Loader=Loader)
+    self.assertEqual(program.test, 'tests')
+    self.assertEqual(Loader.args, [('fish', 'eggs', 'ham')])
+    Loader.args = []
+    program = object.__new__(unittest2.TestProgram)
+    program._do_discovery(['-s', 'fish'], Loader=Loader)
+    self.assertEqual(program.test, 'tests')
+    self.assertEqual(Loader.args, [('fish', 'test*.py', None)])
+    Loader.args = []
+    program = object.__new__(unittest2.TestProgram)
+    program._do_discovery(['-t', 'fish'], Loader=Loader)
+    self.assertEqual(program.test, 'tests')
+    self.assertEqual(Loader.args, [('.', 'test*.py', 'fish')])
+    Loader.args = []
+    program = object.__new__(unittest2.TestProgram)
+    program._do_discovery(['-p', 'fish'], Loader=Loader)
+    self.assertEqual(program.test, 'tests')
+    self.assertEqual(Loader.args, [('.', 'fish', None)])
+    self.assertFalse(program.failfast)
+    self.assertFalse(program.catchbreak)
+    args = ['-p', 'eggs', '-s', 'fish', '-v', '-f']
+    try:
+        import signal
+    except ImportError:
+        signal = None
+    else:
+        args.append('-c')
+    Loader.args = []
+    program = object.__new__(unittest2.TestProgram)
+    program._do_discovery(args, Loader=Loader)
+    self.assertEqual(program.test, 'tests')
+    self.assertEqual(Loader.args, [('fish', 'eggs', None)])
+    self.assertEqual(program.verbosity, 2)
+    self.assertTrue(program.failfast)
+    if (signal is not None):
+        self.assertTrue(program.catchbreak)

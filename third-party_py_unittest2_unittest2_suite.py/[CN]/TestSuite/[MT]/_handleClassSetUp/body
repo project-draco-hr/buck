@@ -1,0 +1,24 @@
+def _handleClassSetUp(self, test, result):
+    previousClass = getattr(result, '_previousTestClass', None)
+    currentClass = test.__class__
+    if (currentClass == previousClass):
+        return
+    if result._moduleSetUpFailed:
+        return
+    if getattr(currentClass, '__unittest_skip__', False):
+        return
+    try:
+        currentClass._classSetupFailed = False
+    except TypeError:
+        pass
+    setUpClass = getattr(currentClass, 'setUpClass', None)
+    if (setUpClass is not None):
+        try:
+            setUpClass()
+        except Exception as e:
+            if isinstance(result, _DebugResult):
+                raise
+            currentClass._classSetupFailed = True
+            className = util.strclass(currentClass)
+            errorName = ('setUpClass (%s)' % className)
+            self._addClassOrModuleLevelException(result, e, errorName)

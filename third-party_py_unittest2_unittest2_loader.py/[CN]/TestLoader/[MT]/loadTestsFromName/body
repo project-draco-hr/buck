@@ -1,0 +1,35 @@
+def loadTestsFromName(self, name, module=None):
+    'Return a suite of all tests cases given a string specifier.\n\n        The name may resolve either to a module, a test case class, a\n        test method within a test case class, or a callable object which\n        returns a TestCase or TestSuite instance.\n\n        The method optionally resolves the names relative to a given module.\n        '
+    parts = name.split('.')
+    if (module is None):
+        parts_copy = parts[:]
+        while parts_copy:
+            try:
+                module = __import__('.'.join(parts_copy))
+                break
+            except ImportError:
+                del parts_copy[(-1)]
+                if (not parts_copy):
+                    raise
+        parts = parts[1:]
+    obj = module
+    for part in parts:
+        (parent, obj) = (obj, getattr(obj, part))
+    if isinstance(obj, types.ModuleType):
+        return self.loadTestsFromModule(obj)
+    elif (isinstance(obj, type) and issubclass(obj, unittest.TestCase)):
+        return self.loadTestsFromTestCase(obj)
+    elif (isinstance(obj, types.UnboundMethodType) and isinstance(parent, type) and issubclass(parent, case.TestCase)):
+        return self.suiteClass([parent(obj.__name__)])
+    elif isinstance(obj, unittest.TestSuite):
+        return obj
+    elif hasattr(obj, '__call__'):
+        test = obj()
+        if isinstance(test, unittest.TestSuite):
+            return test
+        elif isinstance(test, unittest.TestCase):
+            return self.suiteClass([test])
+        else:
+            raise TypeError(('calling %s returned %s, not a test' % (obj, test)))
+    else:
+        raise TypeError(("don't know how to make test from: %s" % obj))

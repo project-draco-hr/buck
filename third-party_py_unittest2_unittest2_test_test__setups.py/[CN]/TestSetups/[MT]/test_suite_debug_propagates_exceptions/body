@@ -1,0 +1,39 @@
+def test_suite_debug_propagates_exceptions(self):
+
+
+    class Module(object):
+
+        @staticmethod
+        def setUpModule():
+            if (phase == 0):
+                raise Exception('setUpModule')
+
+        @staticmethod
+        def tearDownModule():
+            if (phase == 1):
+                raise Exception('tearDownModule')
+
+
+    class Test(unittest2.TestCase):
+
+        @classmethod
+        def setUpClass(cls):
+            if (phase == 2):
+                raise Exception('setUpClass')
+
+        @classmethod
+        def tearDownClass(cls):
+            if (phase == 3):
+                raise Exception('tearDownClass')
+
+        def test_something(self):
+            if (phase == 4):
+                raise Exception('test_something')
+    Test.__module__ = 'Module'
+    sys.modules['Module'] = Module
+    _suite = unittest2.defaultTestLoader.loadTestsFromTestCase(Test)
+    suite = unittest2.TestSuite()
+    suite.addTest(_suite)
+    messages = ('setUpModule', 'tearDownModule', 'setUpClass', 'tearDownClass', 'test_something')
+    for (phase, msg) in enumerate(messages):
+        self.assertRaisesRegexp(Exception, msg, suite.debug)

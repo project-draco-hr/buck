@@ -1,0 +1,26 @@
+def testNoExit(self):
+    result = object()
+    test = object()
+
+
+    class FakeRunner(object):
+
+        def run(self, test):
+            self.test = test
+            return result
+    runner = FakeRunner()
+    oldParseArgs = unittest2.TestProgram.parseArgs
+
+    def restoreParseArgs():
+        unittest2.TestProgram.parseArgs = oldParseArgs
+    unittest2.TestProgram.parseArgs = (lambda *args: None)
+    self.addCleanup(restoreParseArgs)
+
+    def removeTest():
+        del unittest2.TestProgram.test
+    unittest2.TestProgram.test = test
+    self.addCleanup(removeTest)
+    program = unittest2.TestProgram(testRunner=runner, exit=False, verbosity=2)
+    self.assertEqual(program.result, result)
+    self.assertEqual(runner.test, test)
+    self.assertEqual(program.verbosity, 2)

@@ -1,0 +1,19 @@
+@contextmanager
+def _cached(func):
+    try:
+        func.__cached__
+        yield func
+    except AttributeError:
+        cache = {}
+
+        def wrapper(*args):
+            try:
+                return cache[args]
+            except KeyError:
+                value = cache[args] = func(*args)
+                return value
+        wrapper.__cached__ = True
+        try:
+            yield wrapper
+        finally:
+            cache.clear()
