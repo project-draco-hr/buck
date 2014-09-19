@@ -1,0 +1,21 @@
+@classmethod
+def _apply_match(cls, parts, pat_parts, match_is_absolute):
+    parts_matched = 0
+    pat_parts_matched = 0
+    while ((parts_matched < len(parts)) and (pat_parts_matched < len(pat_parts))):
+        pat = pat_parts[(- (pat_parts_matched + 1))]
+        if (pat == '**'):
+            remaining_parts = (parts[:(- parts_matched)] if parts_matched else parts)
+            remaining_pat_parts = pat_parts[:(- (pat_parts_matched + 1))]
+            if cls._apply_match(remaining_parts, remaining_pat_parts, match_is_absolute):
+                return True
+            else:
+                parts_matched += 1
+        elif fnmatch.fnmatchcase(parts[(- (parts_matched + 1))], pat):
+            parts_matched += 1
+            pat_parts_matched += 1
+        else:
+            return False
+    while ((pat_parts_matched < len(pat_parts)) and (pat_parts[(- (pat_parts_matched + 1))] == '**')):
+        pat_parts_matched += 1
+    return ((pat_parts_matched == len(pat_parts)) and ((parts_matched == len(parts)) if match_is_absolute else True))
