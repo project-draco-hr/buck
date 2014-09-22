@@ -1,4 +1,5 @@
 {
+  BuildRuleResolver resolver=new BuildRuleResolver();
   SourcePath xcconfigFile=new PathSourcePath(Paths.get("Test.xcconfig"));
   projectFilesystem.writeContentsToPath("",xcconfigFile.resolve());
   BuildRule libraryDepRule;
@@ -17,7 +18,8 @@
     arg.gid=Optional.absent();
     arg.headerPathPrefix=Optional.absent();
     arg.useBuckHeaderMaps=Optional.absent();
-    libraryDepRule=appleLibraryDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+    libraryDepRule=appleLibraryDescription.createBuildRule(params,resolver,arg);
+    resolver.addToIndex(libraryDepRule);
   }
 {
     BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).setDeps(ImmutableSortedSet.of(libraryDepRule)).setType(AppleLibraryDescription.TYPE).build();
@@ -29,7 +31,8 @@
     arg.gid=Optional.absent();
     arg.headerPathPrefix=Optional.absent();
     arg.useBuckHeaderMaps=Optional.absent();
-    libraryRule=appleLibraryDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+    libraryRule=appleLibraryDescription.createBuildRule(params,resolver,arg);
+    resolver.addToIndex(libraryRule);
   }
 {
     BuildRuleParams dynamicLibraryParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","testlib").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build()).setDeps(ImmutableSortedSet.of(libraryRule)).setType(AppleLibraryDescription.TYPE).build();
@@ -41,14 +44,16 @@
     dynamicLibraryArg.gid=Optional.absent();
     dynamicLibraryArg.headerPathPrefix=Optional.absent();
     dynamicLibraryArg.useBuckHeaderMaps=Optional.absent();
-    BuildRule dynamicLibraryDep=appleLibraryDescription.createBuildRule(dynamicLibraryParams,new BuildRuleResolver(),dynamicLibraryArg);
+    BuildRule dynamicLibraryDep=appleLibraryDescription.createBuildRule(dynamicLibraryParams,resolver,dynamicLibraryArg);
+    resolver.addToIndex(dynamicLibraryDep);
     BuildRuleParams xctestParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","xctest").build()).setDeps(ImmutableSortedSet.of(dynamicLibraryDep)).setType(AppleBundleDescription.TYPE).build();
     AppleBundleDescription.Arg xctestArg=appleBundleDescription.createUnpopulatedConstructorArg();
     xctestArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
     xctestArg.binary=dynamicLibraryDep;
     xctestArg.extension=Either.ofLeft(AppleBundleExtension.XCTEST);
     xctestArg.deps=Optional.absent();
-    BuildRule xctestRule=appleBundleDescription.createBuildRule(xctestParams,new BuildRuleResolver(),xctestArg);
+    BuildRule xctestRule=appleBundleDescription.createBuildRule(xctestParams,resolver,xctestArg);
+    resolver.addToIndex(xctestRule);
     BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","test").build()).setDeps(ImmutableSortedSet.of(xctestRule)).setType(AppleTestDescription.TYPE).build();
     AppleTestDescription.Arg arg=appleTestDescription.createUnpopulatedConstructorArg();
     arg.testBundle=xctestRule;
@@ -56,7 +61,8 @@
     arg.labels=Optional.of(ImmutableSortedSet.<Label>of());
     arg.deps=Optional.of(ImmutableSortedSet.<BuildRule>of(xctestRule));
     arg.sourceUnderTest=Optional.of(ImmutableSortedSet.<BuildRule>of());
-    testRule=appleTestDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+    testRule=appleTestDescription.createBuildRule(params,resolver,arg);
+    resolver.addToIndex(testRule);
   }
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(createPartialGraphFromBuildRules(ImmutableSet.of(libraryRule,testRule)),ImmutableSet.of(testRule.getBuildTarget()),ImmutableSet.of(ProjectGenerator.Option.REFERENCE_EXISTING_XCCONFIGS));
   projectGenerator.createXcodeProjects();

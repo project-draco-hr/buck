@@ -1,19 +1,23 @@
 {
-  BuildRule rule1=createBuildRuleWithDefaults(BuildTarget.builder("//foo","rule1").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,new Function<AppleNativeTargetDescriptionArg,AppleNativeTargetDescriptionArg>(){
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRule rule1=createBuildRuleWithDefaults(BuildTarget.builder("//foo","rule1").build(),resolver,ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,new Function<AppleNativeTargetDescriptionArg,AppleNativeTargetDescriptionArg>(){
     @Override public AppleNativeTargetDescriptionArg apply(    AppleNativeTargetDescriptionArg input){
       input.configs=Optional.of(ImmutableMap.of("Debug",ImmutableList.of(Either.<SourcePath,ImmutableMap<String,String>>ofLeft(new PathSourcePath(Paths.get("project.xcconfig"))),Either.<SourcePath,ImmutableMap<String,String>>ofRight(ImmutableMap.of("PROJECT_FLAG1","p1","PROJECT_FLAG2","p2")),Either.<SourcePath,ImmutableMap<String,String>>ofLeft(new PathSourcePath(Paths.get("target.xcconfig"))),Either.<SourcePath,ImmutableMap<String,String>>ofRight(ImmutableMap.of("TARGET_FLAG1","t1","TARGET_FLAG2","t2")))));
       return input;
     }
   }
 );
-  BuildRule rule2=createBuildRuleWithDefaults(BuildTarget.builder("//foo","rule2").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,new Function<AppleNativeTargetDescriptionArg,AppleNativeTargetDescriptionArg>(){
+  resolver.addToIndex(rule1);
+  BuildRule rule2=createBuildRuleWithDefaults(BuildTarget.builder("//foo","rule2").build(),resolver,ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,new Function<AppleNativeTargetDescriptionArg,AppleNativeTargetDescriptionArg>(){
     @Override public AppleNativeTargetDescriptionArg apply(    AppleNativeTargetDescriptionArg input){
       input.configs=Optional.of(ImmutableMap.of("Debug",ImmutableList.of(Either.<SourcePath,ImmutableMap<String,String>>ofLeft(new PathSourcePath(Paths.get("project.xcconfig"))),Either.<SourcePath,ImmutableMap<String,String>>ofRight(ImmutableMap.of("PROJECT_FLAG1","p1","PROJECT_FLAG2","p2")),Either.<SourcePath,ImmutableMap<String,String>>ofLeft(new PathSourcePath(Paths.get("target.xcconfig"))),Either.<SourcePath,ImmutableMap<String,String>>ofRight(ImmutableMap.of("TARGET_FLAG3","t3","TARGET_FLAG4","t4")))));
       return input;
     }
   }
 );
-  BuildRule configRule=createXcodeProjectConfigRule("//foo","fooproject",ImmutableSet.of(rule1,rule2));
+  resolver.addToIndex(rule2);
+  BuildRule configRule=createXcodeProjectConfigRule("//foo","fooproject",resolver,ImmutableSet.of(rule1,rule2));
+  resolver.addToIndex(configRule);
   SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(projectFilesystem,createPartialGraphFromBuildRules(ImmutableSet.of(configRule,rule1,rule2)).getActionGraph(),executionContext,ImmutableSet.of(configRule.getBuildTarget()),ImmutableSet.<ProjectGenerator.Option>of());
   generator.generateProjects();
   PBXProject project=getGeneratedProjectOfConfigRule(generator,configRule);

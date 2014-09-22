@@ -1,15 +1,21 @@
 {
-  final BuildRule barLib=createBuildRuleWithDefaults(BuildTarget.builder("//bar","lib").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription);
-  final BuildRule fooLib=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(barLib),appleLibraryDescription);
-  BuildRule fooBinBinary=createBuildRuleWithDefaults(BuildTarget.builder("//foo","binbinary").build(),ImmutableSortedSet.of(fooLib),appleBinaryDescription);
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  final BuildRule barLib=createBuildRuleWithDefaults(BuildTarget.builder("//bar","lib").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,resolver);
+  resolver.addToIndex(barLib);
+  final BuildRule fooLib=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(barLib),appleLibraryDescription,resolver);
+  resolver.addToIndex(fooLib);
+  BuildRule fooBinBinary=createBuildRuleWithDefaults(BuildTarget.builder("//foo","binbinary").build(),ImmutableSortedSet.of(fooLib),appleBinaryDescription,resolver);
+  resolver.addToIndex(fooBinBinary);
   BuildRuleParams fooBinParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bin").build()).setDeps(ImmutableSortedSet.of(fooBinBinary)).setType(AppleBundleDescription.TYPE).build();
   AppleBundleDescription.Arg fooBinArg=appleBundleDescription.createUnpopulatedConstructorArg();
   fooBinArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
   fooBinArg.binary=fooBinBinary;
   fooBinArg.extension=Either.ofLeft(AppleBundleExtension.APP);
   fooBinArg.deps=Optional.absent();
-  BuildRule fooBin=appleBundleDescription.createBuildRule(fooBinParams,new BuildRuleResolver(),fooBinArg);
-  final BuildRule bazLib=createBuildRuleWithDefaults(BuildTarget.builder("//baz","lib").build(),ImmutableSortedSet.of(fooLib),appleLibraryDescription);
+  BuildRule fooBin=appleBundleDescription.createBuildRule(fooBinParams,resolver,fooBinArg);
+  resolver.addToIndex(fooBin);
+  final BuildRule bazLib=createBuildRuleWithDefaults(BuildTarget.builder("//baz","lib").build(),ImmutableSortedSet.of(fooLib),appleLibraryDescription,resolver);
+  resolver.addToIndex(bazLib);
   BuildRule bazTest;
 {
     BuildRuleParams dynamicLibraryParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//baz","testlib").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build()).setDeps(ImmutableSortedSet.of(bazLib)).setType(AppleLibraryDescription.TYPE).build();
@@ -21,14 +27,16 @@
     dynamicLibraryArg.gid=Optional.absent();
     dynamicLibraryArg.headerPathPrefix=Optional.absent();
     dynamicLibraryArg.useBuckHeaderMaps=Optional.absent();
-    BuildRule dynamicLibraryDep=appleLibraryDescription.createBuildRule(dynamicLibraryParams,new BuildRuleResolver(),dynamicLibraryArg);
+    BuildRule dynamicLibraryDep=appleLibraryDescription.createBuildRule(dynamicLibraryParams,resolver,dynamicLibraryArg);
+    resolver.addToIndex(dynamicLibraryDep);
     BuildRuleParams xctestParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//baz","xctest").build()).setDeps(ImmutableSortedSet.of(dynamicLibraryDep)).setType(AppleBundleDescription.TYPE).build();
     AppleBundleDescription.Arg xctestArg=appleBundleDescription.createUnpopulatedConstructorArg();
     xctestArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
     xctestArg.binary=dynamicLibraryDep;
     xctestArg.extension=Either.ofLeft(AppleBundleExtension.XCTEST);
     xctestArg.deps=Optional.absent();
-    BuildRule xctestRule=appleBundleDescription.createBuildRule(xctestParams,new BuildRuleResolver(),xctestArg);
+    BuildRule xctestRule=appleBundleDescription.createBuildRule(xctestParams,resolver,xctestArg);
+    resolver.addToIndex(xctestRule);
     BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//baz","test").build()).setDeps(ImmutableSortedSet.of(xctestRule)).setType(AppleTestDescription.TYPE).build();
     AppleTestDescription.Arg arg=appleTestDescription.createUnpopulatedConstructorArg();
     arg.testBundle=xctestRule;
@@ -36,10 +44,11 @@
     arg.labels=Optional.of(ImmutableSortedSet.<Label>of());
     arg.deps=Optional.of(ImmutableSortedSet.<BuildRule>of(xctestRule));
     arg.sourceUnderTest=Optional.of(ImmutableSortedSet.of(bazLib));
-    bazTest=appleTestDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+    bazTest=appleTestDescription.createBuildRule(params,resolver,arg);
+    resolver.addToIndex(bazTest);
   }
   final BuildRule bazLibTest=bazTest;
-  BuildRule fooTest;
+  BuildRule fooLibTest;
 {
     BuildRuleParams dynamicLibraryParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib-testlib").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build()).setDeps(ImmutableSortedSet.of(bazLib)).setType(AppleLibraryDescription.TYPE).build();
     AppleNativeTargetDescriptionArg dynamicLibraryArg=appleLibraryDescription.createUnpopulatedConstructorArg();
@@ -50,14 +59,16 @@
     dynamicLibraryArg.gid=Optional.absent();
     dynamicLibraryArg.headerPathPrefix=Optional.absent();
     dynamicLibraryArg.useBuckHeaderMaps=Optional.absent();
-    BuildRule dynamicLibraryDep=appleLibraryDescription.createBuildRule(dynamicLibraryParams,new BuildRuleResolver(),dynamicLibraryArg);
+    BuildRule dynamicLibraryDep=appleLibraryDescription.createBuildRule(dynamicLibraryParams,resolver,dynamicLibraryArg);
+    resolver.addToIndex(dynamicLibraryDep);
     BuildRuleParams xctestParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib-xctest").build()).setDeps(ImmutableSortedSet.of(dynamicLibraryDep)).setType(AppleBundleDescription.TYPE).build();
     AppleBundleDescription.Arg xctestArg=appleBundleDescription.createUnpopulatedConstructorArg();
     xctestArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
     xctestArg.binary=dynamicLibraryDep;
     xctestArg.extension=Either.ofLeft(AppleBundleExtension.XCTEST);
     xctestArg.deps=Optional.absent();
-    BuildRule xctestRule=appleBundleDescription.createBuildRule(xctestParams,new BuildRuleResolver(),xctestArg);
+    BuildRule xctestRule=appleBundleDescription.createBuildRule(xctestParams,resolver,xctestArg);
+    resolver.addToIndex(xctestRule);
     BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib-test").build()).setDeps(ImmutableSortedSet.of(xctestRule)).setType(AppleTestDescription.TYPE).build();
     AppleTestDescription.Arg arg=appleTestDescription.createUnpopulatedConstructorArg();
     arg.testBundle=xctestRule;
@@ -65,10 +76,10 @@
     arg.labels=Optional.of(ImmutableSortedSet.<Label>of());
     arg.deps=Optional.of(ImmutableSortedSet.<BuildRule>of(xctestRule));
     arg.sourceUnderTest=Optional.of(ImmutableSortedSet.of(bazLib));
-    fooTest=appleTestDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+    fooLibTest=appleTestDescription.createBuildRule(params,resolver,arg);
+    resolver.addToIndex(fooLibTest);
   }
-  final BuildRule fooLibTest=fooTest;
-  BuildRule fooBinTestLib;
+  BuildRule fooBinTest;
 {
     BuildRuleParams dynamicLibraryParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bin-testlib").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build()).setDeps(ImmutableSortedSet.of(bazLib)).setType(AppleLibraryDescription.TYPE).build();
     AppleNativeTargetDescriptionArg dynamicLibraryArg=appleLibraryDescription.createUnpopulatedConstructorArg();
@@ -79,14 +90,16 @@
     dynamicLibraryArg.gid=Optional.absent();
     dynamicLibraryArg.headerPathPrefix=Optional.absent();
     dynamicLibraryArg.useBuckHeaderMaps=Optional.absent();
-    BuildRule dynamicLibraryDep=appleLibraryDescription.createBuildRule(dynamicLibraryParams,new BuildRuleResolver(),dynamicLibraryArg);
+    BuildRule dynamicLibraryDep=appleLibraryDescription.createBuildRule(dynamicLibraryParams,resolver,dynamicLibraryArg);
+    resolver.addToIndex(dynamicLibraryDep);
     BuildRuleParams xctestParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bin-xctest").build()).setDeps(ImmutableSortedSet.of(dynamicLibraryDep)).setType(AppleBundleDescription.TYPE).build();
     AppleBundleDescription.Arg xctestArg=appleBundleDescription.createUnpopulatedConstructorArg();
     xctestArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
     xctestArg.binary=dynamicLibraryDep;
     xctestArg.extension=Either.ofLeft(AppleBundleExtension.XCTEST);
     xctestArg.deps=Optional.absent();
-    BuildRule xctestRule=appleBundleDescription.createBuildRule(xctestParams,new BuildRuleResolver(),xctestArg);
+    BuildRule xctestRule=appleBundleDescription.createBuildRule(xctestParams,resolver,xctestArg);
+    resolver.addToIndex(xctestRule);
     BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bin-test").build()).setDeps(ImmutableSortedSet.of(xctestRule)).setType(AppleTestDescription.TYPE).build();
     AppleTestDescription.Arg arg=appleTestDescription.createUnpopulatedConstructorArg();
     arg.testBundle=xctestRule;
@@ -94,9 +107,9 @@
     arg.labels=Optional.of(ImmutableSortedSet.<Label>of());
     arg.deps=Optional.of(ImmutableSortedSet.<BuildRule>of(xctestRule));
     arg.sourceUnderTest=Optional.of(ImmutableSortedSet.of(bazLib));
-    fooBinTestLib=appleTestDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+    fooBinTest=appleTestDescription.createBuildRule(params,resolver,arg);
+    resolver.addToIndex(fooBinTest);
   }
-  final BuildRule fooBinTest=fooBinTestLib;
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(barLib,fooLib,fooBin,bazLib,bazLibTest,fooLibTest,fooBinTest),ImmutableSet.of(fooBin.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:bin");

@@ -1,26 +1,31 @@
 {
-  BuildRule scriptRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","post_build_script").build(),ImmutableSortedSet.<BuildRule>of(),iosPostprocessResourcesDescription,new Function<IosPostprocessResourcesDescription.Arg,IosPostprocessResourcesDescription.Arg>(){
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRule scriptRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","post_build_script").build(),resolver,ImmutableSortedSet.<BuildRule>of(),iosPostprocessResourcesDescription,new Function<IosPostprocessResourcesDescription.Arg,IosPostprocessResourcesDescription.Arg>(){
     @Override public IosPostprocessResourcesDescription.Arg apply(    IosPostprocessResourcesDescription.Arg input){
       input.cmd=Optional.of("script.sh");
       return input;
     }
   }
 );
-  BuildRule resourceRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","resource").build(),ImmutableSortedSet.<BuildRule>of(),appleResourceDescription,new Function<AppleResourceDescription.Arg,AppleResourceDescription.Arg>(){
+  resolver.addToIndex(scriptRule);
+  BuildRule resourceRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","resource").build(),resolver,ImmutableSortedSet.<BuildRule>of(),appleResourceDescription,new Function<AppleResourceDescription.Arg,AppleResourceDescription.Arg>(){
     @Override public AppleResourceDescription.Arg apply(    AppleResourceDescription.Arg input){
       input.files=ImmutableSet.<SourcePath>of(new TestSourcePath("foo.png"));
       return input;
     }
   }
 );
-  BuildRule dynamicLibraryDep=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.of(resourceRule),appleLibraryDescription);
+  resolver.addToIndex(resourceRule);
+  BuildRule dynamicLibraryDep=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.of(resourceRule),appleLibraryDescription,resolver);
+  resolver.addToIndex(dynamicLibraryDep);
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bundle").build()).setDeps(ImmutableSortedSet.of(dynamicLibraryDep,scriptRule)).setType(AppleBundleDescription.TYPE).build();
   AppleBundleDescription.Arg arg=appleBundleDescription.createUnpopulatedConstructorArg();
   arg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
   arg.binary=dynamicLibraryDep;
   arg.extension=Either.ofLeft(AppleBundleExtension.BUNDLE);
   arg.deps=Optional.absent();
-  BuildRule bundleRule=appleBundleDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+  BuildRule bundleRule=appleBundleDescription.createBuildRule(params,resolver,arg);
+  resolver.addToIndex(bundleRule);
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(bundleRule),ImmutableSet.of(bundleRule.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   PBXProject project=projectGenerator.getGeneratedProject();

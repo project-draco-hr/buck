@@ -1,12 +1,14 @@
 {
-  BuildRule assetCatalog1=createBuildRuleWithDefaults(BuildTarget.builder("//foo","asset_catalog1").build(),ImmutableSortedSet.<BuildRule>of(),new AppleAssetCatalogDescription(),new Function<AppleAssetCatalogDescription.Arg,AppleAssetCatalogDescription.Arg>(){
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRule assetCatalog1=createBuildRuleWithDefaults(BuildTarget.builder("//foo","asset_catalog1").build(),resolver,ImmutableSortedSet.<BuildRule>of(),new AppleAssetCatalogDescription(),new Function<AppleAssetCatalogDescription.Arg,AppleAssetCatalogDescription.Arg>(){
     @Nullable @Override public AppleAssetCatalogDescription.Arg apply(    @Nullable AppleAssetCatalogDescription.Arg input){
       input.dirs=ImmutableSet.of(Paths.get("AssetCatalog1.xcassets"));
       return input;
     }
   }
 );
-  BuildRule assetCatalog2=createBuildRuleWithDefaults(BuildTarget.builder("//foo","asset_catalog2").build(),ImmutableSortedSet.<BuildRule>of(),new AppleAssetCatalogDescription(),new Function<AppleAssetCatalogDescription.Arg,AppleAssetCatalogDescription.Arg>(){
+  resolver.addToIndex(assetCatalog1);
+  BuildRule assetCatalog2=createBuildRuleWithDefaults(BuildTarget.builder("//foo","asset_catalog2").build(),resolver,ImmutableSortedSet.<BuildRule>of(),new AppleAssetCatalogDescription(),new Function<AppleAssetCatalogDescription.Arg,AppleAssetCatalogDescription.Arg>(){
     @Nullable @Override public AppleAssetCatalogDescription.Arg apply(    @Nullable AppleAssetCatalogDescription.Arg input){
       input.dirs=ImmutableSet.of(Paths.get("AssetCatalog2.xcassets"));
       input.copyToBundles=Optional.of(Boolean.TRUE);
@@ -14,15 +16,19 @@
     }
   }
 );
-  BuildRule libraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(assetCatalog1,assetCatalog2),appleLibraryDescription);
-  BuildRule bundleLibraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bundlelib").build(),ImmutableSortedSet.of(libraryRule),appleLibraryDescription);
+  resolver.addToIndex(assetCatalog2);
+  BuildRule libraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(assetCatalog1,assetCatalog2),appleLibraryDescription,resolver);
+  resolver.addToIndex(libraryRule);
+  BuildRule bundleLibraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bundlelib").build(),ImmutableSortedSet.of(libraryRule),appleLibraryDescription,resolver);
+  resolver.addToIndex(bundleLibraryRule);
   BuildRuleParams bundleParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bundle").build()).setDeps(ImmutableSortedSet.of(bundleLibraryRule)).setType(AppleBundleDescription.TYPE).build();
   AppleBundleDescription.Arg bundleArg=appleBundleDescription.createUnpopulatedConstructorArg();
   bundleArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
   bundleArg.binary=bundleLibraryRule;
   bundleArg.extension=Either.ofLeft(AppleBundleExtension.BUNDLE);
   bundleArg.deps=Optional.of(ImmutableSortedSet.of(bundleLibraryRule));
-  BuildRule bundleRule=appleBundleDescription.createBuildRule(bundleParams,new BuildRuleResolver(),bundleArg);
+  BuildRule bundleRule=appleBundleDescription.createBuildRule(bundleParams,resolver,bundleArg);
+  resolver.addToIndex(bundleRule);
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(assetCatalog1,assetCatalog2,libraryRule,bundleRule),ImmutableSet.of(bundleRule.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   PBXProject generatedProject=projectGenerator.getGeneratedProject();

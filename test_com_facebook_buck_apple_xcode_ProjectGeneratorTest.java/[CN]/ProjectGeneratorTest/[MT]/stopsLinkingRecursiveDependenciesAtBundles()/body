@@ -1,5 +1,7 @@
 {
-  BuildRule dependentStaticLibrary=createBuildRuleWithDefaults(BuildTarget.builder("//dep","static").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription);
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRule dependentStaticLibrary=createBuildRuleWithDefaults(BuildTarget.builder("//dep","static").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,resolver);
+  resolver.addToIndex(dependentStaticLibrary);
   BuildTarget dependentDynamicLibraryTarget=BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build();
   BuildRuleParams dependentDynamicLibraryParams=new FakeBuildRuleParamsBuilder(dependentDynamicLibraryTarget).setDeps(ImmutableSortedSet.of(dependentStaticLibrary)).setType(AppleLibraryDescription.TYPE).build();
   AppleNativeTargetDescriptionArg dependentDynamicLibraryArg=appleLibraryDescription.createUnpopulatedConstructorArg();
@@ -10,14 +12,16 @@
   dependentDynamicLibraryArg.gid=Optional.absent();
   dependentDynamicLibraryArg.headerPathPrefix=Optional.absent();
   dependentDynamicLibraryArg.useBuckHeaderMaps=Optional.absent();
-  BuildRule dependentDynamicLibrary=appleLibraryDescription.createBuildRule(dependentDynamicLibraryParams,new BuildRuleResolver(),dependentDynamicLibraryArg);
+  BuildRule dependentDynamicLibrary=appleLibraryDescription.createBuildRule(dependentDynamicLibraryParams,resolver,dependentDynamicLibraryArg);
+  resolver.addToIndex(dependentDynamicLibrary);
   BuildRuleParams dependentFrameworkParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//dep","framework").build()).setDeps(ImmutableSortedSet.of(dependentDynamicLibrary)).setType(AppleBundleDescription.TYPE).build();
   AppleBundleDescription.Arg dependentFrameworkArg=appleBundleDescription.createUnpopulatedConstructorArg();
   dependentFrameworkArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
   dependentFrameworkArg.binary=dependentDynamicLibrary;
   dependentFrameworkArg.extension=Either.ofLeft(AppleBundleExtension.FRAMEWORK);
   dependentFrameworkArg.deps=Optional.of(ImmutableSortedSet.of(dependentDynamicLibrary));
-  BuildRule dependentFramework=appleBundleDescription.createBuildRule(dependentFrameworkParams,new BuildRuleResolver(),dependentFrameworkArg);
+  BuildRule dependentFramework=appleBundleDescription.createBuildRule(dependentFrameworkParams,resolver,dependentFrameworkArg);
+  resolver.addToIndex(dependentFramework);
   BuildTarget libraryTarget=BuildTarget.builder("//foo","library").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build();
   BuildRuleParams libraryParams=new FakeBuildRuleParamsBuilder(libraryTarget).setDeps(ImmutableSortedSet.of(dependentFramework)).setType(AppleLibraryDescription.TYPE).build();
   AppleNativeTargetDescriptionArg libraryArg=appleLibraryDescription.createUnpopulatedConstructorArg();
@@ -28,14 +32,16 @@
   libraryArg.gid=Optional.absent();
   libraryArg.headerPathPrefix=Optional.absent();
   libraryArg.useBuckHeaderMaps=Optional.absent();
-  BuildRule library=appleLibraryDescription.createBuildRule(libraryParams,new BuildRuleResolver(),libraryArg);
+  BuildRule library=appleLibraryDescription.createBuildRule(libraryParams,resolver,libraryArg);
+  resolver.addToIndex(library);
   BuildRuleParams bundleParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","final").build()).setDeps(ImmutableSortedSet.of(library)).setType(AppleBundleDescription.TYPE).build();
   AppleBundleDescription.Arg bundleArg=appleBundleDescription.createUnpopulatedConstructorArg();
   bundleArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
   bundleArg.binary=library;
   bundleArg.extension=Either.ofLeft(AppleBundleExtension.BUNDLE);
   bundleArg.deps=Optional.of(ImmutableSortedSet.of(library));
-  BuildRule bundle=appleBundleDescription.createBuildRule(bundleParams,new BuildRuleResolver(),bundleArg);
+  BuildRule bundle=appleBundleDescription.createBuildRule(bundleParams,resolver,bundleArg);
+  resolver.addToIndex(bundle);
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(bundle),ImmutableSet.of(bundle.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:final");

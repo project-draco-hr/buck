@@ -1,12 +1,15 @@
 {
-  BuildRule modelRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","model").build(),ImmutableSortedSet.<BuildRule>of(),coreDataModelDescription,new Function<CoreDataModelDescription.Arg,CoreDataModelDescription.Arg>(){
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRule modelRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","model").build(),resolver,ImmutableSortedSet.<BuildRule>of(),coreDataModelDescription,new Function<CoreDataModelDescription.Arg,CoreDataModelDescription.Arg>(){
     @Override public CoreDataModelDescription.Arg apply(    CoreDataModelDescription.Arg args){
       args.path=new TestSourcePath("foo.xcdatamodel").asReference();
       return args;
     }
   }
 );
-  BuildRule libraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(modelRule),appleLibraryDescription);
+  resolver.addToIndex(modelRule);
+  BuildRule libraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(modelRule),appleLibraryDescription,resolver);
+  resolver.addToIndex(libraryRule);
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(libraryRule),ImmutableSet.of(libraryRule.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   PBXProject project=projectGenerator.getGeneratedProject();

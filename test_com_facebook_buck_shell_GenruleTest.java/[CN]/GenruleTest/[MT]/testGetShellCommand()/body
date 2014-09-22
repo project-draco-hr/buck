@@ -1,33 +1,31 @@
 {
+  BuildRuleResolver resolver=new BuildRuleResolver();
   String bash="rm -rf /usr";
   String cmdExe="rmdir /s /q C:\\Windows";
   String cmd="echo \"Hello\"";
-  String genruleName="//example:genrule";
   ExecutionContext linuxExecutionContext=newEmptyExecutionContext(Platform.LINUX);
   ExecutionContext windowsExecutionContext=newEmptyExecutionContext(Platform.WINDOWS);
-  BuildTarget target=BuildTargetFactory.newInstance(genruleName);
-  Genrule genrule=GenruleBuilder.createGenrule(target).setBash(bash).setCmdExe(cmdExe).setOut("out.txt").build();
+  Genrule genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//example:genrule1")).setBash(bash).setCmdExe(cmdExe).setOut("out.txt").build(resolver);
   ImmutableList<String> command=genrule.createGenruleStep().getShellCommand(linuxExecutionContext);
   assertEquals(ImmutableList.of("/bin/bash","-e","-c",bash),command);
   command=genrule.createGenruleStep().getShellCommand(windowsExecutionContext);
   assertEquals(ImmutableList.of("cmd.exe","/c",cmdExe),command);
-  BuildTarget fallbackTarget=target;
-  genrule=GenruleBuilder.createGenrule(fallbackTarget).setCmd(cmd).setOut("out.txt").build();
+  genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//example:genrule2")).setCmd(cmd).setOut("out.txt").build(resolver);
   command=genrule.createGenruleStep().getShellCommand(linuxExecutionContext);
   assertEquals(ImmutableList.of("/bin/bash","-e","-c",cmd),command);
   command=genrule.createGenruleStep().getShellCommand(windowsExecutionContext);
   assertEquals(ImmutableList.of("cmd.exe","/c",cmd),command);
-  genrule=GenruleBuilder.createGenrule(target).setOut("out.txt").build();
+  genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//example:genrule3")).setOut("out.txt").build(resolver);
   try {
     genrule.createGenruleStep().getShellCommand(linuxExecutionContext);
   }
  catch (  HumanReadableException e) {
-    assertEquals(String.format("You must specify either bash or cmd for genrule %s.",genruleName),e.getHumanReadableErrorMessage());
+    assertEquals(String.format("You must specify either bash or cmd for genrule %s.",genrule.getBuildTarget()),e.getHumanReadableErrorMessage());
   }
   try {
     genrule.createGenruleStep().getShellCommand(windowsExecutionContext);
   }
  catch (  HumanReadableException e) {
-    assertEquals(String.format("You must specify either cmd_exe or cmd for genrule %s.",genruleName),e.getHumanReadableErrorMessage());
+    assertEquals(String.format("You must specify either cmd_exe or cmd for genrule %s.",genrule.getBuildTarget()),e.getHumanReadableErrorMessage());
   }
 }

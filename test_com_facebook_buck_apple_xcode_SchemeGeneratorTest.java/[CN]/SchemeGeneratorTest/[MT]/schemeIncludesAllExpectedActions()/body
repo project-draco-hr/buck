@@ -1,5 +1,7 @@
 {
-  BuildRule rootRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","root").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription);
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRule rootRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","root").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,resolver);
+  resolver.addToIndex(rootRule);
   BuildRuleParams libraryParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).setType(AppleLibraryDescription.TYPE).build();
   AppleNativeTargetDescriptionArg libraryArg=appleLibraryDescription.createUnpopulatedConstructorArg();
   libraryArg.configs=Optional.of(ImmutableMap.<String,ImmutableList<Either<SourcePath,ImmutableMap<String,String>>>>of());
@@ -9,22 +11,25 @@
   libraryArg.gid=Optional.absent();
   libraryArg.headerPathPrefix=Optional.absent();
   libraryArg.useBuckHeaderMaps=Optional.absent();
-  BuildRule libraryRule=appleLibraryDescription.createBuildRule(libraryParams,new BuildRuleResolver(),libraryArg);
+  BuildRule libraryRule=appleLibraryDescription.createBuildRule(libraryParams,resolver,libraryArg);
+  resolver.addToIndex(libraryRule);
   BuildRuleParams xctestParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","xctest").build()).setDeps(ImmutableSortedSet.of(libraryRule)).setType(AppleBundleDescription.TYPE).build();
   AppleBundleDescription.Arg xctestArg=appleBundleDescription.createUnpopulatedConstructorArg();
   xctestArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
   xctestArg.binary=libraryRule;
   xctestArg.extension=Either.ofLeft(AppleBundleExtension.XCTEST);
   xctestArg.deps=Optional.absent();
-  BuildRule xctestRule=appleBundleDescription.createBuildRule(xctestParams,new BuildRuleResolver(),xctestArg);
+  BuildRule xctestRule=appleBundleDescription.createBuildRule(xctestParams,resolver,xctestArg);
+  resolver.addToIndex(xctestRule);
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","test").build()).setDeps(ImmutableSortedSet.of(xctestRule)).setType(AppleTestDescription.TYPE).build();
   AppleTestDescription.Arg arg=appleTestDescription.createUnpopulatedConstructorArg();
   arg.testBundle=xctestRule;
   arg.contacts=Optional.of(ImmutableSortedSet.<String>of());
   arg.labels=Optional.of(ImmutableSortedSet.<Label>of());
   arg.deps=Optional.of(ImmutableSortedSet.of(xctestRule));
-  arg.sourceUnderTest=Optional.of(ImmutableSortedSet.<BuildRule>of(rootRule));
-  BuildRule testRule=appleTestDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+  arg.sourceUnderTest=Optional.of(ImmutableSortedSet.of(rootRule));
+  BuildRule testRule=appleTestDescription.createBuildRule(params,resolver,arg);
+  resolver.addToIndex(testRule);
   ImmutableMap.Builder<BuildRule,PBXTarget> buildRuleToTargetMapBuilder=ImmutableMap.builder();
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   PBXTarget rootTarget=new PBXNativeTarget("rootRule",PBXTarget.ProductType.STATIC_LIBRARY);

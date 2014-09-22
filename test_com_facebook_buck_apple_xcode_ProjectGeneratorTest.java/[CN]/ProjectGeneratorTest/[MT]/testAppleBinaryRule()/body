@@ -1,5 +1,7 @@
 {
-  BuildRule depRule=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dep").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription);
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRule depRule=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dep").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,resolver);
+  resolver.addToIndex(depRule);
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","binary").build()).setDeps(ImmutableSortedSet.of(depRule)).setType(AppleBinaryDescription.TYPE).build();
   AppleNativeTargetDescriptionArg arg=appleBinaryDescription.createUnpopulatedConstructorArg();
   arg.configs=Optional.of(ImmutableMap.of("Debug",ImmutableList.<Either<SourcePath,ImmutableMap<String,String>>>of()));
@@ -9,7 +11,8 @@
   arg.gid=Optional.absent();
   arg.headerPathPrefix=Optional.absent();
   arg.useBuckHeaderMaps=Optional.absent();
-  BuildRule rule=appleBinaryDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+  BuildRule rule=appleBinaryDescription.createBuildRule(params,resolver,arg);
+  resolver.addToIndex(rule);
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(rule),ImmutableSet.of(rule.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:binary");

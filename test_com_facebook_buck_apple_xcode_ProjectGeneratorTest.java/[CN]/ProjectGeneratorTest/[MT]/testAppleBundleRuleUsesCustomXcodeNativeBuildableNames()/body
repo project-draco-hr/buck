@@ -1,19 +1,22 @@
 {
-  BuildRule fooRule=createBuildRuleWithDefaults(BuildTarget.builder("//external","extFoo").build(),ImmutableSortedSet.<BuildRule>of(),xcodeNativeDescription,new Function<XcodeNativeDescription.Arg,XcodeNativeDescription.Arg>(){
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRule fooRule=createBuildRuleWithDefaults(BuildTarget.builder("//external","extFoo").build(),resolver,ImmutableSortedSet.<BuildRule>of(),xcodeNativeDescription,new Function<XcodeNativeDescription.Arg,XcodeNativeDescription.Arg>(){
     @Override public XcodeNativeDescription.Arg apply(    XcodeNativeDescription.Arg input){
       input.buildableName=Optional.of("librickandmorty.a");
       return input;
     }
   }
 );
-  BuildRule dynamicLibraryDep=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.of(fooRule),appleLibraryDescription);
+  resolver.addToIndex(fooRule);
+  BuildRule dynamicLibraryDep=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.of(fooRule),appleLibraryDescription,resolver);
+  resolver.addToIndex(dynamicLibraryDep);
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","foo").build()).setDeps(ImmutableSortedSet.of(dynamicLibraryDep)).setType(AppleBundleDescription.TYPE).build();
   AppleBundleDescription.Arg arg=appleBundleDescription.createUnpopulatedConstructorArg();
   arg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
   arg.binary=dynamicLibraryDep;
   arg.extension=Either.ofLeft(AppleBundleExtension.FRAMEWORK);
   arg.deps=Optional.absent();
-  BuildRule binaryRule=appleBundleDescription.createBuildRule(params,new BuildRuleResolver(),arg);
+  BuildRule binaryRule=appleBundleDescription.createBuildRule(params,resolver,arg);
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(fooRule,binaryRule),ImmutableSet.of(binaryRule.getBuildTarget()));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:foo");

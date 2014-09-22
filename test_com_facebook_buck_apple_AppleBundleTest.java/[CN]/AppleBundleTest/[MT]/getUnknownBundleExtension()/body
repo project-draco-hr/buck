@@ -1,7 +1,5 @@
 {
-  AppleBundleDescription.Arg arg=description.createUnpopulatedConstructorArg();
-  arg.extension=Either.ofRight("grplugin");
-  arg.infoPlist=Optional.absent();
+  BuildRuleResolver resolver=new BuildRuleResolver();
   AppleNativeTargetDescriptionArg libraryArg=appleLibraryDescription.createUnpopulatedConstructorArg();
   libraryArg.srcs=Optional.of(ImmutableList.<AppleSource>of());
   libraryArg.configs=Optional.of(ImmutableMap.<String,ImmutableList<Either<SourcePath,ImmutableMap<String,String>>>>of());
@@ -11,10 +9,15 @@
   libraryArg.headerPathPrefix=Optional.absent();
   libraryArg.useBuckHeaderMaps=Optional.absent();
   BuildRuleParams libraryParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).build();
-  arg.binary=appleLibraryDescription.createBuildRule(libraryParams,new BuildRuleResolver(),libraryArg);
+  AppleLibrary library=resolver.addToIndex(appleLibraryDescription.createBuildRule(libraryParams,resolver,libraryArg));
+  AppleBundleDescription.Arg arg=description.createUnpopulatedConstructorArg();
+  arg.extension=Either.ofRight("grplugin");
+  arg.infoPlist=Optional.absent();
+  arg.binary=library;
   arg.deps=Optional.of(ImmutableSortedSet.of(arg.binary));
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bundle").build()).build();
-  AppleBundle bundle=description.createBuildRule(params,new BuildRuleResolver(),arg);
+  AppleBundle bundle=description.createBuildRule(params,resolver,arg);
+  resolver.addToIndex(bundle);
   assertEquals(bundle.getExtensionString(),"grplugin");
   assertEquals(bundle.getExtensionValue(),Optional.absent());
 }
