@@ -1,0 +1,22 @@
+{
+  BuildRule rule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","rule").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,new Function<AppleNativeTargetDescriptionArg,AppleNativeTargetDescriptionArg>(){
+    @Override public AppleNativeTargetDescriptionArg apply(    AppleNativeTargetDescriptionArg input){
+      input.weakFrameworks=Optional.of(ImmutableSortedSet.of("$SDKROOT/libfoo.dylib"));
+      return input;
+    }
+  }
+);
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(rule),ImmutableSet.of(rule.getBuildTarget()));
+  projectGenerator.createXcodeProjects();
+  PBXProject generatedProject=projectGenerator.getGeneratedProject();
+  PBXTarget target=assertTargetExistsAndReturnTarget(generatedProject,"//foo:rule#dynamic");
+  PBXBuildPhase buildPhase=ProjectGeneratorTestUtils.getSingletonPhaseByType(target,PBXFrameworksBuildPhase.class);
+  assertEquals(buildPhase.getFiles().size(),1);
+  PBXBuildFile file=buildPhase.getFiles().get(0);
+  assertTrue(file.getSettings().isPresent());
+  NSDictionary settings=file.getSettings().get();
+  assertEquals(settings.get("ATTRIBUTES"),new NSArray(new NSString("Weak")));
+  PBXReference.SourceTree sourceTree=file.getFileRef().getSourceTree();
+  String serialized="$" + sourceTree + "/"+ file.getFileRef().getPath();
+  assertEquals(serialized,"$SDKROOT/libfoo.dylib");
+}
