@@ -19,12 +19,21 @@
  else {
     filteredResourcesProvider=new IdentityResourcesProvider(resourceDetails.resourceDirectories);
   }
-  BuildRuleParams paramsForUberRDotJava=buildRuleParams.copyWithChanges(BuildRuleType.UBER_R_DOT_JAVA,createBuildTargetWithFlavor(UBER_R_DOT_JAVA_FLAVOR),resourceRules,ImmutableSortedSet.<BuildRule>of());
-  UberRDotJava uberRDotJava=new UberRDotJava(paramsForUberRDotJava,filteredResourcesProvider,getTargetsAsResourceDeps(resourceDetails.resourcesWithNonEmptyResDir),resourceDetails.rDotJavaPackagesSupplier,javacOptions,shouldPreDex,shouldBuildStringSourceMap);
-  ruleResolver.addToIndex(uberRDotJava);
-  enhancedDeps.add(uberRDotJava);
+  BuildTarget buildTargetForAapt=createBuildTargetWithFlavor(AAPT_PACKAGE_FLAVOR);
+  BuildRuleParams paramsForAaptPackageResources=buildRuleParams.copyWithChanges(BuildRuleType.AAPT_PACKAGE,buildTargetForAapt,getAdditionalAaptDeps(resourceRules,packageableCollection),ImmutableSortedSet.<BuildRule>of());
+  AaptPackageResources aaptPackageResources=new AaptPackageResources(paramsForAaptPackageResources,manifest,filteredResourcesProvider,getTargetsAsResourceDeps(resourceDetails.resourcesWithNonEmptyResDir),packageableCollection.assetsDirectories,packageType,cpuFilters,javacOptions,shouldPreDex,shouldBuildStringSourceMap);
+  ruleResolver.addToIndex(aaptPackageResources);
+  enhancedDeps.add(aaptPackageResources);
+  Optional<PackageStringAssets> packageStringAssets=Optional.absent();
+  if (resourceCompressionMode.isStoreStringsAsAssets()) {
+    BuildTarget buildTargetForPackageStringAssets=createBuildTargetWithFlavor(PACKAGE_STRING_ASSETS_FLAVOR);
+    BuildRuleParams paramsForPackageStringAssets=buildRuleParams.copyWithChanges(BuildRuleType.PACKAGE_STRING_ASSETS,buildTargetForPackageStringAssets,ImmutableSortedSet.<BuildRule>of(aaptPackageResources),ImmutableSortedSet.<BuildRule>of());
+    packageStringAssets=Optional.of(new PackageStringAssets(paramsForPackageStringAssets,filteredResourcesProvider,aaptPackageResources));
+    ruleResolver.addToIndex(packageStringAssets.get());
+    enhancedDeps.add(packageStringAssets.get());
+  }
   if (packageableCollection.resourceDetails.hasRDotJavaPackages) {
-    collector.addClasspathEntry(uberRDotJava,uberRDotJava.getPathToCompiledRDotJavaFiles());
+    collector.addClasspathEntry(aaptPackageResources,aaptPackageResources.getPathToCompiledRDotJavaFiles());
   }
   ImmutableList<DexProducedFromJavaLibrary> preDexBuildConfigs;
   ImmutableList<Path> buildConfigJarFiles;
@@ -40,20 +49,9 @@
     buildConfigJarFiles=buildConfigJarFilesBuilder.build();
   }
   packageableCollection=collector.build();
-  Optional<PackageStringAssets> packageStringAssets=Optional.absent();
-  if (resourceCompressionMode.isStoreStringsAsAssets()) {
-    BuildRuleParams paramsForPackageStringAssets=buildRuleParams.copyWithChanges(BuildRuleType.PACKAGE_STRING_ASSETS,createBuildTargetWithFlavor(PACKAGE_STRING_ASSETS_FLAVOR),ImmutableSortedSet.<BuildRule>of(uberRDotJava),ImmutableSortedSet.<BuildRule>of());
-    packageStringAssets=Optional.of(new PackageStringAssets(paramsForPackageStringAssets,filteredResourcesProvider,uberRDotJava));
-    ruleResolver.addToIndex(packageStringAssets.get());
-    enhancedDeps.add(packageStringAssets.get());
-  }
-  BuildRuleParams paramsForAaptPackageResources=buildRuleParams.copyWithChanges(BuildRuleType.AAPT_PACKAGE,createBuildTargetWithFlavor(AAPT_PACKAGE_FLAVOR),getAdditionalAaptDeps(resourceRules,packageableCollection),ImmutableSortedSet.<BuildRule>of());
-  AaptPackageResources aaptPackageResources=new AaptPackageResources(paramsForAaptPackageResources,manifest,filteredResourcesProvider,packageableCollection.assetsDirectories,packageType,cpuFilters);
-  ruleResolver.addToIndex(aaptPackageResources);
-  enhancedDeps.add(aaptPackageResources);
   Optional<PreDexMerge> preDexMerge=Optional.absent();
   if (shouldPreDex) {
-    preDexMerge=Optional.of(createPreDexMergeRule(uberRDotJava,preDexBuildConfigs,packageableCollection));
+    preDexMerge=Optional.of(createPreDexMergeRule(aaptPackageResources,preDexBuildConfigs,packageableCollection));
     enhancedDeps.add(preDexMerge.get());
   }
  else {

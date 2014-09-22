@@ -6,7 +6,7 @@
   BuildTarget apkTarget=BuildTargetFactory.newInstance("//java/com/example:apk");
   BuildRuleParams originalParams=new FakeBuildRuleParamsBuilder(apkTarget).setDeps(ImmutableSortedSet.<BuildRule>of(buildConfigJavaLibrary)).build();
   Keystore keystore=createStrictMock(Keystore.class);
-  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,ruleResolver,ResourcesFilter.ResourceCompressionMode.ENABLED_WITH_STRINGS_AS_ASSETS,FilterResourcesStep.ResourceFilter.EMPTY_FILTER,new TestSourcePath("AndroidManifest.xml"),AndroidBinary.PackageType.DEBUG,ImmutableSet.<AndroidBinary.TargetCpuType>of(),false,false,BuildTargets.getBinPath(apkTarget,"%s/classes.dex"),DexSplitMode.NO_SPLIT,ImmutableSet.<BuildTarget>of(),ImmutableSet.<BuildTarget>of(),JavacOptions.DEFAULTS,true,keystore,BuildConfigFields.empty(),Optional.<SourcePath>absent());
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,ruleResolver,ResourcesFilter.ResourceCompressionMode.ENABLED_WITH_STRINGS_AS_ASSETS,FilterResourcesStep.ResourceFilter.EMPTY_FILTER,new TestSourcePath("AndroidManifest.xml"),AndroidBinary.PackageType.DEBUG,ImmutableSet.<TargetCpuType>of(),false,false,BuildTargets.getBinPath(apkTarget,"%s/classes.dex"),DexSplitMode.NO_SPLIT,ImmutableSet.<BuildTarget>of(),ImmutableSet.<BuildTarget>of(),JavacOptions.DEFAULTS,true,keystore,BuildConfigFields.empty(),Optional.<SourcePath>absent());
   replay(keystore);
   EnhancementResult result=graphEnhancer.createAdditionalBuildables();
   String flavor="buildconfig_com_example_buck";
@@ -26,15 +26,12 @@
   FilteredResourcesProvider resourcesProvider=result.getFilteredResourcesProvider();
   assertTrue(resourcesProvider instanceof ResourcesFilter);
   BuildRule resourcesFilterRule=findRuleOfType(ruleResolver,ResourcesFilter.class);
-  BuildRule uberRDotJavaRule=findRuleOfType(ruleResolver,UberRDotJava.class);
-  MoreAsserts.assertDepends("UberRDotJava must depend on ResourcesFilter",uberRDotJavaRule,resourcesFilterRule);
-  BuildRule packageStringAssetsRule=findRuleOfType(ruleResolver,PackageStringAssets.class);
-  MoreAsserts.assertDepends("PackageStringAssets must depend on ResourcesFilter",packageStringAssetsRule,uberRDotJavaRule);
   BuildRule aaptPackageResourcesRule=findRuleOfType(ruleResolver,AaptPackageResources.class);
   MoreAsserts.assertDepends("AaptPackageResources must depend on ResourcesFilter",aaptPackageResourcesRule,resourcesFilterRule);
+  BuildRule packageStringAssetsRule=findRuleOfType(ruleResolver,PackageStringAssets.class);
+  MoreAsserts.assertDepends("PackageStringAssets must depend on ResourcesFilter",packageStringAssetsRule,aaptPackageResourcesRule);
   assertFalse(result.getPreDexMerge().isPresent());
   MoreAsserts.assertDepends("ComputeExopackageDepsAbi must depend on ResourcesFilter",computeExopackageDepsAbiRule,resourcesFilterRule);
-  MoreAsserts.assertDepends("ComputeExopackageDepsAbi must depend on UberRDotJava",computeExopackageDepsAbiRule,uberRDotJavaRule);
   MoreAsserts.assertDepends("ComputeExopackageDepsAbi must depend on PackageStringAssets",computeExopackageDepsAbiRule,packageStringAssetsRule);
   MoreAsserts.assertDepends("ComputeExopackageDepsAbi must depend on AaptPackageResources",computeExopackageDepsAbiRule,aaptPackageResourcesRule);
   assertTrue(result.getPackageStringAssets().isPresent());

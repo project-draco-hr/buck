@@ -1,5 +1,18 @@
 {
   Optional<Sha1HashCode> resourcePackageHash=onDiskBuildInfo.getHash(RESOURCE_PACKAGE_HASH_KEY);
   Preconditions.checkState(resourcePackageHash.isPresent(),"Should not be initializing %s from disk if the resource hash is not written.",getBuildTarget());
-  return new BuildOutput(resourcePackageHash.get());
+  ImmutableSortedMap<String,HashCode> classesHash=ImmutableSortedMap.of();
+  if (!filteredResourcesProvider.getResDirectories().isEmpty()) {
+    List<String> lines;
+    try {
+      lines=onDiskBuildInfo.getOutputFileContentsByLine(getPathToRDotJavaClassesTxt());
+    }
+ catch (    IOException e) {
+      throw new RuntimeException(e);
+    }
+    classesHash=AccumulateClassNamesStep.parseClassHashes(lines);
+  }
+  Optional<String> linearAllocSizeValue=onDiskBuildInfo.getValue(R_DOT_JAVA_LINEAR_ALLOC_SIZE);
+  Optional<Integer> linearAllocSize=linearAllocSizeValue.isPresent() ? Optional.of(Integer.parseInt(linearAllocSizeValue.get())) : Optional.<Integer>absent();
+  return new BuildOutput(resourcePackageHash.get(),linearAllocSize,classesHash);
 }
