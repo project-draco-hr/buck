@@ -10,14 +10,19 @@
         if (!paths.isEmpty() && !paths.contains(file)) {
           return FileVisitResult.CONTINUE;
         }
+        Path resolvedPath=filesystem.resolve(file);
         Path relativePath=junkPaths ? file.getFileName() : baseDir.relativize(file);
         String entryName=MorePaths.pathWithUnixSeparators(relativePath);
         CustomZipEntry entry=new CustomZipEntry(entryName);
         entry.setTime(attributes.lastModifiedTime().toMillis());
-        entry.setSize(attributes.size());
         entry.setCompressionLevel(compressionLevel);
+        if (entry.getMethod() == ZipEntry.STORED) {
+          entry.setSize(attributes.size());
+          entry.setCompressedSize(attributes.size());
+          entry.setCrc(com.google.common.io.Files.hash(resolvedPath.toFile(),Hashing.crc32()).padToLong());
+        }
         out.putNextEntry(entry);
-        Files.copy(filesystem.resolve(file),out);
+        Files.copy(resolvedPath,out);
         out.closeEntry();
         return FileVisitResult.CONTINUE;
       }

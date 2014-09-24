@@ -1,0 +1,20 @@
+{
+  File parent=tmp.newFolder("zipstep");
+  File out=new File(parent,"output.zip");
+  File toZip=tmp.newFolder("zipdir");
+  byte[] contents="hello world".getBytes();
+  Files.write(contents,new File(toZip,"file1.txt"));
+  Files.write(contents,new File(toZip,"file2.txt"));
+  Files.write(contents,new File(toZip,"file3.txt"));
+  ZipStep step=new ZipStep(Paths.get("zipstep/output.zip"),ImmutableSet.<Path>of(),false,ZipStep.MIN_COMPRESSION_LEVEL,Paths.get("zipdir"));
+  assertEquals(0,step.execute(executionContext));
+  try (ZipFile zip=new ZipFile(out)){
+    Enumeration<ZipArchiveEntry> entries=zip.getEntries();
+    ZipArchiveEntry entry1=entries.nextElement();
+    assertArrayEquals(contents,ByteStreams.toByteArray(zip.getInputStream(entry1)));
+    ZipArchiveEntry entry2=entries.nextElement();
+    assertArrayEquals(contents,ByteStreams.toByteArray(zip.getInputStream(entry2)));
+    ZipArchiveEntry entry3=entries.nextElement();
+    assertArrayEquals(contents,ByteStreams.toByteArray(zip.getInputStream(entry3)));
+  }
+ }
