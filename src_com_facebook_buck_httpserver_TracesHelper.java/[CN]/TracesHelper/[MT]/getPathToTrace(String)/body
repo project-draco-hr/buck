@@ -1,3 +1,13 @@
 {
-  return BuckConstant.BUCK_TRACE_DIR.resolve(String.format("build.%s.trace",id));
+  Preconditions.checkNotNull(id);
+  Preconditions.checkArgument(TracesHandlerDelegate.TRACE_ID_PATTERN.matcher(id).matches());
+  String testPrefix="build.";
+  String testSuffix="." + id + ".trace";
+  for (  File traceFile : projectFilesystem.listFiles(BuckConstant.BUCK_TRACE_DIR)) {
+    String name=traceFile.getName();
+    if (name.endsWith(testSuffix) && name.startsWith(testPrefix)) {
+      return traceFile.toPath();
+    }
+  }
+  throw new HumanReadableException("Could not find a build trace with id %s.",id);
 }

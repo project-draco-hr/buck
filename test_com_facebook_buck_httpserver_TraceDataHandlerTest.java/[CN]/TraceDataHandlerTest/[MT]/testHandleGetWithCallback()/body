@@ -13,7 +13,13 @@
   expect(response.getWriter()).andReturn(printWriter);
   response.flushBuffer();
   ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
-  expect(projectFilesystem.getInputStreamForRelativePath(Paths.get("buck-out/log/traces/build.abcdef.trace"))).andReturn(new ByteArrayInputStream("{\"foo\":\"bar\"}".getBytes()));
+  File traceFile=createMock(File.class);
+  String name="build.abcdef.trace";
+  expect(traceFile.getName()).andStubReturn(name);
+  Path pathToTraceFile=BuckConstant.BUCK_TRACE_DIR.resolve(name);
+  expect(traceFile.toPath()).andReturn(pathToTraceFile);
+  expect(projectFilesystem.listFiles(BuckConstant.BUCK_TRACE_DIR)).andStubReturn(new File[]{traceFile});
+  expect(projectFilesystem.getInputStreamForRelativePath(pathToTraceFile)).andReturn(new ByteArrayInputStream("{\"foo\":\"bar\"}".getBytes()));
   TraceDataHandler traceDataHandler=new TraceDataHandler(new TracesHelper(projectFilesystem));
   replayAll();
   traceDataHandler.handle("/trace/abcdef?callback=my.callback",baseRequest,request,response);
