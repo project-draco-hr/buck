@@ -1,15 +1,25 @@
 {
   ImmutableSortedSet<BuildRule> originalDeps=originalBuildRuleParams.getDeps();
-  ImmutableSet<HasAndroidResourceDeps> androidResourceDeps=FluentIterable.from(originalDeps).filter(HasAndroidResourceDeps.class).filter(HasAndroidResourceDeps.NON_EMPTY_RESOURCE).toSet();
-  if (androidResourceDeps.isEmpty() && !createBuildableIfEmptyDeps) {
-    return Optional.absent();
-  }
-  ImmutableSortedSet.Builder<BuildRule> actualDeps=ImmutableSortedSet.naturalOrder();
-  for (  HasAndroidResourceDeps dep : androidResourceDeps) {
-    actualDeps.add(ruleResolver.get(dep.getBuildTarget()));
-  }
-  BuildRuleParams dummyRDotJavaParams=originalBuildRuleParams.copyWithChanges(BuildRuleType.DUMMY_R_DOT_JAVA,dummyRDotJavaBuildTarget,actualDeps.build(),ImmutableSortedSet.<BuildRule>of());
-  DummyRDotJava dummyRDotJava=new DummyRDotJava(dummyRDotJavaParams,androidResourceDeps,javacOptions);
-  ruleResolver.addToIndex(dummyRDotJava);
-  return Optional.of(dummyRDotJava);
+  ImmutableSet<HasAndroidResourceDeps> androidResourceDeps;
+switch (resourceDependencyMode) {
+case FIRST_ORDER:
+    androidResourceDeps=FluentIterable.from(originalDeps).filter(HasAndroidResourceDeps.class).filter(HasAndroidResourceDeps.NON_EMPTY_RESOURCE).toSet();
+  break;
+case TRANSITIVE:
+androidResourceDeps=UnsortedAndroidResourceDeps.createFrom(originalDeps,Optional.<UnsortedAndroidResourceDeps.Callback>absent()).getResourceDeps();
+break;
+default :
+throw new IllegalStateException("Invalid resource dependency mode: " + resourceDependencyMode);
+}
+if (androidResourceDeps.isEmpty() && !createBuildableIfEmptyDeps) {
+return Optional.absent();
+}
+ImmutableSortedSet.Builder<BuildRule> actualDeps=ImmutableSortedSet.naturalOrder();
+for (HasAndroidResourceDeps dep : androidResourceDeps) {
+actualDeps.add(ruleResolver.get(dep.getBuildTarget()));
+}
+BuildRuleParams dummyRDotJavaParams=originalBuildRuleParams.copyWithChanges(BuildRuleType.DUMMY_R_DOT_JAVA,dummyRDotJavaBuildTarget,actualDeps.build(),ImmutableSortedSet.<BuildRule>of());
+DummyRDotJava dummyRDotJava=new DummyRDotJava(dummyRDotJavaParams,androidResourceDeps,javacOptions);
+ruleResolver.addToIndex(dummyRDotJava);
+return Optional.of(dummyRDotJava);
 }
