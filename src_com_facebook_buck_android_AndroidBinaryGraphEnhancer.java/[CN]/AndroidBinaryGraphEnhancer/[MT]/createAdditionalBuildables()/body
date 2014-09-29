@@ -57,10 +57,21 @@
  else {
     enhancedDeps.addAll(getTargetsAsRules(packageableCollection.javaLibrariesToDex()));
   }
+  ImmutableMap.Builder<Map.Entry<TargetCpuType,String>,SourcePath> nativeLinkableLibsBuilder=ImmutableMap.builder();
+  for (  AndroidNativeLinkable nativeLinkable : packageableCollection.nativeLinkables()) {
+    for (    TargetCpuType targetCpuType : cpuFilters) {
+      CxxPlatform cxxPlatform=nativePlatforms.get(targetCpuType);
+      ImmutableMap<String,SourcePath> solibs=nativeLinkable.getSharedLibraries(cxxPlatform);
+      for (      Map.Entry<String,SourcePath> entry : solibs.entrySet()) {
+        nativeLinkableLibsBuilder.put(new AbstractMap.SimpleEntry<>(targetCpuType,entry.getKey()),entry.getValue());
+      }
+    }
+  }
+  ImmutableMap<Map.Entry<TargetCpuType,String>,SourcePath> nativeLinkableLibs=nativeLinkableLibsBuilder.build();
   Optional<CopyNativeLibraries> copyNativeLibraries=Optional.absent();
-  if (!packageableCollection.nativeLibsDirectories().isEmpty()) {
-    BuildRuleParams paramsForCopyNativeLibraries=buildRuleParams.copyWithChanges(BuildRuleType.COPY_NATIVE_LIBS,createBuildTargetWithFlavor(COPY_NATIVE_LIBS_FLAVOR),getTargetsAsRules(packageableCollection.nativeLibsTargets()),ImmutableSortedSet.<BuildRule>of());
-    copyNativeLibraries=Optional.of(new CopyNativeLibraries(paramsForCopyNativeLibraries,pathResolver,packageableCollection.nativeLibsDirectories(),cpuFilters));
+  if (!packageableCollection.nativeLibsDirectories().isEmpty() || !nativeLinkableLibs.isEmpty()) {
+    BuildRuleParams paramsForCopyNativeLibraries=buildRuleParams.copyWithChanges(BuildRuleType.COPY_NATIVE_LIBS,createBuildTargetWithFlavor(COPY_NATIVE_LIBS_FLAVOR),ImmutableSortedSet.<BuildRule>naturalOrder().addAll(getTargetsAsRules(packageableCollection.nativeLibsTargets())).addAll(pathResolver.filterBuildRuleInputs(nativeLinkableLibs.values())).build(),ImmutableSortedSet.<BuildRule>of());
+    copyNativeLibraries=Optional.of(new CopyNativeLibraries(paramsForCopyNativeLibraries,pathResolver,packageableCollection.nativeLibsDirectories(),cpuFilters,pathResolver.getMappedPaths(nativeLinkableLibs)));
     ruleResolver.addToIndex(copyNativeLibraries.get());
     enhancedDeps.add(copyNativeLibraries.get());
   }

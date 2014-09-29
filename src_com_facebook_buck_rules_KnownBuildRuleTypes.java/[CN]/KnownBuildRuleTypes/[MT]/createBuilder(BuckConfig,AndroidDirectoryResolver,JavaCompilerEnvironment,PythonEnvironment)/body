@@ -7,13 +7,18 @@
   AppleConfig appleConfig=new AppleConfig(config);
   ThriftBuckConfig thriftBuckConfig=new ThriftBuckConfig(config);
   OCamlBuckConfig ocamlBuckConfig=new OCamlBuckConfig(platform,config);
+  ImmutableMap.Builder<AndroidBinary.TargetCpuType,CxxPlatform> ndkCxxPlatformsBuilder=ImmutableMap.builder();
+  Optional<Path> ndkRoot=androidDirectoryResolver.findAndroidNdkDir();
+  if (ndkRoot.isPresent()) {
+    ndkCxxPlatformsBuilder.putAll(getNdkCxxPlatforms(ndkRoot.get(),platform));
+  }
+  ImmutableMap<AndroidBinary.TargetCpuType,CxxPlatform> ndkCxxPlatforms=ndkCxxPlatformsBuilder.build();
   CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(config);
   ImmutableMap.Builder<Flavor,CxxPlatform> cxxPlatformsBuilder=ImmutableMap.builder();
   DefaultCxxPlatform defaultCxxPlatform=new DefaultCxxPlatform(platform,config);
   cxxPlatformsBuilder.put(defaultCxxPlatform.asFlavor(),defaultCxxPlatform);
-  Optional<Path> ndkRoot=androidDirectoryResolver.findAndroidNdkDir();
-  if (ndkRoot.isPresent()) {
-    cxxPlatformsBuilder.putAll(getNdkCxxPlatforms(ndkRoot.get(),platform));
+  for (  CxxPlatform ndkCxxPlatform : ndkCxxPlatforms.values()) {
+    cxxPlatformsBuilder.put(ndkCxxPlatform.asFlavor(),ndkCxxPlatform);
   }
   FlavorDomain<CxxPlatform> cxxPlatforms=new FlavorDomain<>("C/C++ platform",cxxPlatformsBuilder.build());
   ProGuardConfig proGuardConfig=new ProGuardConfig(config);
@@ -24,7 +29,7 @@
   boolean downloadAtRuntimeOk=config.getBooleanValue("download","in_build",false);
   Builder builder=builder();
   JavacOptions androidBinaryOptions=JavacOptions.builder(JavacOptions.DEFAULTS).setJavaCompilerEnvironment(javacEnv).build();
-  builder.register(new AndroidBinaryDescription(androidBinaryOptions,proGuardConfig));
+  builder.register(new AndroidBinaryDescription(androidBinaryOptions,proGuardConfig,ndkCxxPlatforms));
   builder.register(new AndroidBuildConfigDescription());
   builder.register(new AndroidInstrumentationApkDescription(proGuardConfig));
   builder.register(new AndroidLibraryDescription(javacEnv));
