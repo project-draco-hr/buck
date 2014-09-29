@@ -1,14 +1,15 @@
 {
   ProjectFilesystem filesystem=new ProjectFilesystem(tmp.getRoot().toPath());
-  Path archiver=Archives.DEFAULT_ARCHIVE_PATH;
+  CxxPlatform platform=new DefaultCxxPlatform(new FakeBuckConfig());
+  Path archiver=platform.getAr().resolve();
   Path output=filesystem.resolve(Paths.get("output.a"));
   Path relativeInput=Paths.get("input.dat");
   Path input=filesystem.resolve(relativeInput);
   filesystem.writeContentsToPath("blah",relativeInput);
-  ArchiveStep archiveStep=new ArchiveStep(Archives.DEFAULT_ARCHIVE_PATH,output,ImmutableList.of(input));
+  ArchiveStep archiveStep=new ArchiveStep(archiver,output,ImmutableList.of(input));
   ArchiveScrubberStep archiveScrubberStep=new ArchiveScrubberStep(output);
   assumeTrue(Files.exists(archiver));
-  ExecutionContext executionContext=TestExecutionContext.newBuilder().setProjectFilesystem(new ProjectFilesystem(tmp.getRoot())).build();
+  ExecutionContext executionContext=TestExecutionContext.newBuilder().setProjectFilesystem(new ProjectFilesystem(tmp.getRoot().toPath())).build();
   TestConsole console=(TestConsole)executionContext.getConsole();
   int exitCode=archiveStep.execute(executionContext);
   assertEquals("archive step failed: " + console.getTextWrittenToStdErr(),0,exitCode);
