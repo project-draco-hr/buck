@@ -7,14 +7,14 @@
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","binary").build()).setDeps(ImmutableSortedSet.of(binaryDep)).setType(AppleBundleDescription.TYPE).build();
   AppleBundleDescription.Arg arg=appleBundleDescription.createUnpopulatedConstructorArg();
   arg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
-  arg.binary=binaryDep;
+  arg.binary=binaryDep.getBuildTarget();
   arg.extension=Either.ofLeft(AppleBundleExtension.APP);
   arg.deps=Optional.absent();
   BuildRule binaryRule=appleBundleDescription.createBuildRule(params,resolver,arg);
   resolver.addToIndex(binaryRule);
   BuildRule nativeRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","native").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,resolver);
   resolver.addToIndex(nativeRule);
-  BuildRule configRule=createXcodeProjectConfigRule("//foo","fooproject",resolver,ImmutableSet.of(libraryRule,binaryRule,nativeRule));
+  BuildRule configRule=createXcodeProjectConfigRule("//foo","fooproject",resolver,ImmutableSortedSet.of(libraryRule.getBuildTarget(),binaryRule.getBuildTarget(),nativeRule.getBuildTarget()));
   resolver.addToIndex(configRule);
   SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(projectFilesystem,createPartialGraphFromBuildRules(ImmutableSet.of(configRule,libraryRule,binaryRule,nativeRule)).getActionGraph(),executionContext,ImmutableSet.of(configRule.getBuildTarget()),ImmutableSet.<ProjectGenerator.Option>of());
   generator.generateProjects();

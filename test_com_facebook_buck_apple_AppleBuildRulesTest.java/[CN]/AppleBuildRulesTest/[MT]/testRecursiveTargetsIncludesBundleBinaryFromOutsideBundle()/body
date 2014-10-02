@@ -15,9 +15,9 @@
   BuildRuleParams bundleParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","bundle").build()).setDeps(ImmutableSortedSet.of(libraryRule)).setType(AppleBundleDescription.TYPE).build();
   AppleBundleDescription.Arg bundleArg=appleBundleDescription.createUnpopulatedConstructorArg();
   bundleArg.infoPlist=Optional.<SourcePath>of(new TestSourcePath("Info.plist"));
-  bundleArg.binary=libraryRule;
+  bundleArg.binary=libraryRule.getBuildTarget();
   bundleArg.extension=Either.ofLeft(AppleBundleExtension.BUNDLE);
-  bundleArg.deps=Optional.of(ImmutableSortedSet.of(libraryRule));
+  bundleArg.deps=Optional.of(ImmutableSortedSet.of(libraryRule.getBuildTarget()));
   BuildRule bundleRule=appleBundleDescription.createBuildRule(bundleParams,resolver,bundleArg);
   resolver.addToIndex(bundleRule);
   BuildRuleParams rootParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","root").build()).setDeps(ImmutableSortedSet.of(bundleRule,libraryRule)).setType(AppleLibraryDescription.TYPE).build();
@@ -26,11 +26,12 @@
   rootArg.srcs=Optional.of(ImmutableList.<AppleSource>of());
   rootArg.frameworks=Optional.of(ImmutableSortedSet.<String>of());
   rootArg.weakFrameworks=Optional.of(ImmutableSortedSet.<String>of());
-  rootArg.deps=Optional.of(ImmutableSortedSet.of(bundleRule,libraryRule));
+  rootArg.deps=Optional.of(ImmutableSortedSet.of(bundleRule.getBuildTarget(),libraryRule.getBuildTarget()));
   rootArg.gid=Optional.absent();
   rootArg.headerPathPrefix=Optional.absent();
   rootArg.useBuckHeaderMaps=Optional.absent();
-  BuildRule rootRule=appleLibraryDescription.createBuildRule(rootParams,new BuildRuleResolver(),rootArg);
+  BuildRule rootRule=appleLibraryDescription.createBuildRule(rootParams,resolver,rootArg);
+  resolver.addToIndex(rootRule);
   Iterable<BuildRule> rules=AppleBuildRules.getRecursiveRuleDependenciesOfTypes(AppleBuildRules.RecursiveRuleDependenciesMode.BUILDING,rootRule,Optional.<ImmutableSet<BuildRuleType>>absent());
   assertTrue(Iterables.elementsEqual(ImmutableSortedSet.of(bundleRule,libraryRule),rules));
 }
