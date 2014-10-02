@@ -1,0 +1,38 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"ocaml",tmp);
+  workspace.setUp();
+  BuildTarget target=BuildTargetFactory.newInstance("//clib:clib");
+  BuildTarget libplus=createStaticLibraryBuildTarget(BuildTargetFactory.newInstance("//clib/plus:plus"));
+  BuildTarget cclib=BuildTargetFactory.newInstance("//clib/cc:cc");
+  BuildTarget cclibbin=CxxDescriptionEnhancer.createStaticLibraryBuildTarget(cclib);
+  String sourceName="cc.cpp";
+  BuildTarget ccObj=CxxCompilableEnhancer.createCompileBuildTarget(cclib,sourceName,false);
+  BuildTarget headerSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(cclib);
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  assertEquals(ImmutableSet.of(target,libplus,cclibbin,ccObj,headerSymlinkTreeTarget),buildLog.getAllTargets());
+  buildLog.assertTargetBuiltLocally(target.toString());
+  buildLog.assertTargetBuiltLocally(libplus.toString());
+  buildLog.assertTargetBuiltLocally(cclibbin.toString());
+  buildLog.assertTargetBuiltLocally(ccObj.toString());
+  buildLog.assertTargetBuiltLocally(headerSymlinkTreeTarget.toString());
+  workspace.resetBuildLogFile();
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  assertEquals(ImmutableSet.of(target,libplus,cclibbin,ccObj,headerSymlinkTreeTarget),buildLog.getAllTargets());
+  buildLog.assertTargetHadMatchingRuleKey(target.toString());
+  buildLog.assertTargetHadMatchingRuleKey(libplus.toString());
+  buildLog.assertTargetHadMatchingRuleKey(cclibbin.toString());
+  buildLog.assertTargetHadMatchingRuleKey(ccObj.toString());
+  buildLog.assertTargetHadMatchingRuleKey(headerSymlinkTreeTarget.toString());
+  workspace.resetBuildLogFile();
+  workspace.replaceFileContents("clib/cc/cc.cpp","Hi there","hi there");
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  assertEquals(ImmutableSet.of(target,libplus,cclibbin,ccObj,headerSymlinkTreeTarget),buildLog.getAllTargets());
+  buildLog.assertTargetBuiltLocally(target.toString());
+  buildLog.assertTargetBuiltLocally(libplus.toString());
+  buildLog.assertTargetBuiltLocally(cclibbin.toString());
+  buildLog.assertTargetBuiltLocally(ccObj.toString());
+  buildLog.assertTargetHadMatchingRuleKey(headerSymlinkTreeTarget.toString());
+}

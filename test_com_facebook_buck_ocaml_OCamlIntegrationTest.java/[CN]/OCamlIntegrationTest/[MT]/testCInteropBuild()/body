@@ -1,0 +1,38 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"ocaml",tmp);
+  workspace.setUp();
+  BuildTarget target=BuildTargetFactory.newInstance("//ctest:ctest");
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  assertEquals(ImmutableSet.of(target),buildLog.getAllTargets());
+  buildLog.assertTargetBuiltLocally(target.toString());
+  workspace.resetBuildLogFile();
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  assertEquals(ImmutableSet.of(target),buildLog.getAllTargets());
+  buildLog.assertTargetHadMatchingRuleKey(target.toString());
+  workspace.resetBuildLogFile();
+  workspace.replaceFileContents("ctest/ctest.c","NATIVE PLUS","Native Plus");
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  assertEquals(ImmutableSet.of(target),buildLog.getAllTargets());
+  buildLog.assertTargetBuiltLocally(target.toString());
+  workspace.resetBuildLogFile();
+  workspace.replaceFileContents("ctest/BUCK","#INSERTION_POINT","compiler_flags=['-noassert']");
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  assertEquals(ImmutableSet.of(target),buildLog.getAllTargets());
+  buildLog.assertTargetBuiltLocally(target.toString());
+  workspace.resetBuildLogFile();
+  workspace.replaceFileContents("ctest/BUCK","compiler_flags=['-noassert']","compiler_flags=[]");
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  assertEquals(ImmutableSet.of(target),buildLog.getAllTargets());
+  buildLog.assertTargetBuiltLocally(target.toString());
+  workspace.resetBuildLogFile();
+  workspace.replaceFileContents("ctest/BUCK","compiler_flags=[]","compiler_flags=[]");
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  assertEquals(ImmutableSet.of(target),buildLog.getAllTargets());
+  buildLog.assertTargetHadMatchingRuleKey(target.toString());
+}

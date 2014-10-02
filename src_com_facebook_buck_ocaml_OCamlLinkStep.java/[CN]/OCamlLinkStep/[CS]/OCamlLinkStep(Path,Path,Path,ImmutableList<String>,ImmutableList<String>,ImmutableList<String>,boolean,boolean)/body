@@ -1,0 +1,30 @@
+{
+  this.isLibrary=isLibrary;
+  this.isBytecode=isBytecode;
+  this.ocamlCompiler=Preconditions.checkNotNull(ocamlCompiler);
+  this.cCompiler=Preconditions.checkNotNull(cCompiler);
+  this.flags=Preconditions.checkNotNull(flags);
+  this.output=Preconditions.checkNotNull(output);
+  this.depInput=Preconditions.checkNotNull(depInput);
+  this.input=Preconditions.checkNotNull(input);
+  ImmutableList.Builder<String> aAndOInputBuilder=ImmutableList.builder();
+  ImmutableList.Builder<String> ocamlInputBuilder=ImmutableList.builder();
+  for (  String linkInput : this.depInput) {
+    if (linkInput.endsWith(OCamlCompilables.OCAML_O) || linkInput.endsWith(OCamlCompilables.OCAML_A)) {
+      aAndOInputBuilder.add(linkInput);
+    }
+ else {
+      if (!(isLibrary && linkInput.endsWith(OCamlCompilables.OCAML_CMXA))) {
+        if (!isBytecode) {
+          ocamlInputBuilder.add(linkInput);
+        }
+ else {
+          String bytecodeLinkInput=linkInput.replaceAll(OCamlCompilables.OCAML_CMXA_REGEX,OCamlCompilables.OCAML_CMA);
+          ocamlInputBuilder.add(bytecodeLinkInput);
+        }
+      }
+    }
+  }
+  this.ocamlInput=ocamlInputBuilder.build();
+  this.aAndOInput=aAndOInputBuilder.build().reverse();
+}
