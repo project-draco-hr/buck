@@ -1,7 +1,12 @@
 {
+  BuildRuleResolver resolver=new BuildRuleResolver();
   PrebuiltCxxLibraryDescription.Arg arg=getDefaultArg();
   arg.provided=Optional.of(true);
-  CxxLibrary lib=DESC.createBuildRule(PARAMS,RESOLVER,arg);
+  ProjectFilesystem filesystem=EasyMock.createMock(ProjectFilesystem.class);
+  EasyMock.expect(filesystem.exists(EasyMock.anyObject(Path.class))).andReturn(true);
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(TARGET).setProjectFilesystem(filesystem).build();
+  EasyMock.replay(filesystem);
+  CxxLibrary lib=DESC.createBuildRule(params,resolver,arg);
   CxxPreprocessorInput expectedCxxPreprocessorInput=new CxxPreprocessorInput(ImmutableSet.<BuildTarget>of(),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableList.<Path>of(),getIncludeDirs(arg));
   assertEquals(expectedCxxPreprocessorInput,lib.getCxxPreprocessorInput());
   NativeLinkableInput expectedStaticLinkableInput=new NativeLinkableInput(ImmutableList.<SourcePath>of(new PathSourcePath(getSharedLibraryPath(arg))),ImmutableList.of(getSharedLibraryPath(arg).toString()));
