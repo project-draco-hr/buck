@@ -62,7 +62,7 @@
       }
       private void recordBuildRuleSuccess(      BuildResult result) throws InterruptedException {
         BuildRuleSuccess.Type success=result.getSuccess();
-        if (success.shouldWriteRecordedMetadataToDiskAfterBuilding()) {
+        if (success != null && success.shouldWriteRecordedMetadataToDiskAfterBuilding()) {
           try {
             boolean clearExistingMetadata=success.shouldClearAndOverwriteMetadataOnDisk();
             buildInfoRecorder.get().writeMetadataToDisk(clearExistingMetadata);
@@ -75,7 +75,7 @@
         logBuildRuleFinished(result);
         BuildRuleSuccess buildRuleSuccess=new BuildRuleSuccess(rule,result.getSuccess());
         newFuture.set(buildRuleSuccess);
-        if (result.getSuccess().shouldUploadResultingArtifact()) {
+        if (success != null && success.shouldUploadResultingArtifact()) {
           buildInfoRecorder.get().performUploadToArtifactCache(context.getArtifactCache(),eventBus);
         }
       }
@@ -92,7 +92,7 @@
         if (startOfBuildWasRecordedOnTheEventBus) {
           logBuildRuleFinished(result);
         }
-        newFuture.setException(result.getFailure());
+        newFuture.setException(Preconditions.checkNotNull(result.getFailure()));
       }
       private void logBuildRuleFinished(      BuildResult result){
         eventBus.logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,result.getStatus(),result.getCacheResult(),Optional.fromNullable(result.getSuccess())));
