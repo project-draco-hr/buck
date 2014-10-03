@@ -1,0 +1,15 @@
+{
+  final Path concreteType=Paths.get("notused");
+  Path stubPath=(Path)Proxy.newProxyInstance(getClass().getClassLoader(),new Class[]{Path.class},new InvocationHandler(){
+    @Override public Object invoke(    Object proxy,    Method method,    Object[] args) throws Throwable {
+      if ("toString".equals(method.getName())) {
+        return "foo\\bar";
+      }
+      return method.invoke(concreteType,args);
+    }
+  }
+);
+  BuildTarget seen=new BuildTargetTypeCoercer().coerce(targetParser,resolver,filesystem,stubPath,":baz");
+  BuildTarget expected=BuildTarget.builder("//foo/bar","baz").build();
+  assertEquals(expected,seen);
+}
