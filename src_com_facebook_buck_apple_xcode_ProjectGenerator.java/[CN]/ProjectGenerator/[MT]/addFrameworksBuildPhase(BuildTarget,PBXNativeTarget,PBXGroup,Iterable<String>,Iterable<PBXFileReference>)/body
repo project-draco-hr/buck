@@ -1,18 +1,15 @@
 {
   PBXFrameworksBuildPhase frameworksBuildPhase=new PBXFrameworksBuildPhase();
   target.getBuildPhases().add(frameworksBuildPhase);
-  Set<String> includedWeakFrameworks=Sets.difference(ImmutableSortedSet.copyOf(weakFrameworks),ImmutableSortedSet.copyOf(frameworks));
-  for (  String framework : Iterables.concat(frameworks,includedWeakFrameworks)) {
+  for (  String framework : frameworks) {
     Path path=Paths.get(framework);
     String firstElement=Preconditions.checkNotNull(Iterables.getFirst(path,Paths.get(""))).toString();
-    PBXBuildFile buildFile;
     if (firstElement.startsWith("$")) {
       Optional<PBXReference.SourceTree> sourceTree=PBXReference.SourceTree.fromBuildSetting(firstElement);
       if (sourceTree.isPresent()) {
         Path sdkRootRelativePath=path.subpath(1,path.getNameCount());
         PBXFileReference fileReference=sharedFrameworksGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(sourceTree.get(),sdkRootRelativePath));
-        buildFile=new PBXBuildFile(fileReference);
-        frameworksBuildPhase.getFiles().add(buildFile);
+        frameworksBuildPhase.getFiles().add(new PBXBuildFile(fileReference));
       }
  else {
         throw new HumanReadableException(String.format("Unknown SourceTree: %s in build target: %s. Should be one of: %s",firstElement,buildTarget,Joiner.on(',').join(Iterables.transform(ImmutableList.copyOf(PBXReference.SourceTree.values()),new Function<PBXReference.SourceTree,String>(){
@@ -25,13 +22,7 @@
     }
  else {
       PBXFileReference fileReference=sharedFrameworksGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.GROUP,relativizeBuckRelativePathToGeneratedProject(buildTarget,path.toString())));
-      buildFile=new PBXBuildFile(fileReference);
-      frameworksBuildPhase.getFiles().add(buildFile);
-    }
-    if (includedWeakFrameworks.contains(framework)) {
-      NSDictionary settings=new NSDictionary();
-      settings.put("ATTRIBUTES",new NSArray(new NSString("Weak")));
-      buildFile.setSettings(Optional.of(settings));
+      frameworksBuildPhase.getFiles().add(new PBXBuildFile(fileReference));
     }
   }
   for (  PBXFileReference archive : archives) {
