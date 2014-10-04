@@ -2,14 +2,14 @@
   BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
   BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
   String soname="soname";
-  String sonameFlag="-soname=" + soname;
-  CxxLink executable=CxxLinkableEnhancer.createCxxLinkableBuildRule(params,DEFAULT_LINKER,ImmutableList.<String>of(),ImmutableList.<String>of(),target,CxxLinkableEnhancer.LinkType.EXECUTABLE,Optional.<String>absent(),DEFAULT_OUTPUT,DEFAULT_INPUTS,NativeLinkable.Type.STATIC,ImmutableSortedSet.<BuildRule>of());
+  ImmutableList<String> sonameArgs=ImmutableList.copyOf(CxxLinkableEnhancer.iXlinker(CXX_PLATFORM.getLd().soname(soname)));
+  CxxLink executable=CxxLinkableEnhancer.createCxxLinkableBuildRule(CXX_PLATFORM,params,ImmutableList.<String>of(),ImmutableList.<String>of(),target,CxxLinkableEnhancer.LinkType.EXECUTABLE,Optional.<String>absent(),DEFAULT_OUTPUT,DEFAULT_INPUTS,NativeLinkable.Type.STATIC,ImmutableSortedSet.<BuildRule>of());
   assertFalse(executable.getArgs().contains("-shared"));
-  assertFalse(executable.getArgs().contains(sonameFlag));
-  CxxLink shared=CxxLinkableEnhancer.createCxxLinkableBuildRule(params,DEFAULT_LINKER,ImmutableList.<String>of(),ImmutableList.<String>of(),target,CxxLinkableEnhancer.LinkType.SHARED,Optional.<String>absent(),DEFAULT_OUTPUT,DEFAULT_INPUTS,NativeLinkable.Type.STATIC,ImmutableSortedSet.<BuildRule>of());
+  assertEquals(Collections.indexOfSubList(executable.getArgs(),sonameArgs),-1);
+  CxxLink shared=CxxLinkableEnhancer.createCxxLinkableBuildRule(CXX_PLATFORM,params,ImmutableList.<String>of(),ImmutableList.<String>of(),target,CxxLinkableEnhancer.LinkType.SHARED,Optional.<String>absent(),DEFAULT_OUTPUT,DEFAULT_INPUTS,NativeLinkable.Type.STATIC,ImmutableSortedSet.<BuildRule>of());
   assertTrue(shared.getArgs().contains("-shared"));
-  assertFalse(shared.getArgs().contains(sonameFlag));
-  CxxLink sharedWithSoname=CxxLinkableEnhancer.createCxxLinkableBuildRule(params,DEFAULT_LINKER,ImmutableList.<String>of(),ImmutableList.<String>of(),target,CxxLinkableEnhancer.LinkType.SHARED,Optional.of("soname"),DEFAULT_OUTPUT,DEFAULT_INPUTS,NativeLinkable.Type.STATIC,ImmutableSortedSet.<BuildRule>of());
+  assertEquals(Collections.indexOfSubList(shared.getArgs(),sonameArgs),-1);
+  CxxLink sharedWithSoname=CxxLinkableEnhancer.createCxxLinkableBuildRule(CXX_PLATFORM,params,ImmutableList.<String>of(),ImmutableList.<String>of(),target,CxxLinkableEnhancer.LinkType.SHARED,Optional.of("soname"),DEFAULT_OUTPUT,DEFAULT_INPUTS,NativeLinkable.Type.STATIC,ImmutableSortedSet.<BuildRule>of());
   assertTrue(sharedWithSoname.getArgs().contains("-shared"));
-  assertTrue(sharedWithSoname.getArgs().contains(sonameFlag));
+  assertNotEquals(Collections.indexOfSubList(sharedWithSoname.getArgs(),sonameArgs),-1);
 }

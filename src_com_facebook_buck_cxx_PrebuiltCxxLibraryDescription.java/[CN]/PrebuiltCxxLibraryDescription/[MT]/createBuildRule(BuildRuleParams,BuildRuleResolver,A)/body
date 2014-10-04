@@ -19,20 +19,19 @@
     @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
       return new CxxPreprocessorInput(ImmutableSet.<BuildTarget>of(),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableList.<Path>of(),includeDirs);
     }
-    @Override public NativeLinkableInput getNativeLinkableInput(    Type type){
+    @Override public NativeLinkableInput getNativeLinkableInput(    Linker linker,    Type type){
       boolean wholeArchive=linkWhole && !provided && type != Type.SHARED;
       Path library=provided || type == Type.SHARED ? sharedLibraryPath : staticLibraryPath;
       ImmutableList.Builder<SourcePath> librariesBuilder=ImmutableList.builder();
       ImmutableList.Builder<String> linkerArgsBuilder=ImmutableList.builder();
       if (!headerOnly) {
         if (wholeArchive) {
-          linkerArgsBuilder.add("--whole-archive");
+          linkerArgsBuilder.addAll(linker.linkWhole(library.toString()));
+        }
+ else {
+          linkerArgsBuilder.add(library.toString());
         }
         librariesBuilder.add(new PathSourcePath(library));
-        linkerArgsBuilder.add(library.toString());
-        if (wholeArchive) {
-          linkerArgsBuilder.add("--no-whole-archive");
-        }
       }
       final ImmutableList<SourcePath> libraries=librariesBuilder.build();
       final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
