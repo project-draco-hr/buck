@@ -1,0 +1,33 @@
+{
+  Set<Flavor> flavors=Sets.newHashSet();
+  for (  FlavorDomain<?> domain : domains) {
+    Optional<Flavor> flavor;
+    try {
+      flavor=domain.getFlavor(target.getFlavors());
+    }
+ catch (    FlavorDomainException e) {
+      throw new HumanReadableException("%s: %s",target,e.getMessage());
+    }
+    if (!flavor.isPresent()) {
+      throw new HumanReadableException("%s: no flavor for \"%s\"",target,domain.getName());
+    }
+    flavors.add(flavor.get());
+    for (    BuildTarget dep : deps) {
+      Optional<Flavor> depFlavor;
+      try {
+        depFlavor=domain.getFlavor(dep.getFlavors());
+      }
+ catch (      FlavorDomainException e) {
+        throw new HumanReadableException("%s: dep %s: %s",target,dep,e.getMessage());
+      }
+      if (depFlavor.isPresent()) {
+        throw new HumanReadableException("%s: dep %s already has flavor for \"%s\" : %s",target,dep,domain.getName(),flavor.get());
+      }
+    }
+  }
+  ImmutableSortedSet.Builder<BuildTarget> flavoredDeps=ImmutableSortedSet.naturalOrder();
+  for (  BuildTarget dep : deps) {
+    flavoredDeps.add(BuildTargets.extendFlavoredBuildTarget(dep,flavors));
+  }
+  return flavoredDeps.build();
+}

@@ -1,9 +1,15 @@
 {
   BuildTarget target=params.getBuildTarget();
+  Optional<Map.Entry<Flavor,ThriftLanguageSpecificEnhancer>> enhancerFlavor;
+  try {
+    enhancerFlavor=enhancers.getFlavorAndValue(target.getFlavors());
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",target,e.getMessage());
+  }
   ImmutableMap<String,SourcePath> namedSources=SourcePaths.getSourcePathNames(target,"srcs",args.srcs.keySet());
   ImmutableSortedSet<ThriftLibrary> thriftDeps=resolveThriftDeps(target,resolver.getAllRules(args.deps.or(ImmutableSortedSet.<BuildTarget>of())));
-  Optional<Flavor> flavor=getLanguageFlavor(target);
-  if (!flavor.isPresent()) {
+  if (!enhancerFlavor.isPresent()) {
     ImmutableMap.Builder<Path,SourcePath> includesBuilder=ImmutableMap.builder();
     for (    ImmutableMap.Entry<String,SourcePath> entry : namedSources.entrySet()) {
       includesBuilder.put(target.getBasePath().resolve(entry.getKey()),entry.getValue());
@@ -15,12 +21,12 @@
     resolver.addToIndex(symlinkTree);
     return new ThriftLibrary(params,thriftDeps,symlinkTree,includes);
   }
-  ThriftLanguageSpecificEnhancer enhancer=enhancers.get(flavor.get());
+  ThriftLanguageSpecificEnhancer enhancer=enhancerFlavor.get().getValue();
   String language=enhancer.getLanguage();
   ImmutableSet<String> options=enhancer.getOptions(target,args);
   ImmutableSet<BuildTarget> implicitDeps=enhancer.getImplicitDepsFromArg(target,args);
   ThriftLibrary thriftLibrary=(ThriftLibrary)resolver.getRule(target.getUnflavoredTarget());
-  ImmutableSortedSet<BuildRule> languageSpecificDeps=BuildRules.toBuildRulesFor(target,resolver,Iterables.concat(FluentIterable.from(thriftDeps).transform(HasBuildTarget.TO_TARGET).transform(getFlavorFn(flavor.get())),implicitDeps),false);
+  ImmutableSortedSet<BuildRule> languageSpecificDeps=BuildRules.toBuildRulesFor(target,resolver,Iterables.concat(BuildTargets.propagateFlavorDomains(target,ImmutableList.<FlavorDomain<?>>of(enhancers),FluentIterable.from(thriftDeps).transform(HasBuildTarget.TO_TARGET)),implicitDeps),false);
   ImmutableMap<String,ThriftCompiler> compilerRules=createThriftCompilerBuildRules(params,resolver,args.flags.or(ImmutableList.<String>of()),language,options,namedSources,ImmutableSortedSet.<ThriftLibrary>naturalOrder().add(thriftLibrary).addAll(getTransitiveThriftLibraryDeps(thriftDeps)).build());
   resolver.addAllToIndex(compilerRules.values());
   ImmutableMap.Builder<String,ThriftSource> thriftSourceBuilder=ImmutableMap.builder();

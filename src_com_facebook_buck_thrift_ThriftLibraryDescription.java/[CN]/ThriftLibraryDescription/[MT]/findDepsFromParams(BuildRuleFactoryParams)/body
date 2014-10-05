@@ -1,23 +1,27 @@
 {
-  Optional<Flavor> flavor=getLanguageFlavor(params.target);
-  if (!flavor.isPresent()) {
+  Optional<Map.Entry<Flavor,ThriftLanguageSpecificEnhancer>> enhancerFlavor;
+  try {
+    enhancerFlavor=enhancers.getFlavorAndValue(params.target.getFlavors());
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",params.target,e.getMessage());
+  }
+  if (!enhancerFlavor.isPresent()) {
     return ImmutableList.of();
   }
   List<BuildTarget> deps=Lists.newArrayList();
   deps.add(params.target.getUnflavoredTarget());
-  for (  String rawTarget : params.getOptionalListAttribute("deps")) {
-    BuildTarget target=params.resolveBuildTarget(rawTarget);
-    if (getLanguageFlavor(target).isPresent()) {
-      throw new HumanReadableException(String.format("%s: parameter \"deps\": target \"%s\" must not specify a language flavor",params.target,target));
+  deps.addAll(BuildTargets.propagateFlavorDomains(params.target,ImmutableList.<FlavorDomain<?>>of(enhancers),Iterables.transform(params.getOptionalListAttribute("deps"),new Function<String,BuildTarget>(){
+    @Override public BuildTarget apply(    String input){
+      return params.resolveBuildTarget(input);
     }
-    BuildTarget flavoredTarget=BuildTargets.extendFlavoredBuildTarget(target,flavor.get());
-    deps.add(flavoredTarget);
   }
+)));
   Optional<BuildTarget> thriftTarget=thriftBuckConfig.getCompilerTarget();
   if (thriftTarget.isPresent()) {
     deps.add(thriftTarget.get());
   }
-  ThriftLanguageSpecificEnhancer enhancer=enhancers.get(flavor.get());
+  ThriftLanguageSpecificEnhancer enhancer=enhancerFlavor.get().getValue();
   ImmutableSet<BuildTarget> implicitDeps=enhancer.getImplicitDepsFromParams(params);
   deps.addAll(implicitDeps);
   return Iterables.transform(deps,Functions.toStringFunction());
