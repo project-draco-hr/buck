@@ -1,0 +1,16 @@
+{
+  Optional<Path> infoPlistPath;
+  if (bundle.getInfoPlist().isPresent()) {
+    infoPlistPath=Optional.of(resolver.getPath(bundle.getInfoPlist().get()));
+  }
+ else {
+    infoPlistPath=Optional.absent();
+  }
+  PBXNativeTarget target=generateBinaryTarget(project,bundle,(AbstractAppleNativeTargetBuildRule)bundle.getBinary(),bundleToTargetProductType(bundle),"%s." + bundle.getExtensionString(),infoPlistPath,true,collectRecursiveResources(bundle),collectRecursiveAssetCatalogs(bundle));
+  Iterable<BuildRule> copiedRules=AppleBuildRules.getRecursiveRuleDependenciesOfType(AppleBuildRules.RecursiveRuleDependenciesMode.COPYING,bundle,AppleLibraryDescription.TYPE,AppleBinaryDescription.TYPE,AppleBundleDescription.TYPE);
+  generateCopyFilesBuildPhases(project,target,copiedRules);
+  addPostBuildScriptPhasesForDependencies(bundle,target);
+  project.getTargets().add(target);
+  LOG.debug("Generated iOS bundle target %s",target);
+  return target;
+}
