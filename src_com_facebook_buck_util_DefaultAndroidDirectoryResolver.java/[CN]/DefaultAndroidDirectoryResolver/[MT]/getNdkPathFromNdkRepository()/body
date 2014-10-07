@@ -3,8 +3,15 @@
   Optional<Path> path=Optional.absent();
   if (repositoryPathOptional.isPresent()) {
     Path repositoryPath=repositoryPathOptional.get();
+    ImmutableCollection<Path> repositoryPathContents;
+    try {
+      repositoryPathContents=projectFilesystem.getDirectoryContents(repositoryPath);
+    }
+ catch (    IOException e) {
+      throw new HumanReadableException(e,"Failed to read the Android NDK repository directory: %s",repositoryPath);
+    }
     String newestVersion="";
-    for (    Path potentialNdkPath : Preconditions.checkNotNull(projectFilesystem.getDirectoryContents(repositoryPath))) {
+    for (    Path potentialNdkPath : repositoryPathContents) {
       if (potentialNdkPath.toFile().isDirectory()) {
         Optional<String> ndkVersion=findNdkVersionFromPath(potentialNdkPath);
         if (ndkVersion.isPresent()) {

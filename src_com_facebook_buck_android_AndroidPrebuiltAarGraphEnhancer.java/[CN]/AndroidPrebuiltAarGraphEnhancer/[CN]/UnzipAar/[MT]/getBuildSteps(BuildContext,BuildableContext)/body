@@ -7,10 +7,23 @@
   steps.add(new MkdirStep(uberClassesJar.getParent()));
   steps.add(new AbstractExecutionStep("create_uber_classes_jar"){
     @Override public int execute(    ExecutionContext context){
-      Path classesJar=unpackDirectory.resolve("classes.jar");
-      Path libsDirectory=unpackDirectory.resolve("libs");
       ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
-      if (!projectFilesystem.exists(libsDirectory) || projectFilesystem.listFiles(libsDirectory).length == 0) {
+      Path libsDirectory=unpackDirectory.resolve("libs");
+      boolean dirDoesNotExistOrIsEmpty;
+      if (!projectFilesystem.exists(libsDirectory)) {
+        dirDoesNotExistOrIsEmpty=true;
+      }
+ else {
+        try {
+          dirDoesNotExistOrIsEmpty=projectFilesystem.getDirectoryContents(libsDirectory).isEmpty();
+        }
+ catch (        IOException e) {
+          context.logError(e,"Failed to get directory contents of %s",libsDirectory);
+          return 1;
+        }
+      }
+      Path classesJar=unpackDirectory.resolve("classes.jar");
+      if (dirDoesNotExistOrIsEmpty) {
         try {
           projectFilesystem.copy(classesJar,uberClassesJar,CopySourceMode.FILE);
         }
@@ -22,8 +35,12 @@
  else {
         ImmutableSet.Builder<Path> entriesToJarBuilder=ImmutableSet.builder();
         entriesToJarBuilder.add(classesJar);
-        for (        File file : projectFilesystem.listFiles(libsDirectory)) {
-          entriesToJarBuilder.add(file.toPath());
+        try {
+          entriesToJarBuilder.addAll(projectFilesystem.getDirectoryContents(libsDirectory));
+        }
+ catch (        IOException e) {
+          context.logError(e,"Failed to get directory contents of %s",libsDirectory);
+          return 1;
         }
         ImmutableSet<Path> entriesToJar=entriesToJarBuilder.build();
         try {
