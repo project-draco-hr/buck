@@ -11,8 +11,6 @@
   ImmutableSet<BuildTarget> buildTargets=ImmutableSet.of(target);
   Clock fakeClock=new IncrementingFakeClock(TimeUnit.MILLISECONDS.toNanos(1));
   BuckEventBus eventBus=BuckEventBusFactory.newInstance(fakeClock,new BuildId("ChromeTraceBuildListenerTestBuildId"));
-  Supplier<Long> threadIdSupplier=BuckEventBusFactory.getThreadIdSupplierFor(eventBus);
-  EventBus rawEventBus=BuckEventBusFactory.getEventBusFor(eventBus);
   eventBus.register(listener);
   eventBus.post(CommandEvent.started("party",ImmutableList.of("arg1","arg2"),true));
   eventBus.post(ArtifactCacheConnectEvent.started());
@@ -22,12 +20,8 @@
   eventBus.post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.FETCH,ruleKey,CacheResult.CASSANDRA_HIT));
   eventBus.post(BuildRuleEvent.started(rule));
   eventBus.post(StepEvent.started(step,"I'm a Fake Step!"));
-  BuckEvent stepFinished=StepEvent.finished(step,"I'm a Fake Step!",0);
-  stepFinished.configure(fakeClock.currentTimeMillis(),fakeClock.nanoTime(),threadIdSupplier.get(),eventBus.getBuildId());
-  BuckEvent ruleFinished=BuildRuleEvent.finished(rule,BuildRuleStatus.SUCCESS,CacheResult.MISS,Optional.of(BuildRuleSuccess.Type.BUILT_LOCALLY));
-  ruleFinished.configure(fakeClock.currentTimeMillis(),fakeClock.nanoTime(),threadIdSupplier.get(),eventBus.getBuildId());
-  rawEventBus.post(ruleFinished);
-  rawEventBus.post(stepFinished);
+  eventBus.post(StepEvent.finished(step,"I'm a Fake Step!",0));
+  eventBus.post(BuildRuleEvent.finished(rule,BuildRuleStatus.SUCCESS,CacheResult.MISS,Optional.of(BuildRuleSuccess.Type.BUILT_LOCALLY)));
   try (TraceEventLogger ignored=TraceEventLogger.start(eventBus,"planning",ImmutableMap.of("nefarious","true"))){
     eventBus.post(new TraceEvent("scheming",ChromeTraceEvent.Phase.BEGIN));
     eventBus.post(new TraceEvent("scheming",ChromeTraceEvent.Phase.END,ImmutableMap.<String,String>of("success","false")));
