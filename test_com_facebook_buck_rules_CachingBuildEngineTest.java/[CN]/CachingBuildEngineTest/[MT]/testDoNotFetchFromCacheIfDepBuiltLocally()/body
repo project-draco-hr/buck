@@ -1,11 +1,12 @@
 {
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine();
+  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
   BuildTarget target1=BuildTargetFactory.newInstance("//java/com/example:rule1");
-  FakeBuildRule dep1=new FakeBuildRule(AndroidResourceDescription.TYPE,target1);
+  FakeBuildRule dep1=new FakeBuildRule(AndroidResourceDescription.TYPE,target1,pathResolver);
   cachingBuildEngine.setBuildRuleResult(target1,new BuildRuleSuccess(dep1,BuildRuleSuccess.Type.BUILT_LOCALLY));
   dep1.setRuleKey(new RuleKey(Strings.repeat("a",40)));
   BuildTarget target2=BuildTargetFactory.newInstance("//java/com/example:rule2");
-  FakeBuildRule dep2=new FakeBuildRule(AndroidResourceDescription.TYPE,target2);
+  FakeBuildRule dep2=new FakeBuildRule(AndroidResourceDescription.TYPE,target2,pathResolver);
   cachingBuildEngine.setBuildRuleResult(target2,new BuildRuleSuccess(dep2,BuildRuleSuccess.Type.FETCHED_FROM_CACHE));
   dep2.setRuleKey(new RuleKey(Strings.repeat("b",40)));
   final List<String> strings=Lists.newArrayList();
@@ -16,7 +17,7 @@
     }
   }
 ;
-  BuildRule buildRuleToTest=createRule(ImmutableSet.<BuildRule>of(dep1,dep2),ImmutableList.of(Paths.get("/dev/null")),ImmutableList.of(buildStep),"buck-out/gen/src/com/facebook/orca/some_file",CacheMode.ENABLED);
+  BuildRule buildRuleToTest=createRule(pathResolver,ImmutableSet.<BuildRule>of(dep1,dep2),ImmutableList.of(Paths.get("/dev/null")),ImmutableList.of(buildStep),"buck-out/gen/src/com/facebook/orca/some_file",CacheMode.ENABLED);
   ArtifactCache artifactCache=new NoopArtifactCache(){
     @Override public CacheResult fetch(    RuleKey ruleKey,    File output){
       throw new RuntimeException("Artifact cache must not be accessed while building the rule.");

@@ -1,19 +1,20 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   String genHeaderName="test/foo.h";
   BuildTarget genHeaderTarget=BuildTargetFactory.newInstance("//:genHeader");
   Genrule genHeader=(Genrule)GenruleBuilder.newGenruleBuilder(genHeaderTarget).setOut(genHeaderName).build(resolver);
   String genSourceName="test/foo.cpp";
   BuildTarget genSourceTarget=BuildTargetFactory.newInstance("//:genSource");
   Genrule genSource=(Genrule)GenruleBuilder.newGenruleBuilder(genSourceTarget).setOut(genSourceName).build(resolver);
-  final BuildRule header=createFakeBuildRule("//:header");
-  final BuildRule headerSymlinkTree=createFakeBuildRule("//:symlink");
+  final BuildRule header=createFakeBuildRule("//:header",pathResolver);
+  final BuildRule headerSymlinkTree=createFakeBuildRule("//:symlink",pathResolver);
   final Path headerSymlinkTreeRoot=Paths.get("symlink/tree/root");
-  final BuildRule archive=createFakeBuildRule("//:archive");
+  final BuildRule archive=createFakeBuildRule("//:archive",pathResolver);
   final Path archiveOutput=Paths.get("output/path/lib.a");
   BuildTarget depTarget=BuildTargetFactory.newInstance("//:dep");
   BuildRuleParams depParams=BuildRuleParamsFactory.createTrivialBuildRuleParams(depTarget);
-  CxxLibrary dep=new CxxLibrary(depParams){
+  CxxLibrary dep=new CxxLibrary(depParams,pathResolver){
     @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
       return new CxxPreprocessorInput(ImmutableSet.of(header.getBuildTarget(),headerSymlinkTree.getBuildTarget()),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableList.of(headerSymlinkTreeRoot),ImmutableList.<Path>of());
     }

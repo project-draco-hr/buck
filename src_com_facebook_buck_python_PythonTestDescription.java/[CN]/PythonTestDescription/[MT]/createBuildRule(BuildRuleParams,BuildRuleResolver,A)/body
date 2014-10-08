@@ -1,4 +1,5 @@
 {
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);
   ImmutableMap<Path,SourcePath> srcs=PythonUtil.toModuleMap(params.getBuildTarget(),"srcs",baseModule,args.srcs);
   ImmutableMap<Path,SourcePath> resources=PythonUtil.toModuleMap(params.getBuildTarget(),"resources",baseModule,args.resources);
@@ -7,12 +8,12 @@
     testModulesBuilder.add(PythonUtil.toModuleName(params.getBuildTarget(),name.toString()));
   }
   ImmutableSet<String> testModules=testModulesBuilder.build();
-  BuildRule testModulesBuildRule=createTestModulesSourceBuildRule(params,getTestModulesListPath(params.getBuildTarget()),testModules);
+  BuildRule testModulesBuildRule=createTestModulesSourceBuildRule(params,resolver,getTestModulesListPath(params.getBuildTarget()),testModules);
   resolver.addToIndex(testModulesBuildRule);
   PythonPackageComponents testComponents=new PythonPackageComponents(ImmutableMap.<Path,SourcePath>builder().put(getTestModulesListName(),new BuildRuleSourcePath(testModulesBuildRule)).put(getTestMainName(),new PathSourcePath(pathToPythonTestMain)).putAll(srcs).build(),resources,ImmutableMap.<Path,SourcePath>of());
   PythonPackageComponents allComponents=PythonUtil.getAllComponents(params,testComponents);
   BuildRuleParams binaryParams=params.copyWithChanges(PythonBinaryDescription.TYPE,getBinaryBuildTarget(params.getBuildTarget()),PythonUtil.getDepsFromComponents(allComponents),ImmutableSortedSet.<BuildRule>of());
-  PythonBinary binary=new PythonBinary(binaryParams,pathToPex,pythonEnvironment,getTestMainName(),allComponents);
+  PythonBinary binary=new PythonBinary(binaryParams,pathResolver,pathToPex,pythonEnvironment,getTestMainName(),allComponents);
   resolver.addToIndex(binary);
-  return new PythonTest(params.copyWithDeps(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).add(binary).build(),params.getExtraDeps()),new BuildRuleSourcePath(binary),resolver.getAllRules(args.sourceUnderTest.or(ImmutableSortedSet.<BuildTarget>of())),args.labels.or(ImmutableSet.<Label>of()),args.contacts.or(ImmutableSet.<String>of()));
+  return new PythonTest(params.copyWithDeps(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).add(binary).build(),params.getExtraDeps()),pathResolver,new BuildRuleSourcePath(binary),resolver.getAllRules(args.sourceUnderTest.or(ImmutableSortedSet.<BuildTarget>of())),args.labels.or(ImmutableSet.<Label>of()),args.contacts.or(ImmutableSet.<String>of()));
 }

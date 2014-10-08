@@ -1,12 +1,13 @@
 {
+  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
   SourcePath fileBased=new TestSourcePath("some/path/File.java");
-  SourcePath ruleBased=new BuildRuleSourcePath(new FakeBuildRule(JavaLibraryDescription.TYPE,BuildTargetFactory.newInstance("//cheese:cake")));
+  SourcePath ruleBased=new BuildRuleSourcePath(new FakeBuildRule(JavaLibraryDescription.TYPE,BuildTargetFactory.newInstance("//cheese:cake"),pathResolver));
   JavaPackageFinder finderStub=createNiceMock(JavaPackageFinder.class);
   expect(finderStub.findJavaPackageFolderForPath((String)anyObject())).andStubReturn("cheese");
   expect(finderStub.findJavaPackageForPath((String)anyObject())).andStubReturn("cheese");
   EasyMock.replay(finderStub);
-  JavaSourceJar rule=new JavaSourceJar(new FakeBuildRuleParamsBuilder("//example:target").build(),ImmutableSortedSet.of(fileBased,ruleBased));
-  assertEquals(ImmutableList.of(fileBased.resolve()),rule.getInputsToCompareToOutput());
+  JavaSourceJar rule=new JavaSourceJar(new FakeBuildRuleParamsBuilder("//example:target").build(),pathResolver,ImmutableSortedSet.of(fileBased,ruleBased));
+  assertEquals(ImmutableList.of(pathResolver.getPath(fileBased)),rule.getInputsToCompareToOutput());
   BuildContext buildContext=FakeBuildContext.newBuilder(new FakeProjectFilesystem()).setActionGraph(new ActionGraph(new MutableDirectedGraph<BuildRule>())).setJavaPackageFinder(finderStub).build();
   ImmutableList<Step> steps=rule.getBuildSteps(buildContext,new FakeBuildableContext());
   int copyStepsCount=FluentIterable.from(steps).filter(Predicates.instanceOf(CopyStep.class)).size();

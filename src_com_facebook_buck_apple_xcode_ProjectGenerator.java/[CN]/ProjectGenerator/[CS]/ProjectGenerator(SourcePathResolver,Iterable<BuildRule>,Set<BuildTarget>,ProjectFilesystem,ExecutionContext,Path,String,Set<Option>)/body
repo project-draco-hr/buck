@@ -1,0 +1,25 @@
+{
+  this.resolver=Preconditions.checkNotNull(resolver);
+  this.rulesToBuild=ImmutableSet.copyOf(rulesToBuild);
+  this.initialTargets=ImmutableSet.copyOf(initialTargets);
+  this.projectFilesystem=Preconditions.checkNotNull(projectFilesystem);
+  this.executionContext=Preconditions.checkNotNull(executionContext);
+  this.outputDirectory=Preconditions.checkNotNull(outputDirectory);
+  this.projectName=Preconditions.checkNotNull(projectName);
+  this.options=ImmutableSet.copyOf(options);
+  this.projectPath=outputDirectory.resolve(projectName + ".xcodeproj");
+  this.repoRootRelativeToOutputDirectory=MorePaths.relativize(this.outputDirectory.toAbsolutePath(),projectFilesystem.getRootPath().toAbsolutePath());
+  LOG.debug("Output directory %s, profile fs root path %s, repo root relative to output dir %s",this.outputDirectory,projectFilesystem.getRootPath(),this.repoRootRelativeToOutputDirectory);
+  this.placedAssetCatalogBuildPhaseScript=BuckConstant.BIN_PATH.resolve("xcode-scripts/compile_asset_catalogs_build_phase.sh");
+  this.project=new PBXProject(projectName);
+  this.headerMaps=new ArrayList<>();
+  this.buildRuleToGeneratedTargetBuilder=ImmutableMap.builder();
+  this.buildRuleToXcodeTarget=CacheBuilder.newBuilder().build(new CacheLoader<BuildRule,Optional<PBXTarget>>(){
+    @Override public Optional<PBXTarget> load(    BuildRule key) throws Exception {
+      return generateTargetForBuildRule(key);
+    }
+  }
+);
+  xcodeConfigurationLayersMultimapBuilder=ImmutableMultimap.builder();
+  nativeTargetGIDs=new HashSet<>();
+}

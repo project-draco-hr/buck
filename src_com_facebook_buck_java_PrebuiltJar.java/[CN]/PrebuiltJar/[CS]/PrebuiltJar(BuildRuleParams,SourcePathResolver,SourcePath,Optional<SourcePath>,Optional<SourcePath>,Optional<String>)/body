@@ -1,0 +1,26 @@
+{
+  super(params,resolver);
+  this.binaryJar=Preconditions.checkNotNull(binaryJar);
+  this.sourceJar=Preconditions.checkNotNull(sourceJar);
+  this.gwtJar=Preconditions.checkNotNull(gwtJar);
+  this.javadocUrl=Preconditions.checkNotNull(javadocUrl);
+  this.visibilityPatterns=Preconditions.checkNotNull(params.getVisibilityPatterns());
+  transitiveClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibrary,Path>>(){
+    @Override public ImmutableSetMultimap<JavaLibrary,Path> get(){
+      ImmutableSetMultimap.Builder<JavaLibrary,Path> classpathEntries=ImmutableSetMultimap.builder();
+      classpathEntries.put(PrebuiltJar.this,getResolver().getPath(getBinaryJar()));
+      classpathEntries.putAll(Classpaths.getClasspathEntries(PrebuiltJar.this.getDeclaredDeps()));
+      return classpathEntries.build();
+    }
+  }
+);
+  declaredClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibrary,Path>>(){
+    @Override public ImmutableSetMultimap<JavaLibrary,Path> get(){
+      ImmutableSetMultimap.Builder<JavaLibrary,Path> classpathEntries=ImmutableSetMultimap.builder();
+      classpathEntries.put(PrebuiltJar.this,getResolver().getPath(getBinaryJar()));
+      return classpathEntries.build();
+    }
+  }
+);
+  buildOutputInitializer=new BuildOutputInitializer<>(params.getBuildTarget(),this);
+}

@@ -1,7 +1,8 @@
 {
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   ImmutableList<String> includes=FluentIterable.from(params.getDeps()).transformAndConcat(getLibInclude()).toList();
   final FluentIterable<SourcePath> srcSourcePaths=FluentIterable.from(srcs).transform(OCamlSource.TO_SOURCE_PATH);
-  final FluentIterable<Path> srcPaths=srcSourcePaths.transform(SourcePaths.TO_PATH);
+  final FluentIterable<Path> srcPaths=srcSourcePaths.transform(pathResolver.getPathFunction());
   NativeLinkableInput linkableInput=NativeLinkables.getTransitiveNativeLinkableInput(ocamlBuckConfig.getLinker(),params.getDeps(),NativeLinkable.Type.STATIC,false);
   ImmutableList<OCamlLibrary> ocamlInput=OCamlUtil.getTransitiveOCamlInput(params.getDeps());
   ImmutableList<SourcePath> allInputs=ImmutableList.<SourcePath>builder().addAll(getInput(srcs)).addAll(linkableInput.getInputs()).build();
@@ -9,13 +10,13 @@
   final BuildRuleParams compileParams=params.copyWithChanges(NativeLinkable.NATIVE_LINKABLE_TYPE,buildTarget,ImmutableSortedSet.copyOf(SourcePaths.filterBuildRuleInputs(allInputs)),ImmutableSortedSet.<BuildRule>of());
   ImmutableList<String> flags=ImmutableList.<String>builder().addAll(argFlags).build();
   CxxPreprocessorInput cxxPreprocessorInputFromDeps=CxxPreprocessables.getTransitiveCxxPreprocessorInput(FluentIterable.from(params.getDeps()).filter(Predicates.instanceOf(CxxPreprocessorDep.class)));
-  final OCamlBuildContext ocamlContext=OCamlBuildContext.builder(ocamlBuckConfig).setFlags(flags).setIncludes(includes).setOcamlInput(ocamlInput).setLinkableInput(linkableInput).setUpDirectories(buildTarget,isLibrary).setCxxPreprocessorInput(cxxPreprocessorInputFromDeps).setInput(getInput(srcs)).build();
+  final OCamlBuildContext ocamlContext=OCamlBuildContext.builder(ocamlBuckConfig,pathResolver).setFlags(flags).setIncludes(includes).setOcamlInput(ocamlInput).setLinkableInput(linkableInput).setUpDirectories(buildTarget,isLibrary).setCxxPreprocessorInput(cxxPreprocessorInputFromDeps).setInput(getInput(srcs)).build();
   if (isLibrary) {
-    final OCamlBuild ocamlLibraryBuild=new OCamlBuild(compileParams,ocamlContext,ocamlBuckConfig.getCCompiler(),ocamlBuckConfig.getCxxCompiler());
+    final OCamlBuild ocamlLibraryBuild=new OCamlBuild(compileParams,pathResolver,ocamlContext,ocamlBuckConfig.getCCompiler(),ocamlBuckConfig.getCxxCompiler());
     resolver.addToIndex(ocamlLibraryBuild);
-    return new OCamlStaticLibrary(params,compileParams,linkerFlags,srcPaths,ocamlContext,ocamlLibraryBuild);
+    return new OCamlStaticLibrary(params,pathResolver,compileParams,linkerFlags,srcPaths,ocamlContext,ocamlLibraryBuild);
   }
  else {
-    return new OCamlBuild(compileParams,ocamlContext,ocamlBuckConfig.getCCompiler(),ocamlBuckConfig.getCxxCompiler());
+    return new OCamlBuild(compileParams,pathResolver,ocamlContext,ocamlBuckConfig.getCCompiler(),ocamlBuckConfig.getCxxCompiler());
   }
 }

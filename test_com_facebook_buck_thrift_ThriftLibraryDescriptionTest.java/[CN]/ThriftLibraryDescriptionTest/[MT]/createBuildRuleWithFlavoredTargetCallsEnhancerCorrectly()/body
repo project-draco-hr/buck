@@ -1,9 +1,10 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   String language="fake";
   Flavor flavor=new Flavor("fake");
-  final BuildRule implicitDep=createFakeBuildRule("//implicit:dep");
+  final BuildRule implicitDep=createFakeBuildRule("//implicit:dep",pathResolver);
   resolver.addToIndex(implicitDep);
   filesystem.mkdirs(implicitDep.getBuildTarget().getBasePath());
   filesystem.touch(implicitDep.getBuildTarget().getBuildFilePath());
@@ -21,14 +22,14 @@
   final String thriftSourceName2="bar.thrift";
   SourcePath thriftSource2=new TestSourcePath(thriftSourceName2);
   final ImmutableList<String> thriftServices2=ImmutableList.of();
-  final FakeBuildRule thriftRule=createFakeBuildRule("//thrift:target");
+  final FakeBuildRule thriftRule=createFakeBuildRule("//thrift:target",pathResolver);
   resolver.addToIndex(thriftRule);
   filesystem.mkdirs(thriftRule.getBuildTarget().getBasePath());
   filesystem.touch(thriftRule.getBuildTarget().getBuildFilePath());
   FakeBuckConfig buckConfig=new FakeBuckConfig(ImmutableMap.<String,Map<String,String>>of("thrift",ImmutableMap.of("compiler_target",thriftRule.getBuildTarget().toString())));
   ThriftBuckConfig thriftBuckConfig=new ThriftBuckConfig(buckConfig);
   ThriftLibraryDescription desc=new ThriftLibraryDescription(thriftBuckConfig,ImmutableList.<ThriftLanguageSpecificEnhancer>of());
-  final BuildRule thriftIncludeSymlinkTree=createFakeBuildRule(desc.createThriftIncludeSymlinkTreeTarget(unflavoredTarget));
+  final BuildRule thriftIncludeSymlinkTree=createFakeBuildRule(desc.createThriftIncludeSymlinkTreeTarget(unflavoredTarget),pathResolver);
   FakeThriftLanguageSpecificEnhancer enhancer=new FakeThriftLanguageSpecificEnhancer(language,flavor,implicitDeps,options){
     @Override public void checkCreateBuildRuleInputs(    ImmutableMap<String,ThriftSource> sources,    ImmutableSortedSet<BuildRule> deps){
       assertEquals(2,sources.size());
