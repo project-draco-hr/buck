@@ -1,0 +1,22 @@
+{
+  final ImmutableMap.Builder<String,HashCode> builder=ImmutableMap.builder();
+  steps.add(new AbstractExecutionStep("collect_all_class_names"){
+    @Override public int execute(    ExecutionContext context){
+      for (      Path path : classPathEntriesToDex) {
+        Optional<ImmutableSortedMap<String,HashCode>> hashes=AccumulateClassNamesStep.calculateClassHashes(context,path);
+        if (!hashes.isPresent()) {
+          return 1;
+        }
+        builder.putAll(hashes.get());
+      }
+      return 0;
+    }
+  }
+);
+  return Suppliers.memoize(new Supplier<Map<String,HashCode>>(){
+    @Override public Map<String,HashCode> get(){
+      return builder.build();
+    }
+  }
+);
+}

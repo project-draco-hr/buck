@@ -35,11 +35,19 @@
   if (packageType.isBuildWithObfuscation()) {
     classpathEntriesToDex=addProguardCommands(classpathEntriesToDex,packageableCollection.proguardConfigs,steps,resDirectories,buildableContext);
   }
+  Supplier<Map<String,HashCode>> classNamesToHashesSupplier;
+  boolean classFilesHaveChanged=preprocessJavaClassesBash.isPresent() || packageType.isBuildWithObfuscation();
+  if (classFilesHaveChanged) {
+    classNamesToHashesSupplier=addAccumulateClassNamesStep(classpathEntriesToDex,steps);
+  }
+ else {
+    classNamesToHashesSupplier=packageableCollection.classNamesToHashesSupplier;
+  }
   ImmutableSet.Builder<Path> secondaryDexDirectoriesBuilder=ImmutableSet.builder();
   Optional<PreDexMerge> preDexMerge=enhancementResult.getPreDexMerge();
   if (!preDexMerge.isPresent()) {
     steps.add(new MkdirStep(primaryDexPath.getParent()));
-    addDexingSteps(classpathEntriesToDex,packageableCollection.classNamesToHashesSupplier,secondaryDexDirectoriesBuilder,steps,primaryDexPath);
+    addDexingSteps(classpathEntriesToDex,classNamesToHashesSupplier,secondaryDexDirectoriesBuilder,steps,primaryDexPath);
   }
  else   if (!exopackage) {
     secondaryDexDirectoriesBuilder.addAll(preDexMerge.get().getSecondaryDexDirectories());
