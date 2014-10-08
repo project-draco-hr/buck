@@ -7,7 +7,8 @@
  catch (  FlavorDomainException e) {
     throw new HumanReadableException("%s: %s",target,e.getMessage());
   }
-  ImmutableMap<String,SourcePath> namedSources=SourcePaths.getSourcePathNames(target,"srcs",args.srcs.keySet());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ImmutableMap<String,SourcePath> namedSources=pathResolver.getSourcePathNames(target,"srcs",args.srcs.keySet());
   ImmutableSortedSet<ThriftLibrary> thriftDeps=resolveThriftDeps(target,resolver.getAllRules(args.deps.or(ImmutableSortedSet.<BuildTarget>of())));
   if (!enhancerFlavor.isPresent()) {
     ImmutableMap.Builder<Path,SourcePath> includesBuilder=ImmutableMap.builder();
@@ -15,7 +16,6 @@
       includesBuilder.put(target.getBasePath().resolve(entry.getKey()),entry.getValue());
     }
     ImmutableMap<Path,SourcePath> includes=includesBuilder.build();
-    SourcePathResolver pathResolver=new SourcePathResolver(resolver);
     Path includeRoot=getIncludeRoot(target);
     BuildTarget symlinkTreeTarget=createThriftIncludeSymlinkTreeTarget(target);
     SymlinkTree symlinkTree=new SymlinkTree(params.copyWithChanges(INCLUDE_SYMLINK_TREE_TYPE,symlinkTreeTarget,ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of()),pathResolver,includeRoot,includes);
