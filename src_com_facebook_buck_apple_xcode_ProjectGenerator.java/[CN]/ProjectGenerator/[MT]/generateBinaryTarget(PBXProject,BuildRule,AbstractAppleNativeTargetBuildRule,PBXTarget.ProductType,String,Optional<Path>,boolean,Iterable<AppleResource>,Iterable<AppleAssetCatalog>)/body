@@ -1,13 +1,13 @@
 {
   PBXNativeTarget target=new PBXNativeTarget(getXcodeTargetName(rule),productType);
-  setNativeTargetGid(target,buildable);
+  setNativeTargetGid(target,appleBuildRule);
   PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(target.getName());
   ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
   if (infoPlistOptional.isPresent()) {
     Path infoPlistPath=repoRootRelativeToOutputDirectory.resolve(infoPlistOptional.get());
     extraSettingsBuilder.put("INFOPLIST_FILE",infoPlistPath.toString());
   }
-  if (buildable.getUseBuckHeaderMaps()) {
+  if (appleBuildRule.getUseBuckHeaderMaps()) {
     extraSettingsBuilder.put("USE_HEADERMAP","NO");
   }
   ImmutableMap.Builder<String,String> defaultSettingsBuilder=ImmutableMap.builder();
@@ -15,19 +15,19 @@
     AppleBundle bundle=(AppleBundle)rule;
     defaultSettingsBuilder.put("WRAPPER_EXTENSION",bundle.getExtensionString());
   }
-  defaultSettingsBuilder.put("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPathForRule(buildable.getHeaderPathPrefix()));
+  defaultSettingsBuilder.put("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPathForRule(appleBuildRule.getHeaderPathPrefix()));
   if (rule.getType().equals(AppleLibraryDescription.TYPE)) {
     defaultSettingsBuilder.put("CONFIGURATION_BUILD_DIR",getObjectOutputPathForRule(rule));
   }
-  setTargetBuildConfigurations(rule,target,targetGroup,buildable.getConfigurations(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),ImmutableMap.<String,String>of());
+  setTargetBuildConfigurations(rule,target,targetGroup,appleBuildRule.getConfigurations(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),ImmutableMap.<String,String>of());
   addRunScriptBuildPhasesForDependencies(rule,target);
-  if (rule != buildable) {
-    addRunScriptBuildPhasesForDependencies(buildable,target);
+  if (rule != appleBuildRule) {
+    addRunScriptBuildPhasesForDependencies(appleBuildRule,target);
   }
-  addBuildPhasesGroupsAndHeaderMapsForSourcesAndHeaders(rule.getBuildTarget(),target,targetGroup,buildable.getHeaderPathPrefix(),buildable.getUseBuckHeaderMaps(),buildable.getSrcs(),buildable.getPerFileFlags());
+  addBuildPhasesGroupsAndHeaderMapsForSourcesAndHeaders(appleBuildRule,target,targetGroup,appleBuildRule.getHeaderPathPrefix(),appleBuildRule.getUseBuckHeaderMaps(),appleBuildRule.getSrcs(),appleBuildRule.getPerFileFlags());
   if (includeFrameworks) {
     ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
-    frameworksBuilder.addAll(buildable.getFrameworks());
+    frameworksBuilder.addAll(appleBuildRule.getFrameworks());
     collectRecursiveFrameworkDependencies(rule,frameworksBuilder);
     addFrameworksBuildPhase(rule.getBuildTarget(),target,project.getMainGroup().getOrCreateChildGroupByName("Frameworks"),frameworksBuilder.build(),collectRecursiveLibraryDependencies(rule));
   }
