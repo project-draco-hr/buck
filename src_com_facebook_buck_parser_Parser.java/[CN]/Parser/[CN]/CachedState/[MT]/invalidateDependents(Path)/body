@@ -1,17 +1,25 @@
 {
   path=normalize(path);
   if (parsedBuildFiles.containsKey(path)) {
-    LOG.debug("Parser invalidating %s cache",path.toAbsolutePath());
+    LOG.debug("Parser invalidating %s cache",path);
     for (    Map<String,Object> rawRule : parsedBuildFiles.get(path)) {
       BuildTarget target=parseBuildTargetFromRawRule(rawRule);
+      LOG.verbose("Removing target %s defined by %s",target,path);
       memoizedTargetNodes.remove(target);
     }
-    parsedBuildFiles.removeAll(path);
+    List<?> removed=parsedBuildFiles.removeAll(path);
+    LOG.verbose("Removed parsed build files %s defined by %s",removed,path);
   }
-  for (  Path dependent : buildFileDependents.get(path)) {
+ else {
+    LOG.debug("Parsed build files does not contain %s, not invalidating",path);
+  }
+  List<Path> dependents=buildFileDependents.get(path);
+  LOG.verbose("Invalidating dependents %s of path %s",dependents,path);
+  for (  Path dependent : dependents) {
     if (!dependent.equals(path)) {
       invalidateDependents(dependent);
     }
   }
-  buildFileDependents.removeAll(path);
+  List<?> removedDependents=buildFileDependents.removeAll(path);
+  LOG.verbose("Removed build file dependents %s defined by %s",removedDependents,path);
 }
