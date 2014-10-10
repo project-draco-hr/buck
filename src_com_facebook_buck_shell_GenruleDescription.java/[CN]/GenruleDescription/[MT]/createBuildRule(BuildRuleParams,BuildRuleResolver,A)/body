@@ -1,5 +1,16 @@
 {
   ImmutableList<SourcePath> srcs=args.srcs.get();
   ImmutableSortedSet<BuildRule> extraDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getExtraDeps()).addAll(SourcePaths.filterBuildRuleInputs(srcs)).build();
-  return new Genrule(params.copyWithExtraDeps(extraDeps),new SourcePathResolver(resolver),srcs,args.cmd,args.bash,args.cmdExe,args.out,params.getPathAbsolutifier());
+  Function<String,String> expandMacros=new Function<String,String>(){
+    @Override public String apply(    String input){
+      try {
+        return macroHandler.expand(params.getBuildTarget(),resolver,params.getProjectFilesystem(),input);
+      }
+ catch (      MacroException e) {
+        throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+      }
+    }
+  }
+;
+  return new Genrule(params.copyWithExtraDeps(extraDeps),new SourcePathResolver(resolver),srcs,args.cmd.transform(expandMacros),args.bash.transform(expandMacros),args.cmdExe.transform(expandMacros),args.out,params.getPathAbsolutifier());
 }

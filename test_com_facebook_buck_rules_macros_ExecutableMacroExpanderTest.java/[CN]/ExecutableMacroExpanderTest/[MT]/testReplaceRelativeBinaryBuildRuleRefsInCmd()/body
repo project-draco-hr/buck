@@ -1,0 +1,12 @@
+{
+  BuildTargetParser parser=new BuildTargetParser();
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  BuildRule rule=createSampleJavaBinaryRule(ruleResolver);
+  String originalCmd="$(exe :ManifestGenerator) $OUT";
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  MacroHandler macroHandler=new MacroHandler(ImmutableMap.<String,MacroExpander>of("exe",new ExecutableMacroExpander(parser)));
+  String transformedString=macroHandler.expand(rule.getBuildTarget(),ruleResolver,filesystem,originalCmd);
+  Path expectedClasspath=Paths.get(GEN_DIR + "/java/com/facebook/util/ManifestGenerator.jar").toAbsolutePath();
+  String expectedCmd=String.format("java -jar %s $OUT",expectedClasspath);
+  assertEquals(expectedCmd,transformedString);
+}

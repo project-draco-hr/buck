@@ -1,0 +1,18 @@
+{
+  final List<BuildTarget> found=Lists.newArrayList();
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
+  FakeBuildRule rule=new FakeBuildRule("//something:manifest",sourcePathResolver);
+  resolver.addToIndex(rule);
+  BuildTargetParser parser=new BuildTargetParser();
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  MacroHandler handler=new MacroHandler(ImmutableMap.<String,MacroExpander>of("exe",new BuildTargetMacroExpander(parser){
+    @Override public String expand(    ProjectFilesystem filesystem,    BuildRule rule) throws MacroException {
+      found.add(rule.getBuildTarget());
+      return "";
+    }
+  }
+));
+  handler.expand(rule.getBuildTarget(),resolver,filesystem,blob);
+  return Optional.fromNullable(Iterables.getFirst(found,null));
+}

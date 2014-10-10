@@ -1,0 +1,15 @@
+{
+  BuildTargetParser parser=new BuildTargetParser();
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  JavaLibraryBuilder.createBuilder(BuildTarget.builder("//cheese","java").build()).build(resolver);
+  BuildTarget target=BuildTarget.builder("//cheese","cake").build();
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  MacroHandler macroHandler=new MacroHandler(ImmutableMap.<String,MacroExpander>of("location",new LocationMacroExpander(parser)));
+  try {
+    macroHandler.expand(target,resolver,filesystem,"$(location //cheese:java)");
+    fail("Location was null. Expected HumanReadableException with helpful message.");
+  }
+ catch (  MacroException e) {
+    assertEquals("expanding $(location //cheese:java): //cheese:java used" + " in location macro does not produce output",e.getMessage());
+  }
+}
