@@ -1,13 +1,13 @@
 {
   SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
-  ImmutableList<CxxSource> srcs=CxxDescriptionEnhancer.parseCxxSources(params.getBuildTarget(),pathResolver,args.srcs.or(ImmutableList.<SourcePath>of()));
+  ImmutableMap<String,CxxSource> srcs=CxxDescriptionEnhancer.parseCxxSources(params.getBuildTarget(),pathResolver,args.srcs.or(ImmutableList.<SourcePath>of()));
   ImmutableMap<Path,SourcePath> headers=CxxDescriptionEnhancer.parseHeaders(params.getBuildTarget(),pathResolver,args.headerNamespace.transform(MorePaths.TO_PATH).or(params.getBuildTarget().getBasePath()),args.headers.or((ImmutableList.<SourcePath>of())));
   ImmutableMap<String,SourcePath> lexSrcs=pathResolver.getSourcePathNames(params.getBuildTarget(),"lexSrcs",args.lexSrcs.or(ImmutableList.<SourcePath>of()));
   ImmutableMap<String,SourcePath> yaccSrcs=pathResolver.getSourcePathNames(params.getBuildTarget(),"yaccSrcs",args.yaccSrcs.or(ImmutableList.<SourcePath>of()));
   CxxHeaderSourceSpec lexYaccSources=CxxDescriptionEnhancer.createLexYaccBuildRules(params,ruleResolver,cxxPlatform,ImmutableList.<String>of(),lexSrcs,ImmutableList.<String>of(),yaccSrcs);
   SymlinkTree headerSymlinkTree=CxxDescriptionEnhancer.createHeaderSymlinkTreeBuildRule(params,ruleResolver,headers);
-  CxxPreprocessorInput cxxPreprocessorInput=CxxDescriptionEnhancer.combineCxxPreprocessorInput(params,cxxPlatform,args.preprocessorFlags.or(ImmutableList.<String>of()),headerSymlinkTree,ImmutableMap.<Path,SourcePath>builder().putAll(headers).putAll(lexYaccSources.getCxxHeaders()).build());
-  ImmutableList<SourcePath> picObjects=CxxDescriptionEnhancer.createPreprocessAndCompileBuildRules(params,ruleResolver,cxxPlatform,cxxPreprocessorInput,args.compilerFlags.or(ImmutableList.<String>of()),true,ImmutableList.<CxxSource>builder().addAll(srcs).addAll(lexYaccSources.getCxxSources()).build());
+  CxxPreprocessorInput cxxPreprocessorInput=CxxDescriptionEnhancer.combineCxxPreprocessorInput(params,args.preprocessorFlags.or(ImmutableList.<String>of()),headerSymlinkTree,ImmutableMap.<Path,SourcePath>builder().putAll(headers).putAll(lexYaccSources.getCxxHeaders()).build());
+  ImmutableList<SourcePath> picObjects=CxxDescriptionEnhancer.createPreprocessAndCompileBuildRules(params,ruleResolver,cxxPlatform,cxxPreprocessorInput,args.compilerFlags.or(ImmutableList.<String>of()),true,ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build());
   Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);
   final BuildTarget extensionTarget=getExtensionTarget(params.getBuildTarget());
   String extensionName=getExtensionName(params.getBuildTarget());

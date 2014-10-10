@@ -1,0 +1,43 @@
+{
+  BuildTarget target=createCompileBuildTarget(params.getBuildTarget(),name,pic);
+  ImmutableSortedSet.Builder<BuildRule> dependencies=ImmutableSortedSet.naturalOrder();
+  dependencies.addAll(SourcePaths.filterBuildRuleInputs(ImmutableList.of(source.getPath())));
+  if (source.getType() == CxxSource.Type.C || source.getType() == CxxSource.Type.CXX || source.getType() == CxxSource.Type.ASSEMBLER_WITH_CPP) {
+    dependencies.addAll(SourcePaths.filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(source.getPath()).addAll(preprocessorInput.getIncludes().values()).build()));
+    dependencies.addAll(BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,preprocessorInput.getRules(),false));
+  }
+  SourcePath compiler;
+  if (source.getType() == CxxSource.Type.CXX || source.getType() == CxxSource.Type.CXX_CPP_OUTPUT) {
+    compiler=platform.getCxx();
+  }
+ else {
+    compiler=platform.getCc();
+  }
+  ImmutableList.Builder<String> args=ImmutableList.builder();
+  args.add("-x",source.getType().getLanguage());
+  if (source.getType() == CxxSource.Type.CXX) {
+    args.addAll(preprocessorInput.getCxxppflags());
+    args.addAll(platform.getCxxppflags());
+  }
+  if (source.getType() == CxxSource.Type.C) {
+    args.addAll(preprocessorInput.getCppflags());
+    args.addAll(platform.getCppflags());
+  }
+  if (source.getType() == CxxSource.Type.ASSEMBLER_WITH_CPP) {
+    args.addAll(platform.getAsppflags());
+  }
+  if (source.getType() == CxxSource.Type.C || source.getType() == CxxSource.Type.C_CPP_OUTPUT) {
+    args.addAll(platform.getCflags());
+  }
+  if (source.getType() == CxxSource.Type.CXX || source.getType() == CxxSource.Type.CXX_CPP_OUTPUT) {
+    args.addAll(platform.getCxxflags());
+  }
+  if (source.getType() == CxxSource.Type.C || source.getType() == CxxSource.Type.C_CPP_OUTPUT || source.getType() == CxxSource.Type.CXX || source.getType() == CxxSource.Type.CXX_CPP_OUTPUT) {
+    args.addAll(compilerFlags);
+  }
+  args.addAll(iXassembler(platform.getAsflags()));
+  if (pic) {
+    args.add("-fPIC");
+  }
+  return new CxxCompile(params.copyWithChanges(COMPILE_TYPE,target,dependencies.build(),ImmutableSortedSet.<BuildRule>of()),new SourcePathResolver(resolver),compiler,Optional.<CxxCompile.Plugin>absent(),args.build(),getCompileOutputPath(target,name),source.getPath(),preprocessorInput.getIncludeRoots(),preprocessorInput.getSystemIncludeRoots(),preprocessorInput.getIncludes());
+}

@@ -1,7 +1,12 @@
 {
-  ImmutableList.Builder<CxxSource> cxxSources=ImmutableList.builder();
+  ImmutableMap.Builder<String,CxxSource> cxxSources=ImmutableMap.builder();
   for (  ImmutableMap.Entry<String,SourcePath> ent : sources.entrySet()) {
-    cxxSources.add(new CxxSource(ent.getKey(),ent.getValue()));
+    String extension=Files.getFileExtension(ent.getKey());
+    Optional<CxxSource.Type> type=CxxSource.Type.fromExtension(extension);
+    if (!type.isPresent()) {
+      throw new HumanReadableException("invalid extension \"%s\": %s",extension,ent.getKey());
+    }
+    cxxSources.put(ent.getKey(),new CxxSource(type.get(),ent.getValue()));
   }
   return cxxSources.build();
 }
