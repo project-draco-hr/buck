@@ -2,16 +2,5 @@
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   ImmutableList<SourcePath> srcs=args.srcs.get();
   ImmutableSortedSet<BuildRule> extraDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getExtraDeps()).addAll(pathResolver.filterBuildRuleInputs(srcs)).build();
-  Function<String,String> expandMacros=new Function<String,String>(){
-    @Override public String apply(    String input){
-      try {
-        return macroHandler.expand(params.getBuildTarget(),resolver,params.getProjectFilesystem(),input);
-      }
- catch (      MacroException e) {
-        throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
-      }
-    }
-  }
-;
-  return new Genrule(params.copyWithExtraDeps(extraDeps),pathResolver,srcs,args.cmd.transform(expandMacros),args.bash.transform(expandMacros),args.cmdExe.transform(expandMacros),args.out,params.getPathAbsolutifier());
+  return new Genrule(params.copyWithExtraDeps(extraDeps),pathResolver,srcs,macroHandler.getExpander(params.getBuildTarget(),resolver,params.getProjectFilesystem()),args.cmd,args.bash,args.cmdExe,args.out,params.getPathAbsolutifier());
 }
