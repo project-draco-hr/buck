@@ -1,0 +1,19 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  FakeBuckConfig buckConfig=new FakeBuckConfig();
+  DefaultCxxPlatform cxxBuckConfig=new DefaultCxxPlatform(buckConfig);
+  Linker linker=new GnuLinker(new TestSourcePath("linker"));
+  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig);
+  BuildTarget target=BuildTargetFactory.newInstance("//:test");
+  CxxLibraryDescription.Arg normalArg=description.createEmptyConstructorArg();
+  BuildRuleParams normalParams=new FakeBuildRuleParamsBuilder(target).setTargetGraph(createTargetGraph(target,description,normalArg)).build();
+  CxxLibrary normal=(CxxLibrary)description.createBuildRule(normalParams,resolver,normalArg);
+  assertFalse(normal.getNativeLinkableInput(linker,NativeLinkable.Type.STATIC).getArgs().contains("--whole-archive"));
+  assertFalse(normal.getNativeLinkableInput(linker,NativeLinkable.Type.STATIC).getArgs().contains("--no-whole-archive"));
+  CxxLibraryDescription.Arg linkWholeArg=description.createEmptyConstructorArg();
+  linkWholeArg.linkWhole=Optional.of(true);
+  BuildRuleParams linkWholeParams=new FakeBuildRuleParamsBuilder(target).setTargetGraph(createTargetGraph(target,description,linkWholeArg)).build();
+  CxxLibrary linkWhole=(CxxLibrary)description.createBuildRule(linkWholeParams,resolver,linkWholeArg);
+  assertTrue(linkWhole.getNativeLinkableInput(linker,NativeLinkable.Type.STATIC).getArgs().contains("--whole-archive"));
+  assertTrue(linkWhole.getNativeLinkableInput(linker,NativeLinkable.Type.STATIC).getArgs().contains("--no-whole-archive"));
+}

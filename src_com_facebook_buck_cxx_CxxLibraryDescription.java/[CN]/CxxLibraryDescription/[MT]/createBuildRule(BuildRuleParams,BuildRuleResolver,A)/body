@@ -1,9 +1,26 @@
 {
+  Optional<Map.Entry<Flavor,Type>> type;
+  try {
+    type=LIBRARY_TYPE.getFlavorAndValue(params.getBuildTarget().getFlavors());
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+  }
+  if (type.isPresent()) {
+    Set<Flavor> flavors=Sets.newHashSet(params.getBuildTarget().getFlavors());
+    flavors.remove(type.get().getKey());
+    BuildTarget target=BuildTargets.extendFlavoredBuildTarget(params.getBuildTarget().getUnflavoredTarget(),flavors);
+    BuildRuleParams typeParams=params.copyWithChanges(params.getBuildRuleType(),target,params.getDeclaredDeps(),params.getExtraDeps());
+    if (type.get().getValue().equals(Type.HEADERS)) {
+      return createHeaderSymlinkTreeBuildRule(typeParams,resolver,args);
+    }
+ else     if (type.get().getValue().equals(Type.SHARED)) {
+      return createSharedLibraryBuildRule(typeParams,resolver,args);
+    }
+ else {
+      return createStaticLibraryBuildRule(typeParams,resolver,args);
+    }
+  }
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  ImmutableMap<String,CxxSource> srcs=CxxDescriptionEnhancer.parseCxxSources(params.getBuildTarget(),pathResolver,args.srcs.or(ImmutableList.<SourcePath>of()));
-  ImmutableMap<Path,SourcePath> headers=CxxDescriptionEnhancer.parseHeaders(params.getBuildTarget(),pathResolver,args.headerNamespace.transform(MorePaths.TO_PATH).or(params.getBuildTarget().getBasePath()),args.headers.or((ImmutableList.<SourcePath>of())));
-  ImmutableMap<String,SourcePath> lexSrcs=pathResolver.getSourcePathNames(params.getBuildTarget(),"lexSrcs",args.lexSrcs.or(ImmutableList.<SourcePath>of()));
-  ImmutableMap<String,SourcePath> yaccSrcs=pathResolver.getSourcePathNames(params.getBuildTarget(),"yaccSrcs",args.yaccSrcs.or(ImmutableList.<SourcePath>of()));
-  CxxHeaderSourceSpec lexYaccSources=CxxDescriptionEnhancer.createLexYaccBuildRules(params,resolver,cxxPlatform,ImmutableList.<String>of(),lexSrcs,ImmutableList.<String>of(),yaccSrcs);
-  return CxxDescriptionEnhancer.createCxxLibraryBuildRules(params,resolver,cxxPlatform,CxxPreprocessorFlags.fromArgs(args.preprocessorFlags,args.langPreprocessorFlags),CxxPreprocessorFlags.fromArgs(args.propagatedPpFlags,args.propagatedLangPpFlags),ImmutableMap.<Path,SourcePath>builder().putAll(headers).putAll(lexYaccSources.getCxxHeaders()).build(),args.compilerFlags.or(ImmutableList.<String>of()),ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build(),args.linkWhole.or(false),args.soname);
+  return new CxxLibrary(params,resolver,pathResolver,CxxPreprocessorFlags.fromArgs(args.propagatedPpFlags,args.propagatedLangPpFlags),CxxDescriptionEnhancer.parseHeaders(params,resolver,args),args.linkWhole.or(false),args.soname);
 }
