@@ -1,28 +1,24 @@
 {
-  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  Optional<Map.Entry<Flavor,Type>> type;
+  try {
+    type=LIBRARY_TYPE.getFlavorAndValue(params.getBuildTarget().getFlavors());
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+  }
+  if (type.isPresent()) {
+    Preconditions.checkState(type.get().getValue() == Type.SHARED);
+    return createSharedLibraryBuildRule(params,resolver,args);
+  }
   final BuildTarget target=params.getBuildTarget();
-  final boolean headerOnly=args.headerOnly.or(false);
-  final boolean provided=args.provided.or(false);
-  final boolean linkWhole=args.linkWhole.or(false);
-  final String libDir=args.libDir.or("lib");
-  final String libName=args.libName.or(target.getShortNameOnly());
-  final String soname=args.soname.or(String.format("lib%s.so",libName));
-  final Path staticLibraryPath=target.getBasePath().resolve(libDir).resolve(String.format("lib%s.a",libName));
-  final SourcePath staticLibrary=new PathSourcePath(staticLibraryPath);
-  final Path sharedLibraryPath;
-  final SourcePath sharedLibrary;
-  Path prebuiltSharedLibraryPath=target.getBasePath().resolve(libDir).resolve(String.format("lib%s.so",libName));
-  if (headerOnly || params.getProjectFilesystem().exists(prebuiltSharedLibraryPath)) {
-    sharedLibraryPath=prebuiltSharedLibraryPath;
-    sharedLibrary=new PathSourcePath(sharedLibraryPath);
-  }
- else {
-    BuildTarget sharedLibraryTarget=BuildTargets.extendFlavoredBuildTarget(params.getBuildTarget(),SHARED);
-    sharedLibraryPath=BuildTargets.getBinPath(sharedLibraryTarget,"%s").resolve(soname);
-    CxxLink cxxLink=CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,pathResolver,ImmutableList.<String>of(),ImmutableList.<String>of(),BuildTargets.extendFlavoredBuildTarget(params.getBuildTarget(),SHARED),CxxLinkableEnhancer.LinkType.SHARED,Optional.of(soname),sharedLibraryPath,ImmutableList.of(staticLibrary),NativeLinkable.Type.SHARED,params.getDeps());
-    resolver.addToIndex(cxxLink);
-    sharedLibrary=new BuildTargetSourcePath(cxxLink.getBuildTarget());
-  }
+  boolean headerOnly=args.headerOnly.or(false);
+  boolean provided=args.provided.or(false);
+  boolean linkWhole=args.linkWhole.or(false);
+  String libDir=args.libDir.or("lib");
+  String libName=args.libName.or(target.getShortNameOnly());
+  String soname=args.soname.or(String.format("lib%s.so",libName));
+  Path staticLibraryPath=target.getBasePath().resolve(libDir).resolve(String.format("lib%s.a",libName));
+  Path sharedLibraryPath=target.getBasePath().resolve(libDir).resolve(String.format("lib%s.so",libName));
   Function<String,Path> fullPathFn=new Function<String,Path>(){
     @Override public Path apply(    String input){
       return target.getBasePath().resolve(input);
@@ -30,40 +26,6 @@
   }
 ;
   final ImmutableList<Path> includeDirs=FluentIterable.from(args.includeDirs.or(ImmutableList.of("include"))).transform(fullPathFn).toList();
-  return new AbstractCxxLibrary(params,pathResolver){
-    @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
-      return CxxPreprocessorInput.builder().setSystemIncludeRoots(includeDirs).build();
-    }
-    @Override public NativeLinkableInput getNativeLinkableInput(    Linker linker,    Type type){
-      ImmutableList.Builder<SourcePath> librariesBuilder=ImmutableList.builder();
-      ImmutableList.Builder<String> linkerArgsBuilder=ImmutableList.builder();
-      if (!headerOnly) {
-        if (provided || type == Type.SHARED) {
-          librariesBuilder.add(sharedLibrary);
-          linkerArgsBuilder.add(sharedLibraryPath.toString());
-        }
- else {
-          librariesBuilder.add(staticLibrary);
-          if (linkWhole) {
-            linkerArgsBuilder.addAll(linker.linkWhole(staticLibraryPath.toString()));
-          }
- else {
-            linkerArgsBuilder.add(staticLibraryPath.toString());
-          }
-        }
-      }
-      final ImmutableList<SourcePath> libraries=librariesBuilder.build();
-      final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
-      return new NativeLinkableInput(libraries,linkerArgs);
-    }
-    @Override public PythonPackageComponents getPythonPackageComponents(){
-      ImmutableMap.Builder<Path,SourcePath> nativeLibrariesBuilder=ImmutableMap.builder();
-      if (!headerOnly && !provided) {
-        nativeLibrariesBuilder.put(Paths.get(soname),sharedLibrary);
-      }
-      ImmutableMap<Path,SourcePath> nativeLibraries=nativeLibrariesBuilder.build();
-      return new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),nativeLibraries);
-    }
-  }
-;
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  return new PrebuiltCxxLibrary(params,resolver,pathResolver,includeDirs,staticLibraryPath,sharedLibraryPath,soname,headerOnly,linkWhole,provided);
 }

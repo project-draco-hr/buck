@@ -1,0 +1,11 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
+  BuildTarget target=params.getBuildTarget();
+  String libDir=args.libDir.or("lib");
+  String libName=args.libName.or(target.getShortNameOnly());
+  String soname=args.soname.or(String.format("lib%s.so",libName));
+  Path staticLibraryPath=target.getBasePath().resolve(libDir).resolve(String.format("lib%s.a",libName));
+  BuildTarget sharedTarget=BuildTargets.extendFlavoredBuildTarget(params.getBuildTarget(),CxxDescriptionEnhancer.SHARED_FLAVOR);
+  Path builtSharedLibraryPath=BuildTargets.getBinPath(sharedTarget,"%s").resolve(soname);
+  return CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,pathResolver,ImmutableList.<String>of(),ImmutableList.<String>of(),sharedTarget,CxxLinkableEnhancer.LinkType.SHARED,Optional.of(soname),builtSharedLibraryPath,ImmutableList.<SourcePath>of(new PathSourcePath(staticLibraryPath)),NativeLinkable.Type.SHARED,params.getDeps());
+}
