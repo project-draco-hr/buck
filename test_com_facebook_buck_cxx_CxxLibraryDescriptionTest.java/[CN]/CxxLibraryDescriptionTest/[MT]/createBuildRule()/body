@@ -34,8 +34,9 @@
 ;
   resolver.addAllToIndex(ImmutableList.of(header,headerSymlinkTree,archive));
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
-  DefaultCxxPlatform cxxBuckConfig=new DefaultCxxPlatform(new FakeBuckConfig());
-  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig);
+  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(new FakeBuckConfig());
+  DefaultCxxPlatform cxxPlatform=new DefaultCxxPlatform(new FakeBuckConfig());
+  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig,cxxPlatform);
   CxxLibraryDescription.Arg arg=description.createEmptyConstructorArg();
   arg.deps=Optional.of(ImmutableSortedSet.of(dep.getBuildTarget()));
   arg.srcs=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofLeft(ImmutableList.<SourcePath>of(new TestSourcePath("test/bar.cpp"),new BuildTargetSourcePath(genSource.getBuildTarget()))));
@@ -44,7 +45,7 @@
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setTargetGraph(TargetGraphFactory.newInstance(createTargetNode(target,description,arg),createTargetNode(genSource.getBuildTarget(),genSourceDescription,genSourceArg),createTargetNode(genHeader.getBuildTarget(),genHeaderDescription,genHeaderArg),createTargetNode(depTarget,new GenruleDescription(),createEmptyGenruleDescriptionArg()))).setDeps(ImmutableSortedSet.<BuildRule>of(dep)).build();
   CxxLibrary rule=(CxxLibrary)description.createBuildRule(params,resolver,arg);
   assertEquals(CxxPreprocessorInput.builder().setRules(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target))).setIncludes(ImmutableMap.<Path,SourcePath>of(Paths.get(headerName),new TestSourcePath(headerName),Paths.get(genHeaderName),new BuildTargetSourcePath(genHeader.getBuildTarget()))).setIncludeRoots(ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(target))).build(),rule.getCxxPreprocessorInput());
-  rule.getNativeLinkableInput(cxxBuckConfig.getLd(),NativeLinkable.Type.STATIC);
+  rule.getNativeLinkableInput(cxxPlatform.getLd(),NativeLinkable.Type.STATIC);
   BuildRule archiveRule=resolver.getRule(CxxDescriptionEnhancer.createStaticLibraryBuildTarget(target));
   assertNotNull(archiveRule);
   assertEquals(ImmutableSet.of(CxxCompilableEnhancer.createCompileBuildTarget(target,"test/bar.cpp",false),CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName,false)),FluentIterable.from(archiveRule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());

@@ -2,13 +2,14 @@
   BuildRuleResolver resolver=new BuildRuleResolver();
   String soname="test_soname";
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
-  DefaultCxxPlatform cxxBuckConfig=new DefaultCxxPlatform(new FakeBuckConfig());
-  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig);
+  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(new FakeBuckConfig());
+  DefaultCxxPlatform cxxPlatform=new DefaultCxxPlatform(new FakeBuckConfig());
+  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig,cxxPlatform);
   CxxLibraryDescription.Arg arg=description.createEmptyConstructorArg();
   arg.soname=Optional.of(soname);
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setTargetGraph(createTargetGraph(target,description,arg)).build();
   CxxLibrary rule=(CxxLibrary)description.createBuildRule(params,resolver,arg);
-  Linker linker=cxxBuckConfig.getLd();
+  Linker linker=cxxPlatform.getLd();
   NativeLinkableInput input=rule.getNativeLinkableInput(linker,NativeLinkable.Type.SHARED);
   ImmutableList<SourcePath> inputs=input.getInputs();
   assertEquals(inputs.size(),1);
