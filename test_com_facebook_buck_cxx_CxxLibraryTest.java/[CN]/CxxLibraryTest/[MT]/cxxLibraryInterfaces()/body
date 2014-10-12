@@ -12,25 +12,25 @@
   final Path sharedLibraryOutput=Paths.get("output/path/lib.so");
   final String sharedLibrarySoname="lib.so";
   AbstractCxxLibrary cxxLibrary=new AbstractCxxLibrary(params,pathResolver){
-    @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
+    @Override public CxxPreprocessorInput getCxxPreprocessorInput(    CxxPlatform cxxPlatform){
       return CxxPreprocessorInput.builder().setRules(ImmutableSet.of(headerTarget,headerSymlinkTreeTarget)).setIncludeRoots(headerSymlinkTreeRoot).build();
     }
-    @Override public NativeLinkableInput getNativeLinkableInput(    Linker linker,    Type type){
+    @Override public NativeLinkableInput getNativeLinkableInput(    CxxPlatform cxxPlatform,    Type type){
       return type == Type.STATIC ? new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(archive.getBuildTarget())),ImmutableList.of(archiveOutput.toString())) : new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(sharedLibrary.getBuildTarget())),ImmutableList.of(sharedLibraryOutput.toString()));
     }
-    @Override public PythonPackageComponents getPythonPackageComponents(){
+    @Override public PythonPackageComponents getPythonPackageComponents(    CxxPlatform cxxPlatform){
       return new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(sharedLibraryOutput)));
     }
   }
 ;
   CxxPreprocessorInput expectedCxxPreprocessorInput=CxxPreprocessorInput.builder().setRules(ImmutableSet.of(headerTarget,headerSymlinkTreeTarget)).setIncludeRoots(headerSymlinkTreeRoot).build();
-  assertEquals(expectedCxxPreprocessorInput,cxxLibrary.getCxxPreprocessorInput());
+  assertEquals(expectedCxxPreprocessorInput,cxxLibrary.getCxxPreprocessorInput(cxxPlatform));
   NativeLinkableInput expectedStaticNativeLinkableInput=new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(archive.getBuildTarget())),ImmutableList.of(archiveOutput.toString()));
-  assertEquals(expectedStaticNativeLinkableInput,cxxLibrary.getNativeLinkableInput(cxxPlatform.getLd(),NativeLinkable.Type.STATIC));
+  assertEquals(expectedStaticNativeLinkableInput,cxxLibrary.getNativeLinkableInput(cxxPlatform,NativeLinkable.Type.STATIC));
   NativeLinkableInput expectedSharedNativeLinkableInput=new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(sharedLibrary.getBuildTarget())),ImmutableList.of(sharedLibraryOutput.toString()));
-  assertEquals(expectedSharedNativeLinkableInput,cxxLibrary.getNativeLinkableInput(cxxPlatform.getLd(),NativeLinkable.Type.SHARED));
+  assertEquals(expectedSharedNativeLinkableInput,cxxLibrary.getNativeLinkableInput(cxxPlatform,NativeLinkable.Type.SHARED));
   PythonPackageComponents expectedPythonPackageComponents=new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(sharedLibraryOutput)));
-  assertEquals(expectedPythonPackageComponents,cxxLibrary.getPythonPackageComponents());
+  assertEquals(expectedPythonPackageComponents,cxxLibrary.getPythonPackageComponents(cxxPlatform));
   assertEquals(ImmutableList.<Step>of(),cxxLibrary.getBuildSteps(null,null));
   assertNull(cxxLibrary.getPathToOutputFile());
   assertTrue(ImmutableList.copyOf(cxxLibrary.getInputs()).isEmpty());

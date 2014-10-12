@@ -25,13 +25,13 @@
   BuildTarget depTarget=BuildTargetFactory.newInstance("//:dep");
   BuildRuleParams depParams=BuildRuleParamsFactory.createTrivialBuildRuleParams(depTarget);
   AbstractCxxLibrary dep=new AbstractCxxLibrary(depParams,pathResolver){
-    @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
+    @Override public CxxPreprocessorInput getCxxPreprocessorInput(    CxxPlatform cxxPlatform){
       return CxxPreprocessorInput.builder().setRules(ImmutableSet.of(header.getBuildTarget(),headerSymlinkTree.getBuildTarget())).setIncludeRoots(headerSymlinkTreeRoot).build();
     }
-    @Override public NativeLinkableInput getNativeLinkableInput(    Linker linker,    Type type){
+    @Override public NativeLinkableInput getNativeLinkableInput(    CxxPlatform cxxPlatform,    Type type){
       return type == Type.STATIC ? new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(staticLibraryDep.getBuildTarget())),ImmutableList.of(staticLibraryOutput.toString())) : new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(sharedLibraryDep.getBuildTarget())),ImmutableList.of(sharedLibraryOutput.toString()));
     }
-    @Override public PythonPackageComponents getPythonPackageComponents(){
+    @Override public PythonPackageComponents getPythonPackageComponents(    CxxPlatform cxxPlatform){
       return new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(sharedLibraryOutput)));
     }
   }
@@ -40,34 +40,35 @@
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
   FakeBuckConfig buckConfig=new FakeBuckConfig();
   CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(buckConfig);
-  DefaultCxxPlatform cxxPlatform=new DefaultCxxPlatform(buckConfig);
-  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig,cxxPlatform);
+  CxxPlatform cxxPlatform=new DefaultCxxPlatform(buckConfig);
+  FlavorDomain<CxxPlatform> cxxPlatforms=new FlavorDomain<>("C/C++ Platform",ImmutableMap.of(cxxPlatform.asFlavor(),cxxPlatform));
+  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig,cxxPlatforms);
   CxxLibraryDescription.Arg arg=description.createEmptyConstructorArg();
   arg.headers=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofRight(ImmutableMap.<String,SourcePath>of(genHeaderName,new BuildTargetSourcePath(genHeader.getBuildTarget()))));
   arg.srcs=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofRight(ImmutableMap.<String,SourcePath>of(sourceName,new TestSourcePath(sourceName),genSourceName,new BuildTargetSourcePath(genSource.getBuildTarget()))));
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setTargetGraph(TargetGraphFactory.newInstance(createTargetNode(target,description,arg),createTargetNode(genSource.getBuildTarget(),genSourceDescription,genSourceArg),createTargetNode(genHeader.getBuildTarget(),genHeaderDescription,genHeaderArg))).setDeps(ImmutableSortedSet.<BuildRule>of(dep)).build();
   CxxLibrary rule=(CxxLibrary)description.createBuildRule(params,resolver,arg);
-  assertEquals(CxxPreprocessorInput.builder().setRules(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target))).setIncludes(ImmutableMap.<Path,SourcePath>of(Paths.get(genHeaderName),new BuildTargetSourcePath(genHeader.getBuildTarget()))).setIncludeRoots(ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(target))).build(),rule.getCxxPreprocessorInput());
-  rule.getNativeLinkableInput(cxxPlatform.getLd(),NativeLinkable.Type.STATIC);
-  BuildRule staticRule=resolver.getRule(CxxDescriptionEnhancer.createStaticLibraryBuildTarget(target));
+  assertEquals(CxxPreprocessorInput.builder().setRules(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor()))).setIncludes(ImmutableMap.<Path,SourcePath>of(Paths.get(genHeaderName),new BuildTargetSourcePath(genHeader.getBuildTarget()))).setIncludeRoots(ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(target,cxxPlatform.asFlavor()))).build(),rule.getCxxPreprocessorInput(cxxPlatform));
+  rule.getNativeLinkableInput(cxxPlatform,NativeLinkable.Type.STATIC);
+  BuildRule staticRule=resolver.getRule(CxxDescriptionEnhancer.createStaticLibraryBuildTarget(target,cxxPlatform.asFlavor()));
   assertNotNull(staticRule);
-  assertEquals(ImmutableSet.of(CxxCompilableEnhancer.createCompileBuildTarget(target,"test/bar.cpp",false),CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName,false)),FluentIterable.from(staticRule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
-  BuildRule staticCompileRule1=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,"test/bar.cpp",false));
+  assertEquals(ImmutableSet.of(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),"test/bar.cpp",false),CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),genSourceName,false)),FluentIterable.from(staticRule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  BuildRule staticCompileRule1=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),"test/bar.cpp",false));
   assertNotNull(staticCompileRule1);
-  assertEquals(ImmutableSet.of(genHeaderTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),FluentIterable.from(staticCompileRule1.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
-  BuildRule staticCompileRule2=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName,false));
+  assertEquals(ImmutableSet.of(genHeaderTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor())),FluentIterable.from(staticCompileRule1.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  BuildRule staticCompileRule2=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),genSourceName,false));
   assertNotNull(staticCompileRule2);
-  assertEquals(ImmutableSet.of(genHeaderTarget,genSourceTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),FluentIterable.from(staticCompileRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
-  rule.getNativeLinkableInput(cxxPlatform.getLd(),NativeLinkable.Type.SHARED);
-  BuildRule sharedRule=resolver.getRule(CxxDescriptionEnhancer.createSharedLibraryBuildTarget(target));
+  assertEquals(ImmutableSet.of(genHeaderTarget,genSourceTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor())),FluentIterable.from(staticCompileRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  rule.getNativeLinkableInput(cxxPlatform,NativeLinkable.Type.SHARED);
+  BuildRule sharedRule=resolver.getRule(CxxDescriptionEnhancer.createSharedLibraryBuildTarget(target,cxxPlatform.asFlavor()));
   assertNotNull(sharedRule);
-  assertEquals(ImmutableSet.of(sharedLibraryDep.getBuildTarget(),CxxCompilableEnhancer.createCompileBuildTarget(target,"test/bar.cpp",true),CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName,true)),FluentIterable.from(sharedRule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
-  BuildRule sharedCompileRule1=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,"test/bar.cpp",true));
+  assertEquals(ImmutableSet.of(sharedLibraryDep.getBuildTarget(),CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),"test/bar.cpp",true),CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),genSourceName,true)),FluentIterable.from(sharedRule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  BuildRule sharedCompileRule1=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),"test/bar.cpp",true));
   assertNotNull(sharedCompileRule1);
-  assertEquals(ImmutableSet.of(genHeaderTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),FluentIterable.from(sharedCompileRule1.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
-  BuildRule sharedCompileRule2=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName,true));
+  assertEquals(ImmutableSet.of(genHeaderTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor())),FluentIterable.from(sharedCompileRule1.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  BuildRule sharedCompileRule2=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),genSourceName,true));
   assertNotNull(sharedCompileRule2);
-  assertEquals(ImmutableSet.of(genHeaderTarget,genSourceTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),FluentIterable.from(sharedCompileRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  assertEquals(ImmutableSet.of(genHeaderTarget,genSourceTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor())),FluentIterable.from(sharedCompileRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
   PythonPackageComponents expectedPythonPackageComponents=new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(CxxDescriptionEnhancer.getSharedLibrarySoname(target)),new BuildTargetSourcePath(sharedRule.getBuildTarget())));
-  assertEquals(expectedPythonPackageComponents,rule.getPythonPackageComponents());
+  assertEquals(expectedPythonPackageComponents,rule.getPythonPackageComponents(cxxPlatform));
 }

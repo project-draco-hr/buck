@@ -15,13 +15,13 @@
   BuildTarget depTarget=BuildTargetFactory.newInstance("//:dep");
   BuildRuleParams depParams=BuildRuleParamsFactory.createTrivialBuildRuleParams(depTarget);
   AbstractCxxLibrary dep=new AbstractCxxLibrary(depParams,pathResolver){
-    @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
+    @Override public CxxPreprocessorInput getCxxPreprocessorInput(    CxxPlatform cxxPlatform){
       return CxxPreprocessorInput.builder().setRules(ImmutableSet.of(header.getBuildTarget(),headerSymlinkTree.getBuildTarget())).setIncludeRoots(headerSymlinkTreeRoot).build();
     }
-    @Override public NativeLinkableInput getNativeLinkableInput(    Linker linker,    Type type){
+    @Override public NativeLinkableInput getNativeLinkableInput(    CxxPlatform cxxPlatform,    Type type){
       return new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(archive.getBuildTarget())),ImmutableList.of(archiveOutput.toString()));
     }
-    @Override public PythonPackageComponents getPythonPackageComponents(){
+    @Override public PythonPackageComponents getPythonPackageComponents(    CxxPlatform cxxPlatform){
       return new PythonPackageComponents(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of());
     }
   }
@@ -41,14 +41,14 @@
   arg.headerNamespace=Optional.absent();
   CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(new FakeBuckConfig());
   DefaultCxxPlatform cxxPlatform=new DefaultCxxPlatform(new FakeBuckConfig());
-  CxxBinaryDescription description=new CxxBinaryDescription(cxxBuckConfig,cxxPlatform);
+  CxxBinaryDescription description=new CxxBinaryDescription(cxxBuckConfig,cxxPlatform,new FlavorDomain<>("platform",ImmutableMap.<Flavor,CxxPlatform>of()));
   CxxBinary binRule=description.createBuildRule(params,resolver,arg);
   CxxLink rule=binRule.getRule();
-  assertEquals(ImmutableSet.of(CxxCompilableEnhancer.createCompileBuildTarget(target,"test/bar.cpp",false),CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName,false),archive.getBuildTarget()),FluentIterable.from(rule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
-  BuildRule compileRule1=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,"test/bar.cpp",false));
+  assertEquals(ImmutableSet.of(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),"test/bar.cpp",false),CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),genSourceName,false),archive.getBuildTarget()),FluentIterable.from(rule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  BuildRule compileRule1=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),"test/bar.cpp",false));
   assertNotNull(compileRule1);
-  assertEquals(ImmutableSet.of(genHeaderTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),FluentIterable.from(compileRule1.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
-  BuildRule compileRule2=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName,false));
+  assertEquals(ImmutableSet.of(genHeaderTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor())),FluentIterable.from(compileRule1.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  BuildRule compileRule2=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),genSourceName,false));
   assertNotNull(compileRule2);
-  assertEquals(ImmutableSet.of(genHeaderTarget,genSourceTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),FluentIterable.from(compileRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  assertEquals(ImmutableSet.of(genHeaderTarget,genSourceTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor())),FluentIterable.from(compileRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
 }

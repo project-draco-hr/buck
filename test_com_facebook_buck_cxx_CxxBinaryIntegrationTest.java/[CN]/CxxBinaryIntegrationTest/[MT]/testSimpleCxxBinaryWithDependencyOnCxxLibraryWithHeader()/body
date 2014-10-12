@@ -1,19 +1,20 @@
 {
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple",tmp);
   workspace.setUp();
+  CxxPlatform cxxPlatform=new DefaultCxxPlatform(new FakeBuckConfig());
   BuildTarget target=BuildTargetFactory.newInstance("//foo:binary_with_dep");
   BuildTarget binaryTarget=CxxDescriptionEnhancer.createCxxLinkTarget(target);
   String sourceName="foo.cpp";
-  BuildTarget compileTarget=CxxCompilableEnhancer.createCompileBuildTarget(target,sourceName,false);
-  BuildTarget headerSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target);
+  BuildTarget compileTarget=CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),sourceName,false);
+  BuildTarget headerSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor());
   BuildTarget depTarget=BuildTargetFactory.newInstance("//foo:library_with_header");
   String depSourceName="bar.cpp";
   String depSourceFull="foo/" + depSourceName;
   String depHeaderName="bar.h";
   String depHeaderFull="foo/" + depHeaderName;
-  BuildTarget depCompileTarget=CxxCompilableEnhancer.createCompileBuildTarget(depTarget,depSourceName,false);
-  BuildTarget depHeaderSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(depTarget);
-  BuildTarget depArchiveTarget=CxxDescriptionEnhancer.createStaticLibraryBuildTarget(depTarget);
+  BuildTarget depCompileTarget=CxxCompilableEnhancer.createCompileBuildTarget(depTarget,cxxPlatform.asFlavor(),depSourceName,false);
+  BuildTarget depHeaderSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(depTarget,cxxPlatform.asFlavor());
+  BuildTarget depArchiveTarget=CxxDescriptionEnhancer.createStaticLibraryBuildTarget(depTarget,cxxPlatform.asFlavor());
   workspace.runBuckCommand("build",target.toString()).assertSuccess();
   BuckBuildLog buildLog=workspace.getBuildLog();
   assertEquals(ImmutableSet.of(depHeaderSymlinkTreeTarget,depCompileTarget,depArchiveTarget,depTarget,headerSymlinkTreeTarget,compileTarget,binaryTarget,target),buildLog.getAllTargets());

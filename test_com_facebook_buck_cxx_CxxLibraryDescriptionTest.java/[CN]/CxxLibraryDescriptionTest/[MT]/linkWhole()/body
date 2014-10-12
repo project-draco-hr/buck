@@ -2,19 +2,21 @@
   BuildRuleResolver resolver=new BuildRuleResolver();
   FakeBuckConfig buckConfig=new FakeBuckConfig();
   CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(buckConfig);
-  DefaultCxxPlatform cxxPlatform=new DefaultCxxPlatform(buckConfig);
-  Linker linker=new GnuLinker(new TestSourcePath("linker"));
-  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig,cxxPlatform);
+  CxxPlatform cxxPlatform=new DefaultCxxPlatform(buckConfig);
+  FlavorDomain<CxxPlatform> cxxPlatforms=new FlavorDomain<>("C/C++ Platform",ImmutableMap.of(cxxPlatform.asFlavor(),cxxPlatform));
+  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig,cxxPlatforms);
   BuildTarget target=BuildTargetFactory.newInstance("//:test");
+  Path staticLib=CxxDescriptionEnhancer.getStaticLibraryPath(target,cxxPlatform.asFlavor());
+  Linker linker=cxxPlatform.getLd();
+  Set<String> linkWholeFlags=Sets.newHashSet(linker.linkWhole(staticLib.toString()));
+  linkWholeFlags.remove(staticLib.toString());
   CxxLibraryDescription.Arg normalArg=description.createEmptyConstructorArg();
   BuildRuleParams normalParams=new FakeBuildRuleParamsBuilder(target).setTargetGraph(createTargetGraph(target,description,normalArg)).build();
   CxxLibrary normal=(CxxLibrary)description.createBuildRule(normalParams,resolver,normalArg);
-  assertFalse(normal.getNativeLinkableInput(linker,NativeLinkable.Type.STATIC).getArgs().contains("--whole-archive"));
-  assertFalse(normal.getNativeLinkableInput(linker,NativeLinkable.Type.STATIC).getArgs().contains("--no-whole-archive"));
+  assertNotContains(normal.getNativeLinkableInput(cxxPlatform,NativeLinkable.Type.STATIC).getArgs(),linkWholeFlags);
   CxxLibraryDescription.Arg linkWholeArg=description.createEmptyConstructorArg();
   linkWholeArg.linkWhole=Optional.of(true);
   BuildRuleParams linkWholeParams=new FakeBuildRuleParamsBuilder(target).setTargetGraph(createTargetGraph(target,description,linkWholeArg)).build();
   CxxLibrary linkWhole=(CxxLibrary)description.createBuildRule(linkWholeParams,resolver,linkWholeArg);
-  assertTrue(linkWhole.getNativeLinkableInput(linker,NativeLinkable.Type.STATIC).getArgs().contains("--whole-archive"));
-  assertTrue(linkWhole.getNativeLinkableInput(linker,NativeLinkable.Type.STATIC).getArgs().contains("--no-whole-archive"));
+  assertContains(linkWhole.getNativeLinkableInput(cxxPlatform,NativeLinkable.Type.STATIC).getArgs(),linkWholeFlags);
 }

@@ -1,15 +1,16 @@
 {
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"lexyacc",tmp);
   workspace.setUp();
+  CxxPlatform cxxPlatform=new DefaultCxxPlatform(new FakeBuckConfig());
   BuildTarget target=BuildTargetFactory.newInstance("//foo:main");
   BuildTarget binaryTarget=CxxDescriptionEnhancer.createCxxLinkTarget(target);
   String sourceName="main.cpp";
   String yaccSourceName="mainy.yy";
   String yaccSourceFull="foo/" + yaccSourceName;
   BuildTarget yaccTarget=CxxDescriptionEnhancer.createYaccBuildTarget(target,yaccSourceName);
-  BuildTarget yaccCompileTarget=CxxCompilableEnhancer.createCompileBuildTarget(target,yaccSourceName + ".cc",false);
-  BuildTarget compileTarget=CxxCompilableEnhancer.createCompileBuildTarget(target,sourceName,false);
-  BuildTarget headerSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target);
+  BuildTarget yaccCompileTarget=CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),yaccSourceName + ".cc",false);
+  BuildTarget compileTarget=CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),sourceName,false);
+  BuildTarget headerSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor());
   workspace.runBuckCommand("build",target.toString()).assertSuccess();
   BuckBuildLog buildLog=workspace.getBuildLog();
   assertEquals(ImmutableSet.of(yaccTarget,headerSymlinkTreeTarget,yaccCompileTarget,compileTarget,binaryTarget,target),buildLog.getAllTargets());

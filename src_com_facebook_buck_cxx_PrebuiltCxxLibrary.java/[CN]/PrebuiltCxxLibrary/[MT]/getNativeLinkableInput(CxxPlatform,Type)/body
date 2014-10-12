@@ -1,0 +1,24 @@
+{
+  ImmutableList.Builder<SourcePath> librariesBuilder=ImmutableList.builder();
+  ImmutableList.Builder<String> linkerArgsBuilder=ImmutableList.builder();
+  if (!headerOnly) {
+    if (provided || type == Type.SHARED) {
+      SourcePath sharedLibrary=requireSharedLibrary(cxxPlatform);
+      librariesBuilder.add(sharedLibrary);
+      linkerArgsBuilder.add(pathResolver.getPath(sharedLibrary).toString());
+    }
+ else {
+      librariesBuilder.add(new PathSourcePath(staticLibraryPath));
+      if (linkWhole) {
+        Linker linker=cxxPlatform.getLd();
+        linkerArgsBuilder.addAll(linker.linkWhole(staticLibraryPath.toString()));
+      }
+ else {
+        linkerArgsBuilder.add(staticLibraryPath.toString());
+      }
+    }
+  }
+  final ImmutableList<SourcePath> libraries=librariesBuilder.build();
+  final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
+  return new NativeLinkableInput(libraries,linkerArgs);
+}

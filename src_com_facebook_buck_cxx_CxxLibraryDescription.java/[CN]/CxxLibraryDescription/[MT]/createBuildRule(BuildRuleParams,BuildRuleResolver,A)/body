@@ -1,7 +1,9 @@
 {
   Optional<Map.Entry<Flavor,Type>> type;
+  Optional<Map.Entry<Flavor,CxxPlatform>> platform;
   try {
     type=LIBRARY_TYPE.getFlavorAndValue(params.getBuildTarget().getFlavors());
+    platform=cxxPlatforms.getFlavorAndValue(params.getBuildTarget().getFlavors());
   }
  catch (  FlavorDomainException e) {
     throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
@@ -12,13 +14,13 @@
     BuildTarget target=BuildTargets.extendFlavoredBuildTarget(params.getBuildTarget().getUnflavoredTarget(),flavors);
     BuildRuleParams typeParams=params.copyWithChanges(params.getBuildRuleType(),target,params.getDeclaredDeps(),params.getExtraDeps());
     if (type.get().getValue().equals(Type.HEADERS)) {
-      return createHeaderSymlinkTreeBuildRule(typeParams,resolver,args);
+      return createHeaderSymlinkTreeBuildRule(typeParams,resolver,platform.get().getValue(),args);
     }
  else     if (type.get().getValue().equals(Type.SHARED)) {
-      return createSharedLibraryBuildRule(typeParams,resolver,args);
+      return createSharedLibraryBuildRule(typeParams,resolver,platform.get().getValue(),args);
     }
  else {
-      return createStaticLibraryBuildRule(typeParams,resolver,args);
+      return createStaticLibraryBuildRule(typeParams,resolver,platform.get().getValue(),args);
     }
   }
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);

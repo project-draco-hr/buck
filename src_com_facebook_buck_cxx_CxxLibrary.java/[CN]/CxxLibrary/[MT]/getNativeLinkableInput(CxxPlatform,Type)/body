@@ -1,0 +1,22 @@
+{
+  final BuildRule libraryRule;
+  ImmutableList.Builder<String> linkerArgsBuilder=ImmutableList.builder();
+  if (type == Type.SHARED) {
+    Path sharedLibraryPath=CxxDescriptionEnhancer.getSharedLibraryPath(getBuildTarget(),cxxPlatform.asFlavor());
+    libraryRule=CxxDescriptionEnhancer.requireBuildRule(params,ruleResolver,cxxPlatform.asFlavor(),CxxDescriptionEnhancer.SHARED_FLAVOR);
+    linkerArgsBuilder.add(sharedLibraryPath.toString());
+  }
+ else {
+    libraryRule=CxxDescriptionEnhancer.requireBuildRule(params,ruleResolver,cxxPlatform.asFlavor(),CxxDescriptionEnhancer.STATIC_FLAVOR);
+    Path staticLibraryPath=CxxDescriptionEnhancer.getStaticLibraryPath(getBuildTarget(),cxxPlatform.asFlavor());
+    if (linkWhole) {
+      Linker linker=cxxPlatform.getLd();
+      linkerArgsBuilder.addAll(linker.linkWhole(staticLibraryPath.toString()));
+    }
+ else {
+      linkerArgsBuilder.add(staticLibraryPath.toString());
+    }
+  }
+  final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
+  return new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(libraryRule.getBuildTarget())),linkerArgs);
+}

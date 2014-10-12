@@ -1,10 +1,17 @@
 {
+  CxxPlatform cxxPlatform;
+  try {
+    cxxPlatform=cxxPlatforms.getValue(params.getBuildTarget().getFlavors()).or(defaultCxxPlatform);
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+  }
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);
   String mainName=pathResolver.getSourcePathName(params.getBuildTarget(),args.main);
   Path mainModule=baseModule.resolve(mainName);
   PythonPackageComponents binaryPackageComponents=new PythonPackageComponents(ImmutableMap.of(mainModule,args.main),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of());
-  PythonPackageComponents allPackageComponents=PythonUtil.getAllComponents(params,binaryPackageComponents);
+  PythonPackageComponents allPackageComponents=PythonUtil.getAllComponents(params,binaryPackageComponents,cxxPlatform);
   BuildRuleParams binaryParams=params.copyWithDeps(PythonUtil.getDepsFromComponents(pathResolver,allPackageComponents),ImmutableSortedSet.<BuildRule>of());
   return new PythonBinary(binaryParams,pathResolver,pathToPex,pythonEnvironment,mainModule,allPackageComponents);
 }
