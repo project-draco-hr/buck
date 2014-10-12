@@ -1,19 +1,16 @@
 {
+  Optional<Map.Entry<Flavor,Type>> type;
+  try {
+    type=LIBRARY_TYPE.getFlavorAndValue(params.getBuildTarget().getFlavors());
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+  }
+  if (type.isPresent()) {
+    Preconditions.checkState(type.get().getValue() == Type.EXTENSION);
+    return createExtensionBuildRule(params,ruleResolver,args);
+  }
   SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
-  ImmutableMap<String,CxxSource> srcs=CxxDescriptionEnhancer.parseCxxSources(params,ruleResolver,args);
-  ImmutableMap<Path,SourcePath> headers=CxxDescriptionEnhancer.parseHeaders(params,ruleResolver,args);
-  ImmutableMap<String,SourcePath> lexSrcs=CxxDescriptionEnhancer.parseLexSources(params,ruleResolver,args);
-  ImmutableMap<String,SourcePath> yaccSrcs=CxxDescriptionEnhancer.parseYaccSources(params,ruleResolver,args);
-  CxxHeaderSourceSpec lexYaccSources=CxxDescriptionEnhancer.createLexYaccBuildRules(params,ruleResolver,cxxPlatform,ImmutableList.<String>of(),lexSrcs,ImmutableList.<String>of(),yaccSrcs);
-  SymlinkTree headerSymlinkTree=CxxDescriptionEnhancer.createHeaderSymlinkTreeBuildRule(params,ruleResolver,headers);
-  CxxPreprocessorInput cxxPreprocessorInput=CxxDescriptionEnhancer.combineCxxPreprocessorInput(params,CxxPreprocessorFlags.fromArgs(args.preprocessorFlags,args.langPreprocessorFlags),headerSymlinkTree,ImmutableMap.<Path,SourcePath>builder().putAll(headers).putAll(lexYaccSources.getCxxHeaders()).build());
-  ImmutableList<SourcePath> picObjects=CxxDescriptionEnhancer.createPreprocessAndCompileBuildRules(params,ruleResolver,cxxPlatform,cxxPreprocessorInput,args.compilerFlags.or(ImmutableList.<String>of()),true,ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build());
   Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);
-  final BuildTarget extensionTarget=getExtensionTarget(params.getBuildTarget());
-  String extensionName=getExtensionName(params.getBuildTarget());
-  Path extensionModule=baseModule.resolve(extensionName);
-  final Path extensionPath=getExtensionPath(extensionTarget);
-  CxxLink extensionRule=CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,pathResolver,ImmutableList.<String>of(),ImmutableList.<String>of(),extensionTarget,CxxLinkableEnhancer.LinkType.SHARED,Optional.of(extensionName),extensionPath,picObjects,NativeLinkable.Type.SHARED,params.getDeps());
-  ruleResolver.addToIndex(extensionRule);
-  return new CxxPythonExtension(params,pathResolver,extensionModule,new BuildTargetSourcePath(extensionRule.getBuildTarget()),extensionRule);
+  return new CxxPythonExtension(params,ruleResolver,pathResolver,baseModule.resolve(getExtensionName(params.getBuildTarget())));
 }
