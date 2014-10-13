@@ -1,0 +1,14 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  CxxPreprocessorInput cxxPreprocessorInput=CxxPreprocessorInput.EMPTY;
+  String name="source.cpp";
+  CxxSource cxxSource=new CxxSource(CxxSource.Type.CXX,new TestSourcePath(name));
+  ImmutableList<String> platformFlags=ImmutableList.of("-some","-flags");
+  CxxPlatform platform=new DefaultCxxPlatform(new FakeBuckConfig(ImmutableMap.<String,Map<String,String>>of("cxx",ImmutableMap.of("cxxppflags",Joiner.on(" ").join(platformFlags)))));
+  Map.Entry<String,CxxSource> output=CxxPreprocessables.createPreprocessBuildRule(params,resolver,platform,cxxPreprocessorInput,false,name,cxxSource);
+  CxxPreprocess cxxPreprocess=(CxxPreprocess)pathResolver.getRule(output.getValue().getPath()).get();
+  assertNotEquals(-1,Collections.indexOfSubList(cxxPreprocess.getFlags(),platformFlags));
+}

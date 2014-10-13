@@ -6,7 +6,9 @@
   CxxHeaderSourceSpec lexYaccSources=CxxDescriptionEnhancer.createLexYaccBuildRules(params,ruleResolver,cxxPlatform,ImmutableList.<String>of(),lexSrcs,ImmutableList.<String>of(),yaccSrcs);
   SymlinkTree headerSymlinkTree=CxxDescriptionEnhancer.createHeaderSymlinkTreeBuildRule(params,ruleResolver,cxxPlatform.asFlavor(),headers);
   CxxPreprocessorInput cxxPreprocessorInput=CxxDescriptionEnhancer.combineCxxPreprocessorInput(params,cxxPlatform,CxxPreprocessorFlags.fromArgs(args.preprocessorFlags,args.langPreprocessorFlags),headerSymlinkTree,ImmutableMap.<Path,SourcePath>builder().putAll(headers).putAll(lexYaccSources.getCxxHeaders()).build());
-  ImmutableList<SourcePath> picObjects=CxxDescriptionEnhancer.createPreprocessAndCompileBuildRules(params,ruleResolver,cxxPlatform,cxxPreprocessorInput,args.compilerFlags.or(ImmutableList.<String>of()),true,ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build());
+  ImmutableMap<String,CxxSource> allSources=ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build();
+  ImmutableMap<String,CxxSource> preprocessed=CxxPreprocessables.createPreprocessBuildRules(params,ruleResolver,cxxPlatform,cxxPreprocessorInput,true,allSources);
+  ImmutableList<SourcePath> picObjects=CxxDescriptionEnhancer.createCompileBuildRules(params,ruleResolver,cxxPlatform,args.compilerFlags.or(ImmutableList.<String>of()),true,preprocessed);
   String extensionName=getExtensionName(params.getBuildTarget());
   Path extensionPath=getExtensionPath(params.getBuildTarget(),cxxPlatform.asFlavor());
   return CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,new SourcePathResolver(ruleResolver),ImmutableList.<String>of(),ImmutableList.<String>of(),getExtensionTarget(params.getBuildTarget(),cxxPlatform.asFlavor()),CxxLinkableEnhancer.LinkType.SHARED,Optional.of(extensionName),extensionPath,picObjects,NativeLinkable.Type.SHARED,params.getDeps());

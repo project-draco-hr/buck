@@ -1,0 +1,50 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ImmutableSortedSet.Builder<BuildRule> dependencies=ImmutableSortedSet.naturalOrder();
+  dependencies.addAll(pathResolver.filterBuildRuleInputs(ImmutableList.of(source.getPath())));
+  dependencies.addAll(pathResolver.filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(source.getPath()).addAll(preprocessorInput.getIncludes().values()).build()));
+  dependencies.addAll(BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,preprocessorInput.getRules(),false));
+  SourcePath preprocessor;
+  ImmutableList.Builder<String> args=ImmutableList.builder();
+  CxxSource.Type outputType;
+  args.add("-x",source.getType().getLanguage());
+switch (source.getType()) {
+case ASSEMBLER_WITH_CPP:
+    preprocessor=cxxPlatform.getAspp();
+  args.addAll(cxxPlatform.getAsppflags());
+args.addAll(preprocessorInput.getPreprocessorFlags().get(CxxSource.Type.ASSEMBLER_WITH_CPP));
+outputType=CxxSource.Type.ASSEMBLER;
+break;
+case C:
+preprocessor=cxxPlatform.getCpp();
+args.addAll(cxxPlatform.getCppflags());
+args.addAll(preprocessorInput.getPreprocessorFlags().get(CxxSource.Type.C));
+outputType=CxxSource.Type.C_CPP_OUTPUT;
+break;
+case CXX:
+preprocessor=cxxPlatform.getCxxpp();
+args.addAll(cxxPlatform.getCxxppflags());
+args.addAll(preprocessorInput.getPreprocessorFlags().get(CxxSource.Type.CXX));
+outputType=CxxSource.Type.CXX_CPP_OUTPUT;
+break;
+case OBJC:
+preprocessor=cxxPlatform.getCpp();
+args.addAll(preprocessorInput.getPreprocessorFlags().get(CxxSource.Type.OBJC));
+outputType=CxxSource.Type.OBJC_CPP_OUTPUT;
+break;
+case OBJCXX:
+preprocessor=cxxPlatform.getCxxpp();
+args.addAll(preprocessorInput.getPreprocessorFlags().get(CxxSource.Type.OBJCXX));
+outputType=CxxSource.Type.OBJCXX_CPP_OUTPUT;
+break;
+default :
+throw new IllegalStateException(String.format("unexpected type: %s",source.getType()));
+}
+if (pic) {
+args.add("-fPIC");
+}
+BuildTarget target=createPreprocessBuildTarget(params.getBuildTarget(),cxxPlatform.asFlavor(),source.getType(),pic,name);
+CxxPreprocess cxxPreprocess=new CxxPreprocess(params.copyWithChanges(PREPROCESS_TYPE,target,dependencies.build(),ImmutableSortedSet.<BuildRule>of()),pathResolver,preprocessor,args.build(),getPreprocessOutputPath(target,source.getType(),name),source.getPath(),preprocessorInput.getIncludeRoots(),preprocessorInput.getSystemIncludeRoots(),preprocessorInput.getIncludes());
+resolver.addToIndex(cxxPreprocess);
+return new AbstractMap.SimpleEntry<>(name,new CxxSource(outputType,new BuildTargetSourcePath(cxxPreprocess.getBuildTarget())));
+}

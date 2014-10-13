@@ -50,10 +50,14 @@
   BuildRule archiveRule=resolver.getRule(CxxDescriptionEnhancer.createStaticLibraryBuildTarget(target,cxxPlatform.asFlavor()));
   assertNotNull(archiveRule);
   assertEquals(ImmutableSet.of(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),"test/bar.cpp",false),CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),genSourceName,false)),FluentIterable.from(archiveRule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  BuildRule preprocessRule1=resolver.getRule(CxxPreprocessables.createPreprocessBuildTarget(target,cxxPlatform.asFlavor(),CxxSource.Type.CXX,false,"test/bar.cpp"));
+  assertEquals(ImmutableSet.of(genHeaderTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor())),FluentIterable.from(preprocessRule1.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
   BuildRule compileRule1=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),"test/bar.cpp",false));
   assertNotNull(compileRule1);
-  assertEquals(ImmutableSet.of(genHeaderTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor())),FluentIterable.from(compileRule1.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  assertEquals(ImmutableSet.of(preprocessRule1.getBuildTarget()),FluentIterable.from(compileRule1.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  BuildRule preprocessRule2=resolver.getRule(CxxPreprocessables.createPreprocessBuildTarget(target,cxxPlatform.asFlavor(),CxxSource.Type.CXX,false,genSourceName));
+  assertEquals(ImmutableSet.of(genHeaderTarget,genSourceTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor())),FluentIterable.from(preprocessRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
   BuildRule compileRule2=resolver.getRule(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),genSourceName,false));
   assertNotNull(compileRule2);
-  assertEquals(ImmutableSet.of(genHeaderTarget,genSourceTarget,headerSymlinkTree.getBuildTarget(),header.getBuildTarget(),CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor())),FluentIterable.from(compileRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
+  assertEquals(ImmutableSet.of(preprocessRule2.getBuildTarget()),FluentIterable.from(compileRule2.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
 }

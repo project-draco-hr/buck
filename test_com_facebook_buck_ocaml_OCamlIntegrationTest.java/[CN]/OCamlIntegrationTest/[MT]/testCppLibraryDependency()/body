@@ -8,10 +8,11 @@
   BuildTarget cclib=BuildTargetFactory.newInstance("//clib:cc");
   DefaultCxxPlatform cxxPlatform=new DefaultCxxPlatform(new FakeBuckConfig());
   BuildTarget cclibbin=CxxDescriptionEnhancer.createStaticLibraryBuildTarget(cclib,cxxPlatform.asFlavor());
-  String sourceName="cc.cpp";
+  String sourceName="cc/cc.cpp";
+  BuildTarget ppObj=CxxPreprocessables.createPreprocessBuildTarget(cclib,cxxPlatform.asFlavor(),CxxSource.Type.CXX,false,sourceName);
   BuildTarget ccObj=CxxCompilableEnhancer.createCompileBuildTarget(cclib,cxxPlatform.asFlavor(),sourceName,false);
   BuildTarget headerSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(cclib,cxxPlatform.asFlavor());
-  ImmutableSet<BuildTarget> targets=ImmutableSet.of(target,binary,libplus,libplusStatic,cclib,cclibbin,ccObj,headerSymlinkTreeTarget);
+  ImmutableSet<BuildTarget> targets=ImmutableSet.of(target,binary,libplus,libplusStatic,cclib,cclibbin,ccObj,ppObj,headerSymlinkTreeTarget);
   workspace.runBuckCommand("build",target.toString()).assertSuccess();
   BuckBuildLog buildLog=workspace.getBuildLog();
   assertTrue(buildLog.getAllTargets().containsAll(targets));
@@ -21,6 +22,7 @@
   buildLog.assertTargetBuiltLocally(libplusStatic.toString());
   buildLog.assertTargetBuiltLocally(cclibbin.toString());
   buildLog.assertTargetBuiltLocally(ccObj.toString());
+  buildLog.assertTargetBuiltLocally(ppObj.toString());
   buildLog.assertTargetBuiltLocally(headerSymlinkTreeTarget.toString());
   workspace.resetBuildLogFile();
   workspace.runBuckCommand("build",target.toString()).assertSuccess();
@@ -32,6 +34,7 @@
   buildLog.assertTargetHadMatchingRuleKey(libplusStatic.toString());
   buildLog.assertTargetHadMatchingRuleKey(cclibbin.toString());
   buildLog.assertTargetHadMatchingRuleKey(ccObj.toString());
+  buildLog.assertTargetHadMatchingRuleKey(ppObj.toString());
   buildLog.assertTargetHadMatchingRuleKey(headerSymlinkTreeTarget.toString());
   workspace.resetBuildLogFile();
   workspace.replaceFileContents("clib/cc/cc.cpp","Hi there","hi there");
@@ -44,5 +47,6 @@
   buildLog.assertTargetBuiltLocally(libplusStatic.toString());
   buildLog.assertTargetBuiltLocally(cclibbin.toString());
   buildLog.assertTargetBuiltLocally(ccObj.toString());
+  buildLog.assertTargetBuiltLocally(ppObj.toString());
   buildLog.assertTargetHadMatchingRuleKey(headerSymlinkTreeTarget.toString());
 }
