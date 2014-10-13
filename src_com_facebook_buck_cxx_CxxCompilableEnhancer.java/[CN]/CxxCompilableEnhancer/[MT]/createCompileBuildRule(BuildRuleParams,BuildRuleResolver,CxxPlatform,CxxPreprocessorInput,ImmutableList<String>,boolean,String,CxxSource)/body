@@ -1,9 +1,10 @@
 {
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   BuildTarget target=createCompileBuildTarget(params.getBuildTarget(),name,pic);
   ImmutableSortedSet.Builder<BuildRule> dependencies=ImmutableSortedSet.naturalOrder();
-  dependencies.addAll(SourcePaths.filterBuildRuleInputs(ImmutableList.of(source.getPath())));
+  dependencies.addAll(pathResolver.filterBuildRuleInputs(ImmutableList.of(source.getPath())));
   if (source.getType() == CxxSource.Type.C || source.getType() == CxxSource.Type.CXX || source.getType() == CxxSource.Type.ASSEMBLER_WITH_CPP) {
-    dependencies.addAll(SourcePaths.filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(source.getPath()).addAll(preprocessorInput.getIncludes().values()).build()));
+    dependencies.addAll(pathResolver.filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(source.getPath()).addAll(preprocessorInput.getIncludes().values()).build()));
     dependencies.addAll(BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,preprocessorInput.getRules(),false));
   }
   SourcePath compiler;
@@ -39,5 +40,5 @@
   if (pic) {
     args.add("-fPIC");
   }
-  return new CxxCompile(params.copyWithChanges(COMPILE_TYPE,target,dependencies.build(),ImmutableSortedSet.<BuildRule>of()),new SourcePathResolver(resolver),compiler,Optional.<CxxCompile.Plugin>absent(),args.build(),getCompileOutputPath(target,name),source.getPath(),preprocessorInput.getIncludeRoots(),preprocessorInput.getSystemIncludeRoots(),preprocessorInput.getIncludes());
+  return new CxxCompile(params.copyWithChanges(COMPILE_TYPE,target,dependencies.build(),ImmutableSortedSet.<BuildRule>of()),pathResolver,compiler,Optional.<CxxCompile.Plugin>absent(),args.build(),getCompileOutputPath(target,name),source.getPath(),preprocessorInput.getIncludeRoots(),preprocessorInput.getSystemIncludeRoots(),preprocessorInput.getIncludes());
 }
