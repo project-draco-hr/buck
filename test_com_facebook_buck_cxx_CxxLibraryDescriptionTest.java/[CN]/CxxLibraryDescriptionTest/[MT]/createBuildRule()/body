@@ -16,7 +16,7 @@
   BuildRuleParams depParams=BuildRuleParamsFactory.createTrivialBuildRuleParams(depTarget);
   CxxLibrary dep=new CxxLibrary(depParams,pathResolver){
     @Override public CxxPreprocessorInput getCxxPreprocessorInput(){
-      return new CxxPreprocessorInput(ImmutableSet.of(header.getBuildTarget(),headerSymlinkTree.getBuildTarget()),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableList.of(headerSymlinkTreeRoot),ImmutableList.<Path>of());
+      return CxxPreprocessorInput.builder().setRules(ImmutableSet.of(header.getBuildTarget(),headerSymlinkTree.getBuildTarget())).setIncludeRoots(headerSymlinkTreeRoot).build();
     }
     @Override public NativeLinkableInput getNativeLinkableInput(    Linker linker,    Type type){
       return new NativeLinkableInput(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(archive.getBuildTarget())),ImmutableList.of(archiveOutput.toString()));
@@ -45,7 +45,7 @@
   DefaultCxxPlatform cxxBuckConfig=new DefaultCxxPlatform(new FakeBuckConfig());
   CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig);
   CxxLibrary rule=description.createBuildRule(params,resolver,arg);
-  assertEquals(new CxxPreprocessorInput(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target)),ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(headerName),new TestSourcePath(headerName),Paths.get(genHeaderName),new BuildTargetSourcePath(genHeader.getBuildTarget())),ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(target)),ImmutableList.<Path>of()),rule.getCxxPreprocessorInput());
+  assertEquals(CxxPreprocessorInput.builder().setRules(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target))).setIncludes(ImmutableMap.<Path,SourcePath>of(Paths.get(headerName),new TestSourcePath(headerName),Paths.get(genHeaderName),new BuildTargetSourcePath(genHeader.getBuildTarget()))).setIncludeRoots(ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(target))).build(),rule.getCxxPreprocessorInput());
   BuildRule archiveRule=resolver.getRule(CxxDescriptionEnhancer.createStaticLibraryBuildTarget(target));
   assertNotNull(archiveRule);
   assertEquals(ImmutableSet.of(CxxCompilableEnhancer.createCompileBuildTarget(target,"test/bar.cpp",false),CxxCompilableEnhancer.createCompileBuildTarget(target,genSourceName,false)),FluentIterable.from(archiveRule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
