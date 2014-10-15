@@ -8,8 +8,14 @@
   ThriftBuckConfig thriftBuckConfig=new ThriftBuckConfig(config);
   OCamlBuckConfig ocamlBuckConfig=new OCamlBuckConfig(platform,config);
   CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(config);
+  ImmutableMap.Builder<Flavor,CxxPlatform> cxxPlatformsBuilder=ImmutableMap.builder();
   DefaultCxxPlatform defaultCxxPlatform=new DefaultCxxPlatform(platform,config);
-  FlavorDomain<CxxPlatform> cxxPlatforms=new FlavorDomain<>("C/C++ platform",ImmutableMap.<Flavor,CxxPlatform>of(defaultCxxPlatform.asFlavor(),defaultCxxPlatform));
+  cxxPlatformsBuilder.put(defaultCxxPlatform.asFlavor(),defaultCxxPlatform);
+  Optional<Path> ndkRoot=androidDirectoryResolver.findAndroidNdkDir();
+  if (ndkRoot.isPresent()) {
+    cxxPlatformsBuilder.putAll(getNdkCxxPlatforms(ndkRoot.get(),platform));
+  }
+  FlavorDomain<CxxPlatform> cxxPlatforms=new FlavorDomain<>("C/C++ platform",cxxPlatformsBuilder.build());
   ProGuardConfig proGuardConfig=new ProGuardConfig(config);
   Optional<Path> pythonPathToPex=config.getPath("python","path_to_pex");
   Optional<Path> pythonPathToPythonTestMain=config.getPath("python","path_to_python_test_main");
