@@ -1,5 +1,6 @@
 {
-  PBXNativeTarget target=new PBXNativeTarget(getXcodeTargetName(rule),productType);
+  BuildTarget buildTarget=bundle.isPresent() ? bundle.get().getBuildTarget() : appleBuildRule.getBuildTarget();
+  PBXNativeTarget target=new PBXNativeTarget(getXcodeTargetName(buildTarget),productType);
   setNativeTargetGid(target,appleBuildRule);
   PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(target.getName());
   ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
@@ -11,25 +12,24 @@
     extraSettingsBuilder.put("USE_HEADERMAP","NO");
   }
   ImmutableMap.Builder<String,String> defaultSettingsBuilder=ImmutableMap.builder();
-  if (rule.getType().equals(AppleBundleDescription.TYPE)) {
-    AppleBundle bundle=(AppleBundle)rule;
-    defaultSettingsBuilder.put("WRAPPER_EXTENSION",bundle.getExtensionString());
+  if (bundle.isPresent()) {
+    defaultSettingsBuilder.put("WRAPPER_EXTENSION",bundle.get().getExtensionString());
   }
   defaultSettingsBuilder.put("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPathForRule(appleBuildRule.getHeaderPathPrefix()));
-  if (rule.getType().equals(AppleLibraryDescription.TYPE)) {
-    defaultSettingsBuilder.put("CONFIGURATION_BUILD_DIR",getObjectOutputPathForRule(rule));
+  if (!bundle.isPresent() && appleBuildRule.getType().equals(AppleLibraryDescription.TYPE)) {
+    defaultSettingsBuilder.put("CONFIGURATION_BUILD_DIR",getObjectOutputPathForRule(appleBuildRule));
   }
-  setTargetBuildConfigurations(rule,target,targetGroup,appleBuildRule.getConfigurations(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),ImmutableMap.<String,String>of());
-  addRunScriptBuildPhasesForDependencies(rule,target);
-  if (rule != appleBuildRule) {
-    addRunScriptBuildPhasesForDependencies(appleBuildRule,target);
+  setTargetBuildConfigurations(buildTarget,appleBuildRule,target,targetGroup,appleBuildRule.getConfigurations(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),ImmutableMap.<String,String>of());
+  if (bundle.isPresent()) {
+    addRunScriptBuildPhasesForDependencies(bundle.get(),target);
   }
+  addRunScriptBuildPhasesForDependencies(appleBuildRule,target);
   addBuildPhasesGroupsAndHeaderMapsForSourcesAndHeaders(appleBuildRule,target,targetGroup,appleBuildRule.getHeaderPathPrefix(),appleBuildRule.getUseBuckHeaderMaps(),appleBuildRule.getSrcs(),appleBuildRule.getPerFileFlags());
   if (includeFrameworks) {
     ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
     frameworksBuilder.addAll(appleBuildRule.getFrameworks());
-    collectRecursiveFrameworkDependencies(rule,frameworksBuilder);
-    addFrameworksBuildPhase(rule.getBuildTarget(),target,project.getMainGroup().getOrCreateChildGroupByName("Frameworks"),frameworksBuilder.build(),collectRecursiveLibraryDependencies(rule));
+    collectRecursiveFrameworkDependencies(appleBuildRule,frameworksBuilder);
+    addFrameworksBuildPhase(buildTarget,target,project.getMainGroup().getOrCreateChildGroupByName("Frameworks"),frameworksBuilder.build(),collectRecursiveLibraryDependencies(appleBuildRule));
   }
   if (!Iterables.isEmpty(resources)) {
     addResourcesBuildPhase(target,targetGroup,resources);
@@ -37,9 +37,9 @@
   if (!Iterables.isEmpty(assetCatalogs)) {
     addAssetCatalogBuildPhase(target,targetGroup,assetCatalogs);
   }
-  addCoreDataModelBuildPhase(targetGroup,collectCoreDataModels(rule.getDeps()));
+  addCoreDataModelBuildPhase(targetGroup,Iterables.filter(appleBuildRule.getDeps(),CoreDataModel.class));
   PBXGroup productsGroup=project.getMainGroup().getOrCreateChildGroupByName("Products");
-  String productName=getProductName(rule.getBuildTarget());
+  String productName=getProductName(buildTarget);
   String outputName=String.format(productOutputFormat,productName);
   PBXFileReference productReference=productsGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.BUILT_PRODUCTS_DIR,Paths.get(outputName)));
   target.setProductName(productName);
