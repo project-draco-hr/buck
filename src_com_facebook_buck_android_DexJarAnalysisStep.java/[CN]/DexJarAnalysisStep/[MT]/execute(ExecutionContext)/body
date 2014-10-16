@@ -1,0 +1,19 @@
+{
+  ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
+  try (ZipFile zf=new ZipFile(projectFilesystem.resolve(dexPath).toFile())){
+    ZipEntry classesDexEntry=zf.getEntry("classes.dex");
+    if (classesDexEntry == null) {
+      throw new RuntimeException("could not find classes.dex in jar");
+    }
+    long uncompressedSize=classesDexEntry.getSize();
+    if (uncompressedSize == -1) {
+      throw new RuntimeException("classes.dex size should be known");
+    }
+    projectFilesystem.writeContentsToPath(String.format("jar:%s dex:%s",projectFilesystem.getFileSize(dexPath),uncompressedSize),dexMetaPath);
+    return 0;
+  }
+ catch (  IOException e) {
+    context.logError(e,"There was an error in smart dexing step.");
+    return 1;
+  }
+}
