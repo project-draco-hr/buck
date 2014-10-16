@@ -1,15 +1,12 @@
 {
-  BuildTarget target=BuildTargetFactory.newInstance("//:target");
-  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
-  BuildTargetParser parser=new BuildTargetParser();
   BuildTarget gtest=BuildTargetFactory.newInstance("//:gtest");
   FakeBuckConfig buckConfig=new FakeBuckConfig(ImmutableMap.<String,Map<String,String>>of("cxx",ImmutableMap.of("gtest_dep",gtest.toString())));
   DefaultCxxPlatform cxxBuckConfig=new DefaultCxxPlatform(buckConfig);
   CxxTestDescription desc=new CxxTestDescription(cxxBuckConfig);
-  BuildRuleFactoryParams params=new BuildRuleFactoryParams(ImmutableMap.<String,Object>of(),filesystem,parser,target,new FakeRuleKeyBuilderFactory());
-  Iterable<String> implicit=desc.findDepsFromParams(params);
-  assertTrue(Iterables.contains(implicit,gtest.toString()));
-  params=new BuildRuleFactoryParams(ImmutableMap.<String,Object>of("framework",CxxTestType.GTEST.toString()),filesystem,parser,target,new FakeRuleKeyBuilderFactory());
-  implicit=desc.findDepsFromParams(params);
+  BuildTarget target=BuildTargetFactory.newInstance("//:target");
+  CxxTestDescription.Arg constructorArg=desc.createUnpopulatedConstructorArg();
+  constructorArg.framework=Optional.of(CxxTestType.GTEST);
+  constructorArg.lexSrcs=Optional.of(ImmutableList.<SourcePath>of());
+  Iterable<String> implicit=desc.findDepsForTargetFromConstructorArgs(target,constructorArg);
   assertTrue(Iterables.contains(implicit,gtest.toString()));
 }

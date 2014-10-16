@@ -1,6 +1,14 @@
 {
   Description<Arg> description=new TestDescription();
-  TargetNode<Arg> targetNode=new TargetNode<>(description,buildRuleFactoryParams(ImmutableMap.<String,Object>of("deps",ImmutableList.of("//example/path:one","//example/path:two"),"sourcePaths",ImmutableList.of("//example/path:four","MyClass.java"),"appleSource","//example/path:five","source","AnotherClass.java")));
+  BuildRuleFactoryParams buildRuleFactoryParams=buildRuleFactoryParams();
+  ImmutableList<String> depsStrings=ImmutableList.of("//example/path:one","//example/path:two");
+  ImmutableSet<BuildTarget> depsTargets=FluentIterable.from(depsStrings).transform(new Function<String,BuildTarget>(){
+    @Override public BuildTarget apply(    String input){
+      return BuildTargetFactory.newInstance(input);
+    }
+  }
+).toSet();
+  TargetNode<Arg> targetNode=new TargetNode<>(description,createPopulatedConstructorArg(description,buildRuleFactoryParams,ImmutableMap.<String,Object>of("deps",depsStrings,"sourcePaths",ImmutableList.of("//example/path:four","MyClass.java"),"appleSource","//example/path:five","source","AnotherClass.java")),buildRuleFactoryParams,depsTargets,ImmutableSet.<BuildTargetPattern>of());
   assertThat(targetNode.getInputs(),containsInAnyOrder(Paths.get("example/path/MyClass.java"),Paths.get("example/path/AnotherClass.java")));
   assertThat(targetNode.getExtraDeps(),containsInAnyOrder(BuildTargetFactory.newInstance("//example/path:four"),BuildTargetFactory.newInstance("//example/path:five")));
   assertThat(targetNode.getDeclaredDeps(),containsInAnyOrder(BuildTargetFactory.newInstance("//example/path:one"),BuildTargetFactory.newInstance("//example/path:two")));

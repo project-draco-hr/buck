@@ -2,7 +2,17 @@
   Description<GenruleDescription.Arg> genruleDescription=new GenruleDescription();
   Map<String,Object> instance=ImmutableMap.<String,Object>of("srcs",ImmutableList.of(":baz","//biz:baz"),"out","AndroidManifest.xml","cmd","$(exe //bin:executable) $(location :arg)");
   ProjectFilesystem projectFilesystem=new AllExistingProjectFilesystem();
-  BuildRuleFactoryParams params=new BuildRuleFactoryParams(instance,projectFilesystem,new BuildTargetParser(),BuildTargetFactory.newInstance("//foo:bar"),new FakeRuleKeyBuilderFactory());
-  TargetNode<GenruleDescription.Arg> targetNode=new TargetNode<>(genruleDescription,params);
+  BuildRuleFactoryParams params=new BuildRuleFactoryParams(projectFilesystem,new BuildTargetParser(),BuildTargetFactory.newInstance("//foo:bar"),new FakeRuleKeyBuilderFactory());
+  ConstructorArgMarshaller marshaller=new ConstructorArgMarshaller();
+  ImmutableSet.Builder<BuildTarget> declaredDeps=ImmutableSet.builder();
+  ImmutableSet.Builder<BuildTargetPattern> visibilityPatterns=ImmutableSet.builder();
+  GenruleDescription.Arg constructorArg=genruleDescription.createUnpopulatedConstructorArg();
+  try {
+    marshaller.populate(projectFilesystem,params,constructorArg,declaredDeps,visibilityPatterns,instance);
+  }
+ catch (  ConstructorArgMarshalException e) {
+    fail("Expected constructorArg to be correctly populated.");
+  }
+  TargetNode<GenruleDescription.Arg> targetNode=new TargetNode(genruleDescription,constructorArg,params,declaredDeps.build(),visibilityPatterns.build());
   assertEquals("SourcePaths and targets from cmd string should be extracted as extra deps.",ImmutableSet.of("//foo:baz","//biz:baz","//bin:executable","//foo:arg"),FluentIterable.from(targetNode.getExtraDeps()).transform(Functions.toStringFunction()).toSet());
 }

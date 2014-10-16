@@ -1,0 +1,23 @@
+{
+  Optional<Map.Entry<Flavor,ThriftLanguageSpecificEnhancer>> enhancerFlavor;
+  try {
+    enhancerFlavor=enhancers.getFlavorAndValue(buildTarget.getFlavors());
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",buildTarget,e.getMessage());
+  }
+  if (!enhancerFlavor.isPresent()) {
+    return ImmutableList.of();
+  }
+  List<BuildTarget> deps=Lists.newArrayList();
+  deps.add(buildTarget.getUnflavoredTarget());
+  deps.addAll(BuildTargets.propagateFlavorDomains(buildTarget,ImmutableList.<FlavorDomain<?>>of(enhancers),arg.deps.get()));
+  Optional<BuildTarget> thriftTarget=thriftBuckConfig.getCompilerTarget();
+  if (thriftTarget.isPresent()) {
+    deps.add(thriftTarget.get());
+  }
+  ThriftLanguageSpecificEnhancer enhancer=enhancerFlavor.get().getValue();
+  ImmutableSet<BuildTarget> implicitDeps=enhancer.getImplicitDepsForTargetFromConstructorArg(buildTarget,arg);
+  deps.addAll(implicitDeps);
+  return Iterables.transform(deps,Functions.toStringFunction());
+}
