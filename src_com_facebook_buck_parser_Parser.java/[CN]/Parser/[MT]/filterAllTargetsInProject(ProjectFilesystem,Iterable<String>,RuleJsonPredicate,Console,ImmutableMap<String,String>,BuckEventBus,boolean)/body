@@ -5,6 +5,11 @@
   if (!projectFilesystem.getRootPath().equals(filesystem.getRootPath())) {
     throw new HumanReadableException(String.format("Unsupported root path change from %s to %s",projectFilesystem.getRootPath(),filesystem.getRootPath()));
   }
-  buildTargetGraph(ImmutableList.of(new RuleJsonPredicateSpec(filter,filesystem.getIgnorePaths())),includes,buckEventBus,console,environment,enableProfiling);
+  buildTargetGraph(ImmutableList.of(new TargetNodePredicateSpec(new Predicate<TargetNode<?>>(){
+    @Override public boolean apply(    TargetNode<?> input){
+      return filter.isMatch(input.getRuleFactoryParams().getInstance(),input.getDescription().getBuildRuleType(),input.getBuildTarget());
+    }
+  }
+,filesystem.getIgnorePaths())),includes,buckEventBus,console,environment,enableProfiling);
   return filterTargets(filter);
 }
