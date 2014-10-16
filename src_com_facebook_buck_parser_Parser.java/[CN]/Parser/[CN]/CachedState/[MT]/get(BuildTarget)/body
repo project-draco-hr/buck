@@ -42,6 +42,11 @@
 catch (    ConstructorArgMarshalException e) {
       throw new HumanReadableException("%s: %s",buildTarget,e.getMessage());
     }
+    Map<Path,Path> newSymlinksEncountered=Maps.newHashMap();
+    if (inputFilesUnderSymlink(targetNode.getInputs(),targetRepo.getFilesystem(),symlinkExistenceCache,newSymlinksEncountered)) {
+      LOG.warn("Disabling caching for target %s, because one or more input files are under a " + "symbolic link (%s). This will severely impact performance! To resolve this, use " + "separate rules and declare dependencies instead of using symbolic links.",targetNode.getBuildTarget(),newSymlinksEncountered);
+      buildInputPathsUnderSymlink.add(buildFilePath);
+    }
     TargetNode<?> existingTargetNode=memoizedTargetNodes.put(buildTarget,targetNode);
     if (existingTargetNode != null) {
       throw new HumanReadableException("Duplicate definition for " + unflavored);

@@ -1,0 +1,29 @@
+{
+  boolean result=false;
+  for (  Path input : inputs) {
+    for (int i=1; i < input.getNameCount(); i++) {
+      Path subpath=input.subpath(0,i);
+      Path resolvedSymlink=symlinkExistenceCache.get(subpath);
+      if (resolvedSymlink != null) {
+        newSymlinksEncountered.put(subpath,resolvedSymlink);
+        result=true;
+      }
+ else       if (projectFilesystem.isSymLink(subpath)) {
+        try {
+          resolvedSymlink=projectFilesystem.getRootPath().relativize(subpath.toRealPath());
+          LOG.debug("Detected symbolic link %s -> %s",subpath,resolvedSymlink);
+          newSymlinksEncountered.put(subpath,resolvedSymlink);
+          symlinkExistenceCache.put(subpath,resolvedSymlink);
+        }
+ catch (        NoSuchFileException e) {
+          LOG.verbose(e,"No such file detecting symlink at %s",subpath);
+        }
+catch (        IOException e) {
+          LOG.error(e,"Couldn't detect symbolic link at %s",subpath);
+        }
+        result=true;
+      }
+    }
+  }
+  return result;
+}
