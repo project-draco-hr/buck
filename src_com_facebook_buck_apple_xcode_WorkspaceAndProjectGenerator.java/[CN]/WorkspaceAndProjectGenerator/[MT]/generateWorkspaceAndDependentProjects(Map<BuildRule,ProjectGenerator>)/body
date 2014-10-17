@@ -20,7 +20,7 @@
     orderedTestBundleRules=orderedTestBundleRulesBuilder.build();
   }
   Sets.SetView<BuildRule> rulesInRequiredProjects=Sets.union(orderedBuildRules,orderedTestBuildRules);
-  ImmutableMap.Builder<BuildRule,PBXTarget> buildRuleToTargetMapBuilder=ImmutableMap.builder();
+  ImmutableMap.Builder<BuildTarget,PBXTarget> buildTargetToPbxTargetMapBuilder=ImmutableMap.builder();
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   for (  XcodeProjectConfig xcodeProjectConfig : Iterables.filter(projectGraph.getNodes(),XcodeProjectConfig.class)) {
     if (Sets.intersection(rulesInRequiredProjects,xcodeProjectConfig.getRules()).isEmpty()) {
@@ -42,8 +42,8 @@
       LOG.debug("Already generated project for rule %s, skipping",xcodeProjectConfig);
     }
     workspaceGenerator.addFilePath(generator.getProjectPath());
-    buildRuleToTargetMapBuilder.putAll(generator.getBuildRuleToGeneratedTargetMap());
-    for (    PBXTarget target : generator.getBuildRuleToGeneratedTargetMap().values()) {
+    buildTargetToPbxTargetMapBuilder.putAll(generator.getBuildTargetToGeneratedTargetMap());
+    for (    PBXTarget target : generator.getBuildTargetToGeneratedTargetMap().values()) {
       targetToProjectPathMapBuilder.put(target,generator.getProjectPath());
     }
   }
@@ -69,12 +69,12 @@
       fakeTarget.setGlobalID(targetGid);
       PBXFileReference fakeProductReference=new PBXFileReference(targetFileName,targetFileName,PBXFileReference.SourceTree.BUILT_PRODUCTS_DIR);
       fakeTarget.setProductReference(fakeProductReference);
-      buildRuleToTargetMapBuilder.put(buildable,fakeTarget);
+      buildTargetToPbxTargetMapBuilder.put(buildable.getBuildTarget(),fakeTarget);
       targetToProjectPathMapBuilder.put(fakeTarget,projectPath);
     }
    }
   Path workspacePath=workspaceGenerator.writeWorkspace();
-  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,workspaceBuildable.getSrcTarget(),orderedBuildRules,orderedTestBuildRules,orderedTestBundleRules,workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),workspaceBuildable.getActionConfigNames(),buildRuleToTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,workspaceBuildable.getSrcTarget().transform(HasBuildTarget.TO_TARGET),Iterables.transform(orderedBuildRules,HasBuildTarget.TO_TARGET),Iterables.transform(orderedTestBuildRules,HasBuildTarget.TO_TARGET),Iterables.transform(orderedTestBundleRules,HasBuildTarget.TO_TARGET),workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),workspaceBuildable.getActionConfigNames(),buildTargetToPbxTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
   schemeGenerator.writeScheme();
   return workspacePath;
 }

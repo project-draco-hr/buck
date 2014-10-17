@@ -1,31 +1,31 @@
 {
-  Map<BuildRule,XCScheme.BuildableReference> buildRuleToBuildableReferenceMap=Maps.newHashMap();
-  for (  BuildRule rule : Iterables.concat(orderedBuildRules,orderedTestBuildRules)) {
-    PBXTarget target=buildRuleToTargetMap.get(rule);
+  Map<BuildTarget,XCScheme.BuildableReference> buildTargetToBuildableReferenceMap=Maps.newHashMap();
+  for (  BuildTarget buildTarget : Iterables.concat(orderedBuildTargets,orderedTestBuildTargets)) {
+    PBXTarget target=buildTargetToPbxTargetMap.get(buildTarget);
     String blueprintName=target.getProductName();
     if (blueprintName == null) {
       blueprintName=target.getName();
     }
     XCScheme.BuildableReference buildableReference=new XCScheme.BuildableReference(outputDirectory.getParent().relativize(targetToProjectPathMap.get(target)).toString(),target.getGlobalID(),Preconditions.checkNotNull(target.getProductReference()).getName(),blueprintName);
-    buildRuleToBuildableReferenceMap.put(rule,buildableReference);
+    buildTargetToBuildableReferenceMap.put(buildTarget,buildableReference);
   }
   XCScheme.BuildAction buildAction=new XCScheme.BuildAction();
-  for (  BuildRule rule : orderedBuildRules) {
-    addBuildActionForRule(buildRuleToBuildableReferenceMap.get(rule),XCScheme.BuildActionEntry.BuildFor.DEFAULT,buildAction);
+  for (  BuildTarget buildTarget : orderedBuildTargets) {
+    addBuildActionForBuildTarget(buildTargetToBuildableReferenceMap.get(buildTarget),XCScheme.BuildActionEntry.BuildFor.DEFAULT,buildAction);
   }
-  for (  BuildRule rule : orderedTestBuildRules) {
-    addBuildActionForRule(buildRuleToBuildableReferenceMap.get(rule),XCScheme.BuildActionEntry.BuildFor.TEST_ONLY,buildAction);
+  for (  BuildTarget buildTarget : orderedTestBuildTargets) {
+    addBuildActionForBuildTarget(buildTargetToBuildableReferenceMap.get(buildTarget),XCScheme.BuildActionEntry.BuildFor.TEST_ONLY,buildAction);
   }
   XCScheme.TestAction testAction=new XCScheme.TestAction(actionConfigNames.get(SchemeActionType.TEST));
-  for (  BuildRule rule : orderedTestBundleRules) {
-    XCScheme.BuildableReference buildableReference=buildRuleToBuildableReferenceMap.get(rule);
+  for (  BuildTarget buildTarget : orderedTestBundleTargets) {
+    XCScheme.BuildableReference buildableReference=buildTargetToBuildableReferenceMap.get(buildTarget);
     XCScheme.TestableReference testableReference=new XCScheme.TestableReference(buildableReference);
     testAction.addTestableReference(testableReference);
   }
   Optional<XCScheme.LaunchAction> launchAction=Optional.absent();
   Optional<XCScheme.ProfileAction> profileAction=Optional.absent();
-  if (primaryRule.isPresent()) {
-    XCScheme.BuildableReference primaryBuildableReference=buildRuleToBuildableReferenceMap.get(primaryRule.get());
+  if (primaryTarget.isPresent()) {
+    XCScheme.BuildableReference primaryBuildableReference=buildTargetToBuildableReferenceMap.get(primaryTarget.get());
     if (primaryBuildableReference != null) {
       launchAction=Optional.of(new XCScheme.LaunchAction(primaryBuildableReference,actionConfigNames.get(SchemeActionType.LAUNCH)));
       profileAction=Optional.of(new XCScheme.ProfileAction(primaryBuildableReference,actionConfigNames.get(SchemeActionType.PROFILE)));
