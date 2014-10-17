@@ -1,0 +1,27 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ImmutableList<String> includes=FluentIterable.from(params.getDeps()).transformAndConcat(getLibInclude(false)).toList();
+  ImmutableList<String> bytecodeIncludes=FluentIterable.from(params.getDeps()).transformAndConcat(getLibInclude(true)).toList();
+  final FluentIterable<SourcePath> srcSourcePaths=FluentIterable.from(srcs).transform(OCamlSource.TO_SOURCE_PATH);
+  final FluentIterable<Path> srcPaths=srcSourcePaths.transform(pathResolver.getPathFunction());
+  NativeLinkableInput linkableInput=NativeLinkables.getTransitiveNativeLinkableInput(ocamlBuckConfig.getLinker(),params.getDeps(),NativeLinkable.Type.STATIC,false);
+  ImmutableList<OCamlLibrary> ocamlInput=OCamlUtil.getTransitiveOCamlInput(params.getDeps());
+  ImmutableList<SourcePath> allInputs=ImmutableList.<SourcePath>builder().addAll(getInput(srcs)).addAll(linkableInput.getInputs()).build();
+  BuildTarget buildTarget=isLibrary ? createStaticLibraryBuildTarget(params.getBuildTarget()) : createOCamlLinkTarget(params.getBuildTarget());
+  final BuildRuleParams compileParams=params.copyWithChanges(NativeLinkable.NATIVE_LINKABLE_TYPE,buildTarget,ImmutableSortedSet.copyOf(pathResolver.filterBuildRuleInputs(allInputs)),ImmutableSortedSet.<BuildRule>of());
+  ImmutableList.Builder<String> flagsBuilder=ImmutableList.<String>builder();
+  flagsBuilder.addAll(argFlags);
+  CxxPreprocessorInput cxxPreprocessorInputFromDeps=CxxPreprocessables.getTransitiveCxxPreprocessorInput(FluentIterable.from(params.getDeps()).filter(Predicates.instanceOf(CxxPreprocessorDep.class)));
+  final OCamlBuildContext ocamlContext=OCamlBuildContext.builder(ocamlBuckConfig,pathResolver).setFlags(flagsBuilder.build()).setIncludes(includes).setBytecodeIncludes(bytecodeIncludes).setOcamlInput(ocamlInput).setLinkableInput(linkableInput).setUpDirectories(buildTarget,isLibrary).setCxxPreprocessorInput(cxxPreprocessorInputFromDeps).setInput(getInput(srcs)).build();
+  File baseDir=params.getProjectFilesystem().getRootPath().toAbsolutePath().toFile();
+  ImmutableMap<SourcePath,ImmutableList<SourcePath>> mlInput=getMLInputWithDeps(pathResolver,baseDir,ocamlContext);
+  ImmutableList<SourcePath> cInput=getCInput(pathResolver,getInput(srcs));
+  OCamlBuildRulesGenerator generator=new OCamlBuildRulesGenerator(compileParams,pathResolver,resolver,ocamlContext,mlInput,cInput,pathResolver.getPath(ocamlBuckConfig.getCCompiler()),pathResolver.getPath(ocamlBuckConfig.getCxxCompiler()));
+  ImmutableList<BuildRule> ocamlLibraryBuild=generator.generate();
+  if (isLibrary) {
+    return new OCamlStaticLibrary(params.copyWithDeps(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).addAll(ocamlLibraryBuild).build(),params.getExtraDeps()),pathResolver,compileParams,linkerFlags,srcPaths,ocamlContext,ocamlLibraryBuild.get(0));
+  }
+ else {
+    return new OCamlBinary(params.copyWithDeps(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).addAll(ocamlLibraryBuild).build(),params.getExtraDeps()),pathResolver,Preconditions.checkNotNull(ocamlLibraryBuild.get(0).getPathToOutputFile()));
+  }
+}

@@ -1,0 +1,16 @@
+{
+  ImmutableList.Builder<String> debugCmd=ImmutableList.builder();
+  debugCmd.add("rlwrap");
+  debugCmd.add(args.ocamlDebug.toString());
+  Iterable<String> includesBytecodeDirs=FluentIterable.from(args.ocamlInput).transformAndConcat(new Function<OCamlLibrary,Iterable<String>>(){
+    @Override public Iterable<String> apply(    OCamlLibrary input){
+      return input.getBytecodeIncludeDirs();
+    }
+  }
+);
+  ImmutableList<String> includesBytecodeFlags=ImmutableList.copyOf(MoreIterables.zipAndConcat(Iterables.cycle(OCamlCompilables.OCAML_INCLUDE_FLAG),includesBytecodeDirs));
+  debugCmd.addAll(includesBytecodeFlags);
+  debugCmd.addAll(args.bytecodeIncludeFlags);
+  debugCmd.add(args.bytecodeOutput.toString());
+  return Shell.shellQuoteJoin(debugCmd.build()," ") + " $@";
+}

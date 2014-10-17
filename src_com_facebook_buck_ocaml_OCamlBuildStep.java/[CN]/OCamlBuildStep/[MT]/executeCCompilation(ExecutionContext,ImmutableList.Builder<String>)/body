@@ -1,13 +1,12 @@
 {
-  ImmutableList.Builder<String> compileFlags=ImmutableList.builder();
+  ImmutableList.Builder<String> cCompileFlags=ImmutableList.builder();
+  cCompileFlags.addAll(ocamlContext.getCCompileFlags());
+  cCompileFlags.addAll(ocamlContext.getCommonCFlags());
   CxxPreprocessorInput cxxPreprocessorInput=ocamlContext.getCxxPreprocessorInput();
-  for (  Path includes : cxxPreprocessorInput.getIncludeRoots()) {
-    compileFlags.add("-ccopt","-I" + includes.toString());
-  }
   for (  Path cSrc : ocamlContext.getCInput()) {
     Path outputPath=ocamlContext.getCOutput(cSrc);
     linkerInputs.add(outputPath.toString());
-    Step compileStep=new OCamlCCompileStep(cCompiler,ocamlContext.getOcamlCompiler(),outputPath,cSrc,compileFlags.build());
+    Step compileStep=new OCamlCCompileStep(new OCamlCCompileStep.Args(cCompiler,ocamlContext.getOcamlCompiler(),outputPath,cSrc,cCompileFlags.build(),cxxPreprocessorInput.getIncludes()));
     int compileExitCode=compileStep.execute(context);
     if (compileExitCode != 0) {
       return compileExitCode;

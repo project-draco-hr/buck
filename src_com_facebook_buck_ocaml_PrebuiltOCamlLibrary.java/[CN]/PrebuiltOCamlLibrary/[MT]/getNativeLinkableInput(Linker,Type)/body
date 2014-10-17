@@ -3,11 +3,13 @@
   Preconditions.checkState(bytecodeLib.equals(nativeLib.replaceFirst(OCamlCompilables.OCAML_CMXA_REGEX,OCamlCompilables.OCAML_CMA)),"Bytecode library should have the same name as native library but with a .cma extension");
   ImmutableList.Builder<SourcePath> librariesBuilder=ImmutableList.builder();
   librariesBuilder.add(new BuildTargetSourcePath(this.getBuildTarget(),getResolver().getPath(staticNativeLibraryPath)));
-  librariesBuilder.add(new BuildTargetSourcePath(this.getBuildTarget(),getResolver().getPath(staticCLibraryPath)));
+  for (  SourcePath staticCLibraryPath : staticCLibraryPaths) {
+    librariesBuilder.add(new BuildTargetSourcePath(this.getBuildTarget(),getResolver().getPath(staticCLibraryPath)));
+  }
   final ImmutableList<SourcePath> libraries=librariesBuilder.build();
   ImmutableList.Builder<String> linkerArgsBuilder=ImmutableList.builder();
   linkerArgsBuilder.add(staticNativeLibraryPath.toString());
-  linkerArgsBuilder.add(staticCLibraryPath.toString());
+  linkerArgsBuilder.addAll(FluentIterable.from(staticCLibraryPaths).transform(Functions.toStringFunction()));
   final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
   return new NativeLinkableInput(libraries,linkerArgs);
 }

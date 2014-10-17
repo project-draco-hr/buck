@@ -1,0 +1,17 @@
+{
+  ImmutableList.Builder<SourcePath> objects=ImmutableList.builder();
+  ImmutableList.Builder<String> cCompileFlags=ImmutableList.builder();
+  cCompileFlags.addAll(ocamlContext.getCCompileFlags());
+  cCompileFlags.addAll(ocamlContext.getCommonCFlags());
+  CxxPreprocessorInput cxxPreprocessorInput=ocamlContext.getCxxPreprocessorInput();
+  for (  SourcePath cSrc : cInput) {
+    String name=pathResolver.getPath(cSrc).toFile().getName();
+    BuildTarget target=createCCompileBuildTarget(params.getBuildTarget(),name);
+    BuildRuleParams cCompileParams=params.copyWithChanges(OCAML_C_COMPILE_TYPE,target,ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(cSrc).addAll(cxxPreprocessorInput.getIncludes().values()).build())).addAll(BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,cxxPreprocessorInput.getRules(),false)).addAll(params.getDeclaredDeps()).build(),params.getExtraDeps());
+    Path outputPath=ocamlContext.getCOutput(pathResolver.getPath(cSrc));
+    OCamlCCompile compileRule=new OCamlCCompile(cCompileParams,pathResolver,new OCamlCCompileStep.Args(cCompiler,ocamlContext.getOcamlCompiler(),outputPath,pathResolver.getPath(cSrc),cCompileFlags.build(),cxxPreprocessorInput.getIncludes()));
+    resolver.addToIndex(compileRule);
+    objects.add(new BuildTargetSourcePath(compileRule.getBuildTarget()));
+  }
+  return objects.build();
+}

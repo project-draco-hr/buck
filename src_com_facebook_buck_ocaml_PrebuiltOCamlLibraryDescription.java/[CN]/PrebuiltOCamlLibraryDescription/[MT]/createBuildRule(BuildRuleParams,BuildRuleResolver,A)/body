@@ -4,10 +4,16 @@
   final String libName=args.libName.or(target.getShortNameOnly());
   final String nativeLib=args.nativeLib.or(String.format("%s.cmxa",libName));
   final String bytecodeLib=args.bytecodeLib.or(String.format("%s.cma",libName));
-  final String cLib=args.cLib.or(String.format("lib%s.a",libName));
+  final ImmutableList<String> cLibs=args.cLibs.get();
   final Path libPath=target.getBasePath().resolve(libDir);
+  final Path includeDir=libPath.resolve(args.includeDir.or(""));
   final SourcePath staticNativeLibraryPath=new PathSourcePath(libPath.resolve(nativeLib));
-  final SourcePath staticCLibraryPath=new PathSourcePath(libPath.resolve(cLib));
+  final ImmutableList<SourcePath> staticCLibraryPaths=FluentIterable.from(cLibs).transform(new Function<String,SourcePath>(){
+    @Override public SourcePath apply(    String input){
+      return new PathSourcePath(libPath.resolve(input));
+    }
+  }
+).toList();
   final SourcePath bytecodeLibraryPath=new PathSourcePath(libPath.resolve(bytecodeLib));
-  return new PrebuiltOCamlLibrary(params,new SourcePathResolver(resolver),nativeLib,bytecodeLib,staticNativeLibraryPath,staticCLibraryPath,bytecodeLibraryPath,libPath);
+  return new PrebuiltOCamlLibrary(params,new SourcePathResolver(resolver),nativeLib,bytecodeLib,staticNativeLibraryPath,staticCLibraryPaths,bytecodeLibraryPath,libPath,includeDir);
 }
