@@ -1,0 +1,42 @@
+{
+  BuildTarget target=getBuildTarget();
+  List<JsonSerializableDatabaseEntry> entries=Lists.newArrayList();
+  Iterable<SourcePath> allSources=Iterables.concat(targetSources.srcPaths,targetSources.headerPaths);
+  ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
+  for (  SourcePath srcPath : allSources) {
+    List<String> commandArgs=Lists.newArrayList("clang","-x","objective-c","-arch","i386","-mios-simulator-version-min=7.0","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fmacro-backtrace-limit=0","-std=gnu99","-fpascal-strings","-fexceptions","-fasm-blocks","-fstrict-aliasing","-fobjc-abi-version=2","-fobjc-legacy-dispatch","-O0","-g","-MMD");
+    commandArgs.add("-fobjc-arc");
+    Path resultOfXcodeSelect=Paths.get("/Applications/Xcode.app/Contents/Developer");
+    commandArgs.add("-isysroot");
+    Path sysroot=resultOfXcodeSelect.resolve(platformFlavor.sdkPath);
+    commandArgs.add(sysroot.toString());
+    String sdkRoot=resultOfXcodeSelect.resolve(platformFlavor.sdkPath).toString();
+    for (    String framework : frameworks) {
+      framework=framework.replace("$SDKROOT",sdkRoot);
+      commandArgs.add("-F" + framework);
+    }
+    for (    Path includePath : includePaths) {
+      commandArgs.add("-I" + projectFilesystem.resolve(includePath));
+    }
+    Path iquoteArg=internalHeaderMap.get();
+    if (iquoteArg != null) {
+      commandArgs.add("-iquote");
+      commandArgs.add(projectFilesystem.resolve(iquoteArg).toString());
+    }
+    if (pchFile.isPresent()) {
+      commandArgs.add("-include");
+      Path relativePathToPchFile=getResolver().getPath(pchFile.get());
+      commandArgs.add(projectFilesystem.resolve(relativePathToPchFile).toString());
+    }
+    commandArgs.add("-c");
+    String fileToCompile=projectFilesystem.resolve(getResolver().getPath(srcPath)).toString();
+    commandArgs.add(fileToCompile);
+    String command=Joiner.on(' ').join(commandArgs);
+    String perFileFlags=Strings.nullToEmpty(targetSources.perFileFlags.get(srcPath));
+    if (!perFileFlags.isEmpty()) {
+      command+=' ' + perFileFlags;
+    }
+    entries.add(new JsonSerializableDatabaseEntry(projectFilesystem.resolve(target.getBasePath()).toString(),fileToCompile,command));
+  }
+  return entries;
+}
