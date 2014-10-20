@@ -1,16 +1,4 @@
 {
-  ImmutableMap.Builder<String,String> overrideConfigsBuilder=ImmutableMap.builder();
-  overrideConfigsBuilder.putAll(overrideBuildSettings).put("TARGET_NAME",getProductName(buildTarget)).put("SRCROOT",relativizeBuckRelativePathToGeneratedProject(buildTarget,"").toString());
-  ImmutableMap.Builder<String,String> defaultConfigsBuilder=ImmutableMap.builder();
-  defaultConfigsBuilder.putAll(defaultBuildSettings).put("PRODUCT_NAME",getProductName(buildTarget));
-  ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
-  appendConfigsBuilder.putAll(appendBuildSettings).put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterators.concat(collectRecursiveHeaderSearchPaths(buildRule).iterator(),collectRecursiveHeaderMaps(buildRule).iterator()))).put("USER_HEADER_SEARCH_PATHS",Joiner.on(' ').join(collectUserHeaderMaps(buildRule))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(buildRule))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(buildRule)));
-  if (!options.contains(Option.REFERENCE_EXISTING_XCCONFIGS)) {
-    overrideConfigsBuilder.put("GCC_PREFIX_HEADER","$(SRCROOT)/$(inherited)");
-  }
-  ImmutableMap<String,String> overrideConfigs=overrideConfigsBuilder.build();
-  ImmutableMap<String,String> defaultConfigs=defaultConfigsBuilder.build();
-  ImmutableMap<String,String> appendConfigs=appendConfigsBuilder.build();
   PBXGroup configurationsGroup=targetGroup.getOrCreateChildGroupByName("Configurations");
   for (  Map.Entry<String,XcodeRuleConfiguration> configurationEntry : configurations.entrySet()) {
     if (options.contains(Option.REFERENCE_EXISTING_XCCONFIGS)) {
@@ -18,31 +6,22 @@
       xcodeConfigurationLayersMultimapBuilder.put(configurationEntry.getKey(),layers);
       XCBuildConfiguration outputConfiguration=target.getBuildConfigurationList().getBuildConfigurationsByName().getUnchecked(configurationEntry.getKey());
       if (layers.targetLevelConfigFile.isPresent()) {
-{
-          Map<String,String> mutableOverrideConfigs=new HashMap<>(overrideConfigs);
-          for (          Map.Entry<String,String> entry : defaultConfigs.entrySet()) {
-            String existingSetting=layers.targetLevelInlineSettings.get(entry.getKey());
-            if (existingSetting == null) {
-              mutableOverrideConfigs.put(entry.getKey(),entry.getValue());
-            }
+        HashMap<String,String> combinedOverrideConfigs=Maps.newHashMap(overrideBuildSettings);
+        for (        Map.Entry<String,String> entry : defaultBuildSettings.entrySet()) {
+          String existingSetting=layers.targetLevelInlineSettings.get(entry.getKey());
+          if (existingSetting == null) {
+            combinedOverrideConfigs.put(entry.getKey(),entry.getValue());
           }
-          for (          Map.Entry<String,String> entry : appendConfigs.entrySet()) {
-            String existingSetting=layers.targetLevelInlineSettings.get(entry.getKey());
-            String settingPrefix;
-            if (existingSetting != null) {
-              settingPrefix=existingSetting + ' ';
-            }
- else {
-              settingPrefix="$(inherited) ";
-            }
-            mutableOverrideConfigs.put(entry.getKey(),settingPrefix + entry.getValue());
-          }
-          overrideConfigs=ImmutableMap.copyOf(mutableOverrideConfigs);
+        }
+        for (        Map.Entry<String,String> entry : appendBuildSettings.entrySet()) {
+          String existingSetting=layers.targetLevelInlineSettings.get(entry.getKey());
+          String settingPrefix=existingSetting != null ? existingSetting : "$(inherited)";
+          combinedOverrideConfigs.put(entry.getKey(),settingPrefix + " " + entry.getValue());
         }
         PBXFileReference fileReference=configurationsGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,repoRootRelativeToOutputDirectory.resolve(resolver.getPath(layers.targetLevelConfigFile.get())).normalize()));
         outputConfiguration.setBaseConfigurationReference(fileReference);
         NSDictionary inlineSettings=new NSDictionary();
-        Iterable<Map.Entry<String,String>> entries=Iterables.concat(layers.targetLevelInlineSettings.entrySet(),overrideConfigs.entrySet());
+        Iterable<Map.Entry<String,String>> entries=Iterables.concat(layers.targetLevelInlineSettings.entrySet(),combinedOverrideConfigs.entrySet());
         for (        Map.Entry<String,String> entry : entries) {
           inlineSettings.put(entry.getKey(),entry.getValue());
         }
@@ -50,19 +29,19 @@
       }
     }
  else {
-      Map<String,String> mutableExtraConfigs=new HashMap<>(overrideConfigs);
+      Map<String,String> mutableExtraConfigs=new HashMap<>(overrideBuildSettings);
       for (      Map.Entry<String,String> entry : appendBuildSettings.entrySet()) {
         String setting="$(inherited) " + entry.getValue();
         mutableExtraConfigs.put(entry.getKey(),setting);
       }
-      overrideConfigs=ImmutableMap.copyOf(mutableExtraConfigs);
+      overrideBuildSettings=ImmutableMap.copyOf(mutableExtraConfigs);
       Path outputConfigurationDirectory=outputDirectory.resolve("Configurations");
       projectFilesystem.mkdirs(outputConfigurationDirectory);
       Path originalProjectPath=projectFilesystem.getPathForRelativePath(Paths.get(buildTarget.getBasePathWithSlash()));
       ImmutableList<Path> searchPaths=ImmutableList.of(originalProjectPath);
       project.getBuildConfigurationList().getBuildConfigurationsByName().getUnchecked(configurationEntry.getKey());
       Path configurationFilePath=outputConfigurationDirectory.resolve(mangledBuildTargetName(buildTarget) + "-" + configurationEntry.getKey()+ ".xcconfig");
-      String serializedConfiguration=serializeBuildConfiguration(configurationEntry.getValue(),searchPaths,overrideConfigs);
+      String serializedConfiguration=serializeBuildConfiguration(configurationEntry.getValue(),searchPaths,overrideBuildSettings);
       if (MorePaths.fileContentsDiffer(new ByteArrayInputStream(serializedConfiguration.getBytes(Charsets.UTF_8)),configurationFilePath,projectFilesystem)) {
         if (shouldGenerateReadOnlyFiles()) {
           projectFilesystem.writeContentsToPath(serializedConfiguration,configurationFilePath,READ_ONLY_FILE_ATTRIBUTE);

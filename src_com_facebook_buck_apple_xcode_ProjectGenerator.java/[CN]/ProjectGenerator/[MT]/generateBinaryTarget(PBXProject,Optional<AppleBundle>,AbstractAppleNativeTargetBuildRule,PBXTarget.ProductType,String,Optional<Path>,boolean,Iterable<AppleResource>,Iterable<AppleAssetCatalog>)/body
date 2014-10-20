@@ -4,6 +4,10 @@
   setNativeTargetGid(target,appleBuildRule);
   PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(target.getName());
   ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
+  extraSettingsBuilder.put("TARGET_NAME",getProductName(buildTarget)).put("SRCROOT",relativizeBuckRelativePathToGeneratedProject(buildTarget,"").toString());
+  if (!options.contains(Option.REFERENCE_EXISTING_XCCONFIGS)) {
+    extraSettingsBuilder.put("GCC_PREFIX_HEADER","$(SRCROOT)/$(inherited)");
+  }
   if (infoPlistOptional.isPresent()) {
     Path infoPlistPath=repoRootRelativeToOutputDirectory.resolve(infoPlistOptional.get());
     extraSettingsBuilder.put("INFOPLIST_FILE",infoPlistPath.toString());
@@ -12,6 +16,7 @@
     extraSettingsBuilder.put("USE_HEADERMAP","NO");
   }
   ImmutableMap.Builder<String,String> defaultSettingsBuilder=ImmutableMap.builder();
+  defaultSettingsBuilder.put("PRODUCT_NAME",getProductName(buildTarget));
   if (bundle.isPresent()) {
     defaultSettingsBuilder.put("WRAPPER_EXTENSION",bundle.get().getExtensionString());
   }
@@ -19,7 +24,9 @@
   if (!bundle.isPresent() && appleBuildRule.getType().equals(AppleLibraryDescription.TYPE)) {
     defaultSettingsBuilder.put("CONFIGURATION_BUILD_DIR",getObjectOutputPathForRule(appleBuildRule));
   }
-  setTargetBuildConfigurations(buildTarget,appleBuildRule,target,targetGroup,appleBuildRule.getConfigurations(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),ImmutableMap.<String,String>of());
+  ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
+  appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterators.concat(collectRecursiveHeaderSearchPaths(appleBuildRule).iterator(),collectRecursiveHeaderMaps(appleBuildRule).iterator()))).put("USER_HEADER_SEARCH_PATHS",Joiner.on(' ').join(collectUserHeaderMaps(appleBuildRule))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(appleBuildRule))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(appleBuildRule)));
+  setTargetBuildConfigurations(buildTarget,target,targetGroup,appleBuildRule.getConfigurations(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
   if (bundle.isPresent()) {
     addRunScriptBuildPhasesForDependencies(bundle.get(),target);
   }
