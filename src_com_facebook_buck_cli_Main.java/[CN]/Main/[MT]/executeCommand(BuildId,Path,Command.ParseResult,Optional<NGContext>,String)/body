@@ -63,7 +63,14 @@
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootRepository.getFilesystem());
     CachingBuildEngine buildEngine=new CachingBuildEngine();
-    exitCode=executingCommand.execute(remainingArgs,rootRepository.getBuckConfig(),new CommandRunnerParams(console,rootRepository,rootRepository.androidDirectoryResolver,buildEngine,artifactCacheFactory,buildEventBus,parser,platform,clientEnvironment,rootRepository.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,fileHashCache,clock));
+    Optional<ProcessManager> processManager;
+    if (platform == Platform.WINDOWS) {
+      processManager=Optional.absent();
+    }
+ else {
+      processManager=Optional.<ProcessManager>of(new PkillProcessManager(processExecutor));
+    }
+    exitCode=executingCommand.execute(remainingArgs,rootRepository.getBuckConfig(),new CommandRunnerParams(console,rootRepository,rootRepository.androidDirectoryResolver,buildEngine,artifactCacheFactory,buildEventBus,parser,platform,clientEnvironment,rootRepository.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,fileHashCache,clock,processManager));
     if (webServer.isPresent()) {
       Optional<Integer> port=webServer.get().getPort();
       if (port.isPresent()) {
