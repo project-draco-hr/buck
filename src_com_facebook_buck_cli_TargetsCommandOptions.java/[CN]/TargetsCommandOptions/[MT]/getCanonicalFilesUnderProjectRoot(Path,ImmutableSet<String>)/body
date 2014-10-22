@@ -1,12 +1,20 @@
 {
-  ImmutableSet.Builder<String> builder=ImmutableSet.builder();
-  Path normalizedRoot=projectRoot.normalize();
+  ImmutableSet.Builder<Path> projectFiles=ImmutableSet.builder();
+  ImmutableSet.Builder<Path> nonProjectFiles=ImmutableSet.builder();
+  Path normalizedRoot=projectRoot.toRealPath();
   for (  String filePath : nonCanonicalFilePaths) {
-    Path canonicalFullPath=Paths.get(filePath).toAbsolutePath().normalize();
+    Path canonicalFullPath=Paths.get(filePath);
+    if (!canonicalFullPath.isAbsolute()) {
+      canonicalFullPath=projectRoot.resolve(canonicalFullPath);
+    }
+    canonicalFullPath=canonicalFullPath.toRealPath();
     if (canonicalFullPath.startsWith(normalizedRoot)) {
       Path relativePath=canonicalFullPath.subpath(normalizedRoot.getNameCount(),canonicalFullPath.getNameCount());
-      builder.add(MorePaths.pathWithUnixSeparators(relativePath));
+      projectFiles.add(relativePath);
+    }
+ else {
+      nonProjectFiles.add(canonicalFullPath);
     }
   }
-  return builder.build();
+  return new ReferencedFiles(projectFiles.build(),nonProjectFiles.build());
 }
