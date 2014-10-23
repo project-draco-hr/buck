@@ -1,8 +1,10 @@
 {
   BuildTarget buildTarget=bundle.isPresent() ? bundle.get().getBuildTarget() : appleBuildRule.getBuildTarget();
-  PBXNativeTarget target=new PBXNativeTarget(getXcodeTargetName(buildTarget),productType);
-  setNativeTargetGid(target,appleBuildRule);
-  PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(target.getName());
+  String productName=getProductName(buildTarget);
+  NewNativeTargetProjectMutator targetBuilder=new NewNativeTargetProjectMutator(buildTarget).setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(appleBuildRule.getGid());
+  NewNativeTargetProjectMutator.Result targetBuilderResult=targetBuilder.buildAndAddToProject(project);
+  PBXNativeTarget target=targetBuilderResult.target;
+  PBXGroup targetGroup=targetBuilderResult.targetGroup;
   ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
   extraSettingsBuilder.put("TARGET_NAME",getProductName(buildTarget)).put("SRCROOT",pathRelativizer.outputPathToBuildTargetPath(buildTarget).toString());
   if (!options.contains(Option.REFERENCE_EXISTING_XCCONFIGS)) {
@@ -45,11 +47,5 @@
     addAssetCatalogBuildPhase(target,targetGroup,assetCatalogs);
   }
   addCoreDataModelBuildPhase(targetGroup,Iterables.filter(appleBuildRule.getDeps(),CoreDataModel.class));
-  PBXGroup productsGroup=project.getMainGroup().getOrCreateChildGroupByName("Products");
-  String productName=getProductName(buildTarget);
-  String outputName=String.format(productOutputFormat,productName);
-  PBXFileReference productReference=productsGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.BUILT_PRODUCTS_DIR,Paths.get(outputName)));
-  target.setProductName(productName);
-  target.setProductReference(productReference);
   return target;
 }
