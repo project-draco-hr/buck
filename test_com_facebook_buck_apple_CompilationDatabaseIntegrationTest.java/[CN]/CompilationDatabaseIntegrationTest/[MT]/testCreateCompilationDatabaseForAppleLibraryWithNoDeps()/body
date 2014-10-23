@@ -1,0 +1,21 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"ios-project",tmp);
+  workspace.setUp();
+  File compilationDatabase=workspace.buildAndReturnOutput("//Libraries/EXExample:EXExample#compilation-database");
+  assertEquals(Paths.get("buck-out/gen/Libraries/EXExample/" + "__EXExample#compilation-database_compilation_database.json"),tmp.getRootPath().relativize(compilationDatabase.toPath()));
+  ObjectMapper mapper=new ObjectMapper();
+  JavaType type=mapper.getTypeFactory().constructCollectionType(ArrayList.class,JsonSerializableDatabaseEntry.class);
+  List<JsonSerializableDatabaseEntry> entries=mapper.readValue(compilationDatabase,type);
+  Map<String,JsonSerializableDatabaseEntry> fileToEntry=Maps.newHashMap();
+  for (  JsonSerializableDatabaseEntry entry : entries) {
+    fileToEntry.put(entry.file,entry);
+  }
+  String iquoteArg=tmp.getRootPath().resolve("buck-out/bin/Libraries/EXExample/__my_EXExample#compilation-database__.hmap").toRealPath().toString();
+  assertFlags("Libraries/EXExample/EXExample/EXExampleModel.h",fileToEntry,ImmutableList.<String>of(),ImmutableList.<String>of(),iquoteArg,true);
+  assertFlags("Libraries/EXExample/EXExample/EXExampleModel.m",fileToEntry,ImmutableList.<String>of(),ImmutableList.<String>of(),iquoteArg,false);
+  assertFlags("Libraries/EXExample/EXExample/Categories/NSString+Palindrome.h",fileToEntry,ImmutableList.<String>of(),ImmutableList.<String>of(),iquoteArg,false);
+  assertFlags("Libraries/EXExample/EXExample/Categories/NSString+Palindrome.m",fileToEntry,ImmutableList.<String>of(),ImmutableList.<String>of(),iquoteArg,false);
+  HeaderMap headerMap=HeaderMap.loadFromFile(workspace.getFile(iquoteArg));
+  assertEquals(tmp.getRootPath().resolve("Libraries/EXExample/EXExample/EXExampleModel.h").toRealPath(),Paths.get(headerMap.lookup("EXExampleModel.h")));
+  assertEquals(tmp.getRootPath().resolve("Libraries/EXExample/EXExample/Categories/NSString+Palindrome.h").toRealPath(),Paths.get(headerMap.lookup("NSString+Palindrome.h")));
+}

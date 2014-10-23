@@ -1,4 +1,16 @@
 {
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  return new AppleBinary(params,pathResolver,args,TargetSources.ofAppleSources(pathResolver,args.srcs.get()));
+  TargetSources targetSources=TargetSources.ofAppleSources(pathResolver,args.srcs.get());
+  Optional<BuildRule> flavoredRule=AbstractAppleNativeTargetBuildRuleDescriptions.createFlavoredRule(params,resolver,args,appleConfig,pathResolver,targetSources);
+  if (flavoredRule.isPresent()) {
+    return flavoredRule.get();
+  }
+  BuildRule headersRule=AbstractAppleNativeTargetBuildRuleDescriptions.createHeadersFlavorIfNotAlreadyPresent(params,resolver,args);
+  if (params.getBuildTarget().getFlavors().contains(AbstractAppleNativeTargetBuildRuleDescriptions.HEADERS)) {
+    return headersRule;
+  }
+ else   if (!resolver.getRuleOptional(headersRule.getBuildTarget()).isPresent()) {
+    resolver.addToIndex(headersRule);
+  }
+  return new AppleBinary(params,pathResolver,args,targetSources);
 }

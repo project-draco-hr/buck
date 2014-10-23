@@ -1,0 +1,18 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"ios-project",tmp);
+  workspace.setUp();
+  File compilationDatabase=workspace.buildAndReturnOutput("//Apps/Weather:Weather#compilation-database");
+  assertEquals(Paths.get("buck-out/gen/Apps/Weather/" + "__Weather#compilation-database_compilation_database.json"),tmp.getRootPath().relativize(compilationDatabase.toPath()));
+  ObjectMapper mapper=new ObjectMapper();
+  JavaType type=mapper.getTypeFactory().constructCollectionType(ArrayList.class,JsonSerializableDatabaseEntry.class);
+  List<JsonSerializableDatabaseEntry> entries=mapper.readValue(compilationDatabase,type);
+  Map<String,JsonSerializableDatabaseEntry> fileToEntry=Maps.newHashMap();
+  for (  JsonSerializableDatabaseEntry entry : entries) {
+    fileToEntry.put(entry.file,entry);
+  }
+  String iquoteArg=tmp.getRootPath().resolve("buck-out/bin/Apps/Weather/__my_Weather#compilation-database__.hmap").toRealPath().toString();
+  String pathToHeaders="buck-out/bin/Libraries/EXExample/__EXExample#headers_public_headers__";
+  assertFlags("Apps/Weather/Weather/EXViewController.h",fileToEntry,ImmutableList.of("/System/Library/Frameworks/UIKit.framework"),ImmutableList.of(pathToHeaders),iquoteArg,false);
+  assertFlags("Apps/Weather/Weather/EXViewController.m",fileToEntry,ImmutableList.of("/System/Library/Frameworks/UIKit.framework"),ImmutableList.of(pathToHeaders),iquoteArg,false);
+  assertFlags("Apps/Weather/Weather/main.m",fileToEntry,ImmutableList.of("/System/Library/Frameworks/UIKit.framework"),ImmutableList.of(pathToHeaders),iquoteArg,false);
+}
