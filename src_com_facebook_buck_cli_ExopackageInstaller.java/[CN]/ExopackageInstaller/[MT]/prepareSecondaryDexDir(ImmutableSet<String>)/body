@@ -3,12 +3,13 @@
     final ImmutableSet.Builder<String> foundHashes=ImmutableSet.builder();
     String mkdirP=useNativeAgent ? getAgentCommand() + "mkdir-p" : "mkdir -p";
     Preconditions.checkNotNull(device);
-    AdbHelper.executeCommandWithErrorChecking(device,"umask 022 && " + mkdirP + " "+ dataRoot+ "/secondary-dex");
-    String output=AdbHelper.executeCommandWithErrorChecking(device,"ls " + dataRoot + "/secondary-dex");
+    String secondaryDexDir=dataRoot.resolve(SECONDARY_DEX_DIR).toString();
+    AdbHelper.executeCommandWithErrorChecking(device,"umask 022 && " + mkdirP + " "+ secondaryDexDir);
+    String output=AdbHelper.executeCommandWithErrorChecking(device,"ls " + secondaryDexDir);
     ImmutableSet.Builder<String> toDeleteBuilder=ImmutableSet.builder();
     scanSecondaryDexDir(output,requiredHashes,foundHashes,toDeleteBuilder);
     Iterable<String> filesToDelete=toDeleteBuilder.build();
-    String commandPrefix="cd " + dataRoot + "/secondary-dex && rm ";
+    String commandPrefix="cd " + secondaryDexDir + " && rm ";
     final int overhead=commandPrefix.length() + 100;
     for (    List<String> rmArgs : chunkArgs(filesToDelete,MAX_ADB_COMMAND_SIZE - overhead)) {
       String command=commandPrefix + Joiner.on(' ').join(rmArgs);
