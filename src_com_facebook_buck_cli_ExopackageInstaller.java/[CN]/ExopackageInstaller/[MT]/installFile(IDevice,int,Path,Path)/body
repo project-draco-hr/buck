@@ -4,15 +4,15 @@
     @Override public void addOutput(    byte[] data,    int offset,    int length){
       super.addOutput(data,offset,length);
       if (!sentPayload && getOutput().length() >= AgentUtil.TEXT_SECRET_KEY_SIZE) {
-        logFiner("Got key: %s",getOutput());
+        LOG.verbose("Got key: %s",getOutput());
         sentPayload=true;
         try (Socket clientSocket=new Socket("localhost",port)){
-          logFiner("Connected");
+          LOG.verbose("Connected");
           OutputStream outToDevice=clientSocket.getOutputStream();
           outToDevice.write(getOutput().substring(0,AgentUtil.TEXT_SECRET_KEY_SIZE).getBytes());
-          logFiner("Wrote key");
+          LOG.verbose("Wrote key");
           com.google.common.io.Files.asByteSource(source.toFile()).copyTo(outToDevice);
-          logFiner("Wrote file");
+          LOG.verbose("Wrote file");
         }
  catch (        IOException e) {
           throw new RuntimeException(e);
@@ -23,7 +23,7 @@
 ;
   String targetFileName=dataRoot.resolve(pathRelativeToDataRoot).toString();
   String command="umask 022 && " + getAgentCommand() + "receive-file "+ port+ " "+ Files.size(source)+ " "+ targetFileName+ " ; echo -n :$?";
-  logFine("Executing %s",command);
+  LOG.debug("Executing %s",command);
   Exception shellException=null;
   try {
     device.executeShellCommand(command,receiver);
