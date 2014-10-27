@@ -3,6 +3,13 @@
   String productName=getProductName(buildTarget);
   NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,resolver,buildTarget);
   mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(appleBuildRule.getGid()).setShouldGenerateCopyHeadersPhase(!appleBuildRule.getUseBuckHeaderMaps()).setSources(appleBuildRule.getSrcs(),appleBuildRule.getPerFileFlags());
+  if (includeFrameworks) {
+    ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
+    frameworksBuilder.addAll(appleBuildRule.getFrameworks());
+    collectRecursiveFrameworkDependencies(appleBuildRule,frameworksBuilder);
+    mutator.setFrameworks(frameworksBuilder.build());
+    mutator.setArchives(collectRecursiveLibraryDependencies(appleBuildRule));
+  }
   NewNativeTargetProjectMutator.Result targetBuilderResult=mutator.buildTargetAndAddToProject(project);
   PBXNativeTarget target=targetBuilderResult.target;
   PBXGroup targetGroup=targetBuilderResult.targetGroup;
@@ -39,12 +46,6 @@
   addRunScriptBuildPhasesForDependencies(appleBuildRule,target);
   if (appleBuildRule.getUseBuckHeaderMaps()) {
     addHeaderMapsForHeaders(appleBuildRule,appleBuildRule.getHeaderPathPrefix(),appleBuildRule.getSrcs(),appleBuildRule.getPerFileFlags());
-  }
-  if (includeFrameworks) {
-    ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
-    frameworksBuilder.addAll(appleBuildRule.getFrameworks());
-    collectRecursiveFrameworkDependencies(appleBuildRule,frameworksBuilder);
-    addFrameworksBuildPhase(buildTarget,target,project.getMainGroup().getOrCreateChildGroupByName("Frameworks"),frameworksBuilder.build(),collectRecursiveLibraryDependencies(appleBuildRule));
   }
   if (!Iterables.isEmpty(resources)) {
     addResourcesBuildPhase(target,targetGroup,resources);
