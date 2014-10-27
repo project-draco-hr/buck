@@ -7,6 +7,7 @@
   }
 ).toSet();
   int exitCode;
+  String buildReport=null;
   boolean isKeepGoing=options.isKeepGoing();
   try {
     ListenableFuture<List<BuildRuleSuccess>> buildFuture=build.executeBuild(rulesToBuild,isKeepGoing);
@@ -23,8 +24,8 @@
       Thread.currentThread().interrupt();
       throw e;
     }
+    buildReport=generateBuildReport(ImmutableList.copyOf(rulesToBuild),results,console.getAnsi());
     if (isKeepGoing) {
-      String buildReport=generateBuildReport(ImmutableList.copyOf(rulesToBuild),results,console.getAnsi());
       console.getStdErr().print(buildReport);
       exitCode=Iterables.any(results,Predicates.isNull()) ? 1 : 0;
       if (exitCode != 0) {
@@ -58,6 +59,16 @@ catch (  ExecutionException e) {
  else {
         console.printBuildFailureWithoutStacktrace(e);
       }
+      exitCode=1;
+    }
+  }
+  Optional<Path> pathToBuildReport=options.getPathToBuildReport();
+  if (buildReport != null && pathToBuildReport.isPresent()) {
+    try {
+      Files.write(buildReport,pathToBuildReport.get().toFile(),Charsets.UTF_8);
+    }
+ catch (    IOException e) {
+      e.printStackTrace(console.getStdErr());
       exitCode=1;
     }
   }
