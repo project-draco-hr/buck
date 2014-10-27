@@ -1,16 +1,18 @@
 {
   final ActionGraph actionGraph=build.getActionGraph();
-  Set<BuildRule> rulesToBuild=FluentIterable.from(buildTargetsToBuild).transform(new Function<HasBuildTarget,BuildRule>(){
+  ImmutableSet<BuildRule> rulesToBuild=FluentIterable.from(buildTargetsToBuild).transform(new Function<HasBuildTarget,BuildRule>(){
     @Override public BuildRule apply(    HasBuildTarget hasBuildTarget){
       return Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(hasBuildTarget.getBuildTarget()));
     }
   }
 ).toSet();
   int exitCode;
+  boolean isKeepGoing=options.isKeepGoing();
   try {
-    ListenableFuture<List<BuildRuleSuccess>> buildFuture=build.executeBuild(rulesToBuild);
+    ListenableFuture<List<BuildRuleSuccess>> buildFuture=build.executeBuild(rulesToBuild,isKeepGoing);
+    List<BuildRuleSuccess> results;
     try {
-      buildFuture.get();
+      results=buildFuture.get();
     }
  catch (    InterruptedException e) {
       try {
@@ -21,7 +23,17 @@
       Thread.currentThread().interrupt();
       throw e;
     }
-    exitCode=0;
+    if (isKeepGoing) {
+      String buildReport=generateBuildReport(ImmutableList.copyOf(rulesToBuild),results,console.getAnsi());
+      console.getStdErr().print(buildReport);
+      exitCode=Iterables.any(results,Predicates.isNull()) ? 1 : 0;
+      if (exitCode != 0) {
+        console.printBuildFailure("Not all rules succeeded.");
+      }
+    }
+ else {
+      exitCode=0;
+    }
   }
  catch (  IOException e) {
     console.printBuildFailureWithoutStacktrace(e);
