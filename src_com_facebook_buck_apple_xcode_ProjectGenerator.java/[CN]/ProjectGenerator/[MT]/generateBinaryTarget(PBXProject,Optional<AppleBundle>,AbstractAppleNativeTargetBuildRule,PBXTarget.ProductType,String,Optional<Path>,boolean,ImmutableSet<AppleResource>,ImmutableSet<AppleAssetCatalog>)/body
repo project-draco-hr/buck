@@ -3,6 +3,17 @@
   String productName=getProductName(buildTarget);
   NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,resolver,buildTarget);
   mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(appleBuildRule.getGid()).setShouldGenerateCopyHeadersPhase(!appleBuildRule.getUseBuckHeaderMaps()).setSources(appleBuildRule.getSrcs(),appleBuildRule.getPerFileFlags()).setResources(resources);
+  Path assetCatalogBuildPhaseScript;
+  if (!assetCatalogs.isEmpty()) {
+    if (PATH_OVERRIDE_FOR_ASSET_CATALOG_BUILD_PHASE_SCRIPT != null) {
+      assetCatalogBuildPhaseScript=Paths.get(PATH_OVERRIDE_FOR_ASSET_CATALOG_BUILD_PHASE_SCRIPT);
+    }
+ else {
+      shouldPlaceAssetCatalogCompiler=true;
+      assetCatalogBuildPhaseScript=placedAssetCatalogBuildPhaseScript;
+    }
+    mutator.setAssetCatalogs(assetCatalogBuildPhaseScript,assetCatalogs);
+  }
   if (includeFrameworks) {
     ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
     frameworksBuilder.addAll(appleBuildRule.getFrameworks());
@@ -46,9 +57,6 @@
   addRunScriptBuildPhasesForDependencies(appleBuildRule,target);
   if (appleBuildRule.getUseBuckHeaderMaps()) {
     addHeaderMapsForHeaders(appleBuildRule,appleBuildRule.getHeaderPathPrefix(),appleBuildRule.getSrcs(),appleBuildRule.getPerFileFlags());
-  }
-  if (!Iterables.isEmpty(assetCatalogs)) {
-    addAssetCatalogBuildPhase(target,targetGroup,assetCatalogs);
   }
   addCoreDataModelBuildPhase(targetGroup,Iterables.filter(appleBuildRule.getDeps(),CoreDataModel.class));
   return target;
