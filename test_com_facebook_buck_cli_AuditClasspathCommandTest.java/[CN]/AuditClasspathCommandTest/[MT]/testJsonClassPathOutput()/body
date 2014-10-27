@@ -1,9 +1,9 @@
 {
-  BuildRuleResolver ruleResolver=new BuildRuleResolver();
-  ImmutableList<String> targets=ImmutableList.of("//:test-android-library","//:test-java-library");
-  BuildRule library=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:test-java-library")).addSrc(Paths.get("src/com/facebook/TestJavaLibrary.java")).build(ruleResolver);
-  AndroidLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:test-android-library")).addSrc(Paths.get("src/com/facebook/TestAndroidLibrary.java")).addDep(library.getBuildTarget()).build(ruleResolver);
-  PartialGraph partialGraph=createGraphFromBuildRules(ruleResolver,targets);
+  BuildTarget javaTarget=BuildTargetFactory.newInstance("//:test-java-library");
+  TargetNode<?> javaNode=JavaLibraryBuilder.createBuilder(javaTarget).addSrc(Paths.get("src/com/facebook/TestJavaLibrary.java")).build();
+  BuildTarget androidTarget=BuildTargetFactory.newInstance("//:test-android-library");
+  TargetNode<?> androidNode=AndroidLibraryBuilder.createBuilder(androidTarget).addSrc(Paths.get("src/com/facebook/TestAndroidLibrary.java")).addDep(javaTarget).build();
+  PartialGraph partialGraph=PartialGraphFactory.newInstance(TargetGraphFactory.newInstance(ImmutableSet.of(androidNode,javaNode)),ImmutableSet.of(androidTarget,javaTarget));
   auditClasspathCommand.printJsonClasspath(partialGraph);
   assertEquals(EXPECTED_JSON,console.getTextWrittenToStdOut());
   assertEquals("",console.getTextWrittenToStdErr());

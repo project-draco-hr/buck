@@ -1,16 +1,12 @@
 {
-  BuildRuleResolver ruleResolver=new BuildRuleResolver();
-  ImmutableList<String> targets=ImmutableList.of("//:test-android-library","//:test-java-library");
-  BuildRule rootRule=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:test-java-library")).addSrc(Paths.get("src/com/facebook/TestJavaLibrary.java")).build(ruleResolver);
-  JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:test-android-library")).addSrc(Paths.get("src/com/facebook/TestAndroidLibrary.java")).addSrc(Paths.get("src/com/facebook/AndroidLibraryTwo.java")).addDep(rootRule.getBuildTarget()).build(ruleResolver);
-  ImmutableSet<BuildTarget> buildTargets=ImmutableSet.copyOf(Iterables.transform(targets,new Function<String,BuildTarget>(){
-    @Override public BuildTarget apply(    String target){
-      return BuildTargetFactory.newInstance(target);
-    }
-  }
-));
-  ActionGraph actionGraph=RuleMap.createGraphFromBuildRules(ruleResolver);
-  PartialGraph partialGraph=PartialGraphFactory.newInstance(actionGraph,buildTargets);
+  BuildTarget rootTarget=BuildTargetFactory.newInstance("//:test-java-library");
+  TargetNode<?> rootNode=JavaLibraryBuilder.createBuilder(rootTarget).addSrc(Paths.get("src/com/facebook/TestJavaLibrary.java")).build();
+  BuildTarget libraryTarget=BuildTargetFactory.newInstance("//:test-android-library");
+  TargetNode<?> libraryNode=JavaLibraryBuilder.createBuilder(libraryTarget).addSrc(Paths.get("src/com/facebook/TestAndroidLibrary.java")).addSrc(Paths.get("src/com/facebook/AndroidLibraryTwo.java")).addDep(rootTarget).build();
+  ImmutableSet<BuildTarget> targets=ImmutableSet.of(rootTarget,libraryTarget);
+  ImmutableSet<TargetNode<?>> nodes=ImmutableSet.of(rootNode,libraryNode);
+  TargetGraph targetGraph=TargetGraphFactory.newInstance(nodes);
+  PartialGraph partialGraph=PartialGraphFactory.newInstance(targetGraph,targets);
   auditInputCommand.printJsonInputs(partialGraph);
   assertEquals(EXPECTED_JSON,console.getTextWrittenToStdOut());
   assertEquals("",console.getTextWrittenToStdErr());
