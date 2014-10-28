@@ -1,23 +1,23 @@
 {
   Preconditions.checkNotNull(device);
   try (TraceEventLogger ignored1=TraceEventLogger.start(eventBus,"install_secondary_dexes")){
-    device.createForward(AGENT_PORT,AGENT_PORT);
+    device.createForward(agentPort,agentPort);
     try {
       for (      String hash : hashesToInstall) {
         String basename=hashToBasename.get(hash);
         try (TraceEventLogger ignored2=TraceEventLogger.start(eventBus,"install_secondary_dex",ImmutableMap.of("basename",basename))){
-          installSecondaryDex(device,AGENT_PORT,hash,exopackageInfo.dexDirectory.resolve(basename));
+          installSecondaryDex(device,agentPort,hash,exopackageInfo.dexDirectory.resolve(basename));
         }
        }
       try (TraceEventLogger ignored2=TraceEventLogger.start(eventBus,"install_secondary_dex_metadata")){
         try (NamedTemporaryFile temp=new NamedTemporaryFile("metadata","tmp")){
           com.google.common.io.Files.write(com.google.common.io.Files.toString(exopackageInfo.dexMetadata.toFile(),Charsets.UTF_8).replaceAll("secondary-(\\d+)\\.dex\\.jar (\\p{XDigit}{40}) ","secondary-$2.dex.jar $2 "),temp.get().toFile(),Charsets.UTF_8);
-          installFile(device,AGENT_PORT,SECONDARY_DEX_DIR.resolve("metadata.txt"),temp.get());
+          installFile(device,agentPort,SECONDARY_DEX_DIR.resolve("metadata.txt"),temp.get());
         }
        }
      }
   finally {
-      device.removeForward(AGENT_PORT,AGENT_PORT);
+      device.removeForward(agentPort,agentPort);
     }
   }
  }

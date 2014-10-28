@@ -1,10 +1,13 @@
 {
-  Preconditions.checkState(device == null,"ExopackageInstaller.install called twice.");
   eventBus.post(InstallEvent.started(apkRule.getBuildTarget()));
   boolean success=adbHelper.adbCall(new AdbHelper.AdbCallable(){
     @Override public boolean call(    IDevice device) throws Exception {
-      ExopackageInstaller.this.device=device;
-      return doInstall();
+      try {
+        return new SingleDeviceInstaller(device,nextAgentPort.getAndIncrement()).doInstall();
+      }
+ catch (      Exception e) {
+        throw new RuntimeException("Failed to install exopackage on " + device,e);
+      }
     }
     @Override public String toString(){
       return "install exopackage";
