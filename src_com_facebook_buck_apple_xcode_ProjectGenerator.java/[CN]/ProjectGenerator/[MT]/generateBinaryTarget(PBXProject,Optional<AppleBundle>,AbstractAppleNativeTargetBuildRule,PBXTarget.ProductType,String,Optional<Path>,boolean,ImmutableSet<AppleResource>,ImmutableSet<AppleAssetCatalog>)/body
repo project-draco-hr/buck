@@ -1,7 +1,7 @@
 {
   BuildTarget buildTarget=bundle.isPresent() ? bundle.get().getBuildTarget() : appleBuildRule.getBuildTarget();
   String productName=getProductName(buildTarget);
-  NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,resolver,buildTarget);
+  NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(executionContext,pathRelativizer,resolver,buildTarget);
   mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(appleBuildRule.getGid()).setShouldGenerateCopyHeadersPhase(!appleBuildRule.getUseBuckHeaderMaps()).setSources(appleBuildRule.getSrcs(),appleBuildRule.getPerFileFlags()).setResources(resources);
   Path assetCatalogBuildPhaseScript;
   if (!assetCatalogs.isEmpty()) {
@@ -21,6 +21,14 @@
     mutator.setFrameworks(frameworksBuilder.build());
     mutator.setArchives(collectRecursiveLibraryDependencies(appleBuildRule));
   }
+  ImmutableList.Builder<Genrule> preScriptPhases=ImmutableList.builder();
+  ImmutableList.Builder<Genrule> postScriptPhases=ImmutableList.builder();
+  if (bundle.isPresent()) {
+    collectBuildScriptDependencies(bundle.get().getDeps(),preScriptPhases,postScriptPhases);
+  }
+  collectBuildScriptDependencies(appleBuildRule.getDeps(),preScriptPhases,postScriptPhases);
+  mutator.setPreBuildRunScriptPhases(preScriptPhases.build());
+  mutator.setPostBuildRunScriptPhases(postScriptPhases.build());
   NewNativeTargetProjectMutator.Result targetBuilderResult=mutator.buildTargetAndAddToProject(project);
   PBXNativeTarget target=targetBuilderResult.target;
   PBXGroup targetGroup=targetBuilderResult.targetGroup;
@@ -51,10 +59,6 @@
   ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
   appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterators.concat(collectRecursiveHeaderSearchPaths(appleBuildRule).iterator(),collectRecursiveHeaderMaps(appleBuildRule).iterator()))).put("USER_HEADER_SEARCH_PATHS",Joiner.on(' ').join(collectUserHeaderMaps(appleBuildRule))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(appleBuildRule))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(appleBuildRule)));
   setTargetBuildConfigurations(buildTarget,target,targetGroup,appleBuildRule.getConfigurations(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
-  if (bundle.isPresent()) {
-    addRunScriptBuildPhasesForDependencies(bundle.get(),target);
-  }
-  addRunScriptBuildPhasesForDependencies(appleBuildRule,target);
   if (appleBuildRule.getUseBuckHeaderMaps()) {
     addHeaderMapsForHeaders(appleBuildRule,appleBuildRule.getHeaderPathPrefix(),appleBuildRule.getSrcs(),appleBuildRule.getPerFileFlags());
   }

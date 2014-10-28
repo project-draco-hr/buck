@@ -1,0 +1,10 @@
+{
+  BuildTarget testBuildTarget=BuildTarget.builder("//foo","library").build();
+  NewNativeTargetProjectMutator mutator=mutatorWithCommonDefaults(testBuildTarget);
+  Genrule genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTarget.builder("//foo","script").build()).setSrcs(ImmutableList.<SourcePath>of(new TestSourcePath("script/input.png"))).setBash("echo \"hello world!\"").setOut("helloworld.txt").build(buildRuleResolver);
+  mutator.setPostBuildRunScriptPhases(ImmutableList.of(genrule));
+  NewNativeTargetProjectMutator.Result result=mutator.buildTargetAndAddToProject(generatedProject);
+  PBXShellScriptBuildPhase phase=getSingletonPhaseByType(result.target,PBXShellScriptBuildPhase.class);
+  assertEquals("Should set input paths correctly","../script/input.png",Iterables.getOnlyElement(phase.getInputPaths()));
+  assertEquals("should set script correctly","/bin/bash -e -c 'echo \"hello world!\"'",phase.getShellScript());
+}
