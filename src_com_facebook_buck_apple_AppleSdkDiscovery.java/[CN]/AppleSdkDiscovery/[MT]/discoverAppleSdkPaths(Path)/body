@@ -1,0 +1,24 @@
+{
+  LOG.debug("Searching for Xcode platforms under %s",xcodeDir);
+  ImmutableMap.Builder<String,AppleSdkPaths> appleSdkPathsBuilder=ImmutableMap.builder();
+  try (DirectoryStream<Path> platformStream=Files.newDirectoryStream(xcodeDir.resolve("Platforms"),"*.platform")){
+    for (    Path platformDir : platformStream) {
+      LOG.debug("Searching for Xcode SDKs under %s",platformDir);
+      try (DirectoryStream<Path> sdkStream=Files.newDirectoryStream(platformDir.resolve("Developer/SDKs"),"*.sdk")){
+        for (        Path sdkDir : sdkStream) {
+          LOG.debug("Fetching SDK name for %s",sdkDir);
+          if (Files.isSymbolicLink(sdkDir)) {
+            continue;
+          }
+          Optional<String> sdkName=getSdkNameForPath(sdkDir);
+          if (sdkName.isPresent()) {
+            LOG.debug("Found SDK name %s",sdkName.get());
+            ImmutableAppleSdkPaths xcodePaths=ImmutableAppleSdkPaths.builder().toolchainPath(xcodeDir.resolve("Toolchains/XcodeDefault.xctoolchain")).platformDeveloperPath(platformDir.resolve("Developer")).sdkPath(sdkDir).build();
+            appleSdkPathsBuilder.put(sdkName.get(),xcodePaths);
+          }
+        }
+      }
+     }
+  }
+   return appleSdkPathsBuilder.build();
+}
