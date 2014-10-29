@@ -6,23 +6,14 @@
  else {
     getBuckEventBus().post(BuildEvent.started(emptyTargetsList));
   }
-  PartialGraph partialGraph=PartialGraph.createPartialGraph(new Predicate<TargetNode<?>>(){
+  TargetGraph targetGraph=getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(new TargetNodePredicateSpec(new Predicate<TargetNode<?>>(){
     @Override public boolean apply(    TargetNode<?> input){
       return input.getType().isTestRule();
     }
   }
-,getProjectFilesystem(),options.getDefaultIncludes(),getParser(),getBuckEventBus(),console,environment,false);
-  final ActionGraph graph=partialGraph.getTargetGraph().getActionGraph(getBuckEventBus());
-  Iterable<TestRule> testRules=Iterables.transform(partialGraph.getTargets(),new Function<BuildTarget,TestRule>(){
-    @Override public TestRule apply(    BuildTarget buildTarget){
-      BuildRule test=graph.findBuildRuleByTarget(buildTarget);
-      if (test instanceof TestRule) {
-        return (TestRule)test;
-      }
-      throw new RuntimeException("Unexpectedly asked to find a test rule, but could not: " + buildTarget);
-    }
-  }
-);
+,getProjectFilesystem().getIgnorePaths())),options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
+  ActionGraph graph=targetGraph.getActionGraph(getBuckEventBus());
+  Iterable<TestRule> testRules=Iterables.filter(graph.getNodes(),TestRule.class);
   testRules=filterTestRules(options,testRules);
   if (options.isDryRun()) {
     printMatchingTestRules(console,testRules);
