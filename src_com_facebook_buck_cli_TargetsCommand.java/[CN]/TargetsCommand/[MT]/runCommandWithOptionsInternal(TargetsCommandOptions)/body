@@ -21,13 +21,13 @@
     console.printBuildFailureWithoutStacktrace(e);
     return 1;
   }
-  PartialGraph graph;
+  TargetGraph graph;
   try {
     if (matchingBuildTargets.isEmpty()) {
-      graph=PartialGraph.createFullGraph(getProjectFilesystem(),options.getDefaultIncludes(),getParser(),getBuckEventBus(),console,environment,false);
+      graph=getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(new TargetNodePredicateSpec(Predicates.<TargetNode<?>>alwaysTrue(),getProjectFilesystem().getIgnorePaths())),options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
     }
  else {
-      graph=PartialGraph.createPartialGraph(matchingBuildTargets,options.getDefaultIncludes(),getParser(),getBuckEventBus(),console,environment);
+      graph=getParser().buildTargetGraphForBuildTargets(matchingBuildTargets,options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
     }
   }
  catch (  BuildTargetException|BuildFileParseException e) {
@@ -40,7 +40,7 @@
     matchingBuildRules=ImmutableSortedMap.of();
   }
  else {
-    matchingBuildRules=getMatchingBuildRules(graph.getTargetGraph().getActionGraph(getBuckEventBus()),new TargetsCommandPredicate(graph,buildRuleTypesBuilder.build(),referencedFiles.relativePathsUnderProjectRoot,matchingBuildTargets,getBuckEventBus()));
+    matchingBuildRules=getMatchingBuildRules(graph.getActionGraph(getBuckEventBus()),new TargetsCommandPredicate(graph,buildRuleTypesBuilder.build(),referencedFiles.relativePathsUnderProjectRoot,matchingBuildTargets.isEmpty() ? Optional.<ImmutableSet<BuildTarget>>absent() : Optional.of(matchingBuildTargets),getBuckEventBus()));
   }
   if (options.getPrintJson()) {
     try {
