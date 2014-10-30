@@ -4,21 +4,22 @@
     console.printBuildFailure("Please specify at least one build target.");
     return 1;
   }
-  PartialGraph partialGraph;
-  try {
-    partialGraph=PartialGraph.createPartialGraph(new Predicate<TargetNode<?>>(){
-      @Override public boolean apply(      TargetNode<?> input){
-        return fullyQualifiedBuildTargets.contains(input.getBuildTarget().getFullyQualifiedName());
-      }
+  ImmutableSet<BuildTarget> targets=FluentIterable.from(options.getArgumentsFormattedAsBuildTargets()).transform(new Function<String,BuildTarget>(){
+    @Override public BuildTarget apply(    String input){
+      return getParser().getBuildTargetParser().parse(input,ParseContext.fullyQualified());
     }
-,getProjectFilesystem(),options.getDefaultIncludes(),getParser(),getBuckEventBus(),console,environment,false);
+  }
+).toSet();
+  TargetGraph graph;
+  try {
+    graph=getParser().buildTargetGraphForBuildTargets(targets,options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
   }
  catch (  BuildTargetException|BuildFileParseException e) {
     console.printBuildFailureWithoutStacktrace(e);
     return 1;
   }
   if (options.shouldGenerateJsonOutput()) {
-    return printJsonInputs(partialGraph);
+    return printJsonInputs(graph);
   }
-  return printInputs(partialGraph);
+  return printInputs(graph);
 }
