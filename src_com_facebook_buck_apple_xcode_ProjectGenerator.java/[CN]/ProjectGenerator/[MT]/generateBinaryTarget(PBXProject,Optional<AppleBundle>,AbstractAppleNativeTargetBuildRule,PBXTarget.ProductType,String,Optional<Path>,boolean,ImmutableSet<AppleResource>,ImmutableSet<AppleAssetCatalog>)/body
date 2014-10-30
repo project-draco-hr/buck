@@ -1,8 +1,16 @@
 {
+  Optional<String> targetGid=appleBuildRule.getGid();
+  if (targetGid.isPresent()) {
+    String conflictingTargetName=gidsToTargetNames.get(targetGid.get());
+    if (conflictingTargetName != null) {
+      throw new HumanReadableException("Targets %s and %s have the same hardcoded GID (%s)",appleBuildRule.getFullyQualifiedName(),conflictingTargetName,targetGid.get());
+    }
+    gidsToTargetNames.put(targetGid.get(),appleBuildRule.getFullyQualifiedName());
+  }
   BuildTarget buildTarget=bundle.isPresent() ? bundle.get().getBuildTarget() : appleBuildRule.getBuildTarget();
   String productName=getProductName(buildTarget);
   NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(executionContext,pathRelativizer,resolver,buildTarget);
-  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(appleBuildRule.getGid()).setShouldGenerateCopyHeadersPhase(!appleBuildRule.getUseBuckHeaderMaps()).setSources(appleBuildRule.getSrcs(),appleBuildRule.getPerFileFlags()).setResources(resources);
+  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(targetGid).setShouldGenerateCopyHeadersPhase(!appleBuildRule.getUseBuckHeaderMaps()).setSources(appleBuildRule.getSrcs(),appleBuildRule.getPerFileFlags()).setResources(resources);
   Path assetCatalogBuildPhaseScript;
   if (!assetCatalogs.isEmpty()) {
     if (PATH_OVERRIDE_FOR_ASSET_CATALOG_BUILD_PHASE_SCRIPT != null) {

@@ -1,21 +1,17 @@
 {
   Preconditions.checkState(isBuiltByCurrentProject(rule.getBuildTarget()),"should not generate rule if it shouldn't be built by current project");
   Optional<PBXTarget> result;
-  Optional<AbstractAppleNativeTargetBuildRule> nativeTargetRule;
   if (rule.getType().equals(AppleLibraryDescription.TYPE)) {
     AppleLibrary appleLibrary=(AppleLibrary)rule;
     result=Optional.<PBXTarget>of(generateAppleLibraryTarget(project,appleLibrary));
-    nativeTargetRule=Optional.<AbstractAppleNativeTargetBuildRule>of(appleLibrary);
   }
  else   if (rule.getType().equals(AppleBinaryDescription.TYPE)) {
     AppleBinary appleBinary=(AppleBinary)rule;
     result=Optional.<PBXTarget>of(generateAppleBinaryTarget(project,appleBinary));
-    nativeTargetRule=Optional.<AbstractAppleNativeTargetBuildRule>of(appleBinary);
   }
  else   if (rule.getType().equals(AppleBundleDescription.TYPE)) {
     AppleBundle bundle=(AppleBundle)rule;
     result=Optional.<PBXTarget>of(generateAppleBundleTarget(project,bundle));
-    nativeTargetRule=Optional.of((AbstractAppleNativeTargetBuildRule)bundle.getBinary());
   }
  else   if (rule.getType().equals(AppleTestDescription.TYPE)) {
     AppleTest test=(AppleTest)rule;
@@ -23,7 +19,6 @@
       AppleBundle bundle=(AppleBundle)test.getTestBundle();
       if (bundle.getExtensionValue().isPresent() && AppleBuildRules.isXcodeTargetTestBundleExtension(bundle.getExtensionValue().get())) {
         result=Optional.<PBXTarget>of(generateAppleBundleTarget(project,bundle));
-        nativeTargetRule=Optional.of((AbstractAppleNativeTargetBuildRule)bundle.getBinary());
       }
  else {
         throw new HumanReadableException("Incorrect extension: " + bundle.getExtensionString());
@@ -35,13 +30,6 @@
   }
  else {
     result=Optional.absent();
-    nativeTargetRule=Optional.absent();
-  }
-  if (result.isPresent() && nativeTargetRule.isPresent()) {
-    Optional<String> gid=nativeTargetRule.get().getGid();
-    if (gid.isPresent()) {
-      nativeTargetGIDs.add(gid.get());
-    }
   }
   return result;
 }
