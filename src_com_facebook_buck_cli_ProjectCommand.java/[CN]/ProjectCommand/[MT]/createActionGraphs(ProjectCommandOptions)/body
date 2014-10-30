@@ -85,7 +85,25 @@ return input.getType().isTestRule();
 }
 }
 ;
-testGraph=Optional.of(getAssociatedTargetGraph(mainGraph,mainRoots,fullGraph,testPredicate,AssociatedRulePredicates.associatedTestsRules(),options));
+AssociatedRulePredicate associatedTestsPredicate=new AssociatedRulePredicate(){
+@Override public boolean isMatch(BuildRule buildRule,ActionGraph actionGraph){
+TestRule testRule;
+if (buildRule instanceof TestRule) {
+testRule=(TestRule)buildRule;
+}
+ else {
+return false;
+}
+for (BuildRule buildRuleUnderTest : testRule.getSourceUnderTest()) {
+if (actionGraph.findBuildRuleByTarget(buildRuleUnderTest.getBuildTarget()) != null) {
+return true;
+}
+}
+return false;
+}
+}
+;
+testGraph=Optional.of(getAssociatedTargetGraph(mainGraph,mainRoots,fullGraph,testPredicate,associatedTestsPredicate,options));
 }
 TargetGraph projectGraph=getAssociatedTargetGraph(testGraph.or(mainGraph),ImmutableSet.<BuildTarget>of(),fullGraph,projectPredicate,associatedProjectPredicate,options);
 return new ActionGraphs(mainGraph.getActionGraph(getBuckEventBus()),testGraph.transform(new Function<TargetGraph,ActionGraph>(){
