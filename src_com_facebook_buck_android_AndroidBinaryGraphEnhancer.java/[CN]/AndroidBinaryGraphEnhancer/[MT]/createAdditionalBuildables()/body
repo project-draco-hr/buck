@@ -57,16 +57,23 @@
  else {
     enhancedDeps.addAll(getTargetsAsRules(packageableCollection.javaLibrariesToDex));
   }
+  Optional<CopyNativeLibraries> copyNativeLibraries=Optional.absent();
+  if (!packageableCollection.nativeLibsDirectories.isEmpty()) {
+    BuildRuleParams paramsForCopyNativeLibraries=buildRuleParams.copyWithChanges(BuildRuleType.COPY_NATIVE_LIBS,createBuildTargetWithFlavor(COPY_NATIVE_LIBS_FLAVOR),getTargetsAsRules(packageableCollection.nativeLibsTargets),ImmutableSortedSet.<BuildRule>of());
+    copyNativeLibraries=Optional.of(new CopyNativeLibraries(paramsForCopyNativeLibraries,pathResolver,packageableCollection.nativeLibsDirectories,cpuFilters));
+    ruleResolver.addToIndex(copyNativeLibraries.get());
+    enhancedDeps.add(copyNativeLibraries.get());
+  }
   ImmutableSortedSet<BuildRule> finalDeps;
   Optional<ComputeExopackageDepsAbi> computeExopackageDepsAbi=Optional.absent();
   if (!exopackageModes.isEmpty()) {
     BuildRuleParams paramsForComputeExopackageAbi=buildRuleParams.copyWithChanges(BuildRuleType.EXOPACKAGE_DEPS_ABI,createBuildTargetWithFlavor(CALCULATE_ABI_FLAVOR),enhancedDeps.build(),ImmutableSortedSet.<BuildRule>of());
-    computeExopackageDepsAbi=Optional.of(new ComputeExopackageDepsAbi(paramsForComputeExopackageAbi,pathResolver,packageableCollection,aaptPackageResources,packageStringAssets,preDexMerge,keystore));
+    computeExopackageDepsAbi=Optional.of(new ComputeExopackageDepsAbi(paramsForComputeExopackageAbi,pathResolver,packageableCollection,aaptPackageResources,copyNativeLibraries,packageStringAssets,preDexMerge,keystore));
     ruleResolver.addToIndex(computeExopackageDepsAbi.get());
     finalDeps=ImmutableSortedSet.<BuildRule>of(computeExopackageDepsAbi.get());
   }
  else {
     finalDeps=enhancedDeps.build();
   }
-  return new EnhancementResult(filteredResourcesProvider,packageableCollection,aaptPackageResources,packageStringAssets,preDexMerge,computeExopackageDepsAbi,ImmutableSet.<Path>builder().addAll(packageableCollection.classpathEntriesToDex).addAll(buildConfigJarFiles).build(),finalDeps);
+  return new EnhancementResult(filteredResourcesProvider,packageableCollection,aaptPackageResources,copyNativeLibraries,packageStringAssets,preDexMerge,computeExopackageDepsAbi,ImmutableSet.<Path>builder().addAll(packageableCollection.classpathEntriesToDex).addAll(buildConfigJarFiles).build(),finalDeps);
 }
