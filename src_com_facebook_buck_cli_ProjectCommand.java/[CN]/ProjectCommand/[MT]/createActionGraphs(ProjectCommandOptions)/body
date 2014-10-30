@@ -74,7 +74,10 @@ break;
 default :
 throw new IllegalStateException("'ide' should always be of type 'INTELLIJ' or 'XCODE'");
 }
-Optional<ImmutableSet<BuildTarget>> buildTargets=getRootsFromOptions(options);
+TargetGraph fullGraph=getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(new TargetNodePredicateSpec(Predicates.<TargetNode<?>>alwaysTrue(),getProjectFilesystem().getIgnorePaths())),options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
+ImmutableSet<BuildTarget> mainRoots=getRootsFromOptionsWithPredicate(options,projectRootsPredicate);
+TargetGraph mainGraph=getParser().buildTargetGraphForBuildTargets(mainRoots,options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
+Optional<TargetGraph> testGraph=Optional.absent();
 if (options.isWithTests()) {
 Predicate<TargetNode<?>> testPredicate=new Predicate<TargetNode<?>>(){
 @Override public boolean apply(TargetNode<?> input){
@@ -82,11 +85,13 @@ return input.getType().isTestRule();
 }
 }
 ;
-ImmutableList<PartialGraph> partialGraphs=createPartialGraphs(buildTargets,Optional.of(projectRootsPredicate),ImmutableList.of(testPredicate,projectPredicate),ImmutableList.of(AssociatedRulePredicates.associatedTestsRules(),associatedProjectPredicate),getProjectFilesystem(),options.getDefaultIncludes(),getParser(),getBuckEventBus(),console,environment,options.getEnableProfiling());
-return new ActionGraphs(partialGraphs.get(0).getTargetGraph().getActionGraph(getBuckEventBus()),Optional.of(partialGraphs.get(1).getTargetGraph().getActionGraph(getBuckEventBus())),partialGraphs.get(2).getTargetGraph().getActionGraph(getBuckEventBus()));
+testGraph=Optional.of(getAssociatedTargetGraph(mainGraph,mainRoots,fullGraph,testPredicate,AssociatedRulePredicates.associatedTestsRules(),options));
 }
- else {
-ImmutableList<PartialGraph> partialGraphs=createPartialGraphs(buildTargets,Optional.of(projectRootsPredicate),ImmutableList.of(projectPredicate),ImmutableList.of(associatedProjectPredicate),getProjectFilesystem(),options.getDefaultIncludes(),getParser(),getBuckEventBus(),console,environment,options.getEnableProfiling());
-return new ActionGraphs(partialGraphs.get(0).getTargetGraph().getActionGraph(getBuckEventBus()),Optional.<ActionGraph>absent(),partialGraphs.get(1).getTargetGraph().getActionGraph(getBuckEventBus()));
+TargetGraph projectGraph=getAssociatedTargetGraph(testGraph.or(mainGraph),ImmutableSet.<BuildTarget>of(),fullGraph,projectPredicate,associatedProjectPredicate,options);
+return new ActionGraphs(mainGraph.getActionGraph(getBuckEventBus()),testGraph.transform(new Function<TargetGraph,ActionGraph>(){
+@Override public ActionGraph apply(TargetGraph input){
+return input.getActionGraph(getBuckEventBus());
 }
+}
+),projectGraph.getActionGraph(getBuckEventBus()));
 }
