@@ -15,14 +15,14 @@
 {
     ImmutableSet.Builder<BuildRule> orderedTestBuildRulesBuilder=ImmutableSet.builder();
     ImmutableSet.Builder<BuildRule> orderedTestBundleRulesBuilder=ImmutableSet.builder();
-    getOrderedTestRules(projectGraph,sourceRuleToTestRules,orderedBuildRules,extraTestBundleRules,orderedTestBuildRulesBuilder,orderedTestBundleRulesBuilder);
+    getOrderedTestRules(projectGraph.getActionGraph(executionContext.getBuckEventBus()),sourceRuleToTestRules,orderedBuildRules,extraTestBundleRules,orderedTestBuildRulesBuilder,orderedTestBundleRulesBuilder);
     orderedTestBuildRules=orderedTestBuildRulesBuilder.build();
     orderedTestBundleRules=orderedTestBundleRulesBuilder.build();
   }
   Sets.SetView<BuildRule> rulesInRequiredProjects=Sets.union(orderedBuildRules,orderedTestBuildRules);
   ImmutableMap.Builder<BuildTarget,PBXTarget> buildTargetToPbxTargetMapBuilder=ImmutableMap.builder();
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
-  for (  XcodeProjectConfig xcodeProjectConfig : Iterables.filter(projectGraph.getNodes(),XcodeProjectConfig.class)) {
+  for (  XcodeProjectConfig xcodeProjectConfig : Iterables.filter(projectGraph.getActionGraph(executionContext.getBuckEventBus()).getNodes(),XcodeProjectConfig.class)) {
     if (Sets.intersection(rulesInRequiredProjects,xcodeProjectConfig.getRules()).isEmpty()) {
       continue;
     }
@@ -34,7 +34,7 @@
     ProjectGenerator generator=projectGenerators.get(xcodeProjectConfig);
     if (generator == null) {
       LOG.debug("Generating project for rule %s",xcodeProjectConfig);
-      generator=new ProjectGenerator(resolver,projectGraph.getNodes(),initialTargets,projectFilesystem,executionContext,xcodeProjectConfig.getBuildTarget().getBasePath(),xcodeProjectConfig.getProjectName(),projectGeneratorOptions);
+      generator=new ProjectGenerator(resolver,projectGraph.getActionGraph(executionContext.getBuckEventBus()).getNodes(),initialTargets,projectFilesystem,executionContext,xcodeProjectConfig.getBuildTarget().getBasePath(),xcodeProjectConfig.getProjectName(),projectGeneratorOptions);
       generator.createXcodeProjects();
       projectGenerators.put(xcodeProjectConfig,generator);
     }
