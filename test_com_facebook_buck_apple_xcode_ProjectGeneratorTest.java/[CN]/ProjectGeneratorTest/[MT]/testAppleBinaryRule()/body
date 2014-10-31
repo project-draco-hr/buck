@@ -1,20 +1,9 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  BuildRule depRule=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dep").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,resolver);
-  resolver.addToIndex(depRule);
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","binary").build()).setDeps(ImmutableSortedSet.of(depRule)).setType(AppleBinaryDescription.TYPE).build();
-  AppleNativeTargetDescriptionArg arg=appleBinaryDescription.createUnpopulatedConstructorArg();
-  arg.configs=Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.<XcodeRuleConfigurationLayer>of())));
-  arg.srcs=Optional.of(ImmutableList.of(AppleSource.ofSourcePathWithFlags(new Pair<SourcePath,String>(new TestSourcePath("foo.m"),"-foo")),AppleSource.ofSourcePath(new TestSourcePath("foo.h"))));
-  arg.frameworks=Optional.of(ImmutableSortedSet.of("$SDKROOT/Foo.framework"));
-  arg.deps=Optional.absent();
-  arg.gid=Optional.absent();
-  arg.headerPathPrefix=Optional.absent();
-  arg.useBuckHeaderMaps=Optional.absent();
-  arg.prefixHeader=Optional.absent();
-  BuildRule rule=appleBinaryDescription.createBuildRule(params,resolver,arg);
-  resolver.addToIndex(rule);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(rule),ImmutableSet.of(rule.getBuildTarget()));
+  BuildTarget depTarget=BuildTarget.builder("//dep","dep").build();
+  TargetNode<?> depNode=AppleLibraryBuilder.createBuilder(depTarget).build();
+  BuildTarget binaryTarget=BuildTarget.builder("//foo","binary").build();
+  TargetNode<?> binaryNode=AppleBinaryBuilder.createBuilder(binaryTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.<XcodeRuleConfigurationLayer>of())))).setSrcs(Optional.of(ImmutableList.of(AppleSource.ofSourcePathWithFlags(new Pair<SourcePath,String>(new TestSourcePath("foo.m"),"-foo")),AppleSource.ofSourcePath(new TestSourcePath("foo.h"))))).setFrameworks(Optional.of(ImmutableSortedSet.of("$SDKROOT/Foo.framework"))).setDeps(Optional.of(ImmutableSortedSet.of(depTarget))).setGid(Optional.<String>absent()).setHeaderPathPrefix(Optional.<String>absent()).setUseBuckHeaderMaps(Optional.<Boolean>absent()).setPrefixHeader(Optional.<SourcePath>absent()).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(depNode,binaryNode),ImmutableSet.of(binaryTarget));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:binary");
   assertHasConfigurations(target,"Debug");

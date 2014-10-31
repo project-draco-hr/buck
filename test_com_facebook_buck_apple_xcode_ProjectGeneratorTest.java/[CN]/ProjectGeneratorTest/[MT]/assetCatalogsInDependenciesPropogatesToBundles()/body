@@ -1,22 +1,15 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  BuildRule assetCatalogRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","asset_catalog").build(),resolver,ImmutableSortedSet.<BuildRule>of(),new AppleAssetCatalogDescription(),new Function<AppleAssetCatalogDescription.Arg,AppleAssetCatalogDescription.Arg>(){
-    @Override public AppleAssetCatalogDescription.Arg apply(    AppleAssetCatalogDescription.Arg input){
-      input.dirs=ImmutableSet.of(Paths.get("AssetCatalog.xcassets"));
-      return input;
-    }
-  }
-);
-  resolver.addToIndex(assetCatalogRule);
-  BuildRule libraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(assetCatalogRule),appleLibraryDescription,resolver);
-  resolver.addToIndex(libraryRule);
-  BuildRule bundleLibraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bundlelib").build(),ImmutableSortedSet.of(libraryRule),appleLibraryDescription,resolver);
-  resolver.addToIndex(bundleLibraryRule);
-  BuildRule bundleRule=createAppleBundleBuildRule(BuildTarget.builder("//foo","bundle").build(),resolver,appleBundleDescription,bundleLibraryRule,AppleBundleExtension.BUNDLE);
-  resolver.addToIndex(bundleRule);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(assetCatalogRule,libraryRule,bundleRule),ImmutableSet.of(bundleRule.getBuildTarget()));
+  BuildTarget assetCatalogTarget=BuildTarget.builder("//foo","asset_catalog").build();
+  TargetNode<?> assetCatalogNode=AppleAssetCatalogBuilder.createBuilder(assetCatalogTarget).setDirs(ImmutableSet.of(Paths.get("AssetCatalog.xcassets"))).build();
+  BuildTarget libraryTarget=BuildTarget.builder("//foo","lib").build();
+  TargetNode<?> libraryNode=AppleLibraryBuilder.createBuilder(libraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(assetCatalogTarget))).build();
+  BuildTarget bundleLibraryTarget=BuildTarget.builder("//foo","bundlelib").build();
+  TargetNode<?> bundleLibraryNode=AppleLibraryBuilder.createBuilder(bundleLibraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(libraryTarget))).build();
+  BuildTarget bundleTarget=BuildTarget.builder("//foo","bundle").build();
+  TargetNode<?> bundleNode=AppleBundleBuilder.createBuilder(bundleTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.BUNDLE)).setBinary(bundleLibraryTarget).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(assetCatalogNode,libraryNode,bundleLibraryNode,bundleNode),ImmutableSet.of(bundleTarget));
   projectGenerator.createXcodeProjects();
   PBXProject generatedProject=projectGenerator.getGeneratedProject();
-  PBXTarget bundleTarget=assertTargetExistsAndReturnTarget(generatedProject,"//foo:bundle");
-  assertTrue(hasShellScriptPhaseToCompileAssetCatalogs(bundleTarget));
+  PBXTarget target=assertTargetExistsAndReturnTarget(generatedProject,"//foo:bundle");
+  assertTrue(hasShellScriptPhaseToCompileAssetCatalogs(target));
 }

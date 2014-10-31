@@ -1,15 +1,11 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
   SourcePath xcconfigFile=new PathSourcePath(Paths.get("Test.xcconfig"));
-  projectFilesystem.writeContentsToPath("",new SourcePathResolver(resolver).getPath(xcconfigFile));
-  BuildRuleParams dynamicLibraryParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build()).setType(AppleLibraryDescription.TYPE).build();
-  AppleNativeTargetDescriptionArg dynamicLibraryArg=createDescriptionArgWithDefaults(appleLibraryDescription);
-  dynamicLibraryArg.configs=Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.of(new XcodeRuleConfigurationLayer(xcconfigFile),new XcodeRuleConfigurationLayer(xcconfigFile)))));
-  BuildRule dynamicLibraryDep=appleLibraryDescription.createBuildRule(dynamicLibraryParams,resolver,dynamicLibraryArg);
-  resolver.addToIndex(dynamicLibraryDep);
-  BuildRule rule=createAppleBundleBuildRule(BuildTarget.builder("//foo","bundle").build(),resolver,appleBundleDescription,dynamicLibraryDep,AppleBundleExtension.FRAMEWORK);
-  resolver.addToIndex(rule);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSortedSet.of(rule),ImmutableSet.of(rule.getBuildTarget()),ImmutableSet.of(ProjectGenerator.Option.REFERENCE_EXISTING_XCCONFIGS));
+  projectFilesystem.writeContentsToPath("",new SourcePathResolver(new BuildRuleResolver()).getPath(xcconfigFile));
+  BuildTarget dynamicLibraryTarget=BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build();
+  TargetNode<?> dynamicLibraryNode=AppleLibraryBuilder.createBuilder(dynamicLibraryTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.of(new XcodeRuleConfigurationLayer(xcconfigFile),new XcodeRuleConfigurationLayer(xcconfigFile)))))).build();
+  BuildTarget buildTarget=BuildTarget.builder("//foo","bundle").build();
+  TargetNode<?> node=AppleBundleBuilder.createBuilder(buildTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK)).setBinary(dynamicLibraryTarget).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(dynamicLibraryNode,node),ImmutableSet.of(buildTarget),ImmutableSet.of(ProjectGenerator.Option.REFERENCE_EXISTING_XCCONFIGS));
   projectGenerator.createXcodeProjects();
   PBXProject project=projectGenerator.getGeneratedProject();
   PBXTarget target=assertTargetExistsAndReturnTarget(project,"//foo:bundle");

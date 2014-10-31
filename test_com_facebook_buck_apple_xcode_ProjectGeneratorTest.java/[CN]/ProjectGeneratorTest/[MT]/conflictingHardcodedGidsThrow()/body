@@ -1,17 +1,10 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  BuildRuleParams fooParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).setType(AppleLibraryDescription.TYPE).build();
-  AppleNativeTargetDescriptionArg fooArg=createDescriptionArgWithDefaults(appleLibraryDescription);
-  fooArg.gid=Optional.of("E66DC04E36F2D8BE00000000");
-  BuildRule fooRule=appleLibraryDescription.createBuildRule(fooParams,resolver,fooArg);
-  resolver.addToIndex(fooRule);
-  BuildRuleParams barParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//bar","lib").build()).setType(AppleLibraryDescription.TYPE).build();
-  AppleNativeTargetDescriptionArg barArg=createDescriptionArgWithDefaults(appleLibraryDescription);
-  barArg.gid=Optional.of("E66DC04E36F2D8BE00000000");
-  BuildRule barRule=appleLibraryDescription.createBuildRule(barParams,resolver,barArg);
-  resolver.addToIndex(barRule);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(fooRule,barRule),ImmutableSet.of(fooRule.getBuildTarget(),barRule.getBuildTarget()));
+  BuildTarget fooTarget=BuildTarget.builder("//foo","lib").build();
+  TargetNode<?> fooNode=AppleLibraryBuilder.createBuilder(fooTarget).setGid(Optional.of("E66DC04E36F2D8BE00000000")).build();
+  BuildTarget barTarget=BuildTarget.builder("//bar","lib").build();
+  TargetNode<?> barNode=AppleLibraryBuilder.createBuilder(barTarget).setGid(Optional.of("E66DC04E36F2D8BE00000000")).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(fooNode,barNode),ImmutableSet.of(fooTarget,barTarget));
   thrown.expect(HumanReadableException.class);
-  thrown.expectMessage("Targets //bar:lib and //foo:lib have the same hardcoded GID (E66DC04E36F2D8BE00000000)");
+  thrown.expectMessage("Targets //foo:lib and //bar:lib have the same hardcoded GID (E66DC04E36F2D8BE00000000)");
   projectGenerator.createXcodeProjects();
 }

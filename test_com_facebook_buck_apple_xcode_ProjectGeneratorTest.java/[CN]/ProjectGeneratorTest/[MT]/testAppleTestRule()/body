@@ -1,19 +1,11 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  BuildRule dynamicLibraryDep=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,resolver);
-  resolver.addToIndex(dynamicLibraryDep);
-  BuildRule xctestRule=createAppleBundleBuildRule(BuildTarget.builder("//foo","xctest").build(),resolver,appleBundleDescription,dynamicLibraryDep,AppleBundleExtension.XCTEST);
-  resolver.addToIndex(xctestRule);
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","test").build()).setDeps(ImmutableSortedSet.of(xctestRule)).setType(AppleTestDescription.TYPE).build();
-  AppleTestDescription.Arg arg=appleTestDescription.createUnpopulatedConstructorArg();
-  arg.testBundle=xctestRule.getBuildTarget();
-  arg.contacts=Optional.of(ImmutableSortedSet.<String>of());
-  arg.labels=Optional.of(ImmutableSortedSet.<Label>of());
-  arg.deps=Optional.of(ImmutableSortedSet.of(xctestRule.getBuildTarget()));
-  arg.sourceUnderTest=Optional.of(ImmutableSortedSet.<BuildTarget>of());
-  BuildRule rule=appleTestDescription.createBuildRule(params,resolver,arg);
-  resolver.addToIndex(rule);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(rule),ImmutableSet.of(rule.getBuildTarget()));
+  BuildTarget dynamicLibraryTarget=BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build();
+  TargetNode<?> dynamicLibraryNode=AppleLibraryBuilder.createBuilder(dynamicLibraryTarget).build();
+  BuildTarget xctestTarget=BuildTarget.builder("//foo","xctest").build();
+  TargetNode<?> xctestNode=AppleBundleBuilder.createBuilder(xctestTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.XCTEST)).setBinary(dynamicLibraryTarget).build();
+  BuildTarget testTarget=BuildTarget.builder("//foo","test").build();
+  TargetNode<?> testNode=AppleTestBuilder.createBuilder(testTarget).setTestBundle(xctestTarget).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(dynamicLibraryNode,xctestNode,testNode),ImmutableSet.of(testTarget));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:xctest");
   assertEquals(target.getProductType(),PBXTarget.ProductType.UNIT_TEST);

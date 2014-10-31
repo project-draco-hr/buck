@@ -1,23 +1,15 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  BuildRule resourceRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","res").build(),resolver,ImmutableSortedSet.<BuildRule>of(),appleResourceDescription,new Function<AppleResourceDescription.Arg,AppleResourceDescription.Arg>(){
-    @Override public AppleResourceDescription.Arg apply(    AppleResourceDescription.Arg input){
-      input.files=ImmutableSet.<SourcePath>of(new TestSourcePath("foo.png"));
-      input.dirs=ImmutableSet.of(Paths.get("foodir"));
-      return input;
-    }
-  }
-);
-  resolver.addToIndex(resourceRule);
-  BuildRule libraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","lib").build(),ImmutableSortedSet.of(resourceRule),appleLibraryDescription,resolver);
-  resolver.addToIndex(libraryRule);
-  BuildRule bundleLibraryRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","bundlelib").build(),ImmutableSortedSet.of(libraryRule),appleLibraryDescription,resolver);
-  resolver.addToIndex(bundleLibraryRule);
-  BuildRule bundleRule=createAppleBundleBuildRule(BuildTarget.builder("//foo","bundle").build(),resolver,appleBundleDescription,bundleLibraryRule,AppleBundleExtension.BUNDLE);
-  resolver.addToIndex(bundleRule);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(resourceRule,libraryRule,bundleRule),ImmutableSet.of(bundleRule.getBuildTarget()));
+  BuildTarget resourceTarget=BuildTarget.builder("//foo","res").build();
+  TargetNode<?> resourceNode=AppleResourceBuilder.createBuilder(resourceTarget).setFiles(ImmutableSet.<SourcePath>of(new TestSourcePath("foo.png"))).setDirs(ImmutableSet.of(Paths.get("foodir"))).build();
+  BuildTarget libraryTarget=BuildTarget.builder("//foo","lib").build();
+  TargetNode<?> libraryNode=AppleLibraryBuilder.createBuilder(libraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(resourceTarget))).build();
+  BuildTarget bundleLibraryTarget=BuildTarget.builder("//foo","bundlelib").build();
+  TargetNode<?> bundleLibraryNode=AppleLibraryBuilder.createBuilder(bundleLibraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(libraryTarget))).build();
+  BuildTarget bundleTarget=BuildTarget.builder("//foo","bundle").build();
+  TargetNode<?> bundleNode=AppleBundleBuilder.createBuilder(bundleTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.BUNDLE)).setBinary(bundleLibraryTarget).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(resourceNode,libraryNode,bundleLibraryNode,bundleNode),ImmutableSet.of(bundleTarget));
   projectGenerator.createXcodeProjects();
   PBXProject generatedProject=projectGenerator.getGeneratedProject();
-  PBXTarget bundleTarget=assertTargetExistsAndReturnTarget(generatedProject,"//foo:bundle");
-  assertHasSingletonResourcesPhaseWithEntries(bundleTarget,"foo.png","foodir");
+  PBXTarget target=assertTargetExistsAndReturnTarget(generatedProject,"//foo:bundle");
+  assertHasSingletonResourcesPhaseWithEntries(target,"foo.png","foodir");
 }

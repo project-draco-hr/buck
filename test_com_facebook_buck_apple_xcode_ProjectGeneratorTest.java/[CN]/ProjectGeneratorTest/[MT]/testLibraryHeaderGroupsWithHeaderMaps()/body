@@ -1,14 +1,10 @@
 {
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).setType(AppleLibraryDescription.TYPE).build();
-  AppleNativeTargetDescriptionArg arg=createDescriptionArgWithDefaults(appleLibraryDescription);
-  arg.configs=Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.<XcodeRuleConfigurationLayer>of())));
-  arg.srcs=Optional.of(ImmutableList.of(AppleSource.ofSourceGroup(new Pair<>("HeaderGroup1",ImmutableList.of(AppleSource.ofSourcePath(new TestSourcePath("foo.h")),AppleSource.ofSourcePathWithFlags(new Pair<SourcePath,String>(new TestSourcePath("bar.h"),"public"))))),AppleSource.ofSourceGroup(new Pair<>("HeaderGroup2",ImmutableList.of(AppleSource.ofSourcePath(new TestSourcePath("baz.h")))))));
-  arg.useBuckHeaderMaps=Optional.of(true);
-  BuildRule rule=appleLibraryDescription.createBuildRule(params,new BuildRuleResolver(),arg);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(rule),ImmutableSet.of(rule.getBuildTarget()));
+  BuildTarget buildTarget=BuildTarget.builder("//foo","lib").build();
+  TargetNode<?> node=AppleLibraryBuilder.createBuilder(buildTarget).setSrcs(Optional.of(ImmutableList.of(AppleSource.ofSourceGroup(new Pair<>("HeaderGroup1",ImmutableList.of(AppleSource.ofSourcePath(new TestSourcePath("foo.h")),AppleSource.ofSourcePathWithFlags(new Pair<SourcePath,String>(new TestSourcePath("bar.h"),"public"))))),AppleSource.ofSourceGroup(new Pair<>("HeaderGroup2",ImmutableList.of(AppleSource.ofSourcePath(new TestSourcePath("baz.h")))))))).setUseBuckHeaderMaps(Optional.of(true)).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node),ImmutableSet.of(buildTarget));
   projectGenerator.createXcodeProjects();
   PBXProject project=projectGenerator.getGeneratedProject();
-  PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(rule.getFullyQualifiedName());
+  PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(buildTarget.getFullyQualifiedName());
   PBXGroup sourcesGroup=targetGroup.getOrCreateChildGroupByName("Sources");
   assertThat(sourcesGroup.getChildren(),hasSize(2));
   PBXGroup group1=(PBXGroup)Iterables.get(sourcesGroup.getChildren(),0);

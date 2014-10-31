@@ -1,26 +1,13 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  BuildRule scriptRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","post_build_script").build(),resolver,ImmutableSortedSet.<BuildRule>of(),iosPostprocessResourcesDescription,new Function<IosPostprocessResourcesDescription.Arg,IosPostprocessResourcesDescription.Arg>(){
-    @Override public IosPostprocessResourcesDescription.Arg apply(    IosPostprocessResourcesDescription.Arg input){
-      input.cmd=Optional.of("script.sh");
-      return input;
-    }
-  }
-);
-  resolver.addToIndex(scriptRule);
-  BuildRule resourceRule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","resource").build(),resolver,ImmutableSortedSet.<BuildRule>of(),appleResourceDescription,new Function<AppleResourceDescription.Arg,AppleResourceDescription.Arg>(){
-    @Override public AppleResourceDescription.Arg apply(    AppleResourceDescription.Arg input){
-      input.files=ImmutableSet.<SourcePath>of(new TestSourcePath("foo.png"));
-      return input;
-    }
-  }
-);
-  resolver.addToIndex(resourceRule);
-  BuildRule dynamicLibraryDep=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.of(resourceRule),appleLibraryDescription,resolver);
-  resolver.addToIndex(dynamicLibraryDep);
-  BuildRule bundleRule=createAppleBundleBuildRule(BuildTarget.builder("//foo","bundle").build(),resolver,appleBundleDescription,dynamicLibraryDep,AppleBundleExtension.BUNDLE,ImmutableList.of(scriptRule));
-  resolver.addToIndex(bundleRule);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(bundleRule),ImmutableSet.of(bundleRule.getBuildTarget()));
+  BuildTarget scriptTarget=BuildTarget.builder("//foo","post_build_script").build();
+  TargetNode<?> scriptNode=IosPostprocessResourcesBuilder.createBuilder(scriptTarget).setCmd(Optional.of("script.sh")).build();
+  BuildTarget resourceTarget=BuildTarget.builder("//foo","resource").build();
+  TargetNode<?> resourceNode=AppleResourceBuilder.createBuilder(resourceTarget).setFiles(ImmutableSet.<SourcePath>of(new TestSourcePath("foo.png"))).setDirs(ImmutableSet.<Path>of()).build();
+  BuildTarget dynamicLibraryTarget=BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build();
+  TargetNode<?> dynamicLibraryNode=AppleLibraryBuilder.createBuilder(dynamicLibraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(resourceTarget))).build();
+  BuildTarget bundleTarget=BuildTarget.builder("//foo","bundle").build();
+  TargetNode<?> bundleNode=AppleBundleBuilder.createBuilder(bundleTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.BUNDLE)).setBinary(dynamicLibraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(scriptTarget))).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(scriptNode,resourceNode,dynamicLibraryNode,bundleNode),ImmutableSet.of(bundleTarget));
   projectGenerator.createXcodeProjects();
   PBXProject project=projectGenerator.getGeneratedProject();
   PBXTarget target=ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(project,"//foo:bundle");

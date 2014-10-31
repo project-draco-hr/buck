@@ -1,41 +1,17 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
   Path rawXcconfigFile=Paths.get("Test.xcconfig");
   SourcePath xcconfigFile=new PathSourcePath(rawXcconfigFile);
   projectFilesystem.writeContentsToPath("",rawXcconfigFile);
-  BuildRule libraryRule;
-  BuildRule testRule;
   ImmutableSortedMap<String,XcodeRuleConfiguration> configs=ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.of(new XcodeRuleConfigurationLayer(xcconfigFile),new XcodeRuleConfigurationLayer(xcconfigFile))));
-{
-    BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).setType(AppleLibraryDescription.TYPE).build();
-    AppleNativeTargetDescriptionArg arg=createDescriptionArgWithDefaults(appleLibraryDescription);
-    arg.configs=Optional.of(configs);
-    arg.srcs=Optional.of(ImmutableList.of(AppleSource.ofSourcePath(new TestSourcePath("foo.m"))));
-    arg.frameworks=Optional.of(ImmutableSortedSet.of("$SDKROOT/Library.framework"));
-    libraryRule=appleLibraryDescription.createBuildRule(params,resolver,arg);
-    resolver.addToIndex(libraryRule);
-  }
-{
-    BuildRuleParams dynamicLibraryParams=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","testlib").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build()).setDeps(ImmutableSortedSet.of(libraryRule)).setType(AppleLibraryDescription.TYPE).build();
-    AppleNativeTargetDescriptionArg dynamicLibraryArg=createDescriptionArgWithDefaults(appleLibraryDescription);
-    dynamicLibraryArg.configs=Optional.of(configs);
-    dynamicLibraryArg.srcs=Optional.of(ImmutableList.of(AppleSource.ofSourcePath(new TestSourcePath("fooTest.m"))));
-    dynamicLibraryArg.frameworks=Optional.of(ImmutableSortedSet.of("$SDKROOT/Test.framework"));
-    BuildRule dynamicLibraryDep=appleLibraryDescription.createBuildRule(dynamicLibraryParams,resolver,dynamicLibraryArg);
-    resolver.addToIndex(dynamicLibraryDep);
-    BuildRule xctestRule=createAppleBundleBuildRule(BuildTarget.builder("//foo","xctest").build(),resolver,appleBundleDescription,dynamicLibraryDep,AppleBundleExtension.XCTEST);
-    resolver.addToIndex(xctestRule);
-    BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","test").build()).setDeps(ImmutableSortedSet.of(xctestRule)).setType(AppleTestDescription.TYPE).build();
-    AppleTestDescription.Arg arg=appleTestDescription.createUnpopulatedConstructorArg();
-    arg.testBundle=xctestRule.getBuildTarget();
-    arg.contacts=Optional.of(ImmutableSortedSet.<String>of());
-    arg.labels=Optional.of(ImmutableSortedSet.<Label>of());
-    arg.deps=Optional.of(ImmutableSortedSet.of(xctestRule.getBuildTarget()));
-    arg.sourceUnderTest=Optional.of(ImmutableSortedSet.<BuildTarget>of());
-    testRule=appleTestDescription.createBuildRule(params,resolver,arg);
-    resolver.addToIndex(testRule);
-  }
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(libraryRule,testRule),ImmutableSet.of(testRule.getBuildTarget()),ImmutableSet.of(ProjectGenerator.Option.REFERENCE_EXISTING_XCCONFIGS));
+  BuildTarget libraryTarget=BuildTarget.builder("//foo","lib").build();
+  TargetNode<?> libraryNode=AppleLibraryBuilder.createBuilder(libraryTarget).setConfigs(Optional.of(configs)).setSrcs(Optional.of(ImmutableList.of(AppleSource.ofSourcePath(new TestSourcePath("foo.m"))))).setFrameworks(Optional.of(ImmutableSortedSet.of("$SDKROOT/Library.framework"))).build();
+  BuildTarget testLibraryTarget=BuildTarget.builder("//foo","testlib").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build();
+  TargetNode<?> testLibraryNode=AppleLibraryBuilder.createBuilder(testLibraryTarget).setConfigs(Optional.of(configs)).setSrcs(Optional.of(ImmutableList.of(AppleSource.ofSourcePath(new TestSourcePath("fooTest.m"))))).setFrameworks(Optional.of(ImmutableSortedSet.of("$SDKROOT/Test.framework"))).setDeps(Optional.of(ImmutableSortedSet.of(libraryTarget))).build();
+  BuildTarget testBundleTarget=BuildTarget.builder("//foo","xctest").build();
+  TargetNode<?> testBundleNode=AppleBundleBuilder.createBuilder(testBundleTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.XCTEST)).setBinary(testLibraryTarget).build();
+  BuildTarget testTarget=BuildTarget.builder("//foo","test").build();
+  TargetNode<?> testNode=AppleTestBuilder.createBuilder(testTarget).setTestBundle(testBundleTarget).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(libraryNode,testLibraryNode,testBundleNode,testNode),ImmutableSet.of(testNode.getBuildTarget()),ImmutableSet.of(ProjectGenerator.Option.REFERENCE_EXISTING_XCCONFIGS));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:xctest");
   assertHasConfigurations(target,"Debug");

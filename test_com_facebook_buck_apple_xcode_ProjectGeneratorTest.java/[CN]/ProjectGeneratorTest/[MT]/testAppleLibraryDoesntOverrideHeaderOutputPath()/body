@@ -2,11 +2,9 @@
   Path rawXcconfigFile=Paths.get("Test.xcconfig");
   SourcePath xcconfigFile=new PathSourcePath(rawXcconfigFile);
   projectFilesystem.writeContentsToPath("",rawXcconfigFile);
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//foo","lib").build()).setType(AppleLibraryDescription.TYPE).build();
-  AppleNativeTargetDescriptionArg arg=createDescriptionArgWithDefaults(appleLibraryDescription);
-  arg.configs=Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.of(new XcodeRuleConfigurationLayer(xcconfigFile),new XcodeRuleConfigurationLayer(ImmutableMap.of("PUBLIC_HEADERS_FOLDER_PATH","FooHeaders")),new XcodeRuleConfigurationLayer(xcconfigFile),new XcodeRuleConfigurationLayer(ImmutableMap.of("PUBLIC_HEADERS_FOLDER_PATH","FooHeaders"))))));
-  BuildRule rule=appleLibraryDescription.createBuildRule(params,new BuildRuleResolver(),arg);
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(rule),ImmutableSet.of(rule.getBuildTarget()),ImmutableSet.of(ProjectGenerator.Option.REFERENCE_EXISTING_XCCONFIGS));
+  BuildTarget buildTarget=BuildTarget.builder("//foo","lib").build();
+  TargetNode<?> node=AppleLibraryBuilder.createBuilder(buildTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.of(new XcodeRuleConfigurationLayer(xcconfigFile),new XcodeRuleConfigurationLayer(ImmutableMap.of("PUBLIC_HEADERS_FOLDER_PATH","FooHeaders")),new XcodeRuleConfigurationLayer(xcconfigFile),new XcodeRuleConfigurationLayer(ImmutableMap.of("PUBLIC_HEADERS_FOLDER_PATH","FooHeaders"))))))).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node),ImmutableSet.of(buildTarget),ImmutableSet.of(ProjectGenerator.Option.REFERENCE_EXISTING_XCCONFIGS));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:lib");
   assertThat(target.isa(),equalTo("PBXNativeTarget"));
