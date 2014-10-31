@@ -1,0 +1,15 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"more_files",tmp);
+  workspace.setUp();
+  MoreFiles.copyRecursively(tmp.getRootPath().resolve("src"),tmp.getRootPath().resolve("out"));
+  assertTrue(Files.isSymbolicLink(tmp.getRootPath().resolve("src/link.txt")));
+  assertTrue(Files.isSymbolicLink(tmp.getRootPath().resolve("out/link.txt")));
+  byte[] bytes=Files.readAllBytes(tmp.getRootPath().resolve("out/link.txt"));
+  assertArrayEquals("contents\n".getBytes(),bytes);
+  assertEquals("link.txt should point to file.txt in the same directory.",Paths.get("file.txt"),Files.readSymbolicLink(tmp.getRootPath().resolve("out/link.txt")));
+  Files.write(tmp.getRootPath().resolve("src/link.txt"),"replacement\n".getBytes());
+  assertArrayEquals("replacement\n".getBytes(),Files.readAllBytes(tmp.getRootPath().resolve("src/file.txt")));
+  assertArrayEquals("The replacement bytes should be reflected in the symlink.","replacement\n".getBytes(),Files.readAllBytes(tmp.getRootPath().resolve("src/link.txt")));
+  assertArrayEquals("contents\n".getBytes(),Files.readAllBytes(tmp.getRootPath().resolve("out/file.txt")));
+  assertArrayEquals("The copied symlink should be unaffected.","contents\n".getBytes(),Files.readAllBytes(tmp.getRootPath().resolve("out/link.txt")));
+}
