@@ -1,10 +1,9 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  BuildRule rule=createBuildRuleWithDefaults(BuildTarget.builder("//foo/bar","somelib").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,resolver);
-  resolver.addToIndex(rule);
-  BuildRule configRule=createXcodeProjectConfigRule("//foo/bar","fooproject",resolver,ImmutableSortedSet.of(rule.getBuildTarget()));
-  resolver.addToIndex(configRule);
-  SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(new SourcePathResolver(resolver),projectFilesystem,RuleMap.createGraphFromBuildRules(resolver),executionContext,ImmutableSet.of(configRule.getBuildTarget()),ImmutableSet.<ProjectGenerator.Option>of());
+  BuildTarget libraryTarget=BuildTarget.builder("//foo/bar","somelib").build();
+  TargetNode<?> libraryNode=AppleLibraryBuilder.createBuilder(libraryTarget).build();
+  BuildTarget configTarget=BuildTarget.builder("//foo/bar","project").build();
+  TargetNode<?> configNode=XcodeProjectConfigBuilder.createBuilder(configTarget).setProjectName("fooproject").setRules(ImmutableSortedSet.of(libraryTarget)).build();
+  SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(projectFilesystem,buckEventBus,TargetGraphFactory.newInstance(ImmutableSet.of(libraryNode,configNode)),executionContext,ImmutableSet.of(configTarget),ImmutableSet.<ProjectGenerator.Option>of());
   generator.generateProjects();
   assertTrue("Project was generated alongside Buck file",projectFilesystem.exists(Paths.get("foo/bar/fooproject.xcodeproj/project.pbxproj")));
   assertFalse("No workspace is generated",projectFilesystem.exists(Paths.get("foo/bar/fooproject.xcworkspace/contents.xcworkspacedata")));

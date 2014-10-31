@@ -1,16 +1,15 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  BuildRule depRule=createBuildRuleWithDefaults(BuildTarget.builder("//elsewhere","somedep").build(),ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,resolver);
-  resolver.addToIndex(depRule);
-  BuildRule dynamicLibraryDep=createBuildRuleWithDefaults(BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build(),ImmutableSortedSet.of(depRule),appleLibraryDescription,resolver);
-  resolver.addToIndex(dynamicLibraryDep);
-  BuildRule rule=createAppleBundleBuildRule(BuildTarget.builder("//foo","bin").build(),resolver,appleBundleDescription,dynamicLibraryDep,AppleBundleExtension.FRAMEWORK);
-  resolver.addToIndex(rule);
-  BuildRule configRule=createXcodeProjectConfigRule("//foo/bar","fooproject",resolver,ImmutableSortedSet.of(rule.getBuildTarget()));
-  resolver.addToIndex(configRule);
-  SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(new SourcePathResolver(resolver),projectFilesystem,RuleMap.createGraphFromBuildRules(resolver),executionContext,ImmutableSet.of(configRule.getBuildTarget()),ImmutableSet.<ProjectGenerator.Option>of());
+  BuildTarget depTarget=BuildTarget.builder("//elsewhere","somedep").build();
+  TargetNode<?> depNode=AppleLibraryBuilder.createBuilder(depTarget).build();
+  BuildTarget dynamicLibraryTarget=BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build();
+  TargetNode<?> dynamicLibraryNode=AppleLibraryBuilder.createBuilder(dynamicLibraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(depTarget))).build();
+  BuildTarget target=BuildTarget.builder("//foo","bin").build();
+  TargetNode<?> node=AppleBundleBuilder.createBuilder(target).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK)).setBinary(dynamicLibraryTarget).build();
+  BuildTarget configTarget=BuildTarget.builder("//foo/bar","project").build();
+  TargetNode<?> configNode=XcodeProjectConfigBuilder.createBuilder(configTarget).setProjectName("fooproject").setRules(ImmutableSortedSet.of(target)).build();
+  SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(projectFilesystem,buckEventBus,TargetGraphFactory.newInstance(ImmutableSet.of(depNode,dynamicLibraryNode,node,configNode)),executionContext,ImmutableSet.of(configTarget),ImmutableSet.<ProjectGenerator.Option>of());
   generator.generateProjects();
-  PBXProject project=getGeneratedProjectOfConfigRule(generator,configRule);
-  PBXTarget target=assertTargetExistsAndReturnTarget(project,"bin");
-  assertHasSingletonFrameworksPhaseWithFrameworkEntries(target,ImmutableList.of("$BUILT_PRODUCTS_DIR/libsomedep.a"));
+  PBXProject project=getGeneratedProjectOfConfigRule(generator,configTarget);
+  PBXTarget pbxTarget=assertTargetExistsAndReturnTarget(project,"bin");
+  assertHasSingletonFrameworksPhaseWithFrameworkEntries(pbxTarget,ImmutableList.of("$BUILT_PRODUCTS_DIR/libsomedep.a"));
 }

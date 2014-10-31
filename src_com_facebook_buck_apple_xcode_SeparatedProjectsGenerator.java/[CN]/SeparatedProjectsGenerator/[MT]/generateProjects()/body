@@ -2,13 +2,14 @@
   ImmutableSet.Builder<Path> generatedProjectPathsBuilder=ImmutableSet.builder();
   ImmutableMap.Builder<BuildTarget,ProjectGenerator> projectGeneratorsBuilder=ImmutableMap.builder();
   for (  BuildTarget target : projectConfigTargets) {
-    BuildRule rule=actionGraph.findBuildRuleByTarget(target);
+    BuildRule rule=targetGraph.getActionGraph(buckEventBus).findBuildRuleByTarget(target);
     XcodeProjectConfig buildable=(XcodeProjectConfig)Preconditions.checkNotNull(rule);
     ImmutableSet.Builder<BuildTarget> initialTargetsBuilder=ImmutableSet.builder();
     for (    BuildRule memberRule : buildable.getRules()) {
       initialTargetsBuilder.add(memberRule.getBuildTarget());
     }
-    ProjectGenerator generator=new ProjectGenerator(resolver,actionGraph.getNodes(),initialTargetsBuilder.build(),projectFilesystem,executionContext,target.getBasePath(),buildable.getProjectName(),projectGeneratorOptions);
+    ImmutableSet<BuildRule> buildRules=targetGraph.getActionGraph(buckEventBus).getNodes();
+    ProjectGenerator generator=new ProjectGenerator(new SourcePathResolver(new BuildRuleResolver(buildRules)),buildRules,initialTargetsBuilder.build(),projectFilesystem,executionContext,target.getBasePath(),buildable.getProjectName(),projectGeneratorOptions);
     generator.createXcodeProjects();
     projectGeneratorsBuilder.put(target,generator);
     generatedProjectPathsBuilder.add(generator.getProjectPath());

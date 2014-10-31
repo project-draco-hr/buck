@@ -1,15 +1,8 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  BuildRule rule=createBuildRuleWithDefaults(BuildTarget.builder("//foo","rule").build(),resolver,ImmutableSortedSet.<BuildRule>of(),appleLibraryDescription,new Function<AppleNativeTargetDescriptionArg,AppleNativeTargetDescriptionArg>(){
-    @Override public AppleNativeTargetDescriptionArg apply(    AppleNativeTargetDescriptionArg input){
-      input.configs=Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.of(new XcodeRuleConfigurationLayer(new PathSourcePath(Paths.get("target.xcconfig")))))));
-      return input;
-    }
-  }
-);
-  resolver.addToIndex(rule);
-  BuildRule configRule=createXcodeProjectConfigRule("//foo","fooproject",resolver,ImmutableSortedSet.of(rule.getBuildTarget()));
-  resolver.addToIndex(configRule);
-  SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(new SourcePathResolver(resolver),projectFilesystem,RuleMap.createGraphFromBuildRules(resolver),executionContext,ImmutableSet.of(configRule.getBuildTarget()),ImmutableSet.<ProjectGenerator.Option>of());
+  BuildTarget target=BuildTarget.builder("//foo","rule").build();
+  TargetNode<?> node=AppleLibraryBuilder.createBuilder(target).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.of(new XcodeRuleConfigurationLayer(new PathSourcePath(Paths.get("target.xcconfig")))))))).build();
+  BuildTarget configTarget=BuildTarget.builder("//foo","project").build();
+  TargetNode<?> configNode=XcodeProjectConfigBuilder.createBuilder(configTarget).setProjectName("fooproject").setRules(ImmutableSortedSet.of(target)).build();
+  SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(projectFilesystem,buckEventBus,TargetGraphFactory.newInstance(ImmutableSet.of(node,configNode)),executionContext,ImmutableSet.of(configTarget),ImmutableSet.<ProjectGenerator.Option>of());
   generator.generateProjects();
 }
