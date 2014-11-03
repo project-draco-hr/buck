@@ -1,13 +1,12 @@
 {
   final ActionGraph actionGraph=build.getActionGraph();
-  ImmutableSet<BuildRule> rulesToBuild=FluentIterable.from(buildTargetsToBuild).transform(new Function<HasBuildTarget,BuildRule>(){
+  ImmutableList<BuildRule> rulesToBuild=ImmutableList.copyOf(FluentIterable.from(buildTargetsToBuild).transform(new Function<HasBuildTarget,BuildRule>(){
     @Override public BuildRule apply(    HasBuildTarget hasBuildTarget){
       return Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(hasBuildTarget.getBuildTarget()));
     }
   }
-).toSet();
+).toSet());
   int exitCode;
-  String buildReport=null;
   boolean isKeepGoing=options.isKeepGoing();
   try {
     ListenableFuture<List<BuildRuleSuccess>> buildFuture=build.executeBuild(rulesToBuild,isKeepGoing);
@@ -24,9 +23,16 @@
       Thread.currentThread().interrupt();
       throw e;
     }
-    buildReport=generateBuildReport(ImmutableList.copyOf(rulesToBuild),results,console.getAnsi());
+    LinkedHashMap<BuildRule,Optional<BuildRuleSuccess>> ruleToResult=Maps.newLinkedHashMap();
+    Preconditions.checkState(rulesToBuild.size() == results.size());
+    for (int i=0, len=rulesToBuild.size(); i < len; i++) {
+      BuildRule rule=rulesToBuild.get(i);
+      BuildRuleSuccess success=results.get(i);
+      ruleToResult.put(rule,Optional.fromNullable(success));
+    }
     if (isKeepGoing) {
-      console.getStdErr().print(buildReport);
+      String buildReportForConsole=generateBuildReportForConsole(ruleToResult,console.getAnsi());
+      console.getStdErr().print(buildReportForConsole);
       exitCode=Iterables.any(results,Predicates.isNull()) ? 1 : 0;
       if (exitCode != 0) {
         console.printBuildFailure("Not all rules succeeded.");
@@ -34,6 +40,17 @@
     }
  else {
       exitCode=0;
+    }
+    Optional<Path> pathToBuildReport=options.getPathToBuildReport();
+    if (pathToBuildReport.isPresent()) {
+      String jsonBuildReport=generateJsonBuildReport(ruleToResult);
+      try {
+        Files.write(jsonBuildReport,pathToBuildReport.get().toFile(),Charsets.UTF_8);
+      }
+ catch (      IOException e) {
+        e.printStackTrace(console.getStdErr());
+        exitCode=1;
+      }
     }
   }
  catch (  IOException e) {
@@ -59,16 +76,6 @@ catch (  ExecutionException e) {
  else {
         console.printBuildFailureWithoutStacktrace(e);
       }
-      exitCode=1;
-    }
-  }
-  Optional<Path> pathToBuildReport=options.getPathToBuildReport();
-  if (buildReport != null && pathToBuildReport.isPresent()) {
-    try {
-      Files.write(buildReport,pathToBuildReport.get().toFile(),Charsets.UTF_8);
-    }
- catch (    IOException e) {
-      e.printStackTrace(console.getStdErr());
       exitCode=1;
     }
   }
