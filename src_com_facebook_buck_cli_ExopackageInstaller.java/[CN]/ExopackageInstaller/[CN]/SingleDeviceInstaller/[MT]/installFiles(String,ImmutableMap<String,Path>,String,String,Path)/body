@@ -1,0 +1,29 @@
+{
+  try (TraceEventLogger ignored1=TraceEventLogger.start(eventBus,"multi_install_" + filesType)){
+    device.createForward(agentPort,agentPort);
+    try {
+      for (      Map.Entry<String,Path> entry : filesToInstallByHash.entrySet()) {
+        Path destination=destinationDirRelativeToDataRoot.resolve(String.format(filenameFormat,entry.getKey()));
+        Path source=entry.getValue();
+        try (TraceEventLogger ignored2=TraceEventLogger.start(eventBus,"install_" + filesType)){
+          installFile(device,agentPort,destination,source);
+        }
+       }
+      try (TraceEventLogger ignored3=TraceEventLogger.start(eventBus,"install_" + filesType + "_metadata")){
+        try (NamedTemporaryFile temp=new NamedTemporaryFile("metadata","tmp")){
+          com.google.common.io.Files.write(metadataFileContents.getBytes(Charsets.UTF_8),temp.get().toFile());
+          installFile(device,agentPort,destinationDirRelativeToDataRoot.resolve("metadata.txt"),temp.get());
+        }
+       }
+     }
+  finally {
+      try {
+        device.removeForward(agentPort,agentPort);
+      }
+ catch (      AdbCommandRejectedException e) {
+        LOG.warn(e,"Failed to remove adb forward on port %d for device %s",agentPort,device);
+        eventBus.post(ConsoleEvent.warning("Failed to remove adb forward %d. This is not necessarily a problem\n" + "because it will be recreated during the next exopackage installation.\n" + "See the log for the full exception.",agentPort));
+      }
+    }
+  }
+ }

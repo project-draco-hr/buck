@@ -1,20 +1,3 @@
 {
-  try (TraceEventLogger ignored=TraceEventLogger.start(eventBus,"prepare_dex_dir")){
-    final ImmutableSet.Builder<String> foundHashes=ImmutableSet.builder();
-    String mkdirP=useNativeAgent ? getAgentCommand() + "mkdir-p" : "mkdir -p";
-    String secondaryDexDir=dataRoot.resolve(SECONDARY_DEX_DIR).toString();
-    AdbHelper.executeCommandWithErrorChecking(device,"umask 022 && " + mkdirP + " "+ secondaryDexDir);
-    String output=AdbHelper.executeCommandWithErrorChecking(device,"ls " + secondaryDexDir);
-    ImmutableSet.Builder<String> toDeleteBuilder=ImmutableSet.builder();
-    scanSecondaryDexDir(output,requiredHashes,foundHashes,toDeleteBuilder);
-    Iterable<String> filesToDelete=toDeleteBuilder.build();
-    String commandPrefix="cd " + secondaryDexDir + " && rm ";
-    final int overhead=commandPrefix.length() + 100;
-    for (    List<String> rmArgs : chunkArgs(filesToDelete,MAX_ADB_COMMAND_SIZE - overhead)) {
-      String command=commandPrefix + Joiner.on(' ').join(rmArgs);
-      LOG.debug("Executing %s",command);
-      AdbHelper.executeCommandWithErrorChecking(device,command);
-    }
-    return foundHashes.build();
-  }
- }
+  return prepareDirectory("secondary-dex",DEX_FILE_PATTERN,requiredHashes);
+}

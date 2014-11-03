@@ -1,0 +1,18 @@
+{
+  try (TraceEventLogger ignored=TraceEventLogger.start(eventBus,"prepare_" + dirname)){
+    String dirPath=dataRoot.resolve(dirname).toString();
+    mkDirP(dirPath);
+    String output=AdbHelper.executeCommandWithErrorChecking(device,"ls " + dirPath);
+    ImmutableSet.Builder<String> foundHashes=ImmutableSet.builder();
+    ImmutableSet.Builder<String> filesToDelete=ImmutableSet.builder();
+    processLsOutput(output,filePattern,requiredHashes,foundHashes,filesToDelete);
+    String commandPrefix="cd " + dirPath + " && rm ";
+    final int overhead=commandPrefix.length() + 100;
+    for (    List<String> rmArgs : chunkArgs(filesToDelete.build(),MAX_ADB_COMMAND_SIZE - overhead)) {
+      String command=commandPrefix + Joiner.on(' ').join(rmArgs);
+      LOG.debug("Executing %s",command);
+      AdbHelper.executeCommandWithErrorChecking(device,command);
+    }
+    return foundHashes.build();
+  }
+ }
