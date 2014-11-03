@@ -23,17 +23,20 @@
   if (options.isWithTests()) {
     optionsBuilder.add(ProjectGenerator.Option.INCLUDE_TESTS);
   }
-  if (options.getCombinedProject()) {
-    ProjectGenerator projectGenerator=new ProjectGenerator(targetGraphs.getProjectGraph(),passedInTargetsSet,getProjectFilesystem(),executionContext,getProjectFilesystem().getPathForRelativePath(Paths.get("_gen")),"GeneratedProject",optionsBuilder.addAll(ProjectGenerator.COMBINED_PROJECT_OPTIONS).build());
-    projectGenerator.createXcodeProjects();
-  }
- else   if (options.getWorkspaceAndProjects()) {
+  if (options.getCombinedProject() || options.getWorkspaceAndProjects()) {
+    boolean combinedProject=options.getCombinedProject();
+    if (combinedProject && passedInTargetsSet.size() != 1) {
+      throw new HumanReadableException("Combined project can only be generated for one target at a time");
+    }
     ImmutableSet<BuildTarget> targets;
     if (passedInTargetsSet.isEmpty()) {
       targets=getAllTargetsOfType(targetGraphs.getMainGraph().getNodes(),XcodeWorkspaceConfigDescription.TYPE);
     }
  else {
       targets=passedInTargetsSet;
+    }
+    if (!combinedProject) {
+      optionsBuilder.addAll(ProjectGenerator.SEPARATED_PROJECT_OPTIONS);
     }
     LOG.debug("Generating workspace for config targets %s",targets);
     Map<BuildRule,ProjectGenerator> projectGenerators=new HashMap<>();
@@ -50,7 +53,7 @@
         testBuildRules=Collections.emptySet();
       }
       XcodeWorkspaceConfig workspaceConfigRule=(XcodeWorkspaceConfig)workspaceRule;
-      WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphs.getProjectGraph(),executionContext,workspaceConfigRule,optionsBuilder.build(),AppleBuildRules.getSourceRuleToTestRulesMap(testBuildRules),workspaceConfigRule.getExtraTests());
+      WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphs.getProjectGraph(),executionContext,workspaceConfigRule,optionsBuilder.build(),AppleBuildRules.getSourceRuleToTestRulesMap(testBuildRules),workspaceConfigRule.getExtraTests(),combinedProject);
       generator.generateWorkspaceAndDependentProjects(projectGenerators);
     }
   }
