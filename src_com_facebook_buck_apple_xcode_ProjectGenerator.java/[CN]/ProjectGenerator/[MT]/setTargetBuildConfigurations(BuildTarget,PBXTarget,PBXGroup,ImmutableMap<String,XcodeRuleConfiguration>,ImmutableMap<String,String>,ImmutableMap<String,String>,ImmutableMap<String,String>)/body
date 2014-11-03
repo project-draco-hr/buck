@@ -1,47 +1,41 @@
 {
   PBXGroup configurationsGroup=targetGroup.getOrCreateChildGroupByName("Configurations");
   for (  Map.Entry<String,XcodeRuleConfiguration> configurationEntry : configurations.entrySet()) {
-    if (options.contains(Option.REFERENCE_EXISTING_XCCONFIGS)) {
-      ConfigInXcodeLayout layers=extractXcodeConfigurationLayers(buildTarget,configurationEntry.getValue());
-      xcodeConfigurationLayersMultimapBuilder.put(configurationEntry.getKey(),layers);
-      XCBuildConfiguration outputConfiguration=target.getBuildConfigurationList().getBuildConfigurationsByName().getUnchecked(configurationEntry.getKey());
-      if (layers.targetLevelConfigFile.isPresent()) {
-        HashMap<String,String> combinedOverrideConfigs=Maps.newHashMap(overrideBuildSettings);
-        for (        Map.Entry<String,String> entry : defaultBuildSettings.entrySet()) {
-          String existingSetting=layers.targetLevelInlineSettings.get(entry.getKey());
-          if (existingSetting == null) {
-            combinedOverrideConfigs.put(entry.getKey(),entry.getValue());
-          }
-        }
-        for (        Map.Entry<String,String> entry : appendBuildSettings.entrySet()) {
-          String existingSetting=layers.targetLevelInlineSettings.get(entry.getKey());
-          String settingPrefix=existingSetting != null ? existingSetting : "$(inherited)";
-          combinedOverrideConfigs.put(entry.getKey(),settingPrefix + " " + entry.getValue());
-        }
-        PBXFileReference fileReference=configurationsGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputPathToSourcePath(layers.targetLevelConfigFile.get())));
-        outputConfiguration.setBaseConfigurationReference(fileReference);
-        NSDictionary inlineSettings=new NSDictionary();
-        Iterable<Map.Entry<String,String>> entries=Iterables.concat(layers.targetLevelInlineSettings.entrySet(),combinedOverrideConfigs.entrySet());
-        for (        Map.Entry<String,String> entry : entries) {
-          inlineSettings.put(entry.getKey(),entry.getValue());
-        }
-        outputConfiguration.setBuildSettings(inlineSettings);
+    ConfigInXcodeLayout layers=extractXcodeConfigurationLayers(buildTarget,configurationEntry.getValue());
+    xcodeConfigurationLayersMultimapBuilder.put(configurationEntry.getKey(),layers);
+    XCBuildConfiguration outputConfiguration=target.getBuildConfigurationList().getBuildConfigurationsByName().getUnchecked(configurationEntry.getKey());
+    HashMap<String,String> combinedOverrideConfigs=Maps.newHashMap(overrideBuildSettings);
+    for (    Map.Entry<String,String> entry : defaultBuildSettings.entrySet()) {
+      String existingSetting=layers.targetLevelInlineSettings.get(entry.getKey());
+      if (existingSetting == null) {
+        combinedOverrideConfigs.put(entry.getKey(),entry.getValue());
       }
     }
- else {
-      Map<String,String> mutableExtraConfigs=new HashMap<>(overrideBuildSettings);
-      for (      Map.Entry<String,String> entry : appendBuildSettings.entrySet()) {
-        String setting="$(inherited) " + entry.getValue();
-        mutableExtraConfigs.put(entry.getKey(),setting);
+    for (    Map.Entry<String,String> entry : appendBuildSettings.entrySet()) {
+      String existingSetting=layers.targetLevelInlineSettings.get(entry.getKey());
+      String settingPrefix=existingSetting != null ? existingSetting : "$(inherited)";
+      combinedOverrideConfigs.put(entry.getKey(),settingPrefix + " " + entry.getValue());
+    }
+    if (options.contains(Option.REFERENCE_EXISTING_XCCONFIGS)) {
+      if (layers.targetLevelConfigFile.isPresent()) {
+        PBXFileReference fileReference=configurationsGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputPathToSourcePath(layers.targetLevelConfigFile.get())));
+        outputConfiguration.setBaseConfigurationReference(fileReference);
       }
-      overrideBuildSettings=ImmutableMap.copyOf(mutableExtraConfigs);
+      NSDictionary inlineSettings=new NSDictionary();
+      Iterable<Map.Entry<String,String>> entries=Iterables.concat(layers.targetLevelInlineSettings.entrySet(),combinedOverrideConfigs.entrySet());
+      for (      Map.Entry<String,String> entry : entries) {
+        inlineSettings.put(entry.getKey(),entry.getValue());
+      }
+      outputConfiguration.setBuildSettings(inlineSettings);
+    }
+ else {
       Path outputConfigurationDirectory=outputDirectory.resolve("Configurations");
       projectFilesystem.mkdirs(outputConfigurationDirectory);
       Path originalProjectPath=projectFilesystem.getPathForRelativePath(Paths.get(buildTarget.getBasePathWithSlash()));
       ImmutableList<Path> searchPaths=ImmutableList.of(originalProjectPath);
       project.getBuildConfigurationList().getBuildConfigurationsByName().getUnchecked(configurationEntry.getKey());
       Path configurationFilePath=outputConfigurationDirectory.resolve(mangledBuildTargetName(buildTarget) + "-" + configurationEntry.getKey()+ ".xcconfig");
-      String serializedConfiguration=serializeBuildConfiguration(configurationEntry.getValue(),searchPaths,overrideBuildSettings);
+      String serializedConfiguration=serializeBuildConfiguration(configurationEntry.getValue(),searchPaths,ImmutableMap.copyOf(combinedOverrideConfigs));
       if (MorePaths.fileContentsDiffer(new ByteArrayInputStream(serializedConfiguration.getBytes(Charsets.UTF_8)),configurationFilePath,projectFilesystem)) {
         if (shouldGenerateReadOnlyFiles()) {
           projectFilesystem.writeContentsToPath(serializedConfiguration,configurationFilePath,READ_ONLY_FILE_ATTRIBUTE);
@@ -51,7 +45,6 @@
         }
       }
       PBXFileReference fileReference=configurationsGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(configurationFilePath)));
-      XCBuildConfiguration outputConfiguration=target.getBuildConfigurationList().getBuildConfigurationsByName().getUnchecked(configurationEntry.getKey());
       outputConfiguration.setBaseConfigurationReference(fileReference);
     }
   }
