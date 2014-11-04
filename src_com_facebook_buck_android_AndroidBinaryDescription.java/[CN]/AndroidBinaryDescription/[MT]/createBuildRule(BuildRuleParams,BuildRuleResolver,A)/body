@@ -8,7 +8,14 @@
     Preconditions.checkArgument(!args.androidSdkProguardConfig.isPresent(),"The deprecated use_android_proguard_config_with_optimizations parameter" + " cannot be used with android_sdk_proguard_config.");
     androidSdkProguardConfig=args.useAndroidProguardConfigWithOptimizations.or(false) ? ProGuardObfuscateStep.SdkProguardType.OPTIMIZED : ProGuardObfuscateStep.SdkProguardType.DEFAULT;
   }
-  DexSplitMode dexSplitMode=createDexSplitMode(args);
+  EnumSet<ExopackageMode> exopackageModes=EnumSet.noneOf(ExopackageMode.class);
+  if (args.exopackageModes.isPresent() && !args.exopackageModes.get().isEmpty()) {
+    exopackageModes=EnumSet.copyOf(args.exopackageModes.get());
+  }
+ else   if (args.exopackage.or(false)) {
+    exopackageModes=EnumSet.of(ExopackageMode.SECONDARY_DEX);
+  }
+  DexSplitMode dexSplitMode=createDexSplitMode(args,exopackageModes);
   boolean allowNonExistentRule=false;
   ImmutableSortedSet<BuildRule> buildRulesToExcludeFromDex=BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,args.noDx.or(ImmutableSet.<BuildTarget>of()),allowNonExistentRule);
   ImmutableSortedSet<JavaLibrary> rulesToExcludeFromDex=FluentIterable.from(buildRulesToExcludeFromDex).filter(JavaLibrary.class).toSortedSet(HasBuildTarget.BUILD_TARGET_COMPARATOR);
@@ -16,7 +23,6 @@
   boolean shouldPreDex=!args.disablePreDex.or(false) && PackageType.DEBUG.equals(packageType) && !args.preprocessJavaClassesBash.isPresent();
   ResourceCompressionMode compressionMode=getCompressionMode(args);
   ResourceFilter resourceFilter=new ResourceFilter(args.resourceFilter.or(ImmutableList.<String>of()));
-  EnumSet<ExopackageMode> exopackageModes=args.exopackage.or(false) ? EnumSet.of(ExopackageMode.SECONDARY_DEX) : EnumSet.noneOf(ExopackageMode.class);
   AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(params,resolver,compressionMode,resourceFilter,args.manifest,packageType,ImmutableSet.copyOf(args.cpuFilters.get()),args.buildStringSourceMap.or(false),shouldPreDex,AndroidBinary.getPrimaryDexPath(params.getBuildTarget()),dexSplitMode,ImmutableSet.copyOf(args.noDx.or(ImmutableSet.<BuildTarget>of())),ImmutableSet.<BuildTarget>of(),javacOptions,exopackageModes,(Keystore)keystore,args.buildConfigValues.get(),args.buildConfigValuesFile,nativePlatforms);
   AndroidBinaryGraphEnhancer.EnhancementResult result=graphEnhancer.createAdditionalBuildables();
   return new AndroidBinary(params.copyWithExtraDeps(result.finalDeps()),new SourcePathResolver(resolver),proGuardConfig.getProguardJarOverride(),proGuardConfig.getProguardMaxHeapSize(),args.manifest,args.target,(Keystore)keystore,packageType,dexSplitMode,args.noDx.or(ImmutableSet.<BuildTarget>of()),androidSdkProguardConfig,args.optimizationPasses,args.proguardConfig,compressionMode,args.cpuFilters.get(),resourceFilter,exopackageModes,resolver.getAllRules(args.preprocessJavaClassesDeps.or(ImmutableSortedSet.<BuildTarget>of())),MACRO_HANDLER.getExpander(params.getBuildTarget(),resolver,params.getProjectFilesystem()),args.preprocessJavaClassesBash,rulesToExcludeFromDex,result);
