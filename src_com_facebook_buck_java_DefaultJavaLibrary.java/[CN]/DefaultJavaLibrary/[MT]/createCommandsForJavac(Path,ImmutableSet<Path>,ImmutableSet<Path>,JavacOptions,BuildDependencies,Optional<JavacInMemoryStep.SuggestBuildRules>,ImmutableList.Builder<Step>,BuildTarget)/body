@@ -1,10 +1,10 @@
 {
   Step mkdir=new MakeCleanDirectoryStep(getPathToAbiOutputDir());
   commands.add(mkdir);
+  final JavacStep javacStep;
   if (!getJavaSrcs().isEmpty()) {
     Path pathToSrcsList=BuildTargets.getGenPath(getBuildTarget(),"__%s__srcs");
     commands.add(new MkdirStep(pathToSrcsList.getParent()));
-    final JavacStep javacStep;
     if (javacOptions.getJavaCompilerEnvironment().getJavacPath().isPresent()) {
       Path workingDirectory=BuildTargets.getGenPath(target,"lib__%s____working_directory");
       commands.add(new MakeCleanDirectoryStep(workingDirectory));
@@ -14,14 +14,14 @@
       javacStep=new JavacInMemoryStep(outputDirectory,getJavaSrcs(),transitiveClasspathEntries,declaredClasspathEntries,javacOptions,Optional.of(getPathToAbiOutputFile()),Optional.of(target),buildDependencies,suggestBuildRules,Optional.of(pathToSrcsList));
     }
     commands.add(javacStep);
-    return Suppliers.memoize(new Supplier<Sha1HashCode>(){
-      @Override public Sha1HashCode get(){
-        return createTotalAbiKey(Preconditions.checkNotNull(javacStep.getAbiKey()));
-      }
-    }
-);
   }
  else {
-    return Suppliers.ofInstance(createTotalAbiKey(new Sha1HashCode(AbiWriterProtocol.EMPTY_ABI_KEY)));
+    javacStep=new NullJavacStep(outputDirectory,javacOptions,Optional.of(target),buildDependencies,suggestBuildRules);
   }
+  return Suppliers.memoize(new Supplier<Sha1HashCode>(){
+    @Override public Sha1HashCode get(){
+      return createTotalAbiKey(Preconditions.checkNotNull(javacStep.getAbiKey()));
+    }
+  }
+);
 }
