@@ -1,6 +1,8 @@
 {
+  collectionBuilder.buildConfigs(ImmutableMap.copyOf(buildConfigs));
   final ImmutableSet<HasJavaClassHashes> javaClassProviders=javaClassHashesProviders.build();
-  Supplier<Map<String,HashCode>> classNamesToHashesSupplier=Suppliers.memoize(new Supplier<Map<String,HashCode>>(){
+  collectionBuilder.addAllJavaLibrariesToDex(FluentIterable.from(javaClassProviders).transform(BuildTarget.TO_TARGET).toSet());
+  collectionBuilder.classNamesToHashesSupplier(Suppliers.memoize(new Supplier<Map<String,HashCode>>(){
     @Override public Map<String,HashCode> get(){
       ImmutableMap.Builder<String,HashCode> builder=ImmutableMap.builder();
       for (      HasJavaClassHashes hasJavaClassHashes : javaClassProviders) {
@@ -9,13 +11,15 @@
       return builder.build();
     }
   }
-);
-  ImmutableList.Builder<BuildTarget> resourcesWithEmptyResButNonEmptyAssetsDir=ImmutableList.builder();
+));
   ImmutableSet<BuildTarget> resources=ImmutableSet.copyOf(resourcesWithNonEmptyResDir.build());
   for (  BuildTarget buildTarget : resourcesWithAssets.build()) {
     if (!resources.contains(buildTarget)) {
-      resourcesWithEmptyResButNonEmptyAssetsDir.add(buildTarget);
+      resourceDetailsBuilder.addResourcesWithEmptyResButNonEmptyAssetsDir(buildTarget);
     }
   }
-  return new AndroidPackageableCollection(new AndroidPackageableCollection.ResourceDetails(resourceDirectories.build().reverse(),whitelistedStringDirectories.build(),resourcesWithNonEmptyResDir.build().reverse(),resourcesWithEmptyResButNonEmptyAssetsDir.build().reverse()),nativeLibsTargets.build(),nativeLibsDirectories.build(),nativeLibAssetsDirectories.build(),assetsDirectories.build(),manifestFiles.build(),proguardConfigs.build(),classpathEntriesToDex.build(),noDxClasspathEntries.build(),ImmutableMap.copyOf(buildConfigs),pathsToThirdPartyJars.build(),FluentIterable.from(javaClassProviders).transform(BuildTarget.TO_TARGET).toSet(),classNamesToHashesSupplier);
+  resourceDetailsBuilder.resourceDirectories(resourceDirectories.build().reverse());
+  resourceDetailsBuilder.resourcesWithNonEmptyResDir(resourcesWithNonEmptyResDir.build().reverse());
+  collectionBuilder.resourceDetails(resourceDetailsBuilder.build());
+  return collectionBuilder.build();
 }

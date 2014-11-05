@@ -3,25 +3,25 @@
   enhancedDeps.addAll(originalDeps);
   AndroidPackageableCollector collector=new AndroidPackageableCollector(originalBuildTarget,buildTargetsToExcludeFromDex,resourcesToExclude);
   collector.addPackageables(AndroidPackageableCollector.getPackageableRules(originalDeps));
-  AndroidPackageableCollection packageableCollection=collector.build();
-  ResourceDetails resourceDetails=packageableCollection.resourceDetails;
-  ImmutableSortedSet<BuildRule> resourceRules=getTargetsAsRules(resourceDetails.resourcesWithNonEmptyResDir);
+  ImmutableAndroidPackageableCollection packageableCollection=collector.build();
+  ImmutableAndroidPackageableCollection.ResourceDetails resourceDetails=packageableCollection.resourceDetails();
+  ImmutableSortedSet<BuildRule> resourceRules=getTargetsAsRules(resourceDetails.resourcesWithNonEmptyResDir());
   FilteredResourcesProvider filteredResourcesProvider;
   boolean needsResourceFiltering=resourceFilter.isEnabled() || resourceCompressionMode.isStoreStringsAsAssets();
   if (needsResourceFiltering) {
     BuildRuleParams paramsForResourcesFilter=buildRuleParams.copyWithChanges(BuildRuleType.RESOURCES_FILTER,createBuildTargetWithFlavor(RESOURCES_FILTER_FLAVOR),resourceRules,ImmutableSortedSet.<BuildRule>of());
-    ResourcesFilter resourcesFilter=new ResourcesFilter(paramsForResourcesFilter,pathResolver,resourceDetails.resourceDirectories,resourceDetails.whitelistedStringDirectories,resourceCompressionMode,resourceFilter);
+    ResourcesFilter resourcesFilter=new ResourcesFilter(paramsForResourcesFilter,pathResolver,resourceDetails.resourceDirectories(),resourceDetails.whitelistedStringDirectories(),resourceCompressionMode,resourceFilter);
     ruleResolver.addToIndex(resourcesFilter);
     filteredResourcesProvider=resourcesFilter;
     enhancedDeps.add(resourcesFilter);
     resourceRules=ImmutableSortedSet.<BuildRule>of(resourcesFilter);
   }
  else {
-    filteredResourcesProvider=new IdentityResourcesProvider(resourceDetails.resourceDirectories);
+    filteredResourcesProvider=new IdentityResourcesProvider(resourceDetails.resourceDirectories());
   }
   BuildTarget buildTargetForAapt=createBuildTargetWithFlavor(AAPT_PACKAGE_FLAVOR);
   BuildRuleParams paramsForAaptPackageResources=buildRuleParams.copyWithChanges(BuildRuleType.AAPT_PACKAGE,buildTargetForAapt,getAdditionalAaptDeps(pathResolver,resourceRules,packageableCollection),ImmutableSortedSet.<BuildRule>of());
-  AaptPackageResources aaptPackageResources=new AaptPackageResources(paramsForAaptPackageResources,pathResolver,manifest,filteredResourcesProvider,getTargetsAsResourceDeps(resourceDetails.resourcesWithNonEmptyResDir),packageableCollection.assetsDirectories,packageType,cpuFilters,javacOptions,shouldPreDex,shouldBuildStringSourceMap);
+  AaptPackageResources aaptPackageResources=new AaptPackageResources(paramsForAaptPackageResources,pathResolver,manifest,filteredResourcesProvider,getTargetsAsResourceDeps(resourceDetails.resourcesWithNonEmptyResDir()),packageableCollection.assetsDirectories(),packageType,cpuFilters,javacOptions,shouldPreDex,shouldBuildStringSourceMap);
   ruleResolver.addToIndex(aaptPackageResources);
   enhancedDeps.add(aaptPackageResources);
   Optional<PackageStringAssets> packageStringAssets=Optional.absent();
@@ -32,7 +32,7 @@
     ruleResolver.addToIndex(packageStringAssets.get());
     enhancedDeps.add(packageStringAssets.get());
   }
-  if (packageableCollection.resourceDetails.hasResources()) {
+  if (packageableCollection.resourceDetails().hasResources()) {
     collector.addClasspathEntry(aaptPackageResources,aaptPackageResources.getPathToCompiledRDotJavaFiles());
   }
   ImmutableList<DexProducedFromJavaLibrary> preDexBuildConfigs;
@@ -55,12 +55,12 @@
     enhancedDeps.add(preDexMerge.get());
   }
  else {
-    enhancedDeps.addAll(getTargetsAsRules(packageableCollection.javaLibrariesToDex));
+    enhancedDeps.addAll(getTargetsAsRules(packageableCollection.javaLibrariesToDex()));
   }
   Optional<CopyNativeLibraries> copyNativeLibraries=Optional.absent();
-  if (!packageableCollection.nativeLibsDirectories.isEmpty()) {
-    BuildRuleParams paramsForCopyNativeLibraries=buildRuleParams.copyWithChanges(BuildRuleType.COPY_NATIVE_LIBS,createBuildTargetWithFlavor(COPY_NATIVE_LIBS_FLAVOR),getTargetsAsRules(packageableCollection.nativeLibsTargets),ImmutableSortedSet.<BuildRule>of());
-    copyNativeLibraries=Optional.of(new CopyNativeLibraries(paramsForCopyNativeLibraries,pathResolver,packageableCollection.nativeLibsDirectories,cpuFilters));
+  if (!packageableCollection.nativeLibsDirectories().isEmpty()) {
+    BuildRuleParams paramsForCopyNativeLibraries=buildRuleParams.copyWithChanges(BuildRuleType.COPY_NATIVE_LIBS,createBuildTargetWithFlavor(COPY_NATIVE_LIBS_FLAVOR),getTargetsAsRules(packageableCollection.nativeLibsTargets()),ImmutableSortedSet.<BuildRule>of());
+    copyNativeLibraries=Optional.of(new CopyNativeLibraries(paramsForCopyNativeLibraries,pathResolver,packageableCollection.nativeLibsDirectories(),cpuFilters));
     ruleResolver.addToIndex(copyNativeLibraries.get());
     enhancedDeps.add(copyNativeLibraries.get());
   }
@@ -75,5 +75,5 @@
  else {
     finalDeps=enhancedDeps.build();
   }
-  return ImmutableEnhancementResult.builder().filteredResourcesProvider(filteredResourcesProvider).packageableCollection(packageableCollection).aaptPackageResources(aaptPackageResources).copyNativeLibraries(copyNativeLibraries).packageStringAssets(packageStringAssets).preDexMerge(preDexMerge).computeExopackageDepsAbi(computeExopackageDepsAbi).classpathEntriesToDex(ImmutableSet.<Path>builder().addAll(packageableCollection.classpathEntriesToDex).addAll(buildConfigJarFiles).build()).finalDeps(finalDeps).build();
+  return ImmutableEnhancementResult.builder().filteredResourcesProvider(filteredResourcesProvider).packageableCollection(packageableCollection).aaptPackageResources(aaptPackageResources).copyNativeLibraries(copyNativeLibraries).packageStringAssets(packageStringAssets).preDexMerge(preDexMerge).computeExopackageDepsAbi(computeExopackageDepsAbi).classpathEntriesToDex(ImmutableSet.<Path>builder().addAll(packageableCollection.classpathEntriesToDex()).addAll(buildConfigJarFiles).build()).finalDeps(finalDeps).build();
 }

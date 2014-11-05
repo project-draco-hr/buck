@@ -2,17 +2,17 @@
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   Path signedApkPath=getSignedApkPath();
   DexFilesInfo dexFilesInfo=addFinalDxSteps(context,enhancementResult.filteredResourcesProvider().getResDirectories(),buildableContext,steps);
-  AndroidPackageableCollection packageableCollection=enhancementResult.packageableCollection();
+  ImmutableAndroidPackageableCollection packageableCollection=enhancementResult.packageableCollection();
   ImmutableSet<Path> nativeLibraryDirectories=ImmutableSet.of();
   if (!ExopackageMode.enabledForNativeLibraries(exopackageModes) && enhancementResult.copyNativeLibraries().isPresent()) {
     nativeLibraryDirectories=ImmutableSet.of(enhancementResult.copyNativeLibraries().get().getPathToNativeLibsDir());
   }
   ImmutableSet<Path> nativeLibraryAsAssetDirectories;
-  if (!packageableCollection.nativeLibAssetsDirectories.isEmpty()) {
+  if (!packageableCollection.nativeLibAssetsDirectories().isEmpty()) {
     Path pathForNativeLibsAsAssets=getPathForNativeLibsAsAssets();
     Path libSubdirectory=pathForNativeLibsAsAssets.resolve("assets").resolve("lib");
     steps.add(new MakeCleanDirectoryStep(libSubdirectory));
-    for (    Path nativeLibDir : packageableCollection.nativeLibAssetsDirectories) {
+    for (    Path nativeLibDir : packageableCollection.nativeLibAssetsDirectories()) {
       CopyNativeLibraries.copyNativeLibrary(nativeLibDir,libSubdirectory,cpuFilters,steps);
     }
     nativeLibraryAsAssetDirectories=ImmutableSet.of(pathForNativeLibsAsAssets);
@@ -27,7 +27,7 @@
     zipFiles.add(pathToStringAssetsZip);
   }
   ImmutableSet<Path> allAssetDirectories=ImmutableSet.<Path>builder().addAll(nativeLibraryAsAssetDirectories).addAll(dexFilesInfo.secondaryDexDirs).build();
-  ApkBuilderStep apkBuilderCommand=new ApkBuilderStep(enhancementResult.aaptPackageResources().getResourceApkPath(),getSignedApkPath(),dexFilesInfo.primaryDexPath,allAssetDirectories,nativeLibraryDirectories,zipFiles.build(),packageableCollection.pathsToThirdPartyJars,keystore.getPathToStore(),keystore.getPathToPropertiesFile(),false);
+  ApkBuilderStep apkBuilderCommand=new ApkBuilderStep(enhancementResult.aaptPackageResources().getResourceApkPath(),getSignedApkPath(),dexFilesInfo.primaryDexPath,allAssetDirectories,nativeLibraryDirectories,zipFiles.build(),packageableCollection.pathsToThirdPartyJars(),keystore.getPathToStore(),keystore.getPathToPropertiesFile(),false);
   steps.add(apkBuilderCommand);
   Path apkToAlign;
   if (this.isCompressResources()) {
