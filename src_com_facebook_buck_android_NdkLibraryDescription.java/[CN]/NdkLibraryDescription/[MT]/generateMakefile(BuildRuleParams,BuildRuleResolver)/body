@@ -1,0 +1,50 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ImmutableList.Builder<String> outputLinesBuilder=ImmutableList.builder();
+  ImmutableSortedSet.Builder<BuildRule> deps=ImmutableSortedSet.naturalOrder();
+  for (  Map.Entry<AndroidBinary.TargetCpuType,CxxPlatform> entry : cxxPlatforms.entrySet()) {
+    AndroidBinary.TargetCpuType targetCpuType=entry.getKey();
+    String targetArchAbi=getTargetArchAbi(targetCpuType);
+    CxxPlatform cxxPlatform=entry.getValue();
+    CxxPreprocessorInput cxxPreprocessorInput=CxxPreprocessables.getTransitiveCxxPreprocessorInput(cxxPlatform,params.getDeps(),Predicates.or(Predicates.instanceOf(CxxPreprocessorDep.class),Predicates.instanceOf(NdkLibrary.class)));
+    deps.addAll(pathResolver.filterBuildRuleInputs(cxxPreprocessorInput.getIncludes().nameToPathMap().values()));
+    deps.addAll(resolver.getAllRules(cxxPreprocessorInput.getRules()));
+    Iterable<String> ppflags=Iterables.concat(cxxPreprocessorInput.getPreprocessorFlags().get(CxxSource.Type.C),MoreIterables.zipAndConcat(Iterables.cycle("-I"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(params.getPathAbsolutifier()).transform(Functions.toStringFunction())),MoreIterables.zipAndConcat(Iterables.cycle("-isystem"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(params.getPathAbsolutifier()).transform(Functions.toStringFunction())));
+    String local_cflags=Joiner.on(' ').join(escapeForMakefile(params,ppflags));
+    NativeLinkableInput nativeLinkableInput=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,params.getDeps(),NativeLinkable.Type.SHARED,Predicates.or(Predicates.instanceOf(NativeLinkable.class),Predicates.instanceOf(NdkLibrary.class)),true);
+    deps.addAll(pathResolver.filterBuildRuleInputs(nativeLinkableInput.getInputs()));
+    String local_ldlibs=Joiner.on(' ').join(escapeForMakefile(params,nativeLinkableInput.getArgs()));
+    if (!local_cflags.isEmpty() || !local_ldlibs.isEmpty()) {
+      outputLinesBuilder.add(String.format("ifeq ($(TARGET_ARCH_ABI),%s)",targetArchAbi));
+      if (!local_cflags.isEmpty()) {
+        outputLinesBuilder.add("DEP_CFLAGS=" + local_cflags);
+      }
+      if (!local_ldlibs.isEmpty()) {
+        outputLinesBuilder.add("DEP_LDLIBS=" + local_ldlibs);
+      }
+      outputLinesBuilder.add("endif");
+      outputLinesBuilder.add("");
+    }
+  }
+  outputLinesBuilder.add("include Android.mk");
+  BuildTarget makefileTarget=BuildTargets.extendFlavoredBuildTarget(params.getBuildTarget(),MAKEFILE_FLAVOR);
+  BuildRuleParams makefileParams=params.copyWithChanges(MAKEFILE_TYPE,makefileTarget,deps.build(),ImmutableSortedSet.<BuildRule>of());
+  final Path makefilePath=getGeneratedMakefilePath(params.getBuildTarget());
+  final String contents=Joiner.on(System.lineSeparator()).join(outputLinesBuilder.build());
+  return new AbstractBuildRule(makefileParams,pathResolver){
+    @Override protected ImmutableCollection<Path> getInputsToCompareToOutput(){
+      return ImmutableList.of();
+    }
+    @Override protected RuleKey.Builder appendDetailsToRuleKey(    RuleKey.Builder builder){
+      return builder.set("contents",contents).set("output",makefilePath.toString());
+    }
+    @Override public ImmutableList<Step> getBuildSteps(    BuildContext context,    BuildableContext buildableContext){
+      buildableContext.recordArtifact(makefilePath);
+      return ImmutableList.of(new MkdirStep(makefilePath.getParent()),new WriteFileStep(contents,makefilePath));
+    }
+    @Override public Path getPathToOutputFile(){
+      return makefilePath;
+    }
+  }
+;
+}

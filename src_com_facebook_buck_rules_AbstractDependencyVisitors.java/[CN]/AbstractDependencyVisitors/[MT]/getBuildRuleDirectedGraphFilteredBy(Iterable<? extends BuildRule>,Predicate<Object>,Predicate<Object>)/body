@@ -2,21 +2,18 @@
   final MutableDirectedGraph<BuildRule> graph=new MutableDirectedGraph<>();
   AbstractDependencyVisitor visitor=new AbstractDependencyVisitor(inputs){
     @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
-      if (typeFilter.isAssignableFrom(rule.getClass())) {
+      if (filter.apply(rule)) {
         graph.addNode(rule);
         for (        BuildRule dep : rule.getDeps()) {
-          if (typeFilter.isAssignableFrom(dep.getClass())) {
+          if (traverse.apply(dep) && filter.apply(dep)) {
             graph.addEdge(rule,dep);
           }
         }
-        return rule.getDeps();
       }
- else {
-        return ImmutableSet.of();
-      }
+      return traverse.apply(rule) ? rule.getDeps() : ImmutableSet.<BuildRule>of();
     }
   }
 ;
   visitor.start();
-  return new DefaultImmutableDirectedAcyclicGraph<BuildRule>(graph);
+  return new DefaultImmutableDirectedAcyclicGraph<>(graph);
 }

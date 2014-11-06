@@ -1,8 +1,10 @@
 {
+  BuildRule makefile=generateMakefile(params,resolver);
+  resolver.addToIndex(makefile);
   final ImmutableSortedSet.Builder<SourcePath> srcs=ImmutableSortedSet.naturalOrder();
   try {
     final Path buildRulePath=params.getBuildTarget().getBasePath();
-    final Path rootDirectory=params.getPathAbsolutifier().apply(buildRulePath);
+    final Path rootDirectory=params.getProjectFilesystem().resolve(buildRulePath);
     Files.walkFileTree(rootDirectory,EnumSet.of(FileVisitOption.FOLLOW_LINKS),Integer.MAX_VALUE,new SimpleFileVisitor<Path>(){
       @Override public FileVisitResult visitFile(      Path file,      BasicFileAttributes attrs) throws IOException {
         if (EXTENSIONS_REGEX.matcher(file.toString()).matches()) {
@@ -16,5 +18,5 @@
  catch (  IOException e) {
     throw new RuntimeException(e);
   }
-  return new NdkLibrary(params,new SourcePathResolver(resolver),srcs.build(),args.flags.get(),args.isAsset.or(false),ndkVersion);
+  return new NdkLibrary(params.copyWithExtraDeps(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getExtraDeps()).add(makefile).build()),new SourcePathResolver(resolver),getGeneratedMakefilePath(params.getBuildTarget()),srcs.build(),args.flags.get(),args.isAsset.or(false),ndkVersion);
 }
