@@ -1,5 +1,11 @@
 {
-  Iterable<BuildRule> testBundleRuleDependencies=AppleBuildRules.getRecursiveRuleDependenciesOfTypes(AppleBuildRules.RecursiveRuleDependenciesMode.BUILDING,testBundleRule,Optional.<ImmutableSet<BuildRuleType>>absent());
+  final ActionGraph actionGraph=projectGraph.getActionGraph(executionContext.getBuckEventBus());
+  Iterable<BuildRule> testBundleRuleDependencies=FluentIterable.from(AppleBuildRules.getRecursiveTargetNodeDependenciesOfTypes(projectGraph,AppleBuildRules.RecursiveDependenciesMode.BUILDING,projectGraph.get(testBundleRule.getBuildTarget()),Optional.<ImmutableSet<BuildRuleType>>absent())).transform(new Function<TargetNode<?>,BuildRule>(){
+    @Override public BuildRule apply(    TargetNode<?> input){
+      return Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(input.getBuildTarget()));
+    }
+  }
+).toSet();
   recursiveTestRulesBuilder.addAll(testBundleRuleDependencies);
   recursiveTestRulesBuilder.add(testBundleRule);
   orderedTestBundleRulesBuilder.add(testBundleRule);

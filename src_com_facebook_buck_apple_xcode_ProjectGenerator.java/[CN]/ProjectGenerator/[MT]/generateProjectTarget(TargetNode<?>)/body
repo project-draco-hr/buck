@@ -1,0 +1,32 @@
+{
+  Preconditions.checkState(isBuiltByCurrentProject(targetNode.getBuildTarget()),"should not generate rule if it shouldn't be built by current project");
+  Optional<PBXTarget> result;
+  if (targetNode.getType().equals(AppleLibraryDescription.TYPE)) {
+    result=Optional.<PBXTarget>of(generateAppleLibraryTarget(project,(TargetNode<AppleNativeTargetDescriptionArg>)targetNode));
+  }
+ else   if (targetNode.getType().equals(AppleBinaryDescription.TYPE)) {
+    result=Optional.<PBXTarget>of(generateAppleBinaryTarget(project,(TargetNode<AppleNativeTargetDescriptionArg>)targetNode));
+  }
+ else   if (targetNode.getType().equals(AppleBundleDescription.TYPE)) {
+    result=Optional.<PBXTarget>of(generateAppleBundleTarget(project,(TargetNode<AppleBundleDescription.Arg>)targetNode));
+  }
+ else   if (targetNode.getType().equals(AppleTestDescription.TYPE)) {
+    AppleTestDescription.Arg arg=(AppleTestDescription.Arg)targetNode.getConstructorArg();
+    TargetNode<AppleBundleDescription.Arg> bundle=(TargetNode<AppleBundleDescription.Arg>)Preconditions.checkNotNull(targetGraph.get(arg.testBundle));
+    if (bundle.getType().equals(AppleBundleDescription.TYPE)) {
+      if (bundle.getConstructorArg().isTestBundle()) {
+        result=Optional.<PBXTarget>of(generateAppleBundleTarget(project,bundle));
+      }
+ else {
+        throw new HumanReadableException("Incorrect extension: " + bundle.getConstructorArg().extension.getRight());
+      }
+    }
+ else {
+      throw new HumanReadableException("Test bundle should be a bundle: " + bundle);
+    }
+  }
+ else {
+    result=Optional.absent();
+  }
+  return result;
+}

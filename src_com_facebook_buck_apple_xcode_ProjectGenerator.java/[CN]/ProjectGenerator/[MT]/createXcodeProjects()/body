@@ -1,20 +1,20 @@
 {
   LOG.debug("Creating projects for targets %s",initialTargets);
   try {
-    for (    BuildRule rule : rulesToBuild) {
-      if (isBuiltByCurrentProject(rule.getBuildTarget())) {
-        LOG.debug("Including rule %s in project",rule);
-        Optional<PBXTarget> target=buildRuleToXcodeTarget.getUnchecked(rule);
+    for (    TargetNode<?> targetNode : targetGraph.getNodes()) {
+      if (isBuiltByCurrentProject(targetNode.getBuildTarget())) {
+        LOG.debug("Including rule %s in project",targetNode);
+        Optional<PBXTarget> target=targetNodeToProjectTarget.getUnchecked(targetNode);
         if (target.isPresent()) {
-          if (rule.getType().equals(AppleTestDescription.TYPE)) {
-            AppleTest test=(AppleTest)rule;
-            rule=test.getTestBundle();
+          if (targetNode.getType().equals(AppleTestDescription.TYPE)) {
+            AppleTestDescription.Arg arg=(AppleTestDescription.Arg)targetNode.getConstructorArg();
+            targetNode=targetGraph.get(arg.testBundle);
           }
-          buildRuleToGeneratedTargetBuilder.put(rule,target.get());
+          targetNodeToGeneratedProjectTargetBuilder.put(targetNode,target.get());
         }
       }
  else {
-        LOG.verbose("Excluding rule %s (not built by current project)",rule);
+        LOG.verbose("Excluding rule %s (not built by current project)",targetNode);
       }
     }
     if (options.contains(Option.REFERENCE_EXISTING_XCCONFIGS)) {

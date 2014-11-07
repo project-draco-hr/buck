@@ -1,0 +1,51 @@
+{
+  for (  final CoreDataModelDescription.Arg dataModel : dataModels) {
+    PBXGroup resourcesGroup=targetGroup.getOrCreateChildGroupByName("Resources");
+    if (CoreDataModelDescription.isVersionedDataModel(dataModel)) {
+      final String currentVersionFileName=".xccurrentversion";
+      final String currentVersionKey="_XCCurrentVersionName";
+      final XCVersionGroup versionGroup=resourcesGroup.getOrCreateChildVersionGroupsBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(dataModel.path)));
+      projectFilesystem.walkRelativeFileTree(dataModel.path,new SimpleFileVisitor<Path>(){
+        @Override public FileVisitResult preVisitDirectory(        Path dir,        BasicFileAttributes attrs){
+          if (dir.equals(dataModel.path)) {
+            return FileVisitResult.CONTINUE;
+          }
+          versionGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(dir)));
+          return FileVisitResult.SKIP_SUBTREE;
+        }
+      }
+);
+      Path currentVersionPath=dataModel.path.resolve(currentVersionFileName);
+      try (InputStream in=projectFilesystem.newFileInputStream(currentVersionPath)){
+        NSObject rootObject;
+        try {
+          rootObject=PropertyListParser.parse(in);
+        }
+ catch (        IOException e) {
+          throw e;
+        }
+catch (        Exception e) {
+          rootObject=null;
+        }
+        if (!(rootObject instanceof NSDictionary)) {
+          throw new HumanReadableException("Malformed %s file.",currentVersionFileName);
+        }
+        NSDictionary rootDictionary=(NSDictionary)rootObject;
+        NSObject currentVersionName=rootDictionary.objectForKey(currentVersionKey);
+        if (!(currentVersionName instanceof NSString)) {
+          throw new HumanReadableException("Malformed %s file.",currentVersionFileName);
+        }
+        PBXFileReference ref=versionGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(dataModel.path.resolve(currentVersionName.toString()))));
+        versionGroup.setCurrentVersion(Optional.of(ref));
+      }
+ catch (      NoSuchFileException e) {
+        if (versionGroup.getChildren().size() == 1) {
+          versionGroup.setCurrentVersion(Optional.of(Iterables.get(versionGroup.getChildren(),0)));
+        }
+      }
+    }
+ else {
+      resourcesGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(dataModel.path)));
+    }
+  }
+}

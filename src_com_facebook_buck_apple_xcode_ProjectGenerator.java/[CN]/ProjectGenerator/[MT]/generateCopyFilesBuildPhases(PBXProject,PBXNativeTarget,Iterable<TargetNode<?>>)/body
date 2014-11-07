@@ -1,0 +1,18 @@
+{
+  ImmutableSetMultimap.Builder<PBXCopyFilesBuildPhase.Destination,TargetNode<?>> ruleByDestinationBuilder=ImmutableSetMultimap.builder();
+  for (  TargetNode<?> copiedNode : copiedNodes) {
+    Optional<PBXCopyFilesBuildPhase.Destination> optionalDestination=getDestination(copiedNode);
+    if (optionalDestination.isPresent()) {
+      ruleByDestinationBuilder.put(optionalDestination.get(),copiedNode);
+    }
+  }
+  ImmutableSetMultimap<PBXCopyFilesBuildPhase.Destination,TargetNode<?>> ruleByDestination=ruleByDestinationBuilder.build();
+  for (  PBXCopyFilesBuildPhase.Destination destination : ruleByDestination.keySet()) {
+    PBXCopyFilesBuildPhase copyFilesBuildPhase=new PBXCopyFilesBuildPhase(destination,"");
+    target.getBuildPhases().add(copyFilesBuildPhase);
+    for (    TargetNode<?> targetNode : ruleByDestination.get(destination)) {
+      PBXFileReference fileReference=project.getMainGroup().getOrCreateChildGroupByName("Dependencies").getOrCreateFileReferenceBySourceTreePath(getProductsSourceTreePath(targetNode));
+      copyFilesBuildPhase.getFiles().add(new PBXBuildFile(fileReference));
+    }
+  }
+}

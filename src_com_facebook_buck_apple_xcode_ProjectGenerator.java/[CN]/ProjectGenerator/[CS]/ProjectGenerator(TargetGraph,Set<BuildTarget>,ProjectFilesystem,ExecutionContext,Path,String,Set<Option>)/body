@@ -1,7 +1,6 @@
 {
-  ActionGraph actionGraph=targetGraph.getActionGraph(executionContext.getBuckEventBus());
-  this.resolver=new SourcePathResolver(new BuildRuleResolver(ImmutableSet.copyOf(actionGraph.getNodes())));
-  this.rulesToBuild=ImmutableSet.copyOf(actionGraph.getNodes());
+  this.resolver=new SourcePathResolver(new BuildRuleResolver(ImmutableSet.copyOf(targetGraph.getActionGraph(executionContext.getBuckEventBus()).getNodes())));
+  this.targetGraph=targetGraph;
   this.initialTargets=ImmutableSet.copyOf(initialTargets);
   this.projectFilesystem=projectFilesystem;
   this.executionContext=executionContext;
@@ -14,10 +13,10 @@
   this.placedAssetCatalogBuildPhaseScript=BuckConstant.BIN_PATH.resolve("xcode-scripts/compile_asset_catalogs_build_phase.sh");
   this.project=new PBXProject(projectName);
   this.headerMaps=new ArrayList<>();
-  this.buildRuleToGeneratedTargetBuilder=ImmutableMap.builder();
-  this.buildRuleToXcodeTarget=CacheBuilder.newBuilder().build(new CacheLoader<BuildRule,Optional<PBXTarget>>(){
-    @Override public Optional<PBXTarget> load(    BuildRule key) throws Exception {
-      return generateTargetForBuildRule(key);
+  this.targetNodeToGeneratedProjectTargetBuilder=ImmutableMap.builder();
+  this.targetNodeToProjectTarget=CacheBuilder.newBuilder().build(new CacheLoader<TargetNode<?>,Optional<PBXTarget>>(){
+    @Override public Optional<PBXTarget> load(    TargetNode<?> key) throws Exception {
+      return generateProjectTarget(key);
     }
   }
 );

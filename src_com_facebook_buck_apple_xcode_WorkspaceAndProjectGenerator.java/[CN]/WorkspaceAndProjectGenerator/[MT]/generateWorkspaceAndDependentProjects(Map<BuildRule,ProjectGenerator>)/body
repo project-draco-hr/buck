@@ -13,7 +13,13 @@
   WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,workspaceName,outputDirectory);
   ImmutableSet<BuildRule> orderedBuildRules;
   if (workspaceBuildable.getSrcTarget().isPresent()) {
-    orderedBuildRules=AppleBuildRules.getSchemeBuildableRules(workspaceBuildable.getSrcTarget().get());
+    final ActionGraph actionGraph=projectGraph.getActionGraph(executionContext.getBuckEventBus());
+    orderedBuildRules=FluentIterable.from(AppleBuildRules.getSchemeBuildableTargetNodes(projectGraph,projectGraph.get(workspaceBuildable.getSrcTarget().get().getBuildTarget()))).transform(new Function<TargetNode<?>,BuildRule>(){
+      @Override public BuildRule apply(      TargetNode<?> input){
+        return Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(input.getBuildTarget()));
+      }
+    }
+).toSet();
   }
  else {
     orderedBuildRules=ImmutableSet.of();

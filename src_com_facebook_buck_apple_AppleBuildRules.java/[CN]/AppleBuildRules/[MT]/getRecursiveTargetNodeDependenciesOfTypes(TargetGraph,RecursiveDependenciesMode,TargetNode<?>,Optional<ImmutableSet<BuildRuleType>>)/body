@@ -1,0 +1,71 @@
+{
+  final ImmutableList.Builder<TargetNode<?>> filteredRules=ImmutableList.builder();
+  AbstractAcyclicDepthFirstPostOrderTraversal<TargetNode<?>> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<TargetNode<?>>(){
+    @Override protected Iterator<TargetNode<?>> findChildren(    TargetNode<?> node) throws IOException {
+      ImmutableSortedSet<TargetNode<?>> defaultDeps=ImmutableSortedSet.copyOf(targetGraph.getAll(node.getDeps()));
+      if (node.getType().equals(AppleBundleDescription.TYPE)) {
+        AppleBundleDescription.Arg arg=(AppleBundleDescription.Arg)node.getConstructorArg();
+        ImmutableSortedSet.Builder<TargetNode<?>> editedDeps=ImmutableSortedSet.naturalOrder();
+        for (        TargetNode<?> rule : defaultDeps) {
+          if (!rule.getBuildTarget().equals(arg.binary)) {
+            editedDeps.add(rule);
+          }
+ else {
+            editedDeps.addAll(targetGraph.getAll(Preconditions.checkNotNull(targetGraph.get(arg.binary)).getDeps()));
+          }
+        }
+        defaultDeps=editedDeps.build();
+      }
+      ImmutableSortedSet<TargetNode<?>> deps=ImmutableSortedSet.of();
+      if (node != targetNode) {
+switch (mode) {
+case LINKING:
+          if (node.getType().equals(AppleLibraryDescription.TYPE)) {
+            if (AppleLibraryDescription.isDynamicLibraryTarget(node.getBuildTarget())) {
+              deps=ImmutableSortedSet.of();
+            }
+ else {
+              deps=defaultDeps;
+            }
+          }
+ else           if (node.getType().equals(AppleBundleDescription.TYPE)) {
+            deps=ImmutableSortedSet.of();
+          }
+ else {
+            deps=defaultDeps;
+          }
+        break;
+case COPYING:
+      if (node.getType().equals(AppleBundleDescription.TYPE)) {
+        deps=ImmutableSortedSet.of();
+      }
+ else {
+        deps=defaultDeps;
+      }
+    break;
+case BUILDING:
+  return defaultDeps.iterator();
+}
+}
+ else {
+return defaultDeps.iterator();
+}
+return deps.iterator();
+}
+@Override protected void onNodeExplored(TargetNode<?> node){
+if (node != targetNode && (!types.isPresent() || types.get().contains(node.getType()))) {
+filteredRules.add(node);
+}
+}
+@Override protected void onTraversalComplete(Iterable<TargetNode<?>> nodesInExplorationOrder){
+}
+}
+;
+try {
+traversal.traverse(ImmutableList.of(targetNode));
+}
+ catch (AbstractAcyclicDepthFirstPostOrderTraversal.CycleException|IOException|InterruptedException e) {
+throw new RuntimeException(e);
+}
+return filteredRules.build();
+}

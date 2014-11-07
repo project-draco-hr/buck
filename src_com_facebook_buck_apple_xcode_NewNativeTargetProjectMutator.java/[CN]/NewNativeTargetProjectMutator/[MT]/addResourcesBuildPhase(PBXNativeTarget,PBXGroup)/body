@@ -5,22 +5,21 @@
   PBXGroup resourcesGroup=targetGroup.getOrCreateChildGroupByName("Resources");
   PBXBuildPhase phase=new PBXResourcesBuildPhase();
   target.getBuildPhases().add(phase);
-  for (  AppleResource resource : resources) {
-    Iterable<Path> paths=Iterables.concat(sourcePathResolver.getAllPaths(resource.getFiles()),resource.getDirs());
+  for (  AppleResourceDescription.Arg resource : resources) {
+    Iterable<Path> paths=Iterables.concat(sourcePathResolver.getAllPaths(resource.files),resource.dirs);
     for (    Path path : paths) {
       PBXFileReference fileReference=resourcesGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(path)));
       PBXBuildFile buildFile=new PBXBuildFile(fileReference);
       phase.getFiles().add(buildFile);
     }
-    for (    String virtualOutputPath : resource.getVariants().keySet()) {
-      ImmutableMap<String,SourcePath> contents=Preconditions.checkNotNull(resource.getVariants().get(virtualOutputPath));
-      String variantName=Paths.get(virtualOutputPath).getFileName().toString();
+    for (    Map.Entry<String,Map<String,SourcePath>> virtualOutputEntry : resource.variants.get().entrySet()) {
+      String variantName=Paths.get(virtualOutputEntry.getKey()).getFileName().toString();
       PBXVariantGroup variantGroup=resourcesGroup.getOrCreateChildVariantGroupByName(variantName);
       PBXBuildFile buildFile=new PBXBuildFile(variantGroup);
       phase.getFiles().add(buildFile);
-      for (      String childVirtualName : contents.keySet()) {
-        SourceTreePath sourceTreePath=new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputPathToSourcePath(Preconditions.checkNotNull(contents.get(childVirtualName))));
-        variantGroup.getOrCreateVariantFileReferenceByNameAndSourceTreePath(childVirtualName,sourceTreePath);
+      for (      Map.Entry<String,SourcePath> childVirtualNameEntry : virtualOutputEntry.getValue().entrySet()) {
+        SourceTreePath sourceTreePath=new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputPathToSourcePath(childVirtualNameEntry.getValue()));
+        variantGroup.getOrCreateVariantFileReferenceByNameAndSourceTreePath(childVirtualNameEntry.getKey(),sourceTreePath);
       }
     }
   }
