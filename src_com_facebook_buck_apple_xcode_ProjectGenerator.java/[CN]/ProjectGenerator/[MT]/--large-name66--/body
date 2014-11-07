@@ -8,7 +8,8 @@
     }
     gidsToTargetNames.put(targetGid.get(),thisTargetName);
   }
-  BuildTarget buildTarget=bundle.isPresent() ? bundle.get().getBuildTarget() : targetNode.getBuildTarget();
+  TargetNode<?> buildTargetNode=bundle.isPresent() ? bundle.get() : targetNode;
+  BuildTarget buildTarget=buildTargetNode.getBuildTarget();
   String productName=getProductName(buildTarget);
   TargetSources sources=TargetSources.ofAppleSources(resolver,targetNode.getConstructorArg().srcs.get());
   NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(targetGraph,executionContext,pathRelativizer,resolver,buildTarget);
@@ -70,8 +71,9 @@
     defaultSettingsBuilder.put("WRAPPER_EXTENSION",bundle.get().getConstructorArg().getExtensionString());
   }
   defaultSettingsBuilder.put("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPath(targetNode.getConstructorArg().headerPathPrefix));
+  defaultSettingsBuilder.put("BUILT_PRODUCTS_DIR",Joiner.on('/').join("$SYMROOT","$CONFIGURATION$EFFECTIVE_PLATFORM_NAME"));
+  defaultSettingsBuilder.put("CONFIGURATION_BUILD_DIR",getTargetOutputPath(buildTargetNode));
   if (!bundle.isPresent() && targetNode.getType().equals(AppleLibraryDescription.TYPE)) {
-    defaultSettingsBuilder.put("CONFIGURATION_BUILD_DIR",getObjectOutputPath(targetNode));
     defaultSettingsBuilder.put("EXECUTABLE_PREFIX","lib");
   }
   ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
