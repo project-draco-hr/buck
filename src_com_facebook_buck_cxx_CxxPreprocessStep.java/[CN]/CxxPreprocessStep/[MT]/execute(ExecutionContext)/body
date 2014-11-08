@@ -1,0 +1,33 @@
+{
+  ProcessBuilder builder=new ProcessBuilder();
+  builder.command(getCommand());
+  builder.directory(context.getProjectDirectoryRoot().toAbsolutePath().toFile());
+  builder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+  builder.redirectError(ProcessBuilder.Redirect.PIPE);
+  Path outputPath=context.getProjectFilesystem().resolve(this.output);
+  Path outputTempPath=context.getProjectFilesystem().resolve(this.output + ".tmp");
+  try {
+    Process process=builder.start();
+    ByteArrayOutputStream error=new ByteArrayOutputStream();
+    try (OutputStream output=Files.newOutputStream(outputTempPath);FunctionProcessor outputProcessor=new FunctionProcessor(process.getInputStream(),output,createOutputLineProcessor(replacementPaths));FunctionProcessor errorProcessor=new FunctionProcessor(process.getErrorStream(),error,createErrorLineProcessor(replacementPaths))){
+      outputProcessor.start();
+      errorProcessor.start();
+    }
+     int exitCode=process.waitFor();
+    if (exitCode == 0) {
+      Files.move(outputTempPath,outputPath,StandardCopyOption.REPLACE_EXISTING,StandardCopyOption.ATOMIC_MOVE);
+    }
+    String err=new String(error.toByteArray());
+    if (!err.isEmpty()) {
+      context.getConsole().printErrorText(err);
+    }
+    return exitCode;
+  }
+ catch (  InterruptedException|InterruptedIOException e) {
+    throw new InterruptedException();
+  }
+catch (  Exception e) {
+    context.getConsole().printBuildFailureWithStacktrace(e);
+    return 1;
+  }
+}

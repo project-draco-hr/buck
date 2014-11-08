@@ -1,0 +1,17 @@
+{
+  BuckConfig buckConfig=new FakeBuckConfig();
+  CxxPlatform cxxPlatform=new DefaultCxxPlatform(buckConfig);
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"resolved",tmp);
+  workspace.setUp();
+  workspace.writeContentsToPath("","lib2.h");
+  BuildTarget target=BuildTargetFactory.newInstance("//:bin");
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  BuildTarget ppTarget=CxxPreprocessables.createPreprocessBuildTarget(target,cxxPlatform.asFlavor(),CxxSource.Type.CXX,false,"bin.cpp");
+  Path output=CxxPreprocessables.getPreprocessOutputPath(ppTarget,CxxSource.Type.CXX,"bin.cpp");
+  String contents=workspace.getFileContents(output.toString());
+  assertThat(contents,Matchers.not(Matchers.containsString(BuckConstant.BIN_DIR)));
+  assertThat(contents,Matchers.not(Matchers.containsString(BuckConstant.GEN_DIR)));
+  assertThat(contents,Matchers.containsString("# 1 \"bin.h"));
+  assertThat(contents,Matchers.containsString("# 1 \"lib1.h"));
+  assertThat(contents,Matchers.containsString("# 1 \"lib2.h"));
+}
