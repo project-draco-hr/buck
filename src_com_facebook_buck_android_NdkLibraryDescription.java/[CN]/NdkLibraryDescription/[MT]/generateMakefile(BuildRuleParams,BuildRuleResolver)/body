@@ -10,17 +10,17 @@
     deps.addAll(pathResolver.filterBuildRuleInputs(cxxPreprocessorInput.getIncludes().nameToPathMap().values()));
     deps.addAll(resolver.getAllRules(cxxPreprocessorInput.getRules()));
     Iterable<String> ppflags=Iterables.concat(cxxPreprocessorInput.getPreprocessorFlags().get(CxxSource.Type.C),MoreIterables.zipAndConcat(Iterables.cycle("-I"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(params.getPathAbsolutifier()).transform(Functions.toStringFunction())),MoreIterables.zipAndConcat(Iterables.cycle("-isystem"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(params.getPathAbsolutifier()).transform(Functions.toStringFunction())));
-    String local_cflags=Joiner.on(' ').join(escapeForMakefile(params,ppflags));
+    String localCflags=Joiner.on(' ').join(escapeForMakefile(params,ppflags));
     NativeLinkableInput nativeLinkableInput=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,params.getDeps(),NativeLinkable.Type.SHARED,Predicates.or(Predicates.instanceOf(NativeLinkable.class),Predicates.instanceOf(NdkLibrary.class)),true);
     deps.addAll(pathResolver.filterBuildRuleInputs(nativeLinkableInput.getInputs()));
-    String local_ldlibs=Joiner.on(' ').join(escapeForMakefile(params,nativeLinkableInput.getArgs()));
-    if (!local_cflags.isEmpty() || !local_ldlibs.isEmpty()) {
+    String localLdlibs=Joiner.on(' ').join(escapeForMakefile(params,nativeLinkableInput.getArgs()));
+    if (!localCflags.isEmpty() || !localLdlibs.isEmpty()) {
       outputLinesBuilder.add(String.format("ifeq ($(TARGET_ARCH_ABI),%s)",targetArchAbi));
-      if (!local_cflags.isEmpty()) {
-        outputLinesBuilder.add("DEP_CFLAGS=" + local_cflags);
+      if (!localCflags.isEmpty()) {
+        outputLinesBuilder.add("DEP_CFLAGS=" + localCflags);
       }
-      if (!local_ldlibs.isEmpty()) {
-        outputLinesBuilder.add("DEP_LDLIBS=" + local_ldlibs);
+      if (!localLdlibs.isEmpty()) {
+        outputLinesBuilder.add("DEP_LDLIBS=" + localLdlibs);
       }
       outputLinesBuilder.add("endif");
       outputLinesBuilder.add("");
