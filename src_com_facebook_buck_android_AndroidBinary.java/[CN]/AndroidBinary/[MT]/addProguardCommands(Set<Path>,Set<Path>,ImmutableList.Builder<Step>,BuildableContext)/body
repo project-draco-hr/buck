@@ -4,11 +4,6 @@
   for (  JavaLibrary buildRule : rulesToExcludeFromDex) {
     additionalLibraryJarsForProguardBuilder.addAll(classpathEntriesMap.get(buildRule));
   }
-  Path proguardDirectory=getPathForProGuardDirectory();
-  steps.add(new MakeCleanDirectoryStep(proguardDirectory));
-  Path generatedProGuardConfig=proguardDirectory.resolve("proguard.txt");
-  GenProGuardConfigStep genProGuardConfig=new GenProGuardConfigStep(enhancementResult.aaptPackageResources().getAndroidManifestXml(),resDirectories,generatedProGuardConfig);
-  steps.add(genProGuardConfig);
   ImmutableSet.Builder<Path> proguardConfigsBuilder=ImmutableSet.builder();
   proguardConfigsBuilder.addAll(depsProguardConfigs);
   if (proguardConfig.isPresent()) {
@@ -20,6 +15,7 @@
     }
   }
 );
-  ProGuardObfuscateStep.create(proguardJarOverride,proguardMaxHeapSize,generatedProGuardConfig,proguardConfigsBuilder.build(),sdkProguardConfig,optimizationPasses,inputOutputEntries,additionalLibraryJarsForProguardBuilder.build(),proguardDirectory,buildableContext,steps);
+  Path proguardConfigDir=enhancementResult.aaptPackageResources().getPathToGeneratedProguardConfigDir();
+  ProGuardObfuscateStep.create(proguardJarOverride,proguardMaxHeapSize,proguardConfigDir.resolve("proguard.txt"),proguardConfigsBuilder.build(),sdkProguardConfig,optimizationPasses,inputOutputEntries,additionalLibraryJarsForProguardBuilder.build(),proguardConfigDir,buildableContext,steps);
   return ImmutableSet.copyOf(inputOutputEntries.values());
 }
