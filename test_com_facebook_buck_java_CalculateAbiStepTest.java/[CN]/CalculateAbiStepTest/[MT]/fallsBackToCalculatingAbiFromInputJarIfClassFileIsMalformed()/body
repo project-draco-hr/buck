@@ -1,0 +1,16 @@
+{
+  Path outDir=temp.newFolder().toPath().toAbsolutePath();
+  ProjectFilesystem filesystem=new ProjectFilesystem(outDir);
+  Path binJar=outDir.resolve("bad.jar");
+  try (Zip zip=new Zip(binJar.toFile(),true)){
+    zip.add("Broken.class","cafebabe bacon and cheese".getBytes(UTF_8));
+  }
+   String expectedHash=filesystem.computeSha1(binJar);
+  Path abiJar=outDir.resolve("abi.jar");
+  ExecutionContext executionContext=TestExecutionContext.newBuilder().setProjectFilesystem(filesystem).build();
+  FakeBuildableContext context=new FakeBuildableContext();
+  new CalculateAbiStep(context,binJar,abiJar).execute(executionContext);
+  ImmutableMap<String,Object> metadata=context.getRecordedMetadata();
+  Object seenHash=metadata.get(AbiRule.ABI_KEY_ON_DISK_METADATA);
+  assertEquals(expectedHash,seenHash);
+}
