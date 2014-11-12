@@ -1,7 +1,7 @@
 {
-  Preconditions.checkState(!Files.exists(path),"Output file already exists: %s)",path);
-  if (!Files.exists(path.getParent())) {
-    Files.createDirectories(path.getParent());
+  Preconditions.checkState(!filesystem.exists(path),"Output file already exists: %s)",path);
+  if (path.getParent() != null && !filesystem.exists(path.getParent())) {
+    filesystem.createParentDirs(path);
   }
   Walker walker=Walkers.getWalkerFor(toMirror);
   walker.walk(new FileAction(){
@@ -17,7 +17,7 @@
     }
   }
 );
-  try (FileOutputStream fos=new FileOutputStream(path.toFile());BufferedOutputStream bos=new BufferedOutputStream(fos);JarOutputStream jar=new JarOutputStream(bos)){
+  try (OutputStream fos=filesystem.newFileOutputStream(path);JarOutputStream jar=new JarOutputStream(fos)){
     for (    ClassMirror aClass : classes) {
       aClass.writeTo(jar);
     }
