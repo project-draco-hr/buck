@@ -18,18 +18,10 @@
   steps.add(new MakeCleanDirectoryStep(rDotJavaClassesFolder));
   Path pathToAbiOutputDir=getPathToAbiOutputDir(getBuildTarget());
   steps.add(new MakeCleanDirectoryStep(pathToAbiOutputDir));
-  Path pathToAbiOutputFile=pathToAbiOutputDir.resolve("abi");
-  final JavacStep javacStep=RDotJava.createJavacStepForDummyRDotJavaFiles(javaSourceFilePaths,rDotJavaClassesFolder,Optional.of(pathToAbiOutputFile),javacOptions,getBuildTarget());
+  Path pathToAbiOutputFile=pathToAbiOutputDir.resolve("abi.jar");
+  final JavacStep javacStep=RDotJava.createJavacStepForDummyRDotJavaFiles(javaSourceFilePaths,rDotJavaClassesFolder,javacOptions,getBuildTarget());
   steps.add(javacStep);
-  steps.add(new AbstractExecutionStep("record_abi_key"){
-    @Override public int execute(    ExecutionContext context){
-      Sha1HashCode abiKey=javacStep.getAbiKey();
-      Preconditions.checkNotNull(abiKey,"Javac step must create a non-null ABI key for this rule.");
-      buildableContext.addMetadata(METADATA_KEY_FOR_ABI_KEY,abiKey.getHash());
-      return 0;
-    }
-  }
-);
   buildableContext.recordArtifactsInDirectory(rDotJavaClassesFolder);
+  steps.add(new CalculateAbiStep(buildableContext,rDotJavaClassesFolder,pathToAbiOutputFile));
   return steps.build();
 }

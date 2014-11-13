@@ -11,7 +11,8 @@
     steps.add(mkdirGeneratedSources);
     buildableContext.recordArtifactsInDirectory(annotationGenFolder);
   }
-  Path outputDirectory=getClassesDir(getBuildTarget());
+  BuildTarget target=getBuildTarget();
+  Path outputDirectory=getClassesDir(target);
   steps.add(new MakeCleanDirectoryStep(outputDirectory));
   Optional<JavacInMemoryStep.SuggestBuildRules> suggestBuildRule=createSuggestBuildFunction(context,transitiveClasspathEntries,declaredClasspathEntries,JAR_RESOLVER);
   Collection<Path> provided=JavaLibraryClasspathProvider.getJavaLibraryDeps(providedDeps).transformAndConcat(new Function<JavaLibrary,Collection<Path>>(){
@@ -22,20 +23,28 @@
 ).filter(Predicates.notNull()).toSet();
   ImmutableSet<Path> transitive=ImmutableSet.<Path>builder().addAll(transitiveClasspathEntries.values()).addAll(provided).build();
   ImmutableSet<Path> declared=ImmutableSet.<Path>builder().addAll(declaredClasspathEntries.values()).addAll(provided).build();
-  Supplier<Sha1HashCode> abiKeySupplier=createCommandsForJavac(outputDirectory,transitive,declared,javacOptions,context.getBuildDependencies(),suggestBuildRule,steps,getBuildTarget());
+  createCommandsForJavac(outputDirectory,transitive,declared,javacOptions,context.getBuildDependencies(),suggestBuildRule,steps,target);
   addPostprocessClassesCommands(steps,postprocessClassesCommands,outputDirectory);
   JavaPackageFinder finder=context.getJavaPackageFinder();
   if (resourcesRoot.isPresent()) {
     finder=new ResourcesRootPackageFinder(resourcesRoot.get(),finder);
   }
-  steps.add(new CopyResourcesStep(getResolver(),getBuildTarget(),resources,outputDirectory,finder));
+  steps.add(new CopyResourcesStep(getResolver(),target,resources,outputDirectory,finder));
+  steps.add(new MakeCleanDirectoryStep(getOutputJarDirPath(target)));
+  Path abiJar=getOutputJarDirPath(target).resolve(String.format("%s-abi.jar",target.getShortName()));
+  steps.add(new MkdirStep(abiJar.getParent()));
   if (outputJar.isPresent()) {
-    steps.add(new MakeCleanDirectoryStep(getOutputJarDirPath(getBuildTarget())));
-    steps.add(new JarDirectoryStep(outputJar.get(),Collections.singleton(outputDirectory),null,null));
-    buildableContext.recordArtifact(outputJar.get());
+    Path output=outputJar.get();
+    steps.add(new JarDirectoryStep(output,Collections.singleton(outputDirectory),null,null));
+    buildableContext.recordArtifact(output);
+    steps.add(new CalculateAbiStep(buildableContext,output,abiJar));
   }
-  Preconditions.checkNotNull(abiKeySupplier,"abiKeySupplier must be set so that getAbiKey() will " + "return a non-null value if this rule builds successfully.");
-  addStepsToRecordAbiToDisk(steps,abiKeySupplier,buildableContext);
+ else {
+    Path scratch=BuildTargets.getBinPath(target,String.format("%%s/%s-temp-abi.jar",target.getShortName()));
+    steps.add(new MakeCleanDirectoryStep(scratch.getParent()));
+    steps.add(new TouchStep(scratch));
+    steps.add(new CalculateAbiStep(buildableContext,scratch,abiJar));
+  }
   JavaLibraryRules.addAccumulateClassNamesStep(this,buildableContext,steps);
   return steps.build();
 }
