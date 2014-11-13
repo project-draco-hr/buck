@@ -1,11 +1,9 @@
 {
-  SourcePath xcconfigFile=new PathSourcePath(Paths.get("Test.xcconfig"));
-  projectFilesystem.writeContentsToPath("",new SourcePathResolver(new BuildRuleResolver()).getPath(xcconfigFile));
   BuildTarget dynamicLibraryTarget=BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build();
-  TargetNode<?> dynamicLibraryNode=AppleLibraryBuilder.createBuilder(dynamicLibraryTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.of(new XcodeRuleConfigurationLayer(xcconfigFile),new XcodeRuleConfigurationLayer(xcconfigFile)))))).build();
+  TargetNode<?> dynamicLibraryNode=AppleLibraryBuilder.createBuilder(dynamicLibraryTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).build();
   BuildTarget buildTarget=BuildTarget.builder("//foo","bundle").build();
   TargetNode<?> node=AppleBundleBuilder.createBuilder(buildTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK)).setBinary(dynamicLibraryTarget).build();
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(dynamicLibraryNode,node),ImmutableSet.of(ProjectGenerator.Option.REFERENCE_EXISTING_XCCONFIGS));
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(dynamicLibraryNode,node),ImmutableSet.<ProjectGenerator.Option>of());
   projectGenerator.createXcodeProjects();
   PBXProject project=projectGenerator.getGeneratedProject();
   PBXTarget target=assertTargetExistsAndReturnTarget(project,"//foo:bundle");
@@ -14,8 +12,6 @@
   PBXFileReference productReference=target.getProductReference();
   assertEquals("bundle.framework",productReference.getName());
   assertEquals(Optional.of("wrapper.framework"),productReference.getExplicitFileType());
-  assertHasConfigurations(target,"Debug");
-  XCBuildConfiguration configuration=target.getBuildConfigurationList().getBuildConfigurationsByName().asMap().get("Debug");
-  NSDictionary settings=configuration.getBuildSettings();
-  assertEquals(new NSString("framework"),settings.get("WRAPPER_EXTENSION"));
+  ImmutableMap<String,String> settings=getBuildSettings(buildTarget,target,"Debug");
+  assertEquals("framework",settings.get("WRAPPER_EXTENSION"));
 }

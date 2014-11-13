@@ -1,19 +1,14 @@
 {
-  Path rawXcconfigFile=Paths.get("Test.xcconfig");
-  SourcePath xcconfigFile=new PathSourcePath(rawXcconfigFile);
-  projectFilesystem.writeContentsToPath("",rawXcconfigFile);
   BuildTarget buildTarget=BuildTarget.builder("//foo","lib").build();
-  TargetNode<?> node=AppleLibraryBuilder.createBuilder(buildTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",new XcodeRuleConfiguration(ImmutableList.of(new XcodeRuleConfigurationLayer(xcconfigFile),new XcodeRuleConfigurationLayer(xcconfigFile)))))).setHeaderPathPrefix(Optional.of("MyHeaderPathPrefix")).setPrefixHeader(Optional.<SourcePath>of(new TestSourcePath("Foo/Foo-Prefix.pch"))).setUseBuckHeaderMaps(Optional.of(false)).build();
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node),ImmutableSet.of(ProjectGenerator.Option.REFERENCE_EXISTING_XCCONFIGS));
+  TargetNode<?> node=AppleLibraryBuilder.createBuilder(buildTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).setHeaderPathPrefix(Optional.of("MyHeaderPathPrefix")).setPrefixHeader(Optional.<SourcePath>of(new TestSourcePath("Foo/Foo-Prefix.pch"))).setUseBuckHeaderMaps(Optional.of(false)).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node),ImmutableSet.<ProjectGenerator.Option>of());
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:lib");
   assertThat(target.isa(),equalTo("PBXNativeTarget"));
   assertThat(target.getProductType(),equalTo(PBXTarget.ProductType.STATIC_LIBRARY));
-  assertHasConfigurations(target,"Debug");
-  XCBuildConfiguration configuration=target.getBuildConfigurationList().getBuildConfigurationsByName().asMap().get("Debug");
-  NSDictionary settings=configuration.getBuildSettings();
-  assertEquals(new NSString("../Foo/Foo-Prefix.pch"),settings.get("GCC_PREFIX_HEADER"));
-  assertEquals(new NSString("$SYMROOT/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME"),settings.get("BUILT_PRODUCTS_DIR"));
-  assertEquals(new NSString("$BUILT_PRODUCTS_DIR/F4XWM33PHJWGSYQ"),settings.get("CONFIGURATION_BUILD_DIR"));
-  assertEquals(new NSString("Headers/MyHeaderPathPrefix"),settings.get("PUBLIC_HEADERS_FOLDER_PATH"));
+  ImmutableMap<String,String> settings=getBuildSettings(buildTarget,target,"Debug");
+  assertEquals("../Foo/Foo-Prefix.pch",settings.get("GCC_PREFIX_HEADER"));
+  assertEquals("$SYMROOT/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME",settings.get("BUILT_PRODUCTS_DIR"));
+  assertEquals("$BUILT_PRODUCTS_DIR/F4XWM33PHJWGSYQ",settings.get("CONFIGURATION_BUILD_DIR"));
+  assertEquals("Headers/MyHeaderPathPrefix",settings.get("PUBLIC_HEADERS_FOLDER_PATH"));
 }
