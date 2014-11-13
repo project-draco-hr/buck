@@ -1,13 +1,38 @@
 {
-  int exitCode=super.execute(context);
-  if (exitCode == 0 && sanitizer.isPresent()) {
-    try {
-      sanitizer.get().restoreCompilationDirectory(context.getProjectDirectoryRoot().toAbsolutePath().resolve(output),context.getProjectDirectoryRoot().toAbsolutePath());
-    }
- catch (    IOException e) {
-      context.logError(e,"error updating compilation directory");
-      return 1;
-    }
+  ProcessBuilder builder=new ProcessBuilder();
+  builder.command(getCommand());
+  builder.directory(context.getProjectDirectoryRoot().toAbsolutePath().toFile());
+  builder.redirectError(ProcessBuilder.Redirect.PIPE);
+  if (sanitizer.isPresent()) {
+    builder.environment().put("PWD",sanitizer.get().getExpandedPath(context.getProjectDirectoryRoot().toAbsolutePath()));
   }
-  return exitCode;
+  try {
+    Process process=builder.start();
+    ByteArrayOutputStream error=new ByteArrayOutputStream();
+    try (FunctionLineProcessorThread errorProcessor=new FunctionLineProcessorThread(process.getErrorStream(),error,createErrorLineProcessor(context.getProjectDirectoryRoot().toAbsolutePath()))){
+      errorProcessor.start();
+    }
+     int exitCode=process.waitFor();
+    String err=new String(error.toByteArray());
+    if (!err.isEmpty()) {
+      context.getConsole().printErrorText(err);
+    }
+    if (exitCode == 0 && sanitizer.isPresent()) {
+      try {
+        sanitizer.get().restoreCompilationDirectory(context.getProjectDirectoryRoot().toAbsolutePath().resolve(output),context.getProjectDirectoryRoot().toAbsolutePath());
+      }
+ catch (      IOException e) {
+        context.logError(e,"error updating compilation directory");
+        return 1;
+      }
+    }
+    return exitCode;
+  }
+ catch (  InterruptedException|InterruptedIOException e) {
+    throw new InterruptedException();
+  }
+catch (  Exception e) {
+    context.getConsole().printBuildFailureWithStacktrace(e);
+    return 1;
+  }
 }
