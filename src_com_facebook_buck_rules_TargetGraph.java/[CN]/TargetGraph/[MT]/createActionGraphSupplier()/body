@@ -2,6 +2,9 @@
   final TargetGraph targetGraph=this;
   return Suppliers.memoize(new Supplier<ActionGraph>(){
     @Override public ActionGraph get(){
+      if (buckEventBus.isPresent()) {
+        buckEventBus.get().post(ActionGraphEvent.started());
+      }
       final BuildRuleResolver ruleResolver=new BuildRuleResolver();
       final MutableDirectedGraph<BuildRule> actionGraph=new MutableDirectedGraph<>();
       final TargetNodeToBuildRuleTransformer transformer=new TargetNodeToBuildRuleTransformer();
@@ -53,7 +56,11 @@
       }
 ;
       bottomUpTraversal.traverse();
-      return bottomUpTraversal.getResult();
+      ActionGraph result=bottomUpTraversal.getResult();
+      if (buckEventBus.isPresent()) {
+        buckEventBus.get().post(ActionGraphEvent.finished());
+      }
+      return result;
     }
   }
 );
