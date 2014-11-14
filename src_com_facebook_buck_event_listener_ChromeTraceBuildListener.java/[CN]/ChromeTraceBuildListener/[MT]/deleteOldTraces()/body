@@ -2,32 +2,13 @@
   if (!projectFilesystem.exists(BuckConstant.BUCK_TRACE_DIR)) {
     return;
   }
+  Path traceDirectory=projectFilesystem.getPathForRelativePath(BuckConstant.BUCK_TRACE_DIR);
   try {
-    ImmutableList<Path> pathsSortedByModified=FluentIterable.from(projectFilesystem.getDirectoryContents(BuckConstant.BUCK_TRACE_DIR)).filter(new Predicate<Path>(){
-      @Override public boolean apply(      Path input){
-        return input.getFileName().toString().matches(TRACE_FILE_PATTERN);
-      }
-    }
-).toSortedList(new Comparator<Path>(){
-      @Override public int compare(      Path a,      Path b){
-        try {
-          return Long.signum(projectFilesystem.getLastModifiedTime(b) - projectFilesystem.getLastModifiedTime(a));
-        }
- catch (        IOException e) {
-          throw Throwables.propagate(e);
-        }
-      }
-    }
-);
-    if (pathsSortedByModified.size() > tracesToKeep) {
-      ImmutableList<Path> pathsToRemove=pathsSortedByModified.subList(tracesToKeep,pathsSortedByModified.size());
-      LOG.debug("Deleting old traces: %s",pathsToRemove);
-      for (      Path path : pathsToRemove) {
-        projectFilesystem.deleteFileAtPath(path);
-      }
+    for (    Path path : PathListing.listMatchingPathsWithFilters(traceDirectory,"build.*.trace",PathListing.MODIFIED_TIME_DESC,PathListing.FilterMode.EXCLUDE,Optional.of(tracesToKeep),Optional.<Long>absent())) {
+      projectFilesystem.deleteFileAtPath(path);
     }
   }
  catch (  IOException e) {
-    LOG.error(e,"Couldn't delete old traces from %s",BuckConstant.BUCK_TRACE_DIR);
+    LOG.error(e,"Couldn't list paths in trace directory %s",traceDirectory);
   }
 }
