@@ -4,15 +4,9 @@
     targetForOriginalRule=targetForOriginalRule.getUnflavoredTarget();
   }
   BuildTarget headersTarget=BuildTargets.createFlavoredBuildTarget(targetForOriginalRule,AbstractAppleNativeTargetBuildRuleDescriptions.HEADERS);
-  Optional<BuildRule> headersRuleOption=resolver.getRuleOptional(headersTarget);
-  if (headersRuleOption.isPresent()) {
-    return headersRuleOption.get();
-  }
   BuildRuleParams headerRuleParams=params.copyWithChanges(HEADERS_RULE_TYPE,headersTarget,ImmutableSortedSet.<BuildRule>of(),params.getExtraDeps());
-  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  TargetSources targetSources=TargetSources.ofAppleSources(pathResolver,args.srcs.get());
+  TargetSources targetSources=TargetSources.ofAppleSources(resolver,args.srcs.get());
   ImmutableSortedMap<SourcePath,String> perFileFlags=targetSources.perFileFlags;
   boolean useBuckHeaderMaps=args.useBuckHeaderMaps.or(Boolean.FALSE);
-  SymlinkTree headersRule=createCopyPublicHeadersAction(headerRuleParams,pathResolver,perFileFlags,useBuckHeaderMaps);
-  return headersRule;
+  return createSymlinkTree(headerRuleParams,resolver,perFileFlags,useBuckHeaderMaps);
 }

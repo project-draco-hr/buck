@@ -1,0 +1,25 @@
+{
+  if (node.getConstructorArg().getUseBuckHeaderMaps()) {
+    Path headerMap=getPathToHeaderMap(node,HeaderMapType.PUBLIC_HEADER_MAP).get();
+    includePaths.add(headerMap);
+  }
+ else {
+    BuildTarget buildTarget=node.getBuildTarget();
+    if (buildTarget.isFlavored()) {
+      return;
+    }
+    BuildTarget targetForHeaders=BuildTargets.createFlavoredBuildTarget(buildTarget,AbstractAppleNativeTargetBuildRuleDescriptions.HEADERS);
+    Optional<BuildRule> buildRule=buildRuleResolver.getRuleOptional(targetForHeaders);
+    if (!buildRule.isPresent()) {
+      BuildRule newBuildRule=node.getDescription().createBuildRule(new BuildRuleParams(targetForHeaders,ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of(),node.getRuleFactoryParams().getProjectFilesystem(),node.getRuleFactoryParams().getRuleKeyBuilderFactory(),node.getType(),targetGraph),buildRuleResolver,node.getConstructorArg());
+      buildRuleResolver.addToIndex(newBuildRule);
+      buildRule=Optional.of(newBuildRule);
+    }
+    SymlinkTree headersRule=(SymlinkTree)buildRule.get();
+    Optional<Path> headersDirectory=headersRule.getRootOfSymlinksDirectory();
+    if (headersDirectory.isPresent()) {
+      includePaths.add(headersDirectory.get());
+      deps.add(headersRule);
+    }
+  }
+}
