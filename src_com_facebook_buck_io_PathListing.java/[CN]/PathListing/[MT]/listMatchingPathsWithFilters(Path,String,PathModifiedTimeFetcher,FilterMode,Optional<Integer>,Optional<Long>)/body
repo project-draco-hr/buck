@@ -1,0 +1,18 @@
+{
+  ImmutableMap.Builder<Path,FileTime> pathFileTimesBuilder=ImmutableMap.builder();
+  try (DirectoryStream<Path> stream=Files.newDirectoryStream(pathToGlob,globPattern)){
+    for (    Path path : stream) {
+      try {
+        pathFileTimesBuilder.put(path,pathModifiedTimeFetcher.getLastModifiedTime(path));
+      }
+ catch (      NoSuchFileException e) {
+        continue;
+      }
+    }
+  }
+   ImmutableMap<Path,FileTime> pathFileTimes=pathFileTimesBuilder.build();
+  ImmutableSortedSet<Path> paths=ImmutableSortedSet.copyOf(Ordering.natural().onResultOf(Functions.forMap(pathFileTimes)).compound(Ordering.natural()).reverse(),pathFileTimes.keySet());
+  paths=applyNumPathsFilter(paths,filterMode,maxPathsFilter);
+  paths=applyTotalSizeFilter(paths,filterMode,totalSizeFilter);
+  return paths;
+}
