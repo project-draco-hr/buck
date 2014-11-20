@@ -1,0 +1,26 @@
+{
+  LOG.debug("Getting ordered test target nodes for %s",orderedTargetNodes);
+  final ImmutableSet.Builder<TargetNode<?>> recursiveTestTargetNodesBuilder=ImmutableSet.builder();
+  if (!sourceTargetToTestNodes.isEmpty()) {
+    for (    TargetNode<?> node : orderedTargetNodes) {
+      LOG.verbose("Checking if target %s has any tests covering it..",node);
+      for (      TargetNode<?> testNode : sourceTargetToTestNodes.get(node.getBuildTarget())) {
+        AppleTestDescription.Arg testConstructorArg=(AppleTestDescription.Arg)testNode.getConstructorArg();
+        addTestNodeAndDependencies(targetGraph.get(testConstructorArg.testBundle),recursiveTestTargetNodesBuilder,orderedTestBundleTargetNodeBuilder);
+      }
+    }
+  }
+  for (  TargetNode<?> testBundleTarget : extraTestBundleTargets) {
+    if (!AppleBuildRules.isXcodeTargetTestBundleTargetNode(testBundleTarget)) {
+      throw new HumanReadableException("Test target %s must be apple_bundle with a test extension!",testBundleTarget);
+    }
+    addTestNodeAndDependencies(testBundleTarget,recursiveTestTargetNodesBuilder,orderedTestBundleTargetNodeBuilder);
+  }
+  final Set<TargetNode<?>> includedTestNodes=Sets.difference(recursiveTestTargetNodesBuilder.build(),orderedTargetNodes);
+  orderedTestTargetNodeBuilder.addAll(TopologicalSort.sort(targetGraph,new Predicate<TargetNode<?>>(){
+    @Override public boolean apply(    TargetNode<?> input){
+      return includedTestNodes.contains(input) && AppleBuildRules.isXcodeTargetBuildRuleType(input.getType());
+    }
+  }
+));
+}

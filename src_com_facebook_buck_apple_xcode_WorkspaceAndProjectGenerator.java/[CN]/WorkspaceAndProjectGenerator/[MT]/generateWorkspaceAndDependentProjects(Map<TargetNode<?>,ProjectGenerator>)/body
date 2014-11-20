@@ -1,0 +1,85 @@
+{
+  LOG.debug("Generating workspace for target %s",workspaceTargetNode);
+  String workspaceName;
+  Path outputDirectory;
+  if (combinedProject) {
+    workspaceName="GeneratedProject";
+    outputDirectory=Paths.get("_gen");
+  }
+ else {
+    workspaceName=XcodeWorkspaceConfigDescription.getWorkspaceNameFromArg(workspaceTargetNode.getConstructorArg());
+    outputDirectory=workspaceTargetNode.getBuildTarget().getBasePath();
+  }
+  WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,workspaceName,outputDirectory);
+  ImmutableSet<TargetNode<?>> orderedTargetNodes;
+  if (workspaceTargetNode.getConstructorArg().srcTarget.isPresent()) {
+    orderedTargetNodes=AppleBuildRules.getSchemeBuildableTargetNodes(projectGraph,projectGraph.get(workspaceTargetNode.getConstructorArg().srcTarget.get().getBuildTarget()));
+  }
+ else {
+    orderedTargetNodes=ImmutableSet.of();
+  }
+  ImmutableSet<TargetNode<?>> orderedTestTargetNodes;
+  ImmutableSet<TargetNode<?>> orderedTestBundleTargetNodes;
+{
+    ImmutableSet.Builder<TargetNode<?>> orderedTestTargetNodesBuilder=ImmutableSet.builder();
+    ImmutableSet.Builder<TargetNode<?>> orderedTestBundleTargetNodesBuilder=ImmutableSet.builder();
+    getOrderedTestNodes(projectGraph,sourceTargetToTestNodes,orderedTargetNodes,extraTestBundleTargetNodes,orderedTestTargetNodesBuilder,orderedTestBundleTargetNodesBuilder);
+    orderedTestTargetNodes=orderedTestTargetNodesBuilder.build();
+    orderedTestBundleTargetNodes=orderedTestBundleTargetNodesBuilder.build();
+  }
+  ImmutableSet<BuildTarget> targetsInRequiredProjects=FluentIterable.from(Sets.union(orderedTargetNodes,orderedTestTargetNodes)).transform(HasBuildTarget.TO_TARGET).toSet();
+  ImmutableMap.Builder<BuildTarget,PBXTarget> buildTargetToPbxTargetMapBuilder=ImmutableMap.builder();
+  ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
+  if (combinedProject) {
+    ImmutableSet.Builder<BuildTarget> initialTargetsBuilder=ImmutableSet.builder();
+    for (    TargetNode<?> targetNode : projectGraph.getNodes()) {
+      if (targetNode.getType() != XcodeProjectConfigDescription.TYPE) {
+        continue;
+      }
+      XcodeProjectConfigDescription.Arg projectArg=(XcodeProjectConfigDescription.Arg)targetNode.getConstructorArg();
+      if (Sets.intersection(targetsInRequiredProjects,projectArg.rules).isEmpty()) {
+        continue;
+      }
+      initialTargetsBuilder.addAll(projectArg.rules);
+    }
+    LOG.debug("Generating a combined project");
+    ProjectGenerator generator=new ProjectGenerator(projectGraph,initialTargetsBuilder.build(),projectFilesystem,executionContext,outputDirectory,"GeneratedProject",projectGeneratorOptions);
+    combinedProjectGenerator=Optional.of(generator);
+    generator.createXcodeProjects();
+    workspaceGenerator.addFilePath(generator.getProjectPath());
+    buildTargetToPbxTargetMapBuilder.putAll(generator.getBuildTargetToGeneratedTargetMap());
+    for (    PBXTarget target : generator.getBuildTargetToGeneratedTargetMap().values()) {
+      targetToProjectPathMapBuilder.put(target,generator.getProjectPath());
+    }
+  }
+ else {
+    for (    TargetNode<?> targetNode : projectGraph.getNodes()) {
+      if (targetNode.getType() != XcodeProjectConfigDescription.TYPE) {
+        continue;
+      }
+      XcodeProjectConfigDescription.Arg projectArg=(XcodeProjectConfigDescription.Arg)targetNode.getConstructorArg();
+      if (Sets.intersection(targetsInRequiredProjects,projectArg.rules).isEmpty()) {
+        continue;
+      }
+      ProjectGenerator generator=projectGenerators.get(targetNode);
+      if (generator == null) {
+        LOG.debug("Generating project for target %s",targetNode);
+        generator=new ProjectGenerator(projectGraph,projectArg.rules,projectFilesystem,executionContext,targetNode.getBuildTarget().getBasePath(),projectArg.projectName,projectGeneratorOptions);
+        generator.createXcodeProjects();
+        projectGenerators.put(targetNode,generator);
+      }
+ else {
+        LOG.debug("Already generated project for target %s, skipping",targetNode);
+      }
+      workspaceGenerator.addFilePath(generator.getProjectPath());
+      buildTargetToPbxTargetMapBuilder.putAll(generator.getBuildTargetToGeneratedTargetMap());
+      for (      PBXTarget target : generator.getBuildTargetToGeneratedTargetMap().values()) {
+        targetToProjectPathMapBuilder.put(target,generator.getProjectPath());
+      }
+    }
+  }
+  Path workspacePath=workspaceGenerator.writeWorkspace();
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,workspaceTargetNode.getConstructorArg().srcTarget,Iterables.transform(orderedTargetNodes,HasBuildTarget.TO_TARGET),Iterables.transform(orderedTestTargetNodes,HasBuildTarget.TO_TARGET),Iterables.transform(orderedTestBundleTargetNodes,HasBuildTarget.TO_TARGET),workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),XcodeWorkspaceConfigDescription.getActionConfigNamesFromArg(workspaceTargetNode.getConstructorArg()),buildTargetToPbxTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
+  schemeGenerator.writeScheme();
+  return workspacePath;
+}

@@ -39,21 +39,21 @@
       optionsBuilder.addAll(ProjectGenerator.SEPARATED_PROJECT_OPTIONS);
     }
     LOG.debug("Generating workspace for config targets %s",targets);
-    Map<BuildRule,ProjectGenerator> projectGenerators=new HashMap<>();
-    for (    BuildTarget workspaceConfig : targets) {
-      BuildRule workspaceRule=Preconditions.checkNotNull(targetGraphs.getMainGraph().getActionGraph().findBuildRuleByTarget(workspaceConfig));
-      if (!(workspaceRule instanceof XcodeWorkspaceConfig)) {
-        throw new HumanReadableException("%s must be a xcode_workspace_config",workspaceRule.getFullyQualifiedName());
+    Map<TargetNode<?>,ProjectGenerator> projectGenerators=new HashMap<>();
+    for (    BuildTarget workspaceTarget : targets) {
+      TargetNode<?> workspaceNode=targetGraphs.getMainGraph().get(workspaceTarget);
+      if (workspaceNode.getType() != XcodeWorkspaceConfigDescription.TYPE) {
+        throw new HumanReadableException("%s must be a xcode_workspace_config",workspaceTarget);
       }
-      Iterable<BuildRule> testBuildRules;
+      XcodeWorkspaceConfigDescription.Arg workspaceArg=(XcodeWorkspaceConfigDescription.Arg)workspaceNode.getConstructorArg();
+      Iterable<TargetNode<?>> testTargetNodes;
       if (targetGraphs.getTestGraph().isPresent()) {
-        testBuildRules=targetGraphs.getTestGraph().get().getActionGraph().getNodes();
+        testTargetNodes=targetGraphs.getTestGraph().get().getNodes();
       }
  else {
-        testBuildRules=Collections.emptySet();
+        testTargetNodes=Collections.emptySet();
       }
-      XcodeWorkspaceConfig workspaceConfigRule=(XcodeWorkspaceConfig)workspaceRule;
-      WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphs.getProjectGraph(),executionContext,workspaceConfigRule,optionsBuilder.build(),AppleBuildRules.getSourceRuleToTestRulesMap(testBuildRules),workspaceConfigRule.getExtraTests(),combinedProject);
+      WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphs.getProjectGraph(),executionContext,castToXcodeWorkspaceTargetNode(workspaceNode),optionsBuilder.build(),AppleBuildRules.getSourceTargetToTestNodesMap(testTargetNodes),targetGraphs.getMainGraph().getAll(workspaceArg.extraTests.get()),combinedProject);
       generator.generateWorkspaceAndDependentProjects(projectGenerators);
     }
   }
