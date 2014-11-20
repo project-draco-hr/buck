@@ -1,0 +1,14 @@
+{
+  String blob="something \n \ud003\ud001hello/world \n something";
+  String fixedBlob="something \n \ud003\ud001replaced/// \n something";
+  Path original=Paths.get("\ud003\ud001hello/world");
+  Path replacement=Paths.get("\ud003\ud001replaced");
+  ImmutableList<Charset> charSets=ImmutableList.of(Charsets.ISO_8859_1,Charsets.US_ASCII,Charsets.UTF_8,Charsets.UTF_16,Charsets.UTF_16BE,Charsets.UTF_16LE);
+  for (  Charset charset : charSets) {
+    ByteBufferReplacer replacer=ByteBufferReplacer.fromPaths(ImmutableMap.of(original,replacement),File.separatorChar,charset);
+    byte[] rawBytes=blob.getBytes(charset);
+    int numReplacements=replacer.replace(ByteBuffer.wrap(rawBytes));
+    assertEquals(String.format("Charset %s",charset),1,numReplacements);
+    assertArrayEquals(String.format("Charset %s: \'%s\' != \'%s\'",charset,fixedBlob,new String(rawBytes,charset)),fixedBlob.getBytes(charset),rawBytes);
+  }
+}
