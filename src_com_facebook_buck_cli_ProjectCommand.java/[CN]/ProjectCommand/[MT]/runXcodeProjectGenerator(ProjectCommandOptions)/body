@@ -40,13 +40,14 @@
     }
     LOG.debug("Generating workspace for config targets %s",targets);
     Map<TargetNode<?>,ProjectGenerator> projectGenerators=new HashMap<>();
+    ImmutableSet<TargetNode<?>> testTargetNodes=targetGraphAndTargets.getAssociatedTests();
+    ImmutableMultimap<BuildTarget,TargetNode<?>> sourceTargetToTestNodes=AppleBuildRules.getSourceTargetToTestNodesMap(testTargetNodes);
     for (    BuildTarget workspaceTarget : targets) {
       TargetNode<?> workspaceNode=targetGraphAndTargets.getTargetGraph().get(workspaceTarget);
       if (workspaceNode.getType() != XcodeWorkspaceConfigDescription.TYPE) {
         throw new HumanReadableException("%s must be a xcode_workspace_config",workspaceTarget);
       }
-      ImmutableSet<TargetNode<?>> testTargetNodes=targetGraphAndTargets.getAssociatedTests();
-      WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphAndTargets.getTargetGraph(),executionContext,castToXcodeWorkspaceTargetNode(workspaceNode),optionsBuilder.build(),AppleBuildRules.getSourceTargetToTestNodesMap(testTargetNodes),combinedProject);
+      WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphAndTargets.getTargetGraph(),executionContext,castToXcodeWorkspaceTargetNode(workspaceNode),optionsBuilder.build(),sourceTargetToTestNodes,combinedProject);
       generator.generateWorkspaceAndDependentProjects(projectGenerators);
     }
   }
