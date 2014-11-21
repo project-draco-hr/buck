@@ -1,6 +1,5 @@
 {
   Predicate<TargetNode<?>> projectRootsPredicate;
-  Predicate<TargetNode<?>> projectPredicate;
   AssociatedTargetNodePredicate associatedProjectPredicate;
 switch (options.getIde()) {
 case INTELLIJ:
@@ -10,26 +9,25 @@ case INTELLIJ:
       }
     }
 ;
-  projectPredicate=projectRootsPredicate;
-associatedProjectPredicate=new AssociatedTargetNodePredicate(){
-  @Override public boolean apply(  TargetNode<?> targetNode,  TargetGraph targetGraph){
-    ProjectConfigDescription.Arg projectArg;
-    if (targetNode.getType() == ProjectConfigDescription.TYPE) {
-      projectArg=(ProjectConfigDescription.Arg)targetNode.getConstructorArg();
-    }
+  associatedProjectPredicate=new AssociatedTargetNodePredicate(){
+    @Override public boolean apply(    TargetNode<?> targetNode,    TargetGraph targetGraph){
+      ProjectConfigDescription.Arg projectArg;
+      if (targetNode.getType() == ProjectConfigDescription.TYPE) {
+        projectArg=(ProjectConfigDescription.Arg)targetNode.getConstructorArg();
+      }
  else {
-      return false;
+        return false;
+      }
+      BuildTarget projectTarget=null;
+      if (projectArg.srcTarget.isPresent()) {
+        projectTarget=projectArg.srcTarget.get();
+      }
+ else       if (projectArg.testTarget.isPresent()) {
+        projectTarget=projectArg.testTarget.get();
+      }
+      return (projectTarget != null && targetGraph.get(projectTarget) != null);
     }
-    BuildTarget projectTarget=null;
-    if (projectArg.srcTarget.isPresent()) {
-      projectTarget=projectArg.srcTarget.get();
-    }
- else     if (projectArg.testTarget.isPresent()) {
-      projectTarget=projectArg.testTarget.get();
-    }
-    return (projectTarget != null && targetGraph.get(projectTarget) != null);
   }
-}
 ;
 break;
 case XCODE:
@@ -44,17 +42,11 @@ return false;
 String targetName=input.getBuildTarget().getFullyQualifiedName();
 for (String prefix : defaultExcludePaths) {
 if (targetName.startsWith("//" + prefix) && !passedInTargetsSet.contains(input.getBuildTarget())) {
-LOG.debug("Ignoring build target %s (exclude_paths contains %s)",input.getBuildTarget(),prefix);
-return false;
+  LOG.debug("Ignoring build target %s (exclude_paths contains %s)",input.getBuildTarget(),prefix);
+  return false;
 }
 }
 return true;
-}
-}
-;
-projectPredicate=new Predicate<TargetNode<?>>(){
-@Override public boolean apply(TargetNode<?> input){
-return input.getType() == XcodeProjectConfigDescription.TYPE;
 }
 }
 ;
@@ -84,14 +76,11 @@ TargetGraph fullGraph=getParser().buildTargetGraphForTargetNodeSpecs(ImmutableLi
 ImmutableSet<TargetNode<?>> projectRoots=ImmutableSet.copyOf(fullGraph.getAll(getRootsFromOptionsWithPredicate(fullGraph,options,projectRootsPredicate)));
 ImmutableSet<TargetNode<?>> associatedTests=ImmutableSet.of();
 if (options.isWithTests()) {
-Predicate<TargetNode<?>> testPredicate=new Predicate<TargetNode<?>>(){
-@Override public boolean apply(TargetNode<?> input){
-return input.getType().isTestRule();
-}
-}
-;
 AssociatedTargetNodePredicate associatedTestsPredicate=new AssociatedTargetNodePredicate(){
 @Override public boolean apply(TargetNode<?> targetNode,TargetGraph targetGraph){
+if (!targetNode.getType().isTestRule()) {
+return false;
+}
 ImmutableSortedSet<BuildTarget> sourceUnderTest;
 if (targetNode.getConstructorArg() instanceof HasSourceUnderTest) {
 HasSourceUnderTest argWithSourceUnderTest=(HasSourceUnderTest)targetNode.getConstructorArg();
@@ -109,9 +98,9 @@ return false;
 }
 }
 ;
-associatedTests=getAssociatedTargetNodes(fullGraph,projectRoots,testPredicate,associatedTestsPredicate);
+associatedTests=getAssociatedTargetNodes(fullGraph,projectRoots,associatedTestsPredicate);
 }
-ImmutableSet<TargetNode<?>> associatedProjects=getAssociatedTargetNodes(fullGraph,Iterables.concat(projectRoots,associatedTests),projectPredicate,associatedProjectPredicate);
+ImmutableSet<TargetNode<?>> associatedProjects=getAssociatedTargetNodes(fullGraph,Iterables.concat(projectRoots,associatedTests),associatedProjectPredicate);
 TargetGraph targetGraph=fullGraph.getSubgraph(Iterables.concat(projectRoots,associatedTests,associatedProjects));
 return new TargetGraphAndTargets(targetGraph,fullGraph,projectRoots,associatedTests,associatedProjects);
 }
