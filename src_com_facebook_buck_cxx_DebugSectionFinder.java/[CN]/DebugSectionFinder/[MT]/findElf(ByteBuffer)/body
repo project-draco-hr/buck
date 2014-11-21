@@ -1,0 +1,16 @@
+{
+  ImmutableMap.Builder<String,DebugSection> debugSectionsBuilder=ImmutableMap.builder();
+  Elf elf=new Elf(buffer);
+  for (int i=0; i < elf.getNumberOfSections(); i++) {
+    ElfSection section=elf.getSectionByIndex(i);
+    String name=elf.getSectionName(section.header);
+    ImmutableSet<DebugSectionProperty> properties=ELF_DEBUG_SECTIONS.get(name);
+    if (properties != null) {
+      buffer.position((int)section.header.sh_off);
+      ByteBuffer body=buffer.slice();
+      body.limit((int)section.header.sh_size);
+      debugSectionsBuilder.put(name,new DebugSection(properties,body));
+    }
+  }
+  return debugSectionsBuilder.build();
+}
