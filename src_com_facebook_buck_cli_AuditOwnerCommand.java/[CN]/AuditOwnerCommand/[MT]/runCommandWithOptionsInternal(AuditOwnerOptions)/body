@@ -2,12 +2,13 @@
   OwnersReport report=OwnersReport.emptyReport();
   Map<Path,List<TargetNode<?>>> targetNodes=Maps.newHashMap();
   for (  Path filePath : options.getArgumentsAsPaths(getProjectFilesystem().getRootPath())) {
-    Path buckFile=findBuckFileFor(filePath);
-    if (buckFile == null) {
+    Optional<Path> basePath=buildFileTree.getBasePathOfAncestorTarget(filePath);
+    if (!basePath.isPresent()) {
       report=report.updatedWith(new OwnersReport(ImmutableSetMultimap.<TargetNode<?>,Path>of(),ImmutableSet.of(filePath),Sets.<String>newHashSet(),Sets.<String>newHashSet()));
       continue;
     }
-    Preconditions.checkNotNull(buckFile);
+    Path buckFile=basePath.get().resolve(BuckConstant.BUILD_RULES_FILE_NAME);
+    Preconditions.checkState(getProjectFilesystem().exists(buckFile));
     Path targetBasePath=MorePaths.relativize(getProjectFilesystem().getRootPath().toAbsolutePath(),buckFile.getParent().toAbsolutePath());
     String targetBaseName="//" + targetBasePath.toString();
     if (!targetNodes.containsKey(buckFile)) {
