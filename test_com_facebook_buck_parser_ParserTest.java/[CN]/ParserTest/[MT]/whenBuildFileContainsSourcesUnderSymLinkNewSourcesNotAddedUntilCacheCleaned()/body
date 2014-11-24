@@ -2,18 +2,19 @@
   Parser parser=createParser(emptyBuildTargets());
   tempDir.newFolder("bar");
   tempDir.newFile("bar/Bar.java");
+  tempDir.newFolder("foo");
   Path rootPath=tempDir.getRoot().toPath();
-  java.nio.file.Files.createSymbolicLink(rootPath.resolve("foo"),rootPath.resolve("bar"));
-  File testBuckFile=tempDir.newFile(BuckConstant.BUILD_RULES_FILE_NAME);
-  Files.write("java_library(name = 'lib', srcs=glob(['foo/*.java']))\n",testBuckFile,Charsets.UTF_8);
-  BuildTarget libTarget=BuildTarget.builder("//","lib").build();
+  java.nio.file.Files.createSymbolicLink(rootPath.resolve("foo/bar"),rootPath.resolve("bar"));
+  Path testBuckFile=rootPath.resolve("foo").resolve(BuckConstant.BUILD_RULES_FILE_NAME);
+  Files.write("java_library(name = 'lib', srcs=glob(['bar/*.java']))\n",testBuckFile.toFile(),Charsets.UTF_8);
+  BuildTarget libTarget=BuildTarget.builder("//foo","lib").build();
   Iterable<BuildTarget> buildTargets=ImmutableList.of(libTarget);
   Iterable<String> defaultIncludes=ImmutableList.of();
   BuckEventBus eventBus=BuckEventBusFactory.newInstance();
 {
     ActionGraph graph=parser.buildTargetGraphForBuildTargets(buildTargets,defaultIncludes,eventBus,new TestConsole(),ImmutableMap.<String,String>of(),false).getActionGraph();
     BuildRule libRule=graph.findBuildRuleByTarget(libTarget);
-    assertEquals(ImmutableList.of(Paths.get("foo/Bar.java")),libRule.getInputs());
+    assertEquals(ImmutableList.of(Paths.get("foo/bar/Bar.java")),libRule.getInputs());
   }
   tempDir.newFile("bar/Baz.java");
   WatchEvent<Path> createEvent=createPathEvent(Paths.get("bar/Baz.java"),StandardWatchEventKinds.ENTRY_CREATE);
@@ -21,12 +22,12 @@
 {
     ActionGraph graph=parser.buildTargetGraphForBuildTargets(buildTargets,defaultIncludes,eventBus,new TestConsole(),ImmutableMap.<String,String>of(),false).getActionGraph();
     BuildRule libRule=graph.findBuildRuleByTarget(libTarget);
-    assertEquals(ImmutableList.of(Paths.get("foo/Bar.java")),libRule.getInputs());
+    assertEquals(ImmutableList.of(Paths.get("foo/bar/Bar.java")),libRule.getInputs());
   }
   parser.cleanCache();
 {
     ActionGraph graph=parser.buildTargetGraphForBuildTargets(buildTargets,defaultIncludes,eventBus,new TestConsole(),ImmutableMap.<String,String>of(),false).getActionGraph();
     BuildRule libRule=graph.findBuildRuleByTarget(libTarget);
-    assertEquals(ImmutableList.of(Paths.get("foo/Bar.java"),Paths.get("foo/Baz.java")),libRule.getInputs());
+    assertEquals(ImmutableList.of(Paths.get("foo/bar/Bar.java"),Paths.get("foo/bar/Baz.java")),libRule.getInputs());
   }
 }
