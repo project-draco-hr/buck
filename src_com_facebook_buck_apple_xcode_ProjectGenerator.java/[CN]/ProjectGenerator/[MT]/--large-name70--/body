@@ -1,0 +1,102 @@
+{
+  Optional<String> targetGid=targetNode.getConstructorArg().gid;
+  if (targetGid.isPresent()) {
+    String thisTargetName=targetNode.getBuildTarget().getFullyQualifiedName();
+    String conflictingTargetName=gidsToTargetNames.get(targetGid.get());
+    if (conflictingTargetName != null) {
+      throw new HumanReadableException("Targets %s and %s have the same hardcoded GID (%s)",thisTargetName,conflictingTargetName,targetGid.get());
+    }
+    gidsToTargetNames.put(targetGid.get(),thisTargetName);
+  }
+  TargetNode<?> buildTargetNode=bundle.isPresent() ? bundle.get() : targetNode;
+  BuildTarget buildTarget=buildTargetNode.getBuildTarget();
+  String productName=getProductName(buildTarget);
+  TargetSources sources=TargetSources.ofAppleSources(sourcePathResolver,targetNode.getConstructorArg().srcs.get());
+  NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(targetGraph,executionContext,pathRelativizer,buildRuleResolver,sourcePathResolver,buildTarget);
+  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(targetGid).setShouldGenerateCopyHeadersPhase(!targetNode.getConstructorArg().getUseBuckHeaderMaps()).setSources(sources.srcs,sources.perFileFlags).setResources(resources);
+  Path assetCatalogBuildPhaseScript;
+  if (!assetCatalogs.isEmpty()) {
+    if (PATH_OVERRIDE_FOR_ASSET_CATALOG_BUILD_PHASE_SCRIPT != null) {
+      assetCatalogBuildPhaseScript=Paths.get(PATH_OVERRIDE_FOR_ASSET_CATALOG_BUILD_PHASE_SCRIPT);
+    }
+ else {
+      shouldPlaceAssetCatalogCompiler=true;
+      assetCatalogBuildPhaseScript=placedAssetCatalogBuildPhaseScript;
+    }
+    mutator.setAssetCatalogs(assetCatalogBuildPhaseScript,assetCatalogs);
+  }
+  if (includeFrameworks) {
+    ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
+    frameworksBuilder.addAll(targetNode.getConstructorArg().frameworks.get());
+    collectRecursiveFrameworkDependencies(targetNode,frameworksBuilder);
+    mutator.setFrameworks(frameworksBuilder.build());
+    mutator.setArchives(collectRecursiveLibraryDependencies(targetNode));
+  }
+  ImmutableList.Builder<TargetNode<?>> preScriptPhases=ImmutableList.builder();
+  ImmutableList.Builder<TargetNode<?>> postScriptPhases=ImmutableList.builder();
+  if (bundle.isPresent()) {
+    collectBuildScriptDependencies(targetGraph.getAll(bundle.get().getDeps()),preScriptPhases,postScriptPhases);
+  }
+  collectBuildScriptDependencies(targetGraph.getAll(targetNode.getDeps()),preScriptPhases,postScriptPhases);
+  mutator.setPreBuildRunScriptPhases(preScriptPhases.build());
+  mutator.setPostBuildRunScriptPhases(postScriptPhases.build());
+  NewNativeTargetProjectMutator.Result targetBuilderResult;
+  try {
+    targetBuilderResult=mutator.buildTargetAndAddToProject(project);
+  }
+ catch (  NoSuchBuildTargetException e) {
+    throw new HumanReadableException(e);
+  }
+  PBXNativeTarget target=targetBuilderResult.target;
+  PBXGroup targetGroup=targetBuilderResult.targetGroup;
+  ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
+  extraSettingsBuilder.put("TARGET_NAME",getProductName(buildTarget)).put("SRCROOT",pathRelativizer.outputPathToBuildTargetPath(buildTarget).toString());
+  if (infoPlistOptional.isPresent()) {
+    Path infoPlistPath=pathRelativizer.outputDirToRootRelative(infoPlistOptional.get());
+    extraSettingsBuilder.put("INFOPLIST_FILE",infoPlistPath.toString());
+  }
+  Optional<SourcePath> prefixHeaderOptional=targetNode.getConstructorArg().prefixHeader;
+  if (prefixHeaderOptional.isPresent()) {
+    Path prefixHeaderRelative=sourcePathResolver.getPath(prefixHeaderOptional.get());
+    Path prefixHeaderPath=pathRelativizer.outputDirToRootRelative(prefixHeaderRelative);
+    extraSettingsBuilder.put("GCC_PREFIX_HEADER",prefixHeaderPath.toString());
+  }
+  if (targetNode.getConstructorArg().getUseBuckHeaderMaps()) {
+    extraSettingsBuilder.put("USE_HEADERMAP","NO");
+  }
+  ImmutableMap.Builder<String,String> defaultSettingsBuilder=ImmutableMap.builder();
+  defaultSettingsBuilder.put("REPO_ROOT",projectFilesystem.getRootPath().toAbsolutePath().normalize().toString());
+  defaultSettingsBuilder.put("PRODUCT_NAME",getProductName(buildTarget));
+  if (bundle.isPresent()) {
+    defaultSettingsBuilder.put("WRAPPER_EXTENSION",getExtensionString(bundle.get().getConstructorArg()));
+  }
+  defaultSettingsBuilder.put("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPath(targetNode.getConstructorArg().headerPathPrefix));
+  defaultSettingsBuilder.put("BUILT_PRODUCTS_DIR",Joiner.on('/').join("$SYMROOT","$CONFIGURATION$EFFECTIVE_PLATFORM_NAME"));
+  defaultSettingsBuilder.put("CONFIGURATION_BUILD_DIR",getTargetOutputPath(buildTargetNode));
+  if (!bundle.isPresent() && targetNode.getType().equals(AppleLibraryDescription.TYPE)) {
+    defaultSettingsBuilder.put("EXECUTABLE_PREFIX","lib");
+  }
+  ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
+  appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterators.concat(collectRecursiveHeaderSearchPaths(targetNode).iterator(),collectRecursiveHeaderMaps(targetNode).iterator()))).put("USER_HEADER_SEARCH_PATHS",Joiner.on(' ').join(collectUserHeaderMaps(targetNode))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(targetNode))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(targetNode)));
+  setTargetBuildConfigurations(buildTarget,target,targetGroup,targetNode.getConstructorArg().configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
+  if (targetNode.getConstructorArg().getUseBuckHeaderMaps()) {
+    addHeaderMapsForHeaders(targetNode,targetNode.getConstructorArg().headerPathPrefix,sources.srcs,sources.perFileFlags);
+  }
+  addCoreDataModelBuildPhase(targetGroup,FluentIterable.from(targetNode.getDeps()).transform(new Function<BuildTarget,TargetNode<?>>(){
+    @Override public TargetNode<?> apply(    BuildTarget input){
+      return Preconditions.checkNotNull(targetGraph.get(input));
+    }
+  }
+).filter(new Predicate<TargetNode<?>>(){
+    @Override public boolean apply(    TargetNode<?> input){
+      return CoreDataModelDescription.TYPE.equals(input.getType());
+    }
+  }
+).transform(new Function<TargetNode<?>,CoreDataModelDescription.Arg>(){
+    @Override public CoreDataModelDescription.Arg apply(    TargetNode<?> input){
+      return (CoreDataModelDescription.Arg)input.getConstructorArg();
+    }
+  }
+).toSet());
+  return target;
+}
