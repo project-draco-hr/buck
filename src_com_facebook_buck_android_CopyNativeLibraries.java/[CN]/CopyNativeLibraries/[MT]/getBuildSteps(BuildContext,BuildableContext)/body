@@ -9,8 +9,10 @@
     Optional<String> abiDirectoryComponent=getAbiDirectoryComponent(entry.getKey().getKey());
     Preconditions.checkState(abiDirectoryComponent.isPresent());
     Path destination=pathToNativeLibs.resolve(abiDirectoryComponent.get()).resolve(entry.getKey().getValue());
+    NdkCxxPlatform platform=Preconditions.checkNotNull(nativePlatforms.get(entry.getKey().getKey()));
+    Path objcopy=getResolver().getPath(platform.getObjcopy());
     steps.add(new MkdirStep(destination.getParent()));
-    steps.add(CopyStep.forFile(entry.getValue(),destination));
+    steps.add(new ObjcopyStep(objcopy,ImmutableList.of("--strip-unneeded"),entry.getValue(),destination));
   }
   final Path pathToMetadataTxt=getPathToMetadataTxt();
   steps.add(new AbstractExecutionStep("hash_native_libs"){
