@@ -1,0 +1,23 @@
+{
+  try (InputStream sdkSettingsPlist=Files.newInputStream(sdkDir.resolve("SDKSettings.plist"));BufferedInputStream bufferedSdkSettingsPlist=new BufferedInputStream(sdkSettingsPlist)){
+    NSDictionary sdkSettings;
+    try {
+      sdkSettings=(NSDictionary)PropertyListParser.parse(bufferedSdkSettingsPlist);
+    }
+ catch (    Exception e) {
+      throw new IOException(e);
+    }
+    String name=((NSString)sdkSettings.objectForKey("CanonicalName")).toString();
+    String version=((NSString)sdkSettings.objectForKey("Version")).toString();
+    NSDictionary defaultProperties=(NSDictionary)sdkSettings.objectForKey("DefaultProperties");
+    NSString platformName=(NSString)defaultProperties.objectForKey("PLATFORM_NAME");
+    ApplePlatform applePlatform=ApplePlatform.valueOf(platformName.toString().toUpperCase(Locale.US));
+    sdkBuilder.name(name).version(version).applePlatform(applePlatform);
+    addArchitecturesForPlatform(sdkBuilder,applePlatform);
+    return true;
+  }
+ catch (  FileNotFoundException e) {
+    LOG.error(e,"No SDKSettings.plist found under SDK path %s",sdkDir);
+    return false;
+  }
+}
