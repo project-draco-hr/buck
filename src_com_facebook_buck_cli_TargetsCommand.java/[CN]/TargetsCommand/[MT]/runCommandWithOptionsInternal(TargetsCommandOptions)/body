@@ -2,6 +2,9 @@
   if (options.isResolveAlias()) {
     return doResolveAlias(options);
   }
+  if (options.isShowOutput() || options.isShowRuleKey()) {
+    return doShowRules(options);
+  }
   ImmutableSet<String> types=options.getTypes();
   ImmutableSet.Builder<BuildRuleType> buildRuleTypesBuilder=ImmutableSet.builder();
   for (  String name : types) {
@@ -35,16 +38,16 @@
     return 1;
   }
   PathArguments.ReferencedFiles referencedFiles=options.getReferencedFiles(getProjectFilesystem().getRootPath());
-  SortedMap<String,BuildRule> matchingBuildRules;
+  SortedMap<String,TargetNode<?>> matchingNodes;
   if (!referencedFiles.absolutePathsOutsideProjectRootOrNonExistingPaths.isEmpty() && referencedFiles.relativePathsUnderProjectRoot.isEmpty()) {
-    matchingBuildRules=ImmutableSortedMap.of();
+    matchingNodes=ImmutableSortedMap.of();
   }
  else {
-    matchingBuildRules=getMatchingBuildRules(graph.getActionGraph(),new TargetsCommandPredicate(graph,buildRuleTypesBuilder.build(),referencedFiles.relativePathsUnderProjectRoot,matchingBuildTargets.isEmpty() ? Optional.<ImmutableSet<BuildTarget>>absent() : Optional.of(matchingBuildTargets)));
+    matchingNodes=getMatchingNodes(graph,new TargetsCommandPredicate(graph,buildRuleTypesBuilder.build(),referencedFiles.relativePathsUnderProjectRoot,matchingBuildTargets.isEmpty() ? Optional.<ImmutableSet<BuildTarget>>absent() : Optional.of(matchingBuildTargets)));
   }
   if (options.getPrintJson()) {
     try {
-      printJsonForTargets(matchingBuildRules,options.getDefaultIncludes());
+      printJsonForTargets(matchingNodes,options.getDefaultIncludes());
     }
  catch (    BuildFileParseException e) {
       console.printBuildFailureWithoutStacktrace(e);
@@ -52,7 +55,9 @@
     }
   }
  else {
-    printTargetsList(matchingBuildRules,options.isShowOutput(),options.isShowRuleKey());
+    for (    String target : matchingNodes.keySet()) {
+      getStdOut().println(target);
+    }
   }
   return 0;
 }
