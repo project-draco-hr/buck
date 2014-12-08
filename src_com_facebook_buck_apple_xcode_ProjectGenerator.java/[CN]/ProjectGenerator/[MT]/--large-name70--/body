@@ -28,9 +28,9 @@
   if (includeFrameworks) {
     ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
     frameworksBuilder.addAll(targetNode.getConstructorArg().frameworks.get());
-    collectRecursiveFrameworkDependencies(targetNode,frameworksBuilder);
+    frameworksBuilder.addAll(collectRecursiveFrameworkDependencies(ImmutableList.of(targetNode)));
     mutator.setFrameworks(frameworksBuilder.build());
-    mutator.setArchives(collectRecursiveLibraryDependencies(targetNode));
+    mutator.setArchives(collectRecursiveLibraryDependencies(ImmutableList.of(targetNode),false));
   }
   ImmutableList.Builder<TargetNode<?>> preScriptPhases=ImmutableList.builder();
   ImmutableList.Builder<TargetNode<?>> postScriptPhases=ImmutableList.builder();
@@ -78,7 +78,7 @@
     defaultSettingsBuilder.put("EXECUTABLE_PREFIX","lib");
   }
   ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
-  appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterators.concat(collectRecursiveHeaderSearchPaths(targetNode).iterator(),collectRecursiveHeaderMaps(targetNode).iterator()))).put("USER_HEADER_SEARCH_PATHS",Joiner.on(' ').join(collectUserHeaderMaps(targetNode))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(targetNode))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(targetNode)));
+  appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterators.concat(collectRecursiveHeaderSearchPaths(targetNode).iterator(),collectRecursiveHeaderMaps(targetNode).iterator()))).put("USER_HEADER_SEARCH_PATHS",Joiner.on(' ').join(collectUserHeaderMaps(targetNode))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(ImmutableSet.of(targetNode),false))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(ImmutableList.of(targetNode),false)));
   setTargetBuildConfigurations(buildTarget,target,targetGroup,targetNode.getConstructorArg().configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
   if (targetNode.getConstructorArg().getUseBuckHeaderMaps()) {
     addHeaderMapsForHeaders(targetNode,targetNode.getConstructorArg().headerPathPrefix,sources.srcs,sources.perFileFlags);
