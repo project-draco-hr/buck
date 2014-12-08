@@ -9,21 +9,13 @@
     gidsToTargetNames.put(targetGid.get(),thisTargetName);
   }
   TargetNode<?> buildTargetNode=bundle.isPresent() ? bundle.get() : targetNode;
-  BuildTarget buildTarget=buildTargetNode.getBuildTarget();
+  final BuildTarget buildTarget=buildTargetNode.getBuildTarget();
   String productName=getProductName(buildTarget);
   TargetSources sources=TargetSources.ofAppleSources(sourcePathResolver,targetNode.getConstructorArg().srcs.get());
   NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver);
   mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(targetGid).setShouldGenerateCopyHeadersPhase(!targetNode.getConstructorArg().getUseBuckHeaderMaps()).setSources(sources.srcs,sources.perFileFlags).setResources(resources);
-  Path assetCatalogBuildPhaseScript;
   if (!assetCatalogs.isEmpty()) {
-    if (PATH_OVERRIDE_FOR_ASSET_CATALOG_BUILD_PHASE_SCRIPT != null) {
-      assetCatalogBuildPhaseScript=Paths.get(PATH_OVERRIDE_FOR_ASSET_CATALOG_BUILD_PHASE_SCRIPT);
-    }
- else {
-      shouldPlaceAssetCatalogCompiler=true;
-      assetCatalogBuildPhaseScript=placedAssetCatalogBuildPhaseScript;
-    }
-    mutator.setAssetCatalogs(assetCatalogBuildPhaseScript,assetCatalogs);
+    mutator.setAssetCatalogs(getAndMarkAssetCatalogBuildScript(),assetCatalogs);
   }
   if (includeFrameworks) {
     ImmutableSet.Builder<FrameworkPath> frameworksBuilder=ImmutableSet.builder();
@@ -69,7 +61,7 @@
   defaultSettingsBuilder.put("REPO_ROOT",projectFilesystem.getRootPath().toAbsolutePath().normalize().toString());
   defaultSettingsBuilder.put("PRODUCT_NAME",getProductName(buildTarget));
   if (bundle.isPresent()) {
-    defaultSettingsBuilder.put("WRAPPER_EXTENSION",getExtensionString(bundle.get().getConstructorArg()));
+    defaultSettingsBuilder.put("WRAPPER_EXTENSION",getExtensionString(bundle.get().getConstructorArg().getExtension()));
   }
   defaultSettingsBuilder.put("PUBLIC_HEADERS_FOLDER_PATH",getHeaderOutputPath(targetNode.getConstructorArg().headerPathPrefix));
   defaultSettingsBuilder.put("BUILT_PRODUCTS_DIR",Joiner.on('/').join("$SYMROOT","$CONFIGURATION$EFFECTIVE_PLATFORM_NAME"));
@@ -79,7 +71,12 @@
   }
   ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
   appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterators.concat(collectRecursiveHeaderSearchPaths(targetNode).iterator(),collectRecursiveHeaderMaps(targetNode).iterator()))).put("USER_HEADER_SEARCH_PATHS",Joiner.on(' ').join(collectUserHeaderMaps(targetNode))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(ImmutableSet.of(targetNode),false))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(ImmutableList.of(targetNode),false)));
-  setTargetBuildConfigurations(buildTarget,target,targetGroup,targetNode.getConstructorArg().configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
+  setTargetBuildConfigurations(new Function<String,Path>(){
+    @Override public Path apply(    String input){
+      return BuildTargets.getGenPath(buildTarget,"%s-" + input + ".xcconfig");
+    }
+  }
+,target,targetGroup,targetNode.getConstructorArg().configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
   if (targetNode.getConstructorArg().getUseBuckHeaderMaps()) {
     addHeaderMapsForHeaders(targetNode,targetNode.getConstructorArg().headerPathPrefix,sources.srcs,sources.perFileFlags);
   }

@@ -1,0 +1,21 @@
+{
+  NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver).setTargetName(productName).setProduct(dylibProductTypeByBundleExtension(key.extension().getLeft()).get(),productName,Paths.get(productName + "." + getExtensionString(key.extension()))).setShouldGenerateCopyHeadersPhase(false).setSources(ImmutableList.of(GroupedSource.ofSourcePath(new PathSourcePath(emptyFileWithExtension("c")))),ImmutableMap.<SourcePath,String>of()).setArchives(collectRecursiveLibraryDependencies(tests,true)).setFrameworks(ImmutableSet.copyOf(collectRecursiveFrameworkDependencies(tests))).setResources(collectRecursiveResources(tests)).setAssetCatalogs(getAndMarkAssetCatalogBuildScript(),collectRecursiveAssetCatalogs(tests));
+  NewNativeTargetProjectMutator.Result result;
+  try {
+    result=mutator.buildTargetAndAddToProject(project);
+  }
+ catch (  NoSuchBuildTargetException e) {
+    throw new HumanReadableException(e);
+  }
+  ImmutableMap.Builder<String,String> overrideBuildSettingsBuilder=ImmutableMap.<String,String>builder().put("GCC_PREFIX_HEADER","").put("USE_HEADERMAP","NO");
+  if (key.infoPlist().isPresent()) {
+    overrideBuildSettingsBuilder.put("INFOPLIST_FILE",pathRelativizer.outputDirToRootRelative(sourcePathResolver.getPath(key.infoPlist().get())).toString());
+  }
+  setTargetBuildConfigurations(new Function<String,Path>(){
+    @Override public Path apply(    String input){
+      return outputDirectory.resolve(String.format("xcconfigs/%s-%s.xcconfig",productName,input));
+    }
+  }
+,result.target,result.targetGroup,key.configs().get(),overrideBuildSettingsBuilder.build(),ImmutableMap.of("PRODUCT_NAME",productName,"WRAPPER_EXTENSION",getExtensionString(key.extension())),ImmutableMap.of("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(tests,true)),"LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(tests,true))));
+  buildableCombinedTestTargets.add(result.target);
+}

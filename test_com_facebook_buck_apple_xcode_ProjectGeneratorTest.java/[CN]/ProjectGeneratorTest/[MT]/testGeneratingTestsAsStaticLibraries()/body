@@ -1,0 +1,11 @@
+{
+  TargetNode<AppleTestDescription.Arg> libraryTestStatic=AppleTestBuilder.createBuilder(BuildTarget.builder("//foo","libraryTestStatic").build()).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.XCTEST)).build();
+  TargetNode<AppleTestDescription.Arg> libraryTestNotStatic=AppleTestBuilder.createBuilder(BuildTarget.builder("//foo","libraryTestNotStatic").build()).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.XCTEST)).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableList.<TargetNode<?>>of(libraryTestStatic,libraryTestNotStatic));
+  projectGenerator.setTestsToGenerateAsStaticLibraries(ImmutableSet.of(libraryTestStatic)).createXcodeProjects();
+  PBXProject project=projectGenerator.getGeneratedProject();
+  PBXTarget libraryTestStaticTarget=assertTargetExistsAndReturnTarget(project,"//foo:libraryTestStatic");
+  PBXTarget libraryTestNotStaticTarget=assertTargetExistsAndReturnTarget(project,"//foo:libraryTestNotStatic");
+  assertThat(libraryTestStaticTarget.getProductType(),equalTo(PBXTarget.ProductType.STATIC_LIBRARY));
+  assertThat(libraryTestNotStaticTarget.getProductType(),equalTo(PBXTarget.ProductType.UNIT_TEST));
+}
