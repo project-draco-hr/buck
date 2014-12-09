@@ -5,6 +5,7 @@
   if (!Files.exists(platforms)) {
     return appleSdkPathsBuilder.build();
   }
+  TreeMultimap<ApplePlatform,ImmutableAppleSdk> orderedSdksForPlatform=TreeMultimap.create(Ordering.natural(),APPLE_SDK_VERSION_ORDERING);
   try (DirectoryStream<Path> platformStream=Files.newDirectoryStream(platforms,"*.platform")){
     for (    Path platformDir : platformStream) {
       LOG.debug("Searching for Xcode SDKs under %s",platformDir);
@@ -20,10 +21,16 @@
             LOG.debug("Found SDK %s",sdk);
             ImmutableAppleSdkPaths xcodePaths=ImmutableAppleSdkPaths.builder().toolchainPath(xcodeDir.resolve("Toolchains/XcodeDefault.xctoolchain")).platformDeveloperPath(platformDir.resolve("Developer")).sdkPath(sdkDir).build();
             appleSdkPathsBuilder.put(sdk,xcodePaths);
+            orderedSdksForPlatform.put(sdk.applePlatform(),sdk);
           }
         }
       }
      }
   }
-   return appleSdkPathsBuilder.build();
+   ImmutableMap<AppleSdk,AppleSdkPaths> discoveredSdkPaths=appleSdkPathsBuilder.build();
+  for (  ApplePlatform platform : orderedSdksForPlatform.keySet()) {
+    ImmutableAppleSdk mostRecentSdkForPlatform=orderedSdksForPlatform.get(platform).last();
+    appleSdkPathsBuilder.put(mostRecentSdkForPlatform.withName(platform.toString()),discoveredSdkPaths.get(mostRecentSdkForPlatform));
+  }
+  return appleSdkPathsBuilder.build();
 }
