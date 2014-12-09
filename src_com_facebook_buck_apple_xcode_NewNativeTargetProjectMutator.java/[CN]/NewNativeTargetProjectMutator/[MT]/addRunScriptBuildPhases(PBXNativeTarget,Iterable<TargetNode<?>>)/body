@@ -1,21 +1,30 @@
 {
   for (  TargetNode<?> node : nodes) {
-    Genrule rule=(Genrule)targetNodeToBuildRuleTransformer.transform(targetGraph,buildRuleResolver,node);
     PBXShellScriptBuildPhase shellScriptBuildPhase=new PBXShellScriptBuildPhase();
     target.getBuildPhases().add(shellScriptBuildPhase);
-    for (    Path path : rule.getSrcs()) {
-      shellScriptBuildPhase.getInputPaths().add(pathRelativizer.outputDirToRootRelative(path).toString());
-    }
-    StringBuilder bashCommandBuilder=new StringBuilder();
-    for (    String commandElement : rule.createGenruleStep().getShellCommand(executionContext)) {
-      if (bashCommandBuilder.length() > 0) {
-        bashCommandBuilder.append(' ');
+    if (GenruleDescription.TYPE.equals(node.getType())) {
+      GenruleDescription.Arg arg=(GenruleDescription.Arg)node.getConstructorArg();
+      for (      Path path : sourcePathResolver.getAllPaths(arg.srcs.get())) {
+        shellScriptBuildPhase.getInputPaths().add(pathRelativizer.outputDirToRootRelative(path).toString());
       }
-      bashCommandBuilder.append(Escaper.escapeAsBashString(commandElement));
+      if (arg.cmd.isPresent() && !arg.cmd.get().isEmpty()) {
+        shellScriptBuildPhase.setShellScript(arg.cmd.get());
+      }
+ else       if (arg.bash.isPresent() || arg.cmdExe.isPresent()) {
+        throw new IllegalStateException("Shell script phase only supports cmd for genrule.");
+      }
+      if (!arg.out.isEmpty()) {
+        shellScriptBuildPhase.getOutputPaths().add(arg.out);
+      }
     }
-    shellScriptBuildPhase.setShellScript(bashCommandBuilder.toString());
-    if (rule.getOutputName().length() > 0) {
-      shellScriptBuildPhase.getOutputPaths().add(rule.getOutputName());
+ else     if (IosPostprocessResourcesDescription.TYPE.equals(node.getType())) {
+      IosPostprocessResourcesDescription.Arg arg=(IosPostprocessResourcesDescription.Arg)node.getConstructorArg();
+      if (arg.cmd.isPresent()) {
+        shellScriptBuildPhase.setShellScript(arg.cmd.get());
+      }
+    }
+ else {
+      throw new IllegalStateException("Invalid rule type for shell script build phase");
     }
   }
 }
