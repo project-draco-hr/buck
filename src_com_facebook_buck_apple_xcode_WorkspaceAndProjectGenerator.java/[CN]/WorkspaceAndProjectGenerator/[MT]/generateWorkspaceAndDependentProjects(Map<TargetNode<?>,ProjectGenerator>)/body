@@ -18,16 +18,9 @@
  else {
     orderedTargetNodes=ImmutableSet.of();
   }
-  ImmutableSet<TargetNode<?>> orderedTestTargetNodes;
-  ImmutableSet<TargetNode<?>> orderedTestBundleTargetNodes;
-{
-    ImmutableSet.Builder<TargetNode<?>> orderedTestTargetNodesBuilder=ImmutableSet.builder();
-    ImmutableSet.Builder<TargetNode<?>> orderedTestBundleTargetNodesBuilder=ImmutableSet.builder();
-    getOrderedTestNodes(projectGraph,sourceTargetToTestNodes,orderedTargetNodes,extraTestBundleTargetNodes,orderedTestTargetNodesBuilder,orderedTestBundleTargetNodesBuilder);
-    orderedTestTargetNodes=orderedTestTargetNodesBuilder.build();
-    orderedTestBundleTargetNodes=orderedTestBundleTargetNodesBuilder.build();
-  }
-  ImmutableSet<BuildTarget> targetsInRequiredProjects=FluentIterable.from(Sets.union(orderedTargetNodes,orderedTestTargetNodes)).transform(HasBuildTarget.TO_TARGET).toSet();
+  ImmutableSet<TargetNode<?>> selectedTests=getOrderedTestNodes(projectGraph,sourceTargetToTestNodes,orderedTargetNodes,extraTestBundleTargetNodes);
+  ImmutableList<TargetNode<?>> buildForTestNodes=TopologicalSort.sort(projectGraph,Predicates.in(getTransitiveDepsAndInputs(selectedTests,orderedTargetNodes)));
+  ImmutableSet<BuildTarget> targetsInRequiredProjects=FluentIterable.from(orderedTargetNodes).append(buildForTestNodes).transform(HasBuildTarget.TO_TARGET).toSet();
   ImmutableMap.Builder<BuildTarget,PBXTarget> buildTargetToPbxTargetMapBuilder=ImmutableMap.builder();
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   if (combinedProject) {
@@ -79,7 +72,7 @@
     }
   }
   Path workspacePath=workspaceGenerator.writeWorkspace();
-  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,workspaceTargetNode.getConstructorArg().srcTarget,Iterables.transform(orderedTargetNodes,HasBuildTarget.TO_TARGET),Iterables.transform(orderedTestTargetNodes,HasBuildTarget.TO_TARGET),Iterables.transform(orderedTestBundleTargetNodes,HasBuildTarget.TO_TARGET),workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),XcodeWorkspaceConfigDescription.getActionConfigNamesFromArg(workspaceTargetNode.getConstructorArg()),buildTargetToPbxTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,workspaceTargetNode.getConstructorArg().srcTarget,Iterables.transform(orderedTargetNodes,HasBuildTarget.TO_TARGET),Iterables.transform(buildForTestNodes,HasBuildTarget.TO_TARGET),Iterables.transform(selectedTests,HasBuildTarget.TO_TARGET),workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),XcodeWorkspaceConfigDescription.getActionConfigNamesFromArg(workspaceTargetNode.getConstructorArg()),buildTargetToPbxTargetMapBuilder.build(),targetToProjectPathMapBuilder.build());
   schemeGenerator.writeScheme();
   return workspacePath;
 }
