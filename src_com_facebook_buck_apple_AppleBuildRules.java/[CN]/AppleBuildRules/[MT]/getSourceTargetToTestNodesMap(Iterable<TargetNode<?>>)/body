@@ -1,15 +1,17 @@
 {
-  ImmutableMultimap.Builder<BuildTarget,TargetNode<?>> sourceNodeToTestNodesBuilder=ImmutableMultimap.builder();
+  ImmutableMultimap.Builder<BuildTarget,TargetNode<AppleTestDescription.Arg>> sourceNodeToTestNodesBuilder=ImmutableMultimap.builder();
   for (  TargetNode<?> targetNode : testTargets) {
-    if (!isXcodeTargetTestTargetNode(targetNode)) {
-      LOG.verbose("Skipping target node %s (not xcode target test)",targetNode);
-      continue;
-    }
-    AppleTestDescription.Arg testDescriptionArg=(AppleTestDescription.Arg)targetNode.getConstructorArg();
-    if (testDescriptionArg.sourceUnderTest.isPresent()) {
-      for (      BuildTarget sourceTarget : testDescriptionArg.sourceUnderTest.get()) {
-        sourceNodeToTestNodesBuilder.put(sourceTarget,targetNode);
+    Optional<TargetNode<AppleTestDescription.Arg>> castedNode=targetNode.castArg(AppleTestDescription.Arg.class);
+    if (castedNode.isPresent()) {
+      AppleTestDescription.Arg testDescriptionArg=castedNode.get().getConstructorArg();
+      if (testDescriptionArg.sourceUnderTest.isPresent()) {
+        for (        BuildTarget sourceTarget : testDescriptionArg.sourceUnderTest.get()) {
+          sourceNodeToTestNodesBuilder.put(sourceTarget,castedNode.get());
+        }
       }
+    }
+ else {
+      LOG.verbose("Skipping target node %s (not xcode target test)",targetNode);
     }
   }
   return sourceNodeToTestNodesBuilder.build();
