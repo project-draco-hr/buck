@@ -1,0 +1,29 @@
+{
+  TargetNode<AppleNativeTargetDescriptionArg> library=AppleLibraryBuilder.createBuilder(BuildTarget.builder("//foo","lib").build()).build();
+  TargetNode<AppleTestDescription.Arg> combinableTest1=AppleTestBuilder.createBuilder(BuildTarget.builder("//foo","combinableTest1").build()).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.XCTEST)).setSourceUnderTest(Optional.of(ImmutableSortedSet.of(library.getBuildTarget()))).build();
+  TargetNode<AppleTestDescription.Arg> combinableTest2=AppleTestBuilder.createBuilder(BuildTarget.builder("//bar","combinableTest2").build()).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.XCTEST)).setSourceUnderTest(Optional.of(ImmutableSortedSet.of(library.getBuildTarget()))).build();
+  TargetNode<AppleTestDescription.Arg> anotherTest=AppleTestBuilder.createBuilder(BuildTarget.builder("//foo","anotherTest").build()).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.OCTEST)).setSourceUnderTest(Optional.of(ImmutableSortedSet.of(library.getBuildTarget()))).build();
+  TargetNode<XcodeProjectConfigDescription.Arg> fooProject=XcodeProjectConfigBuilder.createBuilder(BuildTarget.builder("//foo","project").build()).setProjectName("foo").setRules(ImmutableSortedSet.of(library.getBuildTarget(),combinableTest1.getBuildTarget(),anotherTest.getBuildTarget())).build();
+  TargetNode<XcodeProjectConfigDescription.Arg> barProject=XcodeProjectConfigBuilder.createBuilder(BuildTarget.builder("//bar","project").build()).setProjectName("bar").setRules(ImmutableSortedSet.of(combinableTest2.getBuildTarget())).build();
+  TargetNode<XcodeWorkspaceConfigDescription.Arg> workspace=XcodeWorkspaceConfigBuilder.createBuilder(BuildTarget.builder("//foo","workspace").build()).setSrcTarget(Optional.of(library.getBuildTarget())).setWorkspaceName(Optional.of("workspace")).build();
+  WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(projectFilesystem,TargetGraphFactory.newInstance(library,combinableTest1,combinableTest2,anotherTest,fooProject,barProject,workspace),workspace,ImmutableSet.of(ProjectGenerator.Option.INCLUDE_TESTS),ImmutableMultimap.of(library.getBuildTarget(),combinableTest1,library.getBuildTarget(),combinableTest2,library.getBuildTarget(),anotherTest),false);
+  generator.setGroupTestBundles(true);
+  Map<TargetNode<?>,ProjectGenerator> projectGenerators=Maps.newHashMap();
+  generator.generateWorkspaceAndDependentProjects(projectGenerators);
+  PBXTarget combinableTestTarget1=ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(projectGenerators.get(fooProject).getGeneratedProject(),"//foo:combinableTest1");
+  assertEquals("Test in the bundle should be built as a static library.",PBXTarget.ProductType.STATIC_LIBRARY,combinableTestTarget1.getProductType());
+  PBXTarget combinableTestTarget2=ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(projectGenerators.get(barProject).getGeneratedProject(),"//bar:combinableTest2");
+  assertEquals("Other test in the bundle should be built as a static library.",PBXTarget.ProductType.STATIC_LIBRARY,combinableTestTarget2.getProductType());
+  PBXTarget notCombinedTest=ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(projectGenerators.get(fooProject).getGeneratedProject(),"//foo:anotherTest");
+  assertEquals("Test that cannot be combined with other tests should generate a test bundle.",PBXTarget.ProductType.BUNDLE,notCombinedTest.getProductType());
+  PBXTarget combinedTestBundle=ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(generator.getCombinedTestsProjectGenerator().get().getGeneratedProject(),"_BuckCombinedTest-xctest-0");
+  assertEquals("Combined test project target should be test bundle.",PBXTarget.ProductType.UNIT_TEST,combinedTestBundle.getProductType());
+  XCScheme scheme=generator.getSchemeGenerator().get().getOutputScheme().get();
+  XCScheme.TestAction testAction=scheme.getTestAction().get();
+  assertThat("Combined test target should be a testable",testAction.getTestables(),hasItem(testableWithName("_BuckCombinedTest-xctest-0")));
+  assertThat("Unbundled test should be a testable",testAction.getTestables(),hasItem(testableWithName("anotherTest")));
+  assertThat("Bundled test library is not a testable",testAction.getTestables(),not(hasItem(testableWithName("combinableTest1"))));
+  XCScheme.BuildAction buildAction=scheme.getBuildAction().get();
+  assertThat("Bundled test library should be built for tests",buildAction.getBuildActionEntries(),hasItem(withNameAndBuildingFor("combinableTest1",equalTo(XCScheme.BuildActionEntry.BuildFor.TEST_ONLY))));
+  assertThat("Combined test library should be built for tests",buildAction.getBuildActionEntries(),hasItem(withNameAndBuildingFor("_BuckCombinedTest-xctest-0",equalTo(XCScheme.BuildActionEntry.BuildFor.TEST_ONLY))));
+}
