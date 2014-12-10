@@ -9,11 +9,11 @@
     CxxPreprocessorInput cxxPreprocessorInput=CxxPreprocessables.getTransitiveCxxPreprocessorInput(cxxPlatform,params.getDeps(),Predicates.or(Predicates.instanceOf(CxxPreprocessorDep.class),Predicates.instanceOf(NdkLibrary.class)));
     deps.addAll(pathResolver.filterBuildRuleInputs(cxxPreprocessorInput.getIncludes().nameToPathMap().values()));
     deps.addAll(resolver.getAllRules(cxxPreprocessorInput.getRules()));
-    Iterable<String> ppflags=Iterables.concat(cxxPreprocessorInput.getPreprocessorFlags().get(CxxSource.Type.C),MoreIterables.zipAndConcat(Iterables.cycle("-I"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(params.getPathAbsolutifier()).transform(Functions.toStringFunction())),MoreIterables.zipAndConcat(Iterables.cycle("-isystem"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(params.getPathAbsolutifier()).transform(Functions.toStringFunction())));
-    String localCflags=Joiner.on(' ').join(escapeForMakefile(params,ppflags));
+    Iterable<String> ppflags=Iterables.concat(cxxPreprocessorInput.getPreprocessorFlags().get(CxxSource.Type.C),MoreIterables.zipAndConcat(Iterables.cycle("-I"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(Functions.toStringFunction())),MoreIterables.zipAndConcat(Iterables.cycle("-isystem"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(Functions.toStringFunction())));
+    String localCflags=Joiner.on(' ').join(escapeForMakefile(ppflags));
     NativeLinkableInput nativeLinkableInput=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,params.getDeps(),NativeLinkable.Type.SHARED,Predicates.or(Predicates.instanceOf(NativeLinkable.class),Predicates.instanceOf(NdkLibrary.class)),true);
     deps.addAll(pathResolver.filterBuildRuleInputs(nativeLinkableInput.getInputs()));
-    String localLdflags=Joiner.on(' ').join(escapeForMakefile(params,nativeLinkableInput.getArgs()));
+    String localLdflags=Joiner.on(' ').join(escapeForMakefile(nativeLinkableInput.getArgs()));
     if (!localCflags.isEmpty() || !localLdflags.isEmpty()) {
       outputLinesBuilder.add(String.format("ifeq ($(TARGET_ARCH_ABI),%s)",targetArchAbi));
       if (!localCflags.isEmpty()) {
