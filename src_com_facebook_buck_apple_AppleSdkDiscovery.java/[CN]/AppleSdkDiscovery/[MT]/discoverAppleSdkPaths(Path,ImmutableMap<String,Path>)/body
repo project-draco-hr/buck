@@ -11,7 +11,8 @@
   try (DirectoryStream<Path> platformStream=Files.newDirectoryStream(platforms,"*.platform")){
     for (    Path platformDir : platformStream) {
       LOG.debug("Searching for Xcode SDKs under %s",platformDir);
-      try (DirectoryStream<Path> sdkStream=Files.newDirectoryStream(platformDir.resolve("Developer/SDKs"),"*.sdk")){
+      Path developerSdksPath=platformDir.resolve("Developer/SDKs");
+      try (DirectoryStream<Path> sdkStream=Files.newDirectoryStream(developerSdksPath,"*.sdk")){
         for (        Path sdkDir : sdkStream) {
           LOG.debug("Fetching SDK name for %s",sdkDir);
           if (Files.isSymbolicLink(sdkDir)) {
@@ -46,7 +47,10 @@
           }
         }
       }
-     }
+ catch (      NoSuchFileException e) {
+        LOG.warn(e,"Couldn't discover SDKs at path %s, ignoring platform %s",developerSdksPath,platformDir);
+      }
+    }
   }
    ImmutableMap<AppleSdk,AppleSdkPaths> discoveredSdkPaths=appleSdkPathsBuilder.build();
   for (  ApplePlatform platform : orderedSdksForPlatform.keySet()) {
