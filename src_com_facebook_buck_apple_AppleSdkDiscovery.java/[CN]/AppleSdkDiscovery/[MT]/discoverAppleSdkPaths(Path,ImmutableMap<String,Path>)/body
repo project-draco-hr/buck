@@ -1,4 +1,6 @@
 {
+  Path defaultToolchainPath=xcodeToolchainPaths.get(DEFAULT_TOOLCHAIN_ID);
+  Preconditions.checkArgument(defaultToolchainPath != null,"xcodeToolchainPaths must contain default toolchain ID key %s",DEFAULT_TOOLCHAIN_ID);
   LOG.debug("Searching for Xcode platforms under %s",xcodeDir);
   ImmutableMap.Builder<AppleSdk,AppleSdkPaths> appleSdkPathsBuilder=ImmutableMap.builder();
   Path platforms=xcodeDir.resolve("Platforms");
@@ -19,7 +21,26 @@
           if (buildSdkFromPath(sdkDir,sdkBuilder)) {
             ImmutableAppleSdk sdk=sdkBuilder.build();
             LOG.debug("Found SDK %s",sdk);
-            ImmutableAppleSdkPaths xcodePaths=ImmutableAppleSdkPaths.builder().toolchainPath(xcodeDir.resolve("Toolchains/XcodeDefault.xctoolchain")).platformDeveloperPath(platformDir.resolve("Developer")).sdkPath(sdkDir).build();
+            ImmutableSet.Builder<Path> toolchainPathsBuilder=ImmutableSet.builder();
+            for (            String toolchain : sdk.toolchains()) {
+              Path toolchainPath=xcodeToolchainPaths.get(toolchain);
+              if (toolchainPath == null) {
+                LOG.debug("Could not find toolchain with ID %s, ignoring",toolchain);
+              }
+ else {
+                toolchainPathsBuilder.add(toolchainPath);
+              }
+            }
+            ImmutableSet<Path> toolchainPaths=toolchainPathsBuilder.build();
+            ImmutableAppleSdkPaths.Builder xcodePathsBuilder=ImmutableAppleSdkPaths.builder();
+            if (toolchainPaths.isEmpty()) {
+              LOG.debug("No toolchains found for SDK %s, falling back to default %s",sdk,defaultToolchainPath);
+              xcodePathsBuilder.addToolchainPaths(defaultToolchainPath);
+            }
+ else {
+              xcodePathsBuilder.addAllToolchainPaths(toolchainPaths);
+            }
+            ImmutableAppleSdkPaths xcodePaths=xcodePathsBuilder.platformDeveloperPath(platformDir.resolve("Developer")).sdkPath(sdkDir).build();
             appleSdkPathsBuilder.put(sdk,xcodePaths);
             orderedSdksForPlatform.put(sdk.applePlatform(),sdk);
           }
