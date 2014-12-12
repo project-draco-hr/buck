@@ -3,16 +3,14 @@
   TargetNode<?> dependentStaticLibraryNode=AppleLibraryBuilder.createBuilder(dependentStaticLibraryTarget).build();
   BuildTarget dependentSharedLibraryTarget=BuildTarget.builder("//dep","shared").setFlavor(CxxDescriptionEnhancer.SHARED_FLAVOR).build();
   TargetNode<?> dependentSharedLibraryNode=AppleLibraryBuilder.createBuilder(dependentSharedLibraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(dependentStaticLibraryTarget))).build();
-  BuildTarget dependentFrameworkTarget=BuildTarget.builder("//dep","framework").build();
-  TargetNode<?> dependentFrameworkNode=AppleBundleBuilder.createBuilder(dependentFrameworkTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK)).setBinary(dependentSharedLibraryTarget).build();
   BuildTarget libraryTarget=BuildTarget.builder("//foo","library").setFlavor(CxxDescriptionEnhancer.SHARED_FLAVOR).build();
-  TargetNode<?> libraryNode=AppleLibraryBuilder.createBuilder(libraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(dependentFrameworkTarget))).build();
+  TargetNode<?> libraryNode=AppleLibraryBuilder.createBuilder(libraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(dependentSharedLibraryTarget))).build();
   BuildTarget bundleTarget=BuildTarget.builder("//foo","final").build();
   TargetNode<?> bundleNode=AppleBundleBuilder.createBuilder(bundleTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.BUNDLE)).setBinary(libraryTarget).build();
-  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(dependentStaticLibraryNode,dependentSharedLibraryNode,dependentFrameworkNode,libraryNode,bundleNode));
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(dependentStaticLibraryNode,dependentSharedLibraryNode,libraryNode,bundleNode));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:final");
   assertEquals(target.getProductType(),PBXTarget.ProductType.BUNDLE);
   assertEquals("Should have exact number of build phases ",2,target.getBuildPhases().size());
-  ProjectGeneratorTestUtils.assertHasSingletonFrameworksPhaseWithFrameworkEntries(target,ImmutableList.of("$BUILT_PRODUCTS_DIR/F4XWIZLQHJTHEYLNMV3W64TL/framework.framework"));
+  ProjectGeneratorTestUtils.assertHasSingletonFrameworksPhaseWithFrameworkEntries(target,ImmutableList.of("$BUILT_PRODUCTS_DIR/F4XWIZLQHJZWQYLSMVSCG43IMFZGKZA/libshared.dylib"));
 }

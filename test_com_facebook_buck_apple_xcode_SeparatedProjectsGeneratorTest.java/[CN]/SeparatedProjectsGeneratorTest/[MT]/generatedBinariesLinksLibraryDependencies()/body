@@ -1,13 +1,13 @@
 {
   BuildTarget depTarget=BuildTarget.builder("//elsewhere","somedep").build();
   TargetNode<?> depNode=AppleLibraryBuilder.createBuilder(depTarget).build();
-  BuildTarget dynamicLibraryTarget=BuildTarget.builder("//dep","dynamic").setFlavor(AppleLibraryDescription.DYNAMIC_LIBRARY).build();
-  TargetNode<?> dynamicLibraryNode=AppleLibraryBuilder.createBuilder(dynamicLibraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(depTarget))).build();
+  BuildTarget sharedLibraryTarget=BuildTarget.builder("//dep","shared").setFlavor(CxxDescriptionEnhancer.SHARED_FLAVOR).build();
+  TargetNode<?> sharedLibraryNode=AppleLibraryBuilder.createBuilder(sharedLibraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(depTarget))).build();
   BuildTarget target=BuildTarget.builder("//foo","bin").build();
-  TargetNode<?> node=AppleBundleBuilder.createBuilder(target).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK)).setBinary(dynamicLibraryTarget).build();
+  TargetNode<?> node=AppleBundleBuilder.createBuilder(target).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK)).setBinary(sharedLibraryTarget).build();
   BuildTarget configTarget=BuildTarget.builder("//foo/bar","project").build();
   TargetNode<?> configNode=XcodeProjectConfigBuilder.createBuilder(configTarget).setProjectName("fooproject").setRules(ImmutableSortedSet.of(target)).build();
-  SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(projectFilesystem,TargetGraphFactory.newInstance(ImmutableSet.of(depNode,dynamicLibraryNode,node,configNode)),ImmutableSet.of(configTarget),ImmutableSet.<ProjectGenerator.Option>of());
+  SeparatedProjectsGenerator generator=new SeparatedProjectsGenerator(projectFilesystem,TargetGraphFactory.newInstance(ImmutableSet.of(depNode,sharedLibraryNode,node,configNode)),ImmutableSet.of(configTarget),ImmutableSet.<ProjectGenerator.Option>of());
   generator.generateProjects();
   PBXProject project=getGeneratedProjectOfConfigRule(generator,configTarget);
   PBXTarget pbxTarget=assertTargetExistsAndReturnTarget(project,"bin");
