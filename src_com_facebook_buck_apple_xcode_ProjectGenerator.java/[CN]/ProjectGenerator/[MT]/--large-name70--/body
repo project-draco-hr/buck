@@ -12,7 +12,7 @@
   BuildTarget buildTarget=buildTargetNode.getBuildTarget();
   String productName=getProductName(buildTarget);
   TargetSources sources=TargetSources.ofAppleSources(sourcePathResolver,targetNode.getConstructorArg().srcs.get());
-  NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver,buildTarget);
+  NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver);
   mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(targetGid).setShouldGenerateCopyHeadersPhase(!targetNode.getConstructorArg().getUseBuckHeaderMaps()).setSources(sources.srcs,sources.perFileFlags).setResources(resources);
   Path assetCatalogBuildPhaseScript;
   if (!assetCatalogs.isEmpty()) {
@@ -26,8 +26,8 @@
     mutator.setAssetCatalogs(assetCatalogBuildPhaseScript,assetCatalogs);
   }
   if (includeFrameworks) {
-    ImmutableSet.Builder<String> frameworksBuilder=ImmutableSet.builder();
-    frameworksBuilder.addAll(targetNode.getConstructorArg().frameworks.get());
+    ImmutableSet.Builder<FrameworkPath> frameworksBuilder=ImmutableSet.builder();
+    frameworksBuilder.addAll(Iterables.transform(targetNode.getConstructorArg().frameworks.get(),FrameworkPath.transformFromString(targetNode.getBuildTarget())));
     frameworksBuilder.addAll(collectRecursiveFrameworkDependencies(ImmutableList.of(targetNode)));
     mutator.setFrameworks(frameworksBuilder.build());
     mutator.setArchives(collectRecursiveLibraryDependencies(ImmutableList.of(targetNode),false));

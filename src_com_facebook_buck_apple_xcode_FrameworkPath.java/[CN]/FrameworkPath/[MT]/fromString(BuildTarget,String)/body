@@ -1,0 +1,21 @@
+{
+  Path path=Paths.get(string);
+  String firstElement=Preconditions.checkNotNull(Iterables.getFirst(path,Paths.get(""))).toString();
+  if (firstElement.startsWith("$")) {
+    Optional<PBXReference.SourceTree> sourceTree=PBXReference.SourceTree.fromBuildSetting(firstElement);
+    if (sourceTree.isPresent()) {
+      return ImmutableFrameworkPath.builder().sourceTreePath(new SourceTreePath(sourceTree.get(),path.subpath(1,path.getNameCount()))).build();
+    }
+ else {
+      throw new HumanReadableException(String.format("Unknown SourceTree: %s in target: %s. Should be one of: %s",firstElement,target,Joiner.on(',').join(Iterables.transform(ImmutableList.copyOf(PBXReference.SourceTree.values()),new Function<PBXReference.SourceTree,String>(){
+        @Override public String apply(        PBXReference.SourceTree input){
+          return "$" + input.toString();
+        }
+      }
+))));
+    }
+  }
+ else {
+    return ImmutableFrameworkPath.builder().sourcePath(new BuildTargetSourcePath(target,Paths.get(string))).build();
+  }
+}

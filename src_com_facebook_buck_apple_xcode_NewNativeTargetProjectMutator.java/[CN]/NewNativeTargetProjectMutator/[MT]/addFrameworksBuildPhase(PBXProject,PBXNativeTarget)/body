@@ -5,29 +5,19 @@
   PBXGroup sharedFrameworksGroup=project.getMainGroup().getOrCreateChildGroupByName("Frameworks");
   PBXFrameworksBuildPhase frameworksBuildPhase=new PBXFrameworksBuildPhase();
   target.getBuildPhases().add(frameworksBuildPhase);
-  for (  String framework : frameworks) {
-    Path path=Paths.get(framework);
-    String firstElement=Preconditions.checkNotNull(Iterables.getFirst(path,Paths.get(""))).toString();
-    if (firstElement.startsWith("$")) {
-      Optional<PBXReference.SourceTree> sourceTree=PBXReference.SourceTree.fromBuildSetting(firstElement);
-      if (sourceTree.isPresent()) {
-        Path sdkRootRelativePath=path.subpath(1,path.getNameCount());
-        PBXFileReference fileReference=sharedFrameworksGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(sourceTree.get(),sdkRootRelativePath));
-        frameworksBuildPhase.getFiles().add(new PBXBuildFile(fileReference));
-      }
- else {
-        throw new HumanReadableException(String.format("Unknown SourceTree: %s in build target: %s. Should be one of: %s",firstElement,buildTarget,Joiner.on(',').join(Iterables.transform(ImmutableList.copyOf(PBXReference.SourceTree.values()),new Function<PBXReference.SourceTree,String>(){
-          @Override public String apply(          PBXReference.SourceTree input){
-            return "$" + input.toString();
-          }
-        }
-))));
-      }
+  for (  FrameworkPath framework : frameworks) {
+    SourceTreePath sourceTreePath;
+    if (framework.sourceTreePath().isPresent()) {
+      sourceTreePath=framework.sourceTreePath().get();
+    }
+ else     if (framework.sourcePath().isPresent()) {
+      sourceTreePath=new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputPathToSourcePath(framework.sourcePath().get()));
     }
  else {
-      PBXFileReference fileReference=sharedFrameworksGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.GROUP,pathRelativizer.outputPathToBuildTargetPath(buildTarget,path)));
-      frameworksBuildPhase.getFiles().add(new PBXBuildFile(fileReference));
+      throw new RuntimeException();
     }
+    PBXFileReference fileReference=sharedFrameworksGroup.getOrCreateFileReferenceBySourceTreePath(sourceTreePath);
+    frameworksBuildPhase.getFiles().add(new PBXBuildFile(fileReference));
   }
   for (  PBXFileReference archive : archives) {
     frameworksBuildPhase.getFiles().add(new PBXBuildFile(archive));
