@@ -15,13 +15,17 @@
   this.cxxflags=getCxxflagsInternal(targetConfiguration);
   this.cxxpp=getCppTool(ndkRoot,targetConfiguration,host,"g++",version);
   this.cxxppflags=getCxxppflags(ndkRoot,targetConfiguration);
-  this.cxxld=getCcLinkTool(ndkRoot,targetConfiguration,host,"g++",version);
+  this.cxxld=getCcLinkTool(ndkRoot,targetConfiguration,host,cxxRuntime,"g++",version);
   this.cxxldflags=ImmutableList.of();
   this.ld=new GnuLinker(getTool(ndkRoot,targetConfiguration,host,"ld.gold",version));
-  this.ldflags=ImmutableList.of("-z","noexecstack","--gc-sections","-z","nocopyreloc");
+  this.ldflags=ImmutableList.of("-z","noexecstack","--gc-sections","-z","nocopyreloc","--as-needed");
+  this.sharedRuntimeLdflags=cxxRuntime != CxxRuntime.SYSTEM ? ImmutableList.of("-l" + cxxRuntime.getSharedName()) : ImmutableList.<String>of();
+  this.staticRuntimeLdflags=cxxRuntime != CxxRuntime.SYSTEM ? ImmutableList.of("-l" + cxxRuntime.getStaticName()) : ImmutableList.<String>of();
   this.ar=getTool(ndkRoot,targetConfiguration,host,"ar",version);
   this.arflags=ImmutableList.of();
   Path ndkToolsRoot=getNdkToolRoot(ndkRoot,targetConfiguration,host);
   this.debugPathSanitizer=Optional.of(new DebugPathSanitizer(250,File.separatorChar,Paths.get("."),ImmutableBiMap.of(ndkToolsRoot,Paths.get("ANDROID_TOOLS_ROOT"),ndkRoot,Paths.get("ANDROID_NDK_ROOT"))));
   this.objcopy=getSourcePath(ndkRoot,targetConfiguration,host,"objcopy");
+  this.cxxRuntime=cxxRuntime;
+  this.cxxSharedRuntimePath=getCxxRuntimeDirectory(ndkRoot,targetConfiguration).resolve(cxxRuntime.getSoname());
 }
