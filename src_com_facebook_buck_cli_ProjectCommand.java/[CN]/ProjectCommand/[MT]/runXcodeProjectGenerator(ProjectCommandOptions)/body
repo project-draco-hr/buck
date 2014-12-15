@@ -22,44 +22,31 @@
   if (options.isWithTests()) {
     optionsBuilder.add(ProjectGenerator.Option.INCLUDE_TESTS);
   }
-  if (options.getCombinedProject() || options.getWorkspaceAndProjects()) {
-    boolean combinedProject=options.getCombinedProject();
-    if (combinedProject && passedInTargetsSet.size() != 1) {
-      throw new HumanReadableException("Combined project can only be generated for one target at a time");
-    }
-    ImmutableSet<BuildTarget> targets;
-    if (passedInTargetsSet.isEmpty()) {
-      targets=FluentIterable.from(targetGraphAndTargets.getProjectRoots()).transform(HasBuildTarget.TO_TARGET).toSet();
-    }
- else {
-      targets=passedInTargetsSet;
-    }
-    if (!combinedProject) {
-      optionsBuilder.addAll(ProjectGenerator.SEPARATED_PROJECT_OPTIONS);
-    }
-    LOG.debug("Generating workspace for config targets %s",targets);
-    Map<TargetNode<?>,ProjectGenerator> projectGenerators=new HashMap<>();
-    ImmutableSet<TargetNode<?>> testTargetNodes=targetGraphAndTargets.getAssociatedTests();
-    ImmutableMultimap<BuildTarget,TargetNode<AppleTestDescription.Arg>> sourceTargetToTestNodes=AppleBuildRules.getSourceTargetToTestNodesMap(testTargetNodes);
-    for (    BuildTarget workspaceTarget : targets) {
-      TargetNode<?> workspaceNode=Preconditions.checkNotNull(targetGraphAndTargets.getTargetGraph().get(workspaceTarget));
-      if (workspaceNode.getType() != XcodeWorkspaceConfigDescription.TYPE) {
-        throw new HumanReadableException("%s must be a xcode_workspace_config",workspaceTarget);
-      }
-      WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphAndTargets.getTargetGraph(),castToXcodeWorkspaceTargetNode(workspaceNode),optionsBuilder.build(),sourceTargetToTestNodes,combinedProject);
-      generator.generateWorkspaceAndDependentProjects(projectGenerators);
-    }
+  boolean combinedProject=options.getCombinedProject();
+  if (combinedProject && passedInTargetsSet.size() != 1) {
+    throw new HumanReadableException("Combined project can only be generated for one target at a time");
+  }
+  ImmutableSet<BuildTarget> targets;
+  if (passedInTargetsSet.isEmpty()) {
+    targets=FluentIterable.from(targetGraphAndTargets.getProjectRoots()).transform(HasBuildTarget.TO_TARGET).toSet();
   }
  else {
-    ImmutableSet<BuildTarget> targets;
-    if (passedInTargetsSet.isEmpty()) {
-      targets=FluentIterable.from(targetGraphAndTargets.getAssociatedProjects()).transform(HasBuildTarget.TO_TARGET).toSet();
+    targets=passedInTargetsSet;
+  }
+  if (!combinedProject) {
+    optionsBuilder.addAll(ProjectGenerator.SEPARATED_PROJECT_OPTIONS);
+  }
+  LOG.debug("Generating workspace for config targets %s",targets);
+  Map<TargetNode<?>,ProjectGenerator> projectGenerators=new HashMap<>();
+  ImmutableSet<TargetNode<?>> testTargetNodes=targetGraphAndTargets.getAssociatedTests();
+  ImmutableMultimap<BuildTarget,TargetNode<AppleTestDescription.Arg>> sourceTargetToTestNodes=AppleBuildRules.getSourceTargetToTestNodesMap(testTargetNodes);
+  for (  BuildTarget workspaceTarget : targets) {
+    TargetNode<?> workspaceNode=Preconditions.checkNotNull(targetGraphAndTargets.getTargetGraph().get(workspaceTarget));
+    if (workspaceNode.getType() != XcodeWorkspaceConfigDescription.TYPE) {
+      throw new HumanReadableException("%s must be a xcode_workspace_config",workspaceTarget);
     }
- else {
-      targets=passedInTargetsSet;
-    }
-    SeparatedProjectsGenerator projectGenerator=new SeparatedProjectsGenerator(getProjectFilesystem(),targetGraphAndTargets.getTargetGraph(),targets,optionsBuilder.build());
-    projectGenerator.generateProjects();
+    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphAndTargets.getTargetGraph(),castToXcodeWorkspaceTargetNode(workspaceNode),optionsBuilder.build(),sourceTargetToTestNodes,combinedProject);
+    generator.generateWorkspaceAndDependentProjects(projectGenerators);
   }
   return 0;
 }
