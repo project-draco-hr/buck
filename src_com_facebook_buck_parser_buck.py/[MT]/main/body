@@ -1,4 +1,6 @@
 def main():
+    to_parent = os.fdopen(os.dup(sys.stdout.fileno()), 'a')
+    os.dup2(sys.stderr.fileno(), sys.stdout.fileno())
     parser = optparse.OptionParser()
     parser.add_option('--project_root', action='store', type='string', dest='project_root')
     parser.add_option('--allow_empty_globs', action='store_true', dest='allow_empty_globs', help='Tells the parser not to raise an error when glob returns no results.')
@@ -8,11 +10,13 @@ def main():
     buildFileProcessor = BuildFileProcessor(project_root, options.allow_empty_globs, implicit_includes=(options.include or []))
     for build_file in args:
         values = buildFileProcessor.process(build_file)
-        print json.dumps(values)
+        to_parent.write(json.dumps(values))
+        to_parent.flush()
     for build_file in iter(sys.stdin.readline, ''):
         values = buildFileProcessor.process(build_file.rstrip())
-        print json.dumps(values)
+        to_parent.write(json.dumps(values))
+        to_parent.flush()
     try:
-        sys.stdout.close()
+        to_parent.close()
     except IOError:
         pass
