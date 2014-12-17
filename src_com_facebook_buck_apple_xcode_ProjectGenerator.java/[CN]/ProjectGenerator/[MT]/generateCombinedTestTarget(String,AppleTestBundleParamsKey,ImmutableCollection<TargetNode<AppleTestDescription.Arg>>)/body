@@ -1,5 +1,9 @@
 {
-  NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver).setTargetName(productName).setProduct(dylibProductTypeByBundleExtension(key.extension().getLeft()).get(),productName,Paths.get(productName + "." + getExtensionString(key.extension()))).setShouldGenerateCopyHeadersPhase(false).setSources(ImmutableList.of(GroupedSource.ofSourcePath(new PathSourcePath(emptyFileWithExtension("c")))),ImmutableMap.<SourcePath,String>of()).setArchives(collectRecursiveLibraryDependencies(tests,true)).setFrameworks(ImmutableSet.copyOf(collectRecursiveFrameworkDependencies(tests))).setResources(collectRecursiveResources(tests)).setAssetCatalogs(getAndMarkAssetCatalogBuildScript(),collectRecursiveAssetCatalogs(tests));
+  ImmutableSet.Builder<PBXFileReference> testLibs=ImmutableSet.builder();
+  for (  TargetNode<AppleTestDescription.Arg> test : tests) {
+    testLibs.add(getOrCreateTestLibraryFileReference(test));
+  }
+  NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver).setTargetName(productName).setProduct(dylibProductTypeByBundleExtension(key.extension().getLeft()).get(),productName,Paths.get(productName + "." + getExtensionString(key.extension()))).setShouldGenerateCopyHeadersPhase(false).setSources(ImmutableList.of(GroupedSource.ofSourcePath(new PathSourcePath(emptyFileWithExtension("c")))),ImmutableMap.<SourcePath,String>of()).setArchives(Sets.union(collectRecursiveLibraryDependencies(tests),testLibs.build())).setFrameworks(ImmutableSet.copyOf(collectRecursiveFrameworkDependencies(tests))).setResources(collectRecursiveResources(tests)).setAssetCatalogs(getAndMarkAssetCatalogBuildScript(),collectRecursiveAssetCatalogs(tests));
   NewNativeTargetProjectMutator.Result result;
   try {
     result=mutator.buildTargetAndAddToProject(project);
