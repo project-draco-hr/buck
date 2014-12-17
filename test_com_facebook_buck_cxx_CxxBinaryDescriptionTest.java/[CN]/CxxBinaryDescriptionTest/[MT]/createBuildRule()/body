@@ -1,6 +1,7 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver();
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  CxxPlatform cxxPlatform=CxxBinaryBuilder.createDefaultPlatform();
   String genHeaderName="test/foo.h";
   BuildTarget genHeaderTarget=BuildTargetFactory.newInstance("//:genHeader");
   Genrule genHeader=(Genrule)GenruleBuilder.newGenruleBuilder(genHeaderTarget).setOut(genHeaderName).build(resolver);
@@ -34,24 +35,9 @@
     }
   }
 ;
-  resolver.addAllToIndex(ImmutableList.of(header,headerSymlinkTree,archive));
+  resolver.addAllToIndex(ImmutableList.of(header,headerSymlinkTree,archive,dep));
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setDeps(ImmutableSortedSet.<BuildRule>of(dep)).build();
-  CxxBinaryDescription.Arg arg=new CxxBinaryDescription.Arg();
-  arg.deps=Optional.of(ImmutableSortedSet.of(dep.getBuildTarget()));
-  arg.srcs=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofLeft(ImmutableList.<SourcePath>of(new TestSourcePath("test/bar.cpp"),new BuildTargetSourcePath(genSource.getBuildTarget()))));
-  arg.headers=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofLeft(ImmutableList.<SourcePath>of(new TestSourcePath("test/bar.h"),new BuildTargetSourcePath(genHeader.getBuildTarget()))));
-  arg.compilerFlags=Optional.absent();
-  arg.preprocessorFlags=Optional.absent();
-  arg.langPreprocessorFlags=Optional.absent();
-  arg.linkerFlags=Optional.absent();
-  arg.lexSrcs=Optional.absent();
-  arg.yaccSrcs=Optional.absent();
-  arg.headerNamespace=Optional.absent();
-  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(new FakeBuckConfig());
-  DefaultCxxPlatform cxxPlatform=new DefaultCxxPlatform(new FakeBuckConfig());
-  CxxBinaryDescription description=new CxxBinaryDescription(cxxBuckConfig,cxxPlatform,new FlavorDomain<>("platform",ImmutableMap.<Flavor,CxxPlatform>of()));
-  CxxBinary binRule=description.createBuildRule(params,resolver,arg);
+  CxxBinary binRule=(CxxBinary)new CxxBinaryBuilder(target).setSrcs(ImmutableList.<SourcePath>of(new TestSourcePath("test/bar.cpp"),new BuildTargetSourcePath(genSource.getBuildTarget()))).setHeaders(ImmutableList.<SourcePath>of(new TestSourcePath("test/bar.h"),new BuildTargetSourcePath(genHeader.getBuildTarget()))).setDeps(ImmutableSortedSet.of(dep.getBuildTarget())).build(resolver);
   CxxLink rule=binRule.getRule();
   assertEquals(ImmutableSet.of(CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),"test/bar.cpp",false),CxxCompilableEnhancer.createCompileBuildTarget(target,cxxPlatform.asFlavor(),genSourceName,false),archive.getBuildTarget()),FluentIterable.from(rule.getDeps()).transform(HasBuildTarget.TO_TARGET).toSet());
   BuildRule preprocessRule1=resolver.getRule(CxxPreprocessables.createPreprocessBuildTarget(target,cxxPlatform.asFlavor(),CxxSource.Type.CXX,false,"test/bar.cpp"));

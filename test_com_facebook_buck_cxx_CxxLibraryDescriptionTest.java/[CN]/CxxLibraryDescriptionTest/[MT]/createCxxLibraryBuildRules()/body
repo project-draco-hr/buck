@@ -1,19 +1,16 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver();
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  CxxPlatform cxxPlatform=CxxLibraryBuilder.createDefaultPlatform();
   String sourceName="test/bar.cpp";
   String genHeaderName="test/foo.h";
-  GenruleDescription genHeaderDescription=new GenruleDescription();
-  GenruleDescription.Arg genHeaderArg=createEmptyGenruleDescriptionArg();
-  genHeaderArg.out=genHeaderName;
   BuildTarget genHeaderTarget=BuildTargetFactory.newInstance("//:genHeader");
-  Genrule genHeader=(Genrule)GenruleBuilder.newGenruleBuilder(genHeaderTarget).setOut(genHeaderName).build(resolver);
+  GenruleBuilder genHeaderBuilder=GenruleBuilder.newGenruleBuilder(genHeaderTarget).setOut(genHeaderName);
+  genHeaderBuilder.build(resolver);
   String genSourceName="test/foo.cpp";
-  GenruleDescription genSourceDescription=new GenruleDescription();
-  GenruleDescription.Arg genSourceArg=createEmptyGenruleDescriptionArg();
-  genHeaderArg.out=genSourceName;
   BuildTarget genSourceTarget=BuildTargetFactory.newInstance("//:genSource");
-  Genrule genSource=(Genrule)GenruleBuilder.newGenruleBuilder(genSourceTarget).setOut(genSourceName).build(resolver);
+  GenruleBuilder genSourceBuilder=GenruleBuilder.newGenruleBuilder(genSourceTarget).setOut(genSourceName);
+  genSourceBuilder.build(resolver);
   final BuildRule header=new FakeBuildRule("//:header",pathResolver);
   final BuildRule headerSymlinkTree=new FakeBuildRule("//:symlink",pathResolver);
   final Path headerSymlinkTreeRoot=Paths.get("symlink/tree/root");
@@ -44,20 +41,12 @@
     }
   }
 ;
-  resolver.addAllToIndex(ImmutableList.of(header,headerSymlinkTree,staticLibraryDep,sharedLibraryDep));
+  resolver.addAllToIndex(ImmutableList.of(header,headerSymlinkTree,staticLibraryDep,sharedLibraryDep,dep));
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
-  FakeBuckConfig buckConfig=new FakeBuckConfig();
-  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(buckConfig);
-  CxxPlatform cxxPlatform=new DefaultCxxPlatform(buckConfig);
-  FlavorDomain<CxxPlatform> cxxPlatforms=new FlavorDomain<>("C/C++ Platform",ImmutableMap.of(cxxPlatform.asFlavor(),cxxPlatform));
-  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig,cxxPlatforms);
-  CxxLibraryDescription.Arg arg=description.createEmptyConstructorArg();
-  arg.headers=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofRight(ImmutableMap.<String,SourcePath>of(genHeaderName,new BuildTargetSourcePath(genHeader.getBuildTarget()))));
-  arg.srcs=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofRight(ImmutableMap.<String,SourcePath>of(sourceName,new TestSourcePath(sourceName),genSourceName,new BuildTargetSourcePath(genSource.getBuildTarget()))));
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setTargetGraph(TargetGraphFactory.newInstance(createTargetNode(target,description,arg),createTargetNode(genSource.getBuildTarget(),genSourceDescription,genSourceArg),createTargetNode(genHeader.getBuildTarget(),genHeaderDescription,genHeaderArg))).setDeps(ImmutableSortedSet.<BuildRule>of(dep)).build();
-  CxxLibrary rule=(CxxLibrary)description.createBuildRule(params,resolver,arg);
+  CxxLibraryBuilder cxxLibraryBuilder=(CxxLibraryBuilder)new CxxLibraryBuilder(target).setHeaders(ImmutableMap.<String,SourcePath>of(genHeaderName,new BuildTargetSourcePath(genHeaderTarget))).setSrcs(ImmutableMap.<String,SourcePath>of(sourceName,new TestSourcePath(sourceName),genSourceName,new BuildTargetSourcePath(genSourceTarget))).setDeps(ImmutableSortedSet.of(dep.getBuildTarget()));
+  CxxLibrary rule=(CxxLibrary)cxxLibraryBuilder.build(resolver,new FakeProjectFilesystem(),TargetGraphFactory.newInstance(cxxLibraryBuilder.build(),genSourceBuilder.build(),genHeaderBuilder.build(),GenruleBuilder.newGenruleBuilder(depTarget).build()));
   Path headerRoot=CxxDescriptionEnhancer.getHeaderSymlinkTreePath(target,cxxPlatform.asFlavor());
-  assertEquals(CxxPreprocessorInput.builder().setRules(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor()))).setIncludes(ImmutableCxxHeaders.builder().putNameToPathMap(Paths.get(genHeaderName),new BuildTargetSourcePath(genHeader.getBuildTarget())).putFullNameToPathMap(headerRoot.resolve(genHeaderName),new BuildTargetSourcePath(genHeader.getBuildTarget())).build()).setIncludeRoots(ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(target,cxxPlatform.asFlavor()))).build(),rule.getCxxPreprocessorInput(cxxPlatform));
+  assertEquals(CxxPreprocessorInput.builder().setRules(ImmutableSet.of(CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.asFlavor()))).setIncludes(ImmutableCxxHeaders.builder().putNameToPathMap(Paths.get(genHeaderName),new BuildTargetSourcePath(genHeaderTarget)).putFullNameToPathMap(headerRoot.resolve(genHeaderName),new BuildTargetSourcePath(genHeaderTarget)).build()).setIncludeRoots(ImmutableList.of(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(target,cxxPlatform.asFlavor()))).build(),rule.getCxxPreprocessorInput(cxxPlatform));
   rule.getNativeLinkableInput(cxxPlatform,NativeLinkable.Type.STATIC);
   BuildRule staticRule=resolver.getRule(CxxDescriptionEnhancer.createStaticLibraryBuildTarget(target,cxxPlatform.asFlavor()));
   assertNotNull(staticRule);

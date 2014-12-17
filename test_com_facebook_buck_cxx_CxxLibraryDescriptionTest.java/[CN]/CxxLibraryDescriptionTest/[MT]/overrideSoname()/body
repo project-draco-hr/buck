@@ -1,15 +1,11 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver();
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  CxxPlatform cxxPlatform=CxxLibraryBuilder.createDefaultPlatform();
   String soname="test_soname";
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
-  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(new FakeBuckConfig());
-  CxxPlatform cxxPlatform=new DefaultCxxPlatform(new FakeBuckConfig());
-  FlavorDomain<CxxPlatform> cxxPlatforms=new FlavorDomain<>("C/C++ Platform",ImmutableMap.of(cxxPlatform.asFlavor(),cxxPlatform));
-  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig,cxxPlatforms);
-  CxxLibraryDescription.Arg arg=description.createEmptyConstructorArg();
-  arg.soname=Optional.of(soname);
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setTargetGraph(createTargetGraph(target,description,arg)).build();
-  CxxLibrary rule=(CxxLibrary)description.createBuildRule(params,resolver,arg);
+  CxxLibraryBuilder ruleBuilder=new CxxLibraryBuilder(target).setSoname(soname);
+  CxxLibrary rule=(CxxLibrary)ruleBuilder.build(resolver,filesystem,TargetGraphFactory.newInstance(ruleBuilder.build()));
   Linker linker=cxxPlatform.getLd();
   NativeLinkableInput input=rule.getNativeLinkableInput(cxxPlatform,NativeLinkable.Type.SHARED);
   ImmutableList<SourcePath> inputs=input.getInputs();

@@ -1,22 +1,15 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  FakeBuckConfig buckConfig=new FakeBuckConfig();
-  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(buckConfig);
-  CxxPlatform cxxPlatform=new DefaultCxxPlatform(buckConfig);
-  FlavorDomain<CxxPlatform> cxxPlatforms=new FlavorDomain<>("C/C++ Platform",ImmutableMap.of(cxxPlatform.asFlavor(),cxxPlatform));
-  CxxLibraryDescription description=new CxxLibraryDescription(cxxBuckConfig,cxxPlatforms);
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  CxxPlatform cxxPlatform=CxxLibraryBuilder.createDefaultPlatform();
   BuildTarget target=BuildTargetFactory.newInstance("//:test");
   Path staticLib=CxxDescriptionEnhancer.getStaticLibraryPath(target,cxxPlatform.asFlavor());
   Linker linker=cxxPlatform.getLd();
   Set<String> linkWholeFlags=Sets.newHashSet(linker.linkWhole(staticLib.toString()));
   linkWholeFlags.remove(staticLib.toString());
-  CxxLibraryDescription.Arg normalArg=description.createEmptyConstructorArg();
-  BuildRuleParams normalParams=new FakeBuildRuleParamsBuilder(target).setTargetGraph(createTargetGraph(target,description,normalArg)).build();
-  CxxLibrary normal=(CxxLibrary)description.createBuildRule(normalParams,resolver,normalArg);
+  CxxLibraryBuilder normalBuilder=new CxxLibraryBuilder(target);
+  CxxLibrary normal=(CxxLibrary)normalBuilder.build(new BuildRuleResolver(),filesystem,TargetGraphFactory.newInstance(normalBuilder.build()));
   assertNotContains(normal.getNativeLinkableInput(cxxPlatform,NativeLinkable.Type.STATIC).getArgs(),linkWholeFlags);
-  CxxLibraryDescription.Arg linkWholeArg=description.createEmptyConstructorArg();
-  linkWholeArg.linkWhole=Optional.of(true);
-  BuildRuleParams linkWholeParams=new FakeBuildRuleParamsBuilder(target).setTargetGraph(createTargetGraph(target,description,linkWholeArg)).build();
-  CxxLibrary linkWhole=(CxxLibrary)description.createBuildRule(linkWholeParams,resolver,linkWholeArg);
+  CxxLibraryBuilder linkWholeBuilder=new CxxLibraryBuilder(target).setLinkWhole(true);
+  CxxLibrary linkWhole=(CxxLibrary)linkWholeBuilder.build(new BuildRuleResolver(),filesystem,TargetGraphFactory.newInstance(linkWholeBuilder.build()));
   assertContains(linkWhole.getNativeLinkableInput(cxxPlatform,NativeLinkable.Type.STATIC).getArgs(),linkWholeFlags);
 }

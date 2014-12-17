@@ -1,13 +1,16 @@
 {
-  CxxPythonExtensionDescription.Arg arg=getDefaultArg();
-  arg.baseModule=Optional.absent();
-  params=paramsForArg(arg,pythonDep.getBuildTarget());
-  CxxPythonExtension normal=(CxxPythonExtension)desc.createBuildRule(params,new BuildRuleResolver(),arg);
+  BuildTarget target=BuildTargetFactory.newInstance("//:target");
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  CxxPlatform cxxPlatform=CxxPythonExtensionBuilder.createDefaultPlatform();
+  CxxPythonExtensionBuilder normalBuilder=getBuilder(target);
+  CxxPythonExtensionDescription desc=(CxxPythonExtensionDescription)normalBuilder.build().getDescription();
+  CxxPythonExtension normal=(CxxPythonExtension)normalBuilder.build(new BuildRuleResolver(),filesystem,TargetGraphFactory.newInstance(normalBuilder.build(),GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).build()));
   PythonPackageComponents normalComps=normal.getPythonPackageComponents(cxxPlatform);
   assertEquals(ImmutableSet.of(target.getBasePath().resolve(desc.getExtensionName(target))),normalComps.getModules().keySet());
-  arg.baseModule=Optional.of("blah");
-  params=paramsForArg(arg,pythonDep.getBuildTarget());
-  CxxPythonExtension baseModule=(CxxPythonExtension)desc.createBuildRule(params,new BuildRuleResolver(),arg);
+  String name="blah";
+  CxxPythonExtensionBuilder baseModuleBuilder=getBuilder(target).setBaseModule(name);
+  desc=(CxxPythonExtensionDescription)baseModuleBuilder.build().getDescription();
+  CxxPythonExtension baseModule=(CxxPythonExtension)baseModuleBuilder.build(new BuildRuleResolver(),filesystem,TargetGraphFactory.newInstance(baseModuleBuilder.build(),GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).build()));
   PythonPackageComponents baseModuleComps=baseModule.getPythonPackageComponents(cxxPlatform);
-  assertEquals(ImmutableSet.of(Paths.get(arg.baseModule.get()).resolve(desc.getExtensionName(target))),baseModuleComps.getModules().keySet());
+  assertEquals(ImmutableSet.of(Paths.get(name).resolve(desc.getExtensionName(target))),baseModuleComps.getModules().keySet());
 }

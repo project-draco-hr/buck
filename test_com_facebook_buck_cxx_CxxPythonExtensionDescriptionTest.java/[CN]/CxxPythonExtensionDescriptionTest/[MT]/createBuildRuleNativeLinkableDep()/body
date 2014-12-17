@@ -1,6 +1,8 @@
 {
+  BuildTarget target=BuildTargetFactory.newInstance("//:target");
   BuildRuleResolver resolver=new BuildRuleResolver();
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  CxxPlatform cxxPlatform=CxxPythonExtensionBuilder.createDefaultPlatform();
   final BuildRule sharedLibraryDep=createFakeBuildRule("//:shared",pathResolver);
   final Path sharedLibraryOutput=Paths.get("output/path/lib.so");
   final String sharedLibrarySoname="soname";
@@ -26,12 +28,10 @@
     }
   }
 ;
-  resolver.addToIndex(sharedLibraryDep);
-  CxxPythonExtensionDescription.Arg arg=getDefaultArg();
-  arg.deps=Optional.of(ImmutableSortedSet.of(dep.getBuildTarget()));
-  params=paramsForArg(arg,pythonDep.getBuildTarget(),depTarget);
-  BuildRuleParams newParams=params.copyWithDeps(ImmutableSortedSet.<BuildRule>of(dep),ImmutableSortedSet.<BuildRule>of());
-  CxxPythonExtension extension=(CxxPythonExtension)desc.createBuildRule(newParams,resolver,arg);
+  resolver.addAllToIndex(ImmutableList.of(sharedLibraryDep,dep));
+  CxxPythonExtensionBuilder extensionBuilder=(CxxPythonExtensionBuilder)getBuilder(target).setDeps(ImmutableSortedSet.of(depTarget));
+  CxxPythonExtensionDescription desc=(CxxPythonExtensionDescription)extensionBuilder.build().getDescription();
+  CxxPythonExtension extension=(CxxPythonExtension)extensionBuilder.build(resolver,new FakeProjectFilesystem(),TargetGraphFactory.newInstance(extensionBuilder.build(),GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).build(),GenruleBuilder.newGenruleBuilder(depTarget).build()));
   extension.getPythonPackageComponents(cxxPlatform);
   BuildRule rule=resolver.getRule(desc.getExtensionTarget(target,cxxPlatform.asFlavor()));
   assertEquals(ImmutableSortedSet.of(sharedLibraryDep),rule.getDeps());
