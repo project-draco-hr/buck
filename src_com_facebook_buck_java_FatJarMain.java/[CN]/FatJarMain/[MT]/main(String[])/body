@@ -1,0 +1,17 @@
+{
+  Class<?> clazz=FatJarMain.class;
+  ClassLoader classLoader=clazz.getClassLoader();
+  FatJar fatJar=FatJar.load(classLoader);
+  try (ManagedTemporaryDirectory temp=new ManagedTemporaryDirectory("fatjar.")){
+    Path jar=temp.getPath().resolve("main.jar");
+    fatJar.unpackJarTo(classLoader,jar);
+    Path nativeLibs=temp.getPath().resolve("nativelibs");
+    Files.createDirectory(nativeLibs);
+    fatJar.unpackNativeLibrariesInto(classLoader,temp.getPath());
+    ProcessBuilder builder=new ProcessBuilder();
+    builder.command(getCommand(jar,args));
+    updateEnvironment(builder.environment(),temp.getPath());
+    builder.inheritIO();
+    System.exit(builder.start().waitFor());
+  }
+ }
