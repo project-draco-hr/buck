@@ -1,0 +1,25 @@
+{
+  Map<String,WorkspaceNode> children=this.children;
+  if (groupPath.isPresent()) {
+    for (    Path groupPathPart : groupPath.get()) {
+      String groupName=groupPathPart.toString();
+      WorkspaceNode node=children.get(groupName);
+      WorkspaceGroup group;
+      if (node instanceof WorkspaceFileRef) {
+        throw new HumanReadableException("Invalid workspace: a group and a project have the same name: %s",groupName);
+      }
+ else       if (node == null) {
+        group=new WorkspaceGroup();
+        children.put(groupName,group);
+      }
+ else       if (node instanceof WorkspaceGroup) {
+        group=(WorkspaceGroup)node;
+      }
+ else {
+        throw new HumanReadableException("Expected a workspace to only contain groups and file references");
+      }
+      children=group.getChildren();
+    }
+  }
+  children.put(path.getFileName().toString(),new WorkspaceFileRef(path));
+}
