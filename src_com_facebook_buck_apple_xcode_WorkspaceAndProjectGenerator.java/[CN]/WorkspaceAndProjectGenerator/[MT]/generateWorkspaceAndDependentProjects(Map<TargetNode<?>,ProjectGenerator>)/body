@@ -1,13 +1,12 @@
 {
   LOG.debug("Generating workspace for target %s",workspaceTargetNode);
-  String workspaceName;
+  String workspaceName=XcodeWorkspaceConfigDescription.getWorkspaceNameFromArg(workspaceTargetNode.getConstructorArg());
   Path outputDirectory;
   if (combinedProject) {
-    workspaceName="GeneratedProject";
-    outputDirectory=Paths.get("_gen");
+    workspaceName+="-Combined";
+    outputDirectory=BuildTargets.getGenPath(workspaceTargetNode.getBuildTarget(),"%s").getParent();
   }
  else {
-    workspaceName=XcodeWorkspaceConfigDescription.getWorkspaceNameFromArg(workspaceTargetNode.getConstructorArg());
     outputDirectory=workspaceTargetNode.getBuildTarget().getBasePath();
   }
   WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,workspaceName,outputDirectory);
@@ -38,7 +37,7 @@
       initialTargetsBuilder.addAll(projectArg.rules);
     }
     LOG.debug("Generating a combined project");
-    ProjectGenerator generator=new ProjectGenerator(projectGraph,initialTargetsBuilder.build(),projectFilesystem,outputDirectory,"GeneratedProject",projectGeneratorOptions).setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).setTestsToGenerateAsStaticLibraries(Sets.difference(selectedTests,groupedTestResults.ungroupedTests));
+    ProjectGenerator generator=new ProjectGenerator(projectGraph,initialTargetsBuilder.build(),projectFilesystem,outputDirectory,workspaceName,projectGeneratorOptions).setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).setTestsToGenerateAsStaticLibraries(Sets.difference(selectedTests,groupedTestResults.ungroupedTests));
     combinedProjectGenerator=Optional.of(generator);
     generator.createXcodeProjects();
     workspaceGenerator.addFilePath(generator.getProjectPath());
