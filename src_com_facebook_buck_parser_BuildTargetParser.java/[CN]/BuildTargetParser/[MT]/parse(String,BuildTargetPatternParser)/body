@@ -1,0 +1,52 @@
+{
+  for (  String invalidSubstring : INVALID_BUILD_RULE_SUBSTRINGS) {
+    if (buildTargetName.contains(invalidSubstring)) {
+      throw new BuildTargetParseException(String.format("%s cannot contain %s",buildTargetName,invalidSubstring));
+    }
+  }
+  if (buildTargetName.endsWith(BUILD_RULE_SEPARATOR) && !buildTargetPatternParser.isWildCardAllowed()) {
+    throw new BuildTargetParseException(String.format("%s cannot end with a colon",buildTargetName));
+  }
+  Optional<String> givenRepoName=Optional.absent();
+  String targetAfterRepo=buildTargetName;
+  if (buildTargetName.startsWith(REPOSITORY_STARTER)) {
+    if (!buildTargetName.contains(BUILD_RULE_PREFIX)) {
+      throw new BuildTargetParseException(String.format("Cross-repo paths must contain %s (found %s)",BUILD_RULE_PREFIX,buildTargetName));
+    }
+    int slashIndex=buildTargetName.indexOf(BUILD_RULE_PREFIX);
+    givenRepoName=Optional.of(buildTargetName.substring(REPOSITORY_STARTER.length(),slashIndex));
+    targetAfterRepo=buildTargetName.substring(slashIndex);
+  }
+  if (givenRepoName.isPresent() && givenRepoName.get().isEmpty()) {
+    throw new BuildTargetParseException("Repo name must not be empty.");
+  }
+  if (!localToCanonicalRepoNamesMap.containsKey(givenRepoName)) {
+    throw new HumanReadableException(String.format("In build target '%s', repo '%s' is not defined.",buildTargetName,givenRepoName));
+  }
+  List<String> parts=BUILD_RULE_SEPARATOR_SPLITTER.splitToList(targetAfterRepo);
+  if (parts.size() != 2) {
+    throw new BuildTargetParseException(String.format("%s must contain exactly one colon (found %d)",buildTargetName,parts.size() - 1));
+  }
+  String baseName=parts.get(0).isEmpty() ? buildTargetPatternParser.getBaseName() : parts.get(0);
+  String shortName=parts.get(1);
+  Iterable<String> flavorNames=new HashSet<>();
+  int hashIndex=shortName.indexOf("#");
+  if (hashIndex != -1 && hashIndex < shortName.length()) {
+    flavorNames=flavorParser.parseFlavorString(shortName.substring(hashIndex + 1));
+    shortName=shortName.substring(0,hashIndex);
+  }
+  Preconditions.checkNotNull(baseName);
+  String fullyQualifiedName=new StringBuilder(baseName.length() + shortName.length() + 2).append(baseName).append(':').append(shortName).toString();
+  if (!fullyQualifiedName.startsWith(BUILD_RULE_PREFIX)) {
+    throw new BuildTargetParseException(String.format("%s must start with %s",fullyQualifiedName,BUILD_RULE_PREFIX));
+  }
+  BuildTarget.Builder builder=BuildTarget.builder(baseName,shortName);
+  for (  String flavor : flavorNames) {
+    builder.addFlavor(flavor);
+  }
+  Optional<String> canonicalRepoName=Preconditions.checkNotNull(localToCanonicalRepoNamesMap.get(givenRepoName));
+  if (canonicalRepoName.isPresent()) {
+    builder.setRepository(canonicalRepoName.get());
+  }
+  return builder.build();
+}
