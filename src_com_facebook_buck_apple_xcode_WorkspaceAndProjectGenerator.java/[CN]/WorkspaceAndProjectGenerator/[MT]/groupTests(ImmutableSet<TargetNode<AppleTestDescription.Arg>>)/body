@@ -2,22 +2,13 @@
   ImmutableMultimap.Builder<AppleTestBundleParamsKey,TargetNode<AppleTestDescription.Arg>> groupsBuilder=ImmutableMultimap.builder();
   ImmutableSet.Builder<TargetNode<AppleTestDescription.Arg>> ungroupedTestsBuilder=ImmutableSet.builder();
   for (  TargetNode<AppleTestDescription.Arg> test : tests) {
-    if (test.getConstructorArg().canGroup()) {
+    if (groupableTests.contains(test)) {
+      Preconditions.checkState(test.getConstructorArg().canGroup(),"Groupable test should actually be groupable.");
       groupsBuilder.put(AppleTestBundleParamsKey.fromAppleTestDescriptionArg(test.getConstructorArg()),test);
     }
  else {
       ungroupedTestsBuilder.add(test);
     }
   }
-  ImmutableMultimap<AppleTestBundleParamsKey,TargetNode<AppleTestDescription.Arg>> groups=groupsBuilder.build();
-  ImmutableMultimap.Builder<AppleTestBundleParamsKey,TargetNode<AppleTestDescription.Arg>> multiEntryGroupsBuilder=ImmutableMultimap.builder();
-  for (  Map.Entry<AppleTestBundleParamsKey,Collection<TargetNode<AppleTestDescription.Arg>>> entry : groups.asMap().entrySet()) {
-    if (entry.getValue().size() > 1) {
-      multiEntryGroupsBuilder.putAll(entry.getKey(),entry.getValue());
-    }
- else {
-      ungroupedTestsBuilder.add(Iterables.getOnlyElement(entry.getValue()));
-    }
-  }
-  return new GroupedTestResults(multiEntryGroupsBuilder.build(),ungroupedTestsBuilder.build());
+  return new GroupedTestResults(groupsBuilder.build(),ungroupedTestsBuilder.build());
 }
