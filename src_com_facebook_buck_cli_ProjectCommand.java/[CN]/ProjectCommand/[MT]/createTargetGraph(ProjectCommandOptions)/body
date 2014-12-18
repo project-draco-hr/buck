@@ -72,45 +72,6 @@ default :
 throw new IllegalStateException("'ide' should always be of type 'INTELLIJ' or 'XCODE'");
 }
 TargetGraph fullGraph=getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(new TargetNodePredicateSpec(Predicates.<TargetNode<?>>alwaysTrue(),getProjectFilesystem().getIgnorePaths())),options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
-ImmutableSet<TargetNode<?>> projectRoots=ImmutableSet.copyOf(fullGraph.getAll(getRootsFromOptionsWithPredicate(fullGraph,options,projectRootsPredicate)));
-ImmutableSet<TargetNode<?>> associatedTests=ImmutableSet.of();
-if (options.isWithTests()) {
-ImmutableSet<BuildTarget> explicitTests=FluentIterable.from(fullGraph.getSubgraph(projectRoots).getNodes()).transformAndConcat(new Function<TargetNode<?>,Iterable<BuildTarget>>(){
-@Override public Iterable<BuildTarget> apply(TargetNode<?> node){
-if (node.getConstructorArg() instanceof HasTests) {
-return ((HasTests)node.getConstructorArg()).getTests();
-}
- else {
-return ImmutableSet.of();
-}
-}
-}
-).toSet();
-AssociatedTargetNodePredicate associatedTestsPredicate=new AssociatedTargetNodePredicate(){
-@Override public boolean apply(TargetNode<?> targetNode,TargetGraph targetGraph){
-if (!targetNode.getType().isTestRule()) {
-return false;
-}
-ImmutableSortedSet<BuildTarget> sourceUnderTest;
-if (targetNode.getConstructorArg() instanceof HasSourceUnderTest) {
-HasSourceUnderTest argWithSourceUnderTest=(HasSourceUnderTest)targetNode.getConstructorArg();
-sourceUnderTest=argWithSourceUnderTest.getSourceUnderTest();
-}
- else {
-return false;
-}
-for (BuildTarget buildTargetUnderTest : sourceUnderTest) {
-if (targetGraph.get(buildTargetUnderTest) != null) {
-return true;
-}
-}
-return false;
-}
-}
-;
-associatedTests=ImmutableSet.copyOf(Sets.union(ImmutableSet.copyOf(fullGraph.getAll(explicitTests)),getAssociatedTargetNodes(fullGraph,projectRoots,associatedTestsPredicate)));
-}
-ImmutableSet<TargetNode<?>> associatedProjects=getAssociatedTargetNodes(fullGraph,Iterables.concat(projectRoots,associatedTests),associatedProjectPredicate);
-TargetGraph targetGraph=fullGraph.getSubgraph(Iterables.concat(projectRoots,associatedTests,associatedProjects));
-return new TargetGraphAndTargets(targetGraph,fullGraph,projectRoots,associatedTests);
+ImmutableSet<BuildTarget> graphRoots=getRootsFromOptionsWithPredicate(fullGraph,options,projectRootsPredicate);
+return TargetGraphAndTargets.create(graphRoots,fullGraph,associatedProjectPredicate,options.isWithTests());
 }
