@@ -1,0 +1,24 @@
+{
+  LOG.verbose("Hashing node %s",node);
+  hashStringAndLength(hasher,node.getBuildTarget().toString());
+  HashCode targetRuleHashCode=buildTargetToRuleHashCode.apply(node.getBuildTarget());
+  LOG.verbose("Got rules hash %s",targetRuleHashCode);
+  hasher.putBytes(targetRuleHashCode.asBytes());
+  try (final OutputStream hasherOutputStream=Funnels.asOutputStream(hasher)){
+    for (    Path path : walkedPathsInSortedOrder(node.getInputs())) {
+      LOG.verbose("Node %s: adding input file contents %s",node,path);
+      hashStringAndLength(hasher,path.toString());
+      hasher.putLong(projectFilesystem.getFileSize(path));
+      try (InputStream inputStream=projectFilesystem.newFileInputStream(path)){
+        ByteStreams.copy(inputStream,hasherOutputStream);
+      }
+     }
+  }
+   for (  BuildTarget dependency : node.getDeps()) {
+    HashCode dependencyHashCode=buildTargetHashes.get(dependency);
+    Preconditions.checkState(dependencyHashCode != null);
+    LOG.verbose("Node %s: adding dependency %s (%s)",node,dependency,dependencyHashCode);
+    hashStringAndLength(hasher,dependency.toString());
+    hasher.putBytes(dependencyHashCode.asBytes());
+  }
+}
