@@ -4,26 +4,45 @@
     console.printBuildFailure("Must specify at least one build target.");
     return 1;
   }
-  ActionGraph graph;
+  TargetGraph targetGraph;
   try {
-    TargetGraph targetGraph=getParser().buildTargetGraphForBuildTargets(matchingBuildTargets,options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
-    graph=targetGraphTransformer.apply(targetGraph);
+    targetGraph=getParser().buildTargetGraphForBuildTargets(matchingBuildTargets,options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
   }
  catch (  BuildTargetException|BuildFileParseException e) {
     console.printBuildFailureWithoutStacktrace(e);
     return 1;
   }
+  Optional<ActionGraph> actionGraph;
+  if (options.isShowRuleKey() || options.isShowOutput()) {
+    actionGraph=Optional.of(targetGraphTransformer.apply(targetGraph));
+  }
+ else {
+    actionGraph=Optional.absent();
+  }
+  ImmutableMap<BuildTarget,HashCode> buildTargetHashes;
+  if (options.isShowTargetHash()) {
+    buildTargetHashes=TargetGraphHashing.hashTargetGraph(getProjectFilesystem(),targetGraph,getParser().getBuildTargetHashCodeCache(),matchingBuildTargets);
+  }
+ else {
+    buildTargetHashes=ImmutableMap.of();
+  }
   for (  BuildTarget target : ImmutableSortedSet.copyOf(matchingBuildTargets)) {
-    BuildRule rule=Preconditions.checkNotNull(graph.findBuildRuleByTarget(target));
     ImmutableList.Builder<String> builder=ImmutableList.builder();
     builder.add(target.getFullyQualifiedName());
-    if (options.isShowRuleKey()) {
-      builder.add(rule.getRuleKey().toString());
+    if (options.isShowTargetHash()) {
+      HashCode targetHash=Preconditions.checkNotNull(buildTargetHashes.get(target));
+      builder.add(targetHash.toString());
     }
-    if (options.isShowOutput()) {
-      Path outputPath=rule.getPathToOutputFile();
-      if (outputPath != null) {
-        builder.add(outputPath.toString());
+    if (actionGraph.isPresent()) {
+      BuildRule rule=Preconditions.checkNotNull(actionGraph.get().findBuildRuleByTarget(target));
+      if (options.isShowRuleKey()) {
+        builder.add(rule.getRuleKey().toString());
+      }
+      if (options.isShowOutput()) {
+        Path outputPath=rule.getPathToOutputFile();
+        if (outputPath != null) {
+          builder.add(outputPath.toString());
+        }
       }
     }
     getStdOut().println(Joiner.on(' ').join(builder.build()));
