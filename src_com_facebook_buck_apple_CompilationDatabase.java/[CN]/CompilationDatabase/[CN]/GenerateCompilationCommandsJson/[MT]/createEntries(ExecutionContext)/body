@@ -4,7 +4,18 @@
   Iterable<SourcePath> allSources=Iterables.concat(targetSources.srcPaths,targetSources.headerPaths);
   ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
   for (  SourcePath srcPath : allSources) {
-    List<String> commandArgs=Lists.newArrayList("clang","-x","objective-c","-arch","i386","-mios-simulator-version-min=7.0","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fmacro-backtrace-limit=0","-std=gnu99","-fpascal-strings","-fexceptions","-fasm-blocks","-fstrict-aliasing","-fobjc-abi-version=2","-fobjc-legacy-dispatch","-O0","-g","-MMD");
+    String fileToCompile=projectFilesystem.resolve(getResolver().getPath(srcPath)).toString();
+    String language;
+    String languageStandard;
+    if (fileToCompile.endsWith(".mm")) {
+      language="objective-c++";
+      languageStandard="-std=c++11";
+    }
+ else {
+      language="objective-c";
+      languageStandard="-std=gnu99";
+    }
+    List<String> commandArgs=Lists.newArrayList("clang","-x",language,"-arch","i386","-mios-simulator-version-min=7.0","-fmessage-length=0","-fdiagnostics-show-note-include-stack","-fmacro-backtrace-limit=0",languageStandard,"-fpascal-strings","-fexceptions","-fasm-blocks","-fstrict-aliasing","-fobjc-abi-version=2","-fobjc-legacy-dispatch","-O0","-g","-MMD");
     commandArgs.add("-fobjc-arc");
     ImmutableMap<AppleSdk,AppleSdkPaths> allAppleSdkPaths=appleConfig.getAppleSdkPaths(context.getProcessExecutor());
     AppleSdkPaths appleSdkPaths=selectNewestSimulatorSdk(allAppleSdkPaths);
@@ -30,7 +41,6 @@
       commandArgs.add(projectFilesystem.resolve(relativePathToPchFile).toString());
     }
     commandArgs.add("-c");
-    String fileToCompile=projectFilesystem.resolve(getResolver().getPath(srcPath)).toString();
     commandArgs.add(fileToCompile);
     String perFileFlags=Strings.nullToEmpty(targetSources.perFileFlags.get(srcPath));
     if (!perFileFlags.isEmpty() && FileExtensions.CLANG_SOURCES.contains(Files.getFileExtension(fileToCompile))) {
