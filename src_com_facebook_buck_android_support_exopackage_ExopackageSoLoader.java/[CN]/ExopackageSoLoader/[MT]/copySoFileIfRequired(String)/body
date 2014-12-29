@@ -1,0 +1,45 @@
+{
+  File libraryFile=new File(privateNativeLibsDir,libname + ".so");
+  if (libraryFile.exists()) {
+    return libraryFile;
+  }
+  if (!abi1Libraries.containsKey(libname) && !abi2Libraries.containsKey(libname)) {
+    return null;
+  }
+  String abiDir;
+  String sourceFilename;
+  if (abi1Libraries.containsKey(libname)) {
+    sourceFilename=abi1Libraries.get(libname);
+    abiDir=Build.CPU_ABI;
+  }
+ else {
+    sourceFilename=abi2Libraries.get(libname);
+    abiDir=Build.CPU_ABI2;
+  }
+  String sourcePath=nativeLibsDir + abiDir + "/"+ sourceFilename;
+  try {
+    InputStream in=null;
+    OutputStream out=null;
+    try {
+      in=new BufferedInputStream(new FileInputStream(sourcePath));
+      out=new BufferedOutputStream(new FileOutputStream(libraryFile));
+      byte[] buffer=new byte[4 * 1024];
+      int len;
+      while ((len=in.read(buffer)) > 0) {
+        out.write(buffer,0,len);
+      }
+    }
+  finally {
+      if (in != null) {
+        in.close();
+      }
+      if (out != null) {
+        out.close();
+      }
+    }
+  }
+ catch (  IOException e) {
+    throw new RuntimeException(e);
+  }
+  return libraryFile;
+}
