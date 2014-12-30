@@ -1,16 +1,20 @@
 def _checkout_and_clean(self, revision, branch):
     with Tracing('BuckRepo._checkout_and_clean'):
         if (not self._revision_exists(revision)):
+            print(textwrap.dedent("                    Required revision {0} is not\n                    available in the local repository.\n                    Buck is fetching updates from git. You can disable this by creating\n                    a '.nobuckcheck' file in your repository, but this might lead to\n                    strange bugs or build failures.".format(revision)), file=sys.stderr)
             git_command = ['git', 'fetch']
             git_command.extend((['--all'] if (not branch) else ['origin', branch]))
             try:
                 subprocess.check_call(git_command, stdout=sys.stderr, cwd=self._buck_dir)
             except subprocess.CalledProcessError:
-                raise BuckToolException(textwrap.dedent("                          Failed to fetch Buck updates from git.\n                          You can disable this by creating a '.nobuckcheck' file in\n                          your repository, but this might lead to strange bugs or\n                          build failures."))
+                raise BuckToolException(textwrap.dedent('                          Failed to fetch Buck updates from git.'))
         current_revision = self._get_git_revision()
         if (current_revision != revision):
             print(textwrap.dedent("                    Buck is at {0}, but should be {1}.\n                    Buck is updating itself. To disable this, add a '.nobuckcheck'\n                    file to your project root. In general, you should only disable\n                    this if you are developing Buck.".format(current_revision, revision)), file=sys.stderr)
-            subprocess.check_call(['git', 'checkout', '--quiet', revision], cwd=self._buck_dir)
+            try:
+                subprocess.check_call(['git', 'checkout', '--quiet', revision], cwd=self._buck_dir)
+            except subprocess.CalledProcessError:
+                raise BuckToolException(textwrap.dedent('                          Failed to update Buck to revision {0}.'.format(revision)))
             if os.path.exists(self._build_success_file):
                 os.remove(self._build_success_file)
             ant = self._check_for_ant()
