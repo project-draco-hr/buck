@@ -1,13 +1,13 @@
 {
-  final File sourceFile=new File(TestDataHelper.getTestDataScenario(this,"xz_with_rm_and_check"),"xzstep.data");
+  final Path sourceFile=TestDataHelper.getTestDataScenario(this,"xz_with_rm_and_check").resolve("xzstep.data");
   final File destinationFile=tmp.newFile("xzstep.data.xz");
-  XzStep step=new XzStep(sourceFile.toPath(),destinationFile.toPath(),1,false,XZ.CHECK_CRC32);
+  XzStep step=new XzStep(sourceFile,destinationFile.toPath(),1,false,XZ.CHECK_CRC32);
   ProjectFilesystem fs=EasyMock.createMock(ProjectFilesystem.class);
-  EasyMock.expect(fs.deleteFileAtPath(sourceFile.toPath())).andReturn(true);
+  EasyMock.expect(fs.deleteFileAtPath(sourceFile)).andReturn(true);
   EasyMock.replay(fs);
   ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(fs).build();
   assertEquals(0,step.execute(context));
-  ByteSource original=Files.asByteSource(sourceFile);
+  ByteSource original=PathByteSource.asByteSource(sourceFile);
   ByteSource decompressed=new ByteSource(){
     @Override public InputStream openStream() throws IOException {
       return new XZInputStream(new FileInputStream(destinationFile));
