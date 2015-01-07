@@ -1,0 +1,80 @@
+{
+  Predicate<TargetNode<?>> projectRootsPredicate;
+  AssociatedTargetNodePredicate associatedProjectPredicate;
+switch (targetIde) {
+case INTELLIJ:
+    projectRootsPredicate=new Predicate<TargetNode<?>>(){
+      @Override public boolean apply(      TargetNode<?> input){
+        return input.getType() == ProjectConfigDescription.TYPE;
+      }
+    }
+;
+  associatedProjectPredicate=new AssociatedTargetNodePredicate(){
+    @Override public boolean apply(    TargetNode<?> targetNode,    TargetGraph targetGraph){
+      ProjectConfigDescription.Arg projectArg;
+      if (targetNode.getType() == ProjectConfigDescription.TYPE) {
+        projectArg=(ProjectConfigDescription.Arg)targetNode.getConstructorArg();
+      }
+ else {
+        return false;
+      }
+      BuildTarget projectTarget=null;
+      if (projectArg.srcTarget.isPresent()) {
+        projectTarget=projectArg.srcTarget.get();
+      }
+ else       if (projectArg.testTarget.isPresent()) {
+        projectTarget=projectArg.testTarget.get();
+      }
+      return (projectTarget != null && targetGraph.get(projectTarget) != null);
+    }
+  }
+;
+break;
+case XCODE:
+projectRootsPredicate=new Predicate<TargetNode<?>>(){
+@Override public boolean apply(TargetNode<?> input){
+  if (XcodeWorkspaceConfigDescription.TYPE != input.getType()) {
+    return false;
+  }
+  String targetName=input.getBuildTarget().getFullyQualifiedName();
+  for (  String prefix : defaultExcludePaths) {
+    if (targetName.startsWith("//" + prefix) && !passedInTargetsSet.contains(input.getBuildTarget())) {
+      LOG.debug("Ignoring build target %s (exclude_paths contains %s)",input.getBuildTarget(),prefix);
+      return false;
+    }
+  }
+  return true;
+}
+}
+;
+associatedProjectPredicate=new AssociatedTargetNodePredicate(){
+@Override public boolean apply(TargetNode<?> targetNode,TargetGraph targetGraph){
+XcodeProjectConfigDescription.Arg projectArg;
+if (targetNode.getType() == XcodeProjectConfigDescription.TYPE) {
+  projectArg=(XcodeProjectConfigDescription.Arg)targetNode.getConstructorArg();
+}
+ else {
+  return false;
+}
+for (BuildTarget includedBuildTarget : projectArg.rules) {
+  if (targetGraph.get(includedBuildTarget) != null) {
+    return true;
+  }
+}
+return false;
+}
+}
+;
+break;
+default :
+throw new IllegalStateException("'ide' should always be of type 'INTELLIJ' or 'XCODE'");
+}
+ImmutableSet<BuildTarget> graphRoots;
+if (!passedInTargetsSet.isEmpty()) {
+graphRoots=passedInTargetsSet;
+}
+ else {
+graphRoots=getRootsFromPredicate(fullGraph,projectRootsPredicate);
+}
+return TargetGraphAndTargets.create(graphRoots,fullGraph,associatedProjectPredicate,withTests);
+}

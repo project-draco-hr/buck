@@ -1,9 +1,19 @@
 {
+  if (options.getIde() == ProjectCommandOptions.Ide.XCODE) {
+    checkForAndKillXcodeIfRunning(options.getIdePrompt());
+  }
+  TargetGraph fullGraph;
+  try {
+    fullGraph=getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(new TargetNodePredicateSpec(Predicates.<TargetNode<?>>alwaysTrue(),getProjectFilesystem().getIgnorePaths())),options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    throw new HumanReadableException(e);
+  }
 switch (options.getIde()) {
 case INTELLIJ:
-    return runIntellijProjectGenerator(options);
+    return runIntellijProjectGenerator(fullGraph,options);
 case XCODE:
-  return runXcodeProjectGenerator(options);
+  return runXcodeProjectGenerator(fullGraph,options);
 default :
 throw new IllegalStateException("'ide' should always be of type 'INTELLIJ' or 'XCODE'");
 }
