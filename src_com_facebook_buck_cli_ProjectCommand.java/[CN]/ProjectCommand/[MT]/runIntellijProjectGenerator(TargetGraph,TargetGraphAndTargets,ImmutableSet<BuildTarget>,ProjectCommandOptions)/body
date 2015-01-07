@@ -1,5 +1,4 @@
 {
-  TargetGraphAndTargets targetGraphAndTargets=createTargetGraph(fullGraph,options.getIde(),getBuildTargets(options.getArgumentsFormattedAsBuildTargets()),options.getDefaultExcludePaths(),options.isWithTests());
   ActionGraph actionGraph=targetGraphTransformer.apply(targetGraphAndTargets.getTargetGraph());
   ExecutionContext executionContext=createExecutionContext(options,actionGraph);
   Project project=new Project(new SourcePathResolver(new BuildRuleResolver(actionGraph.getNodes())),ImmutableSet.copyOf(FluentIterable.from(actionGraph.getNodes()).filter(new Predicate<BuildRule>(){
@@ -17,14 +16,14 @@
   File tempFile=new File(tempDir,"project.json");
   int exitCode;
   try {
-    exitCode=project.createIntellijProject(tempFile,executionContext.getProcessExecutor(),!options.getArgumentsFormattedAsBuildTargets().isEmpty(),console.getStdOut(),console.getStdErr());
+    exitCode=project.createIntellijProject(tempFile,executionContext.getProcessExecutor(),!passedInTargetsSet.isEmpty(),console.getStdOut(),console.getStdErr());
     if (exitCode != 0) {
       return exitCode;
     }
     List<String> additionalInitialTargets=ImmutableList.of();
     if (options.shouldProcessAnnotations()) {
       try {
-        additionalInitialTargets=getAnnotationProcessingTargets(fullGraph,options);
+        additionalInitialTargets=getAnnotationProcessingTargets(fullGraph,passedInTargetsSet);
       }
  catch (      BuildTargetException|BuildFileParseException e) {
         throw new HumanReadableException(e);
@@ -48,7 +47,7 @@
       tempDir.delete();
     }
   }
-  if (options.getArguments().isEmpty()) {
+  if (passedInTargetsSet.isEmpty()) {
     String greenStar=console.getAnsi().asHighlightedSuccessText(" * ");
     getStdErr().printf(console.getAnsi().asHighlightedSuccessText("=== Did you know ===") + "\n" + greenStar+ "You can run `buck project <target>` to generate a minimal project "+ "just for that target.\n"+ greenStar+ "This will make your IDE faster when working on large projects.\n"+ greenStar+ "See buck project --help for more info.\n"+ console.getAnsi().asHighlightedSuccessText("--=* Knowing is half the battle!")+ "\n");
   }
