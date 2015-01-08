@@ -1,0 +1,46 @@
+{
+  if (obj instanceof Map) {
+    Map<?,?> map=(Map<?,?>)obj;
+    hasher.putInt(HashedObjectType.MAP.ordinal());
+    hasher.putInt(map.size());
+    for (    Map.Entry<?,?> entry : map.entrySet()) {
+      hashJsonObject(hasher,entry.getKey());
+      hashJsonObject(hasher,entry.getValue());
+    }
+  }
+ else   if (obj instanceof Collection) {
+    Collection<?> collection=(Collection<?>)obj;
+    hasher.putInt(HashedObjectType.LIST.ordinal());
+    hasher.putInt(collection.size());
+    for (    Object collectionEntry : collection) {
+      hashJsonObject(hasher,collectionEntry);
+    }
+  }
+ else   if (obj instanceof String) {
+    hasher.putInt(HashedObjectType.STRING.ordinal());
+    byte[] stringBytes=((String)obj).getBytes(Charsets.UTF_8);
+    hasher.putInt(stringBytes.length);
+    hasher.putBytes(stringBytes);
+  }
+ else   if (obj instanceof Boolean) {
+    hasher.putInt(HashedObjectType.BOOLEAN.ordinal());
+    hasher.putBoolean((boolean)obj);
+  }
+ else   if (obj instanceof Number) {
+    Number number=(Number)obj;
+    if (number.longValue() == number.doubleValue()) {
+      hasher.putInt(HashedObjectType.LONG.ordinal());
+      hasher.putLong(number.longValue());
+    }
+ else {
+      hasher.putInt(HashedObjectType.DOUBLE.ordinal());
+      hasher.putDouble(number.doubleValue());
+    }
+  }
+ else   if (obj instanceof Void || obj == null) {
+    hasher.putInt(HashedObjectType.NULL.ordinal());
+  }
+ else {
+    throw new RuntimeException(String.format("Unsupported object %s (class %s)",obj,obj.getClass()));
+  }
+}
