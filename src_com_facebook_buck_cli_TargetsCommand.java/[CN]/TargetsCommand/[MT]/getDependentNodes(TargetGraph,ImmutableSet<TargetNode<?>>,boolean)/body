@@ -1,0 +1,35 @@
+{
+  ImmutableMultimap.Builder<TargetNode<?>,TargetNode<?>> extraEdgesBuilder=ImmutableMultimap.builder();
+  if (detectTestChanges) {
+    for (    TargetNode<?> node : graph.getNodes()) {
+      if (node.getConstructorArg() instanceof HasTests) {
+        ImmutableSortedSet<BuildTarget> tests=((HasTests)node.getConstructorArg()).getTests();
+        for (        BuildTarget testTarget : tests) {
+          TargetNode<?> testNode=graph.get(testTarget);
+          if (testNode == null) {
+            throw new HumanReadableException("'%s' (test of '%s') is not in the target graph.",testTarget,node);
+          }
+          extraEdgesBuilder.put(testNode,node);
+        }
+      }
+      if (node.getConstructorArg() instanceof HasSourceUnderTest) {
+        ImmutableSortedSet<BuildTarget> sourceUnderTest=((HasSourceUnderTest)node.getConstructorArg()).getSourceUnderTest();
+        for (        BuildTarget sourceTarget : sourceUnderTest) {
+          TargetNode<?> sourceNode=Preconditions.checkNotNull(graph.get(sourceTarget));
+          extraEdgesBuilder.put(node,sourceNode);
+        }
+      }
+    }
+  }
+  final ImmutableMultimap<TargetNode<?>,TargetNode<?>> extraEdges=extraEdgesBuilder.build();
+  final ImmutableSet.Builder<TargetNode<?>> builder=ImmutableSet.builder();
+  AbstractBreadthFirstTraversal<TargetNode<?>> traversal=new AbstractBreadthFirstTraversal<TargetNode<?>>(nodes){
+    @Override public ImmutableSet<TargetNode<?>> visit(    TargetNode<?> targetNode){
+      builder.add(targetNode);
+      return FluentIterable.from(graph.getIncomingNodesFor(targetNode)).append(extraEdges.get(targetNode)).toSet();
+    }
+  }
+;
+  traversal.start();
+  return builder.build();
+}
