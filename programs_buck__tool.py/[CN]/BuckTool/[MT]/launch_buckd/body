@@ -14,10 +14,7 @@ def launch_buckd(self, buck_version_uid=None):
         command.append('-XX:SoftRefLRUPolicyMSPerMB=0')
         command.append('-Djava.io.tmpdir={0}'.format(buckd_tmp_dir))
         command.append('-Dcom.martiansoftware.nailgun.NGServer.outputPath={0}'.format(ngserver_output_path))
-        command.append('-classpath')
-        command.append(self._get_bootstrap_classpath())
         command.append('com.facebook.buck.cli.bootstrapper.ClassLoaderBootstrapper')
-        command.append(self._get_java_classpath())
         command.append('com.martiansoftware.nailgun.NGServer')
         command.append('localhost:0')
         command.append('{0}'.format(BUCKD_CLIENT_TIMEOUT_MILLIS))
@@ -30,7 +27,7 @@ def launch_buckd(self, buck_version_uid=None):
             os.dup2(dev_null_fd, 1)
             os.dup2(dev_null_fd, 2)
             os.close(dev_null_fd)
-        process = subprocess.Popen(command, executable=which('java'), cwd=self._buck_project.root, close_fds=True, preexec_fn=preexec_func)
+        process = subprocess.Popen(command, executable=which('java'), cwd=self._buck_project.root, close_fds=True, preexec_fn=preexec_func, env=self._environ_for_buck())
         buckd_port = None
         for i in range(100):
             if buckd_port:
