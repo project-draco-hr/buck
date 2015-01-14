@@ -24,10 +24,12 @@ def launch_buckd(self, buck_version_uid=None):
         '\n            Change the process group of the child buckd process so that when this\n            script is interrupted, it does not kill buckd.\n            '
 
         def preexec_func():
-            os.close(0)
-            os.close(1)
-            os.close(2)
             os.setpgrp()
+            dev_null_fd = os.open('/dev/null', os.O_RDWR)
+            os.dup2(dev_null_fd, 0)
+            os.dup2(dev_null_fd, 1)
+            os.dup2(dev_null_fd, 2)
+            os.close(dev_null_fd)
         process = subprocess.Popen(command, executable=which('java'), cwd=self._buck_project.root, close_fds=True, preexec_fn=preexec_func)
         buckd_port = None
         for i in range(100):
