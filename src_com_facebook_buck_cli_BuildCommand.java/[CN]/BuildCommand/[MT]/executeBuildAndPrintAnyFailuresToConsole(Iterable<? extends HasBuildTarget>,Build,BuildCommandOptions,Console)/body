@@ -1,39 +1,12 @@
 {
-  final ActionGraph actionGraph=build.getActionGraph();
-  ImmutableList<BuildRule> rulesToBuild=ImmutableList.copyOf(FluentIterable.from(buildTargetsToBuild).transform(new Function<HasBuildTarget,BuildRule>(){
-    @Override public BuildRule apply(    HasBuildTarget hasBuildTarget){
-      return Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(hasBuildTarget.getBuildTarget()));
-    }
-  }
-).toSet());
   int exitCode;
   boolean isKeepGoing=options.isKeepGoing();
   try {
-    ListenableFuture<List<BuildRuleSuccess>> buildFuture=build.executeBuild(rulesToBuild,isKeepGoing);
-    List<BuildRuleSuccess> results;
-    try {
-      results=buildFuture.get();
-    }
- catch (    InterruptedException e) {
-      try {
-        buildFuture.cancel(true);
-      }
- catch (      CancellationException ignored) {
-      }
-      Thread.currentThread().interrupt();
-      throw e;
-    }
-    LinkedHashMap<BuildRule,Optional<BuildRuleSuccess>> ruleToResult=Maps.newLinkedHashMap();
-    Preconditions.checkState(rulesToBuild.size() == results.size());
-    for (int i=0, len=rulesToBuild.size(); i < len; i++) {
-      BuildRule rule=rulesToBuild.get(i);
-      BuildRuleSuccess success=results.get(i);
-      ruleToResult.put(rule,Optional.fromNullable(success));
-    }
+    LinkedHashMap<BuildRule,Optional<BuildRuleSuccess>> ruleToResult=build.executeBuild(buildTargetsToBuild,isKeepGoing);
     if (isKeepGoing) {
       String buildReportForConsole=generateBuildReportForConsole(ruleToResult,console.getAnsi());
       console.getStdErr().print(buildReportForConsole);
-      exitCode=Iterables.any(results,Predicates.isNull()) ? 1 : 0;
+      exitCode=Iterables.any(ruleToResult.values(),RULES_FAILED_PREDICATE) ? 1 : 0;
       if (exitCode != 0) {
         console.printBuildFailure("Not all rules succeeded.");
       }

@@ -1,0 +1,46 @@
+{
+  buildContext=BuildContext.builder().setActionGraph(actionGraph).setStepRunner(stepRunner).setProjectFilesystem(executionContext.getProjectFilesystem()).setClock(clock).setArtifactCache(artifactCache).setJavaPackageFinder(javaPackageFinder).setEventBus(executionContext.getBuckEventBus()).setAndroidBootclasspathForAndroidPlatformTarget(executionContext.getAndroidPlatformTargetOptional()).setBuildDependencies(buildDependencies).setBuildId(executionContext.getBuildId()).setEnvironment(executionContext.getEnvironment()).build();
+  ImmutableSet<BuildTarget> targetsToBuild=FluentIterable.from(targetish).transform(HasBuildTarget.TO_TARGET).toSet();
+  ImmutableList<BuildRule> rulesToBuild=ImmutableList.copyOf(FluentIterable.from(targetsToBuild).transform(new Function<HasBuildTarget,BuildRule>(){
+    @Override public BuildRule apply(    HasBuildTarget hasBuildTarget){
+      return Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(hasBuildTarget.getBuildTarget()));
+    }
+  }
+).toSet());
+  int numRules=getNumRulesToBuild(targetsToBuild,actionGraph);
+  getExecutionContext().getBuckEventBus().post(BuildEvent.ruleCountCalculated(targetsToBuild,numRules));
+  List<ListenableFuture<BuildRuleSuccess>> futures=FluentIterable.from(rulesToBuild).transform(new Function<BuildRule,ListenableFuture<BuildRuleSuccess>>(){
+    @Override public ListenableFuture<BuildRuleSuccess> apply(    BuildRule rule){
+      return buildEngine.build(buildContext,rule);
+    }
+  }
+).toList();
+  ListenableFuture<List<BuildRuleSuccess>> buildFuture;
+  if (isKeepGoing) {
+    buildFuture=Futures.successfulAsList(futures);
+  }
+ else {
+    buildFuture=Futures.allAsList(futures);
+  }
+  List<BuildRuleSuccess> results;
+  try {
+    results=buildFuture.get();
+  }
+ catch (  InterruptedException e) {
+    try {
+      buildFuture.cancel(true);
+    }
+ catch (    CancellationException ignored) {
+    }
+    Thread.currentThread().interrupt();
+    throw e;
+  }
+  LinkedHashMap<BuildRule,Optional<BuildRuleSuccess>> resultBuilder=new LinkedHashMap<>();
+  Preconditions.checkState(rulesToBuild.size() == results.size());
+  for (int i=0, len=rulesToBuild.size(); i < len; i++) {
+    BuildRule rule=rulesToBuild.get(i);
+    BuildRuleSuccess success=results.get(i);
+    resultBuilder.put(rule,Optional.fromNullable(success));
+  }
+  return resultBuilder;
+}
