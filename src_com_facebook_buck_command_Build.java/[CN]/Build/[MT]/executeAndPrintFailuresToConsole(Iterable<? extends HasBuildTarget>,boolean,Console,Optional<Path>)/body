@@ -1,10 +1,10 @@
 {
   int exitCode;
-  boolean isKeepGoing=options.isKeepGoing();
   try {
-    LinkedHashMap<BuildRule,Optional<BuildRuleSuccess>> ruleToResult=build.executeBuild(buildTargetsToBuild,isKeepGoing);
+    LinkedHashMap<BuildRule,Optional<BuildRuleSuccess>> ruleToResult=executeBuild(targetsish,isKeepGoing);
+    BuildReport buildReport=new BuildReport(ruleToResult);
     if (isKeepGoing) {
-      String buildReportForConsole=generateBuildReportForConsole(ruleToResult,console.getAnsi());
+      String buildReportForConsole=buildReport.generateForConsole(console.getAnsi());
       console.getStdErr().print(buildReportForConsole);
       exitCode=Iterables.any(ruleToResult.values(),RULES_FAILED_PREDICATE) ? 1 : 0;
       if (exitCode != 0) {
@@ -14,9 +14,8 @@
  else {
       exitCode=0;
     }
-    Optional<Path> pathToBuildReport=options.getPathToBuildReport();
     if (pathToBuildReport.isPresent()) {
-      String jsonBuildReport=generateJsonBuildReport(ruleToResult);
+      String jsonBuildReport=buildReport.generateJsonBuildReport();
       try {
         Files.write(jsonBuildReport,pathToBuildReport.get().toFile(),Charsets.UTF_8);
       }
