@@ -1,9 +1,14 @@
 {
   try {
     ProcessExecutorParams build=ProcessExecutorParams.builder().setCommand(ImmutableList.of(javac.toAbsolutePath().toString(),"-version")).build();
-    ProcessExecutor.Result versionResult=executor.launchAndExecute(build,ImmutableSet.of(EXPECTING_STD_OUT),Optional.<String>absent());
+    ProcessExecutor.Result versionResult=executor.launchAndExecute(build,ImmutableSet.of(EXPECTING_STD_OUT),Optional.<String>absent(),Optional.<Long>absent());
     if (versionResult.getExitCode() == 0) {
-      return new JavacVersion(versionResult.getStderr().get());
+      String stderr=versionResult.getStderr().get();
+      int firstNewline=stderr.indexOf('\n');
+      if (firstNewline != -1) {
+        stderr=stderr.substring(0,firstNewline);
+      }
+      return new JavacVersion(stderr);
     }
  else {
       throw new HumanReadableException(versionResult.getStderr().get());

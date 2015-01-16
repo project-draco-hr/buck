@@ -1,22 +1,23 @@
 {
-  ProcessBuilder processBuilder=new ProcessBuilder(getShellCommand(context));
-  setProcessEnvironment(context,processBuilder.environment());
+  ProcessExecutorParams.Builder builder=ProcessExecutorParams.builder();
+  builder.setCommand(getShellCommand(context));
+  Map<String,String> environment=Maps.newHashMap();
+  setProcessEnvironment(context,environment);
+  builder.setEnvironment(environment);
   if (workingDirectory != null) {
-    processBuilder.directory(workingDirectory);
+    builder.setDirectory(workingDirectory);
   }
  else {
-    processBuilder.directory(context.getProjectDirectoryRoot().toAbsolutePath().toFile());
+    builder.setDirectory(context.getProjectDirectoryRoot().toAbsolutePath().toFile());
   }
   Optional<String> stdin=getStdin();
   if (stdin.isPresent()) {
-    processBuilder.redirectInput(ProcessBuilder.Redirect.PIPE);
+    builder.setRedirectInput(ProcessBuilder.Redirect.PIPE);
   }
-  Process process;
   int exitCode;
   try {
     startTime=System.currentTimeMillis();
-    process=processBuilder.start();
-    exitCode=interactWithProcess(context,process);
+    exitCode=launchAndInteractWithProcess(context,builder.build());
   }
  catch (  IOException e) {
     e.printStackTrace(context.getStdErr());
