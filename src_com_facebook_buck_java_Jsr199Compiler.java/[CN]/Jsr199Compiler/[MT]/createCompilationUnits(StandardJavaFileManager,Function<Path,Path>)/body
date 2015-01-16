@@ -1,0 +1,20 @@
+{
+  List<JavaFileObject> compilationUnits=Lists.newArrayList();
+  for (  Path path : javaSourceFilePaths) {
+    if (path.toString().endsWith(".java")) {
+      Iterable<? extends JavaFileObject> javaFileObjects=fileManager.getJavaFileObjects(absolutifier.apply(path).toFile());
+      compilationUnits.add(Iterables.getOnlyElement(javaFileObjects));
+    }
+ else     if (path.toString().endsWith(JavacStep.SRC_ZIP)) {
+      ZipFile zipFile=new ZipFile(absolutifier.apply(path).toFile());
+      for (Enumeration<? extends ZipEntry> entries=zipFile.entries(); entries.hasMoreElements(); ) {
+        ZipEntry entry=entries.nextElement();
+        if (!entry.getName().endsWith(".java")) {
+          continue;
+        }
+        compilationUnits.add(new ZipEntryJavaFileObject(zipFile,entry));
+      }
+    }
+  }
+  return compilationUnits;
+}

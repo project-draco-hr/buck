@@ -1,0 +1,45 @@
+{
+  ImmutableList.Builder<String> command=ImmutableList.builder();
+  command.add(pathToJavac.toString());
+  command.addAll(options);
+  ImmutableList<Path> expandedSources;
+  try {
+    expandedSources=getExpandedSourcePaths(context);
+  }
+ catch (  IOException e) {
+    throw new HumanReadableException("Unable to expand sources for %s into %s",target,workingDirectory);
+  }
+  if (pathToSrcsList.isPresent()) {
+    try {
+      context.getProjectFilesystem().writeLinesToPath(FluentIterable.from(expandedSources).transform(Functions.toStringFunction()).transform(ARGFILES_ESCAPER),pathToSrcsList.get());
+      command.add("@" + pathToSrcsList.get());
+    }
+ catch (    IOException e) {
+      context.logError(e,"Cannot write list of .java files to compile to %s file! Terminating compilation.",pathToSrcsList.get());
+      return 1;
+    }
+  }
+ else {
+    for (    Path source : expandedSources) {
+      command.add(source.toString());
+    }
+  }
+  ProcessBuilder processBuilder=new ProcessBuilder(command.build());
+  Map<String,String> env=processBuilder.environment();
+  env.clear();
+  env.putAll(context.getEnvironment());
+  env.put("BUCK_INVOKING_RULE",(invokingRule.isPresent() ? invokingRule.get().toString() : ""));
+  env.put("BUCK_TARGET",target.toString());
+  env.put("BUCK_DIRECTORY_ROOT",context.getProjectDirectoryRoot().toString());
+  processBuilder.directory(context.getProjectDirectoryRoot().toAbsolutePath().toFile());
+  int exitCode=-1;
+  try {
+    ProcessExecutor.Result result=context.getProcessExecutor().execute(processBuilder.start());
+    exitCode=result.getExitCode();
+  }
+ catch (  IOException e) {
+    e.printStackTrace(context.getStdErr());
+    return exitCode;
+  }
+  return exitCode;
+}
