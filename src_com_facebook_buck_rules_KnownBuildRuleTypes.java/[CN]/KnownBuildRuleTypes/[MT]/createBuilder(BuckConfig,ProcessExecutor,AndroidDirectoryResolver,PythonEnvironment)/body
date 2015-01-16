@@ -34,7 +34,13 @@
   Optional<Long> testRuleTimeoutMs=config.getLong("test","rule_timeout");
   Optional<String> defaultMavenRepo=config.getValue("download","maven_repo");
   boolean downloadAtRuntimeOk=config.getBooleanValue("download","in_build",false);
-  Downloader downloader=new HttpDownloader(Optional.<Proxy>absent(),defaultMavenRepo);
+  Downloader downloader;
+  if (downloadAtRuntimeOk) {
+    downloader=new HttpDownloader(Optional.<Proxy>absent(),defaultMavenRepo);
+  }
+ else {
+    downloader=new ExplodingDownloader();
+  }
   Builder builder=builder();
   JavaBuckConfig javaConfig=new JavaBuckConfig(config);
   JavacOptions defaultJavacOptions=javaConfig.getDefaultJavacOptions(processExecutor);
@@ -84,7 +90,7 @@
   builder.register(new PythonBinaryDescription(pythonPathToPex.or(PythonBinaryDescription.DEFAULT_PATH_TO_PEX),pythonEnv,defaultCxxPlatform,cxxPlatforms));
   builder.register(new PythonLibraryDescription());
   builder.register(new PythonTestDescription(pythonPathToPex.or(PythonBinaryDescription.DEFAULT_PATH_TO_PEX),pythonPathToPythonTestMain,pythonEnv,defaultCxxPlatform,cxxPlatforms));
-  builder.register(new RemoteFileDescription(downloadAtRuntimeOk,downloader));
+  builder.register(new RemoteFileDescription(downloader));
   builder.register(new RobolectricTestDescription(androidBinaryOptions,testRuleTimeoutMs));
   builder.register(new ShBinaryDescription());
   builder.register(new ShTestDescription());

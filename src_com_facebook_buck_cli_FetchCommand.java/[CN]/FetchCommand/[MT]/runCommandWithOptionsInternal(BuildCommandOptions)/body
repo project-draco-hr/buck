@@ -1,0 +1,31 @@
+{
+  ImmutableSet<BuildTarget> buildTargets=getBuildTargets(options.getArgumentsFormattedAsBuildTargets());
+  if (buildTargets.isEmpty()) {
+    console.printBuildFailure("Must specify at least one build target to fetch.");
+    return 1;
+  }
+  if (getParser().getParseStartTime().isPresent()) {
+    getBuckEventBus().post(BuildEvent.started(buildTargets),getParser().getParseStartTime().get());
+  }
+ else {
+    getBuckEventBus().post(BuildEvent.started(buildTargets));
+  }
+  FetchTargetNodeToBuildRuleTransformer ruleGenerator=createFetchTransformer(options);
+  TargetGraphToActionGraph transformer=new TargetGraphToActionGraph(getBuckEventBus(),ruleGenerator);
+  ActionGraph actionGraph;
+  try {
+    TargetGraph targetGraph=getParser().buildTargetGraphForBuildTargets(buildTargets,options.getDefaultIncludes(),getBuckEventBus(),console,environment,options.getEnableProfiling());
+    actionGraph=transformer.apply(targetGraph);
+    buildTargets=ruleGenerator.getDownloadableTargets();
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    console.printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  int exitCode;
+  try (Build build=options.createBuild(options.getBuckConfig(),actionGraph,getProjectFilesystem(),getAndroidDirectoryResolver(),getBuildEngine(),getArtifactCache(),console,getBuckEventBus(),Optional.<TargetDevice>absent(),getCommandRunnerParams().getPlatform(),getCommandRunnerParams().getEnvironment(),getCommandRunnerParams().getObjectMapper(),getCommandRunnerParams().getClock())){
+    exitCode=build.executeAndPrintFailuresToConsole(buildTargets,options.isKeepGoing(),console,options.getPathToBuildReport());
+  }
+   getBuckEventBus().post(BuildEvent.finished(buildTargets,exitCode));
+  return exitCode;
+}
