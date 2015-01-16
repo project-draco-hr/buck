@@ -5,9 +5,10 @@
   Path input=Paths.get("test.cpp");
   ImmutableList<Path> includes=ImmutableList.of(Paths.get("foo/bar"),Paths.get("test"));
   ImmutableList<Path> systemIncludes=ImmutableList.of(Paths.get("/usr/include"),Paths.get("/include"));
+  ImmutableList<Path> frameworkRoots=ImmutableList.of(Paths.get("/absolute/path/to/frameworks"),Paths.get("relative/path/to/frameworks"));
   ImmutableMap<Path,Path> replacementPaths=ImmutableMap.of();
-  CxxPreprocessStep cxxPreprocessStep=new CxxPreprocessStep(compiler,flags,output,input,includes,systemIncludes,replacementPaths,Optional.<DebugPathSanitizer>absent());
-  ImmutableList<String> expected=ImmutableList.<String>builder().addAll(compiler).add("-E").addAll(flags).addAll(MoreIterables.zipAndConcat(Iterables.cycle("-I"),Iterables.transform(includes,Functions.toStringFunction()))).addAll(MoreIterables.zipAndConcat(Iterables.cycle("-isystem"),Iterables.transform(systemIncludes,Functions.toStringFunction()))).add(input.toString()).build();
+  CxxPreprocessStep cxxPreprocessStep=new CxxPreprocessStep(compiler,flags,output,input,includes,systemIncludes,frameworkRoots,replacementPaths,Optional.<DebugPathSanitizer>absent());
+  ImmutableList<String> expected=ImmutableList.<String>builder().addAll(compiler).add("-E").addAll(flags).add("-I","foo/bar").add("-I","test").add("-isystem","/usr/include").add("-isystem","/include").add("-F","/absolute/path/to/frameworks").add("-F","relative/path/to/frameworks").add(input.toString()).build();
   ImmutableList<String> actual=cxxPreprocessStep.getCommand();
   assertEquals(expected,actual);
 }
