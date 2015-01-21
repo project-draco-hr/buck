@@ -3,23 +3,19 @@
     return EMPTY;
   }
   Set<Path> searchPathElements=Sets.newHashSet();
-  ImmutableSortedSet.Builder<BuildRule> rules=ImmutableSortedSet.naturalOrder();
   for (  BuildRule rule : this.rules) {
-    String type=rule.getType().getName();
-    rules.add(rule);
-    HasClasspathEntries hasClasspathEntries=getRuleAsHasClasspathEntries(rule);
-    if ("java_binary".equals(type) || "prebuilt_jar".equals(type)) {
+    if (rule.getClass().isAnnotationPresent(BuildsAnnotationProcessor.class)) {
       Path pathToOutput=rule.getPathToOutputFile();
       if (pathToOutput != null) {
         searchPathElements.add(pathToOutput);
       }
     }
- else     if (hasClasspathEntries != null) {
-      searchPathElements.addAll(hasClasspathEntries.getTransitiveClasspathEntries().values());
+ else     if (rule instanceof HasClasspathEntries) {
+      searchPathElements.addAll(((HasClasspathEntries)rule).getTransitiveClasspathEntries().values());
     }
  else {
       throw new HumanReadableException("%1$s: Error adding '%2$s' to annotation_processing_deps: " + "must refer only to prebuilt jar, java binary, or java library targets.",ownerTarget,rule.getFullyQualifiedName());
     }
   }
-  return new AnnotationProcessingParams(ownerTarget,filesystem,searchPathElements,names,parameters,rules.build(),processOnly);
+  return new AnnotationProcessingParams(ownerTarget,filesystem,searchPathElements,names,parameters,ImmutableSortedSet.copyOf(this.rules),processOnly);
 }
