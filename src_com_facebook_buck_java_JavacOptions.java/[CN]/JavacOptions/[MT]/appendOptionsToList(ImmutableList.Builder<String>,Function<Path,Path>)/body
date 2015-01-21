@@ -1,3 +1,36 @@
 {
-  appendOptionsToList(optionsBuilder,pathRelativizer,AnnotationProcessingDataDecorators.identity());
+  optionsBuilder.add("-source",targetLevel);
+  optionsBuilder.add("-target",sourceLevel);
+  if (debug) {
+    optionsBuilder.add("-g");
+  }
+  if (verbose) {
+    optionsBuilder.add("-verbose");
+  }
+  if (bootclasspath.isPresent()) {
+    optionsBuilder.add("-bootclasspath",bootclasspath.get());
+  }
+ else {
+    String bcp=sourceToBootclasspath.get(sourceLevel);
+    if (bcp != null) {
+      optionsBuilder.add("-bootclasspath",bcp);
+    }
+  }
+  if (!annotationProcessingParams.isEmpty()) {
+    Path generateTo=annotationProcessingParams.getGeneratedSourceFolderName();
+    if (generateTo != null) {
+      optionsBuilder.add("-s").add(pathRelativizer.apply(generateTo).toString());
+    }
+    optionsBuilder.add("-processorpath",Joiner.on(File.pathSeparator).join(FluentIterable.from(annotationProcessingParams.getSearchPathElements()).transform(pathRelativizer).transform(Functions.toStringFunction())));
+    if (!annotationProcessingParams.getNames().isEmpty()) {
+      optionsBuilder.add("-processor",Joiner.on(',').join(annotationProcessingParams.getNames()));
+    }
+    for (    String parameter : annotationProcessingParams.getParameters()) {
+      optionsBuilder.add("-A" + parameter);
+    }
+    if (annotationProcessingParams.getProcessOnly()) {
+      optionsBuilder.add("-proc:only");
+    }
+  }
+  optionsBuilder.addAll(extraArguments);
 }
