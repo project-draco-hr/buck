@@ -10,7 +10,7 @@
   replay(keystore);
   AndroidGraphEnhancementResult result=graphEnhancer.createAdditionalBuildables();
   String flavor="buildconfig_com_example_buck";
-  assertEquals("The only classpath entry to dex should be the one from the AndroidBuildConfigJavaLibrary" + " created via graph enhancement.",ImmutableSet.of(Paths.get("buck-out/gen/java/com/example/lib__apk#" + flavor + "__output/apk#"+ flavor+ ".jar")),result.classpathEntriesToDex());
+  assertEquals("The only classpath entry to dex should be the one from the AndroidBuildConfigJavaLibrary" + " created via graph enhancement.",ImmutableSet.of(Paths.get("buck-out/gen/java/com/example/lib__apk#" + flavor + "__output/apk#"+ flavor+ ".jar")),result.getClasspathEntriesToDex());
   BuildTarget enhancedBuildConfigTarget=BuildTarget.builder(apkTarget).setFlavor(flavor).build();
   BuildRule enhancedBuildConfigRule=ruleResolver.getRule(enhancedBuildConfigTarget);
   assertTrue(enhancedBuildConfigRule instanceof AndroidBuildConfigJavaLibrary);
@@ -19,22 +19,22 @@
   assertEquals("com.example.buck",androidBuildConfig.getJavaPackage());
   assertTrue(androidBuildConfig.isUseConstantExpressions());
   assertEquals("IS_EXOPACKAGE defaults to false, but should now be true. DEBUG should still be true.",BuildConfigFields.fromFields(ImmutableList.of(new BuildConfigFields.Field("boolean","DEBUG","true"),new BuildConfigFields.Field("boolean","IS_EXOPACKAGE","true"),new BuildConfigFields.Field("int","EXOPACKAGE_FLAGS","1"))),androidBuildConfig.getBuildConfigFields());
-  ImmutableSortedSet<BuildRule> finalDeps=result.finalDeps();
+  ImmutableSortedSet<BuildRule> finalDeps=result.getFinalDeps();
   assertEquals(1,finalDeps.size());
   BuildRule computeExopackageDepsAbiRule=findRuleOfType(ruleResolver,ComputeExopackageDepsAbi.class);
   assertEquals(computeExopackageDepsAbiRule,finalDeps.first());
-  FilteredResourcesProvider resourcesProvider=result.aaptPackageResources().getFilteredResourcesProvider();
+  FilteredResourcesProvider resourcesProvider=result.getAaptPackageResources().getFilteredResourcesProvider();
   assertTrue(resourcesProvider instanceof ResourcesFilter);
   BuildRule resourcesFilterRule=findRuleOfType(ruleResolver,ResourcesFilter.class);
   BuildRule aaptPackageResourcesRule=findRuleOfType(ruleResolver,AaptPackageResources.class);
   MoreAsserts.assertDepends("AaptPackageResources must depend on ResourcesFilter",aaptPackageResourcesRule,resourcesFilterRule);
   BuildRule packageStringAssetsRule=findRuleOfType(ruleResolver,PackageStringAssets.class);
   MoreAsserts.assertDepends("PackageStringAssets must depend on ResourcesFilter",packageStringAssetsRule,aaptPackageResourcesRule);
-  assertFalse(result.preDexMerge().isPresent());
+  assertFalse(result.getPreDexMerge().isPresent());
   MoreAsserts.assertDepends("ComputeExopackageDepsAbi must depend on ResourcesFilter",computeExopackageDepsAbiRule,resourcesFilterRule);
   MoreAsserts.assertDepends("ComputeExopackageDepsAbi must depend on PackageStringAssets",computeExopackageDepsAbiRule,packageStringAssetsRule);
   MoreAsserts.assertDepends("ComputeExopackageDepsAbi must depend on AaptPackageResources",computeExopackageDepsAbiRule,aaptPackageResourcesRule);
-  assertTrue(result.packageStringAssets().isPresent());
-  assertTrue(result.computeExopackageDepsAbi().isPresent());
+  assertTrue(result.getPackageStringAssets().isPresent());
+  assertTrue(result.getComputeExopackageDepsAbi().isPresent());
   verify(keystore);
 }
