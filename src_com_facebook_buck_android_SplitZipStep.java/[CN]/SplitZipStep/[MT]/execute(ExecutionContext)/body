@@ -5,6 +5,8 @@
     ProguardTranslatorFactory translatorFactory=ProguardTranslatorFactory.create(context,proguardFullConfigFile,proguardMappingFile);
     Predicate<String> requiredInPrimaryZip=createRequiredInPrimaryZipPredicate(context,translatorFactory,classes);
     final ImmutableSet<String> wantedInPrimaryZip=getWantedPrimaryDexEntries(context,translatorFactory,classes);
+    final ImmutableSet<String> secondaryHeadSet=getSecondaryHeadSet(context,translatorFactory);
+    final ImmutableSet<String> secondaryTailSet=getSecondaryTailSet(context,translatorFactory);
     ZipSplitterFactory zipSplitterFactory;
     if (dexSplitMode.useLinearAllocSplitDex()) {
       zipSplitterFactory=new DalvikAwareZipSplitterFactory(dexSplitMode.getLinearAllocHardLimit(),wantedInPrimaryZip);
@@ -14,7 +16,7 @@
     }
     ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
     File primaryJarFile=primaryJarPath.toFile();
-    outputFiles=zipSplitterFactory.newInstance(projectFilesystem,inputJarPaths,primaryJarFile,secondaryJarDir.toFile(),secondaryJarPattern,requiredInPrimaryZip,dexSplitMode.getDexSplitStrategy(),ZipSplitter.CanaryStrategy.INCLUDE_CANARIES,projectFilesystem.getFileForRelativePath(pathToReportDir)).execute();
+    outputFiles=zipSplitterFactory.newInstance(projectFilesystem,inputJarPaths,primaryJarFile,secondaryJarDir.toFile(),secondaryJarPattern,requiredInPrimaryZip,secondaryHeadSet,secondaryTailSet,dexSplitMode.getDexSplitStrategy(),ZipSplitter.CanaryStrategy.INCLUDE_CANARIES,projectFilesystem.getFileForRelativePath(pathToReportDir)).execute();
     try (BufferedWriter secondaryMetaInfoWriter=Files.newWriter(secondaryJarMetaPath.toFile(),Charsets.UTF_8)){
       writeMetaList(secondaryMetaInfoWriter,outputFiles,dexSplitMode.getDexStore());
     }

@@ -1,5 +1,6 @@
 {
   ClasspathTraverser classpathTraverser=new DefaultClasspathTraverser();
+  final Set<String> secondaryTail=new HashSet<String>();
   primaryOut=newZipOutput(outPrimary);
   secondaryDexWriter.reset();
   final ImmutableMap.Builder<String,FileLike> entriesBuilder=ImmutableMap.builder();
@@ -10,8 +11,12 @@
       if (requiredInPrimaryZip.apply(relativePath)) {
         primaryOut.putEntry(entry);
       }
- else       if (wantedInPrimaryZip.contains(relativePath)) {
+ else       if (wantedInPrimaryZip.contains(relativePath) || (secondaryHeadSet != null && secondaryHeadSet.contains(relativePath))) {
         entriesBuilder.put(relativePath,new BufferedFileLike(entry));
+      }
+ else       if (secondaryTailSet != null && secondaryTailSet.contains(relativePath)) {
+        entriesBuilder.put(relativePath,new BufferedFileLike(entry));
+        secondaryTail.add(relativePath);
       }
     }
   }
@@ -21,6 +26,14 @@
     FileLike entry=entries.get(wanted);
     if ((entry != null) && !primaryOut.containsEntry(entry) && primaryOut.canPutEntry(entry)) {
       primaryOut.putEntry(entry);
+    }
+  }
+  if (secondaryHeadSet != null) {
+    for (    String head : secondaryHeadSet) {
+      FileLike headEntry=entries.get(head);
+      if ((headEntry != null) && !primaryOut.containsEntry(headEntry)) {
+        secondaryDexWriter.getOutputToWriteTo(headEntry).putEntry(headEntry);
+      }
     }
   }
   classpathTraverser.traverse(new ClasspathTraversal(inFiles,filesystem){
@@ -33,11 +46,26 @@
         primaryOut.putEntry(entry);
       }
  else {
+        String relativePath=entry.getRelativePath();
+        if (secondaryHeadSet != null && secondaryHeadSet.contains(relativePath)) {
+          return;
+        }
+        if (secondaryTail.contains(relativePath)) {
+          return;
+        }
         secondaryDexWriter.getOutputToWriteTo(entry).putEntry(entry);
       }
     }
   }
 );
+  if (secondaryTailSet != null) {
+    for (    String tail : secondaryTailSet) {
+      FileLike tailEntry=entries.get(tail);
+      if ((tailEntry != null) && !primaryOut.containsEntry(tailEntry) && secondaryTail.contains(tail)) {
+        secondaryDexWriter.getOutputToWriteTo(tailEntry).putEntry(tailEntry);
+      }
+    }
+  }
   primaryOut.close();
   secondaryDexWriter.close();
   return secondaryDexWriter.getFiles();
