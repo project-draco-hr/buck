@@ -1,23 +1,27 @@
 {
   Optional<String> configPath=getValue("tools","python");
+  ImmutableList<String> pythonInterpreterNames=PYTHON_INTERPRETER_NAMES;
   if (configPath.isPresent()) {
     File python=new File(configPath.get());
     if (isExecutableFile(python)) {
       return python.getAbsolutePath();
     }
-    throw new HumanReadableException("Not a python executable: " + configPath.get());
+    pythonInterpreterNames=ImmutableList.of(configPath.get());
   }
- else {
-    for (    String interpreterName : PYTHON_INTERPRETER_NAMES) {
-      for (      String path : getEnv("PATH",File.pathSeparator)) {
-        for (        String pathExt : getEnv("PATHEXT",File.pathSeparator)) {
-          File python=new File(path,interpreterName + pathExt);
-          if (isExecutableFile(python)) {
-            return python.getAbsolutePath();
-          }
+  for (  String interpreterName : pythonInterpreterNames) {
+    for (    String path : getEnv("PATH",File.pathSeparator)) {
+      for (      String pathExt : getEnv("PATHEXT",File.pathSeparator)) {
+        File python=new File(path,interpreterName + pathExt);
+        if (isExecutableFile(python)) {
+          return python.getAbsolutePath();
         }
       }
     }
+  }
+  if (configPath.isPresent()) {
+    throw new HumanReadableException("Not a python executable: " + configPath.get());
+  }
+ else {
     throw new HumanReadableException("No python2 or python found.");
   }
 }
