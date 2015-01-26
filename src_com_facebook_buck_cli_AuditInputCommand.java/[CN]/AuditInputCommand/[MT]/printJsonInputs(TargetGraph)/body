@@ -3,7 +3,17 @@
   new AbstractBottomUpTraversal<TargetNode<?>,Void>(graph){
     @Override public void visit(    TargetNode<?> node){
       for (      Path input : node.getInputs()) {
-        targetInputs.put(node.getBuildTarget().getFullyQualifiedName(),input);
+        LOG.debug("Walking input %s",input);
+        try {
+          if (!getProjectFilesystem().exists(input)) {
+            throw new HumanReadableException("Target %s refers to non-existent input file: %s",node,input);
+          }
+          ImmutableSortedSet<Path> nodeContents=ImmutableSortedSet.copyOf(getProjectFilesystem().getFilesUnderPath(input));
+          targetInputs.putAll(node.getBuildTarget().getFullyQualifiedName(),nodeContents);
+        }
+ catch (        IOException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
     @Override public Void getResult(){
