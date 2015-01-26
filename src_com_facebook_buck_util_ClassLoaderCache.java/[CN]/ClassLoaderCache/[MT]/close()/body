@@ -1,0 +1,27 @@
+{
+  if (referenceCount > 1) {
+    referenceCount-=1;
+    return;
+  }
+  Optional<IOException> caughtEx=Optional.absent();
+  for (  Map<ImmutableList<Path>,ClassLoader> cacheForParent : cache.values()) {
+    for (    ClassLoader cl : cacheForParent.values()) {
+      try {
+        if (cl instanceof URLClassLoader) {
+          ((URLClassLoader)cl).close();
+        }
+      }
+ catch (      IOException ex) {
+        if (caughtEx.isPresent()) {
+          caughtEx.get().addSuppressed(ex);
+        }
+ else {
+          caughtEx=Optional.of(ex);
+        }
+      }
+    }
+  }
+  if (caughtEx.isPresent()) {
+    throw caughtEx.get();
+  }
+}
