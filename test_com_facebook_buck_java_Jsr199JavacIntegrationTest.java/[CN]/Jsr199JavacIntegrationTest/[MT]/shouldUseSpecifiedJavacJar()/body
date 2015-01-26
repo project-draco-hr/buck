@@ -1,0 +1,21 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  BuildRule rule=new FakeBuildRule("//:fake",pathResolver);
+  resolver.addToIndex(rule);
+  Path fakeJavacJar=Paths.get("ae036e57-77a7-4356-a79c-0f85b1a3290d","fakeJavac.jar");
+  ExecutionContext executionContext=createExecutionContext();
+  MockClassLoader mockClassLoader=new MockClassLoader(ClassLoader.getSystemClassLoader(),ImmutableMap.<String,Class<?>>of("com.sun.tools.javac.api.JavacTool",MockJavac.class));
+  executionContext.getClassLoaderCache().injectClassLoader(ClassLoader.getSystemClassLoader(),ImmutableList.of(fakeJavacJar),mockClassLoader);
+  Jsr199Javac javac=createJavac(false,Optional.of(fakeJavacJar));
+  boolean caught=false;
+  try {
+    javac.buildWithClasspath(executionContext,BuildTargetFactory.newInstance("//some:example"),ImmutableList.<String>of(),SOURCE_PATHS,Optional.of(pathToSrcsList),Optional.<Path>absent());
+  }
+ catch (  UnsupportedOperationException ex) {
+    if (ex.toString().contains("abcdef")) {
+      caught=true;
+    }
+  }
+  assertTrue("mock Java compiler should throw",caught);
+}

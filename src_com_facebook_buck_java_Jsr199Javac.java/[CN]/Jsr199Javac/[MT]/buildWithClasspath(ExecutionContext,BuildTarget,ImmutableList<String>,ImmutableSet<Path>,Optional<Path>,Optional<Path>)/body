@@ -1,13 +1,36 @@
 {
-  JavaCompiler compiler=ToolProvider.getSystemJavaCompiler();
-  Preconditions.checkNotNull(compiler,"If using JRE instead of JDK, ToolProvider.getSystemJavaCompiler() may be null.");
+  JavaCompiler compiler;
+  @Nullable ClassLoader compilerClassLoader;
+  ClassLoaderCache classLoaderCache=context.getClassLoaderCache();
+  if (javacJar.isPresent()) {
+    compilerClassLoader=classLoaderCache.getClassLoaderForClassPath(ClassLoader.getSystemClassLoader(),ImmutableList.of(javacJar.get()));
+    try {
+      compiler=(JavaCompiler)compilerClassLoader.loadClass("com.sun.tools.javac.api.JavacTool").newInstance();
+    }
+ catch (    ClassNotFoundException ex) {
+      throw new RuntimeException(ex);
+    }
+catch (    InstantiationException ex) {
+      throw new RuntimeException(ex);
+    }
+catch (    IllegalAccessException ex) {
+      throw new RuntimeException(ex);
+    }
+  }
+ else {
+    compilerClassLoader=ToolProvider.getSystemToolClassLoader();
+    compiler=ToolProvider.getSystemJavaCompiler();
+    if (compiler == null) {
+      throw new HumanReadableException("No system compiler found. Did you install the JRE instead of the JDK?");
+    }
+  }
   StandardJavaFileManager fileManager=compiler.getStandardFileManager(null,null,null);
   Iterable<? extends JavaFileObject> compilationUnits=ImmutableSet.of();
   try {
     compilationUnits=createCompilationUnits(fileManager,context.getProjectFilesystem().getAbsolutifier(),javaSourceFilePaths);
   }
  catch (  IOException e) {
-    close(fileManager,compilationUnits,null);
+    close(fileManager,compilationUnits);
     e.printStackTrace(context.getStdErr());
     return 1;
   }
@@ -16,7 +39,7 @@
       context.getProjectFilesystem().writeLinesToPath(FluentIterable.from(javaSourceFilePaths).transform(Functions.toStringFunction()).transform(ARGFILES_ESCAPER),pathToSrcsList.get());
     }
  catch (    IOException e) {
-      close(fileManager,compilationUnits,null);
+      close(fileManager,compilationUnits);
       context.logError(e,"Cannot write list of .java files to compile to %s file! Terminating compilation.",pathToSrcsList.get());
       return 1;
     }
@@ -28,12 +51,12 @@
   ProcessorBundle bundle=null;
   boolean isSuccess;
   try {
-    bundle=prepareProcessors(invokingRule,options);
+    bundle=prepareProcessors(compiler.getClass().getClassLoader(),invokingRule,options);
     compilationTask.setProcessors(bundle.processors);
     isSuccess=compilationTask.call();
   }
   finally {
-    close(fileManager,compilationUnits,bundle);
+    close(fileManager,compilationUnits);
   }
   if (isSuccess) {
     return 0;

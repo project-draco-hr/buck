@@ -1,0 +1,43 @@
+{
+  String processorClassPath=null;
+  String processorNames=null;
+  Iterator<String> iterator=options.iterator();
+  while (iterator.hasNext()) {
+    String curr=iterator.next();
+    if ("-processorpath".equals(curr) && iterator.hasNext()) {
+      processorClassPath=iterator.next();
+    }
+ else     if ("-processor".equals(curr) && iterator.hasNext()) {
+      processorNames=iterator.next();
+    }
+  }
+  ProcessorBundle processorBundle=new ProcessorBundle();
+  if (processorClassPath == null || processorNames == null) {
+    return processorBundle;
+  }
+  Iterable<String> rawPaths=Splitter.on(File.pathSeparator).omitEmptyStrings().split(processorClassPath);
+  URL[] urls=FluentIterable.from(rawPaths).transform(new Function<String,URL>(){
+    @Override public URL apply(    String pathRelativeToProjectRoot){
+      try {
+        return Paths.get(pathRelativeToProjectRoot).toUri().toURL();
+      }
+ catch (      MalformedURLException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+).toArray(URL.class);
+  processorBundle.classLoader=new URLClassLoader(urls,compilerClassLoader);
+  Iterable<String> names=Splitter.on(",").trimResults().omitEmptyStrings().split(processorNames);
+  for (  String name : names) {
+    try {
+      LOG.debug("Loading %s from own classloader",name);
+      Class<? extends Processor> aClass=Preconditions.checkNotNull(processorBundle.classLoader).loadClass(name).asSubclass(Processor.class);
+      processorBundle.processors.add(aClass.newInstance());
+    }
+ catch (    ReflectiveOperationException e) {
+      throw new HumanReadableException("%s: javac unable to load annotation processor: %s",target != null ? target.getFullyQualifiedName() : "unknown target",name);
+    }
+  }
+  return processorBundle;
+}
