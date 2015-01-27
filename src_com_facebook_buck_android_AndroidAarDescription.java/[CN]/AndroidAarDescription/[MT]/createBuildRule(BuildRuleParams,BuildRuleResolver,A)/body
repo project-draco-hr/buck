@@ -1,3 +1,12 @@
 {
-  return new AndroidAar(params,new SourcePathResolver(resolver));
+  BuildTarget originalBuildTarget=originalBuildRuleParams.getBuildTarget();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  AndroidManifestDescription.Arg androidManifestArgs=androidManifestDescription.createUnpopulatedConstructorArg();
+  androidManifestArgs.skeleton=args.manifestSkeleton;
+  androidManifestArgs.deps=args.deps;
+  BuildRuleParams androidManifestParams=originalBuildRuleParams.copyWithChanges(AndroidManifestDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ANDROID_MANIFEST_FLAVOR),originalBuildRuleParams.getDeclaredDeps(),originalBuildRuleParams.getExtraDeps());
+  AndroidManifest manifest=androidManifestDescription.createBuildRule(androidManifestParams,resolver,androidManifestArgs);
+  resolver.addToIndex(manifest);
+  BuildRuleParams androidAarParams=originalBuildRuleParams.copyWithChanges(TYPE,originalBuildTarget,ImmutableSortedSet.<BuildRule>of(manifest),ImmutableSortedSet.<BuildRule>of());
+  return new AndroidAar(androidAarParams,pathResolver,manifest);
 }
