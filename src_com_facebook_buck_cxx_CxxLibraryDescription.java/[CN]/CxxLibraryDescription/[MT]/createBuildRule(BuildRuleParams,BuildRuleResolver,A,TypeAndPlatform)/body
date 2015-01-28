@@ -1,0 +1,21 @@
+{
+  Optional<Map.Entry<Flavor,Type>> type=typeAndPlatform.getType();
+  Optional<Map.Entry<Flavor,CxxPlatform>> platform=typeAndPlatform.getPlatform();
+  if (type.isPresent() && platform.isPresent()) {
+    Set<Flavor> flavors=Sets.newHashSet(params.getBuildTarget().getFlavors());
+    flavors.remove(type.get().getKey());
+    BuildTarget target=BuildTarget.builder(params.getBuildTarget().getUnflavoredTarget()).addAllFlavors(flavors).build();
+    BuildRuleParams typeParams=params.copyWithChanges(params.getBuildRuleType(),target,Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps()));
+    if (type.get().getValue().equals(Type.HEADERS)) {
+      return createHeaderSymlinkTreeBuildRule(typeParams,resolver,platform.get().getValue(),args);
+    }
+ else     if (type.get().getValue().equals(Type.SHARED)) {
+      return createSharedLibraryBuildRule(typeParams,resolver,platform.get().getValue(),args);
+    }
+ else {
+      return createStaticLibraryBuildRule(typeParams,resolver,platform.get().getValue(),args);
+    }
+  }
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  return new CxxLibrary(params,resolver,pathResolver,CxxPreprocessorFlags.fromArgs(args.exportedPreprocessorFlags,args.exportedLangPreprocessorFlags),args.linkerFlags.or(ImmutableList.<String>of()),args.platformLinkerFlags.get(),args.linkWhole.or(false),args.soname);
+}

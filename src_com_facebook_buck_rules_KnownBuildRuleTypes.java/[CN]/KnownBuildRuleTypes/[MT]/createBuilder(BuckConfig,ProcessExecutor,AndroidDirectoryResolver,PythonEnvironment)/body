@@ -5,9 +5,9 @@
     ndkVersion=androidDirectoryResolver.getNdkVersion();
   }
   AppleConfig appleConfig=new AppleConfig(config);
-  ImmutableSet.Builder<CxxPlatform> appleCxxPlatformsBuilder=ImmutableSet.builder();
-  buildAppleCxxPlatforms(appleConfig.getAppleDeveloperDirectorySupplier(processExecutor),platform,appleCxxPlatformsBuilder);
-  ImmutableSet<CxxPlatform> appleCxxPlatforms=appleCxxPlatformsBuilder.build();
+  ImmutableMap.Builder<CxxPlatform,AppleSdkPaths> appleCxxPlatformsToAppleSdkPathsBuilder=ImmutableMap.builder();
+  buildAppleCxxPlatforms(appleConfig.getAppleDeveloperDirectorySupplier(processExecutor),platform,appleCxxPlatformsToAppleSdkPathsBuilder);
+  ImmutableMap<CxxPlatform,AppleSdkPaths> appleCxxPlatformsToAppleSdkPaths=appleCxxPlatformsToAppleSdkPathsBuilder.build();
   ThriftBuckConfig thriftBuckConfig=new ThriftBuckConfig(config);
   OCamlBuckConfig ocamlBuckConfig=new OCamlBuckConfig(platform,config);
   ImmutableMap.Builder<AndroidBinary.TargetCpuType,NdkCxxPlatform> ndkCxxPlatformsBuilder=ImmutableMap.builder();
@@ -23,7 +23,7 @@
   for (  NdkCxxPlatform ndkCxxPlatform : ndkCxxPlatforms.values()) {
     cxxPlatformsBuilder.put(ndkCxxPlatform.getCxxPlatform().getFlavor(),ndkCxxPlatform.getCxxPlatform());
   }
-  for (  CxxPlatform appleCxxPlatform : appleCxxPlatforms) {
+  for (  CxxPlatform appleCxxPlatform : appleCxxPlatformsToAppleSdkPaths.keySet()) {
     cxxPlatformsBuilder.put(appleCxxPlatform.getFlavor(),appleCxxPlatform);
   }
   FlavorDomain<CxxPlatform> cxxPlatforms=new FlavorDomain<>("C/C++ platform",cxxPlatformsBuilder.build());
@@ -47,7 +47,7 @@
   JavacOptions androidBinaryOptions=JavacOptions.builder(defaultJavacOptions).build();
   CxxBinaryDescription cxxBinaryDescription=new CxxBinaryDescription(cxxBuckConfig,defaultCxxPlatform,cxxPlatforms);
   CxxLibraryDescription cxxLibraryDescription=new CxxLibraryDescription(cxxBuckConfig,cxxPlatforms);
-  AppleLibraryDescription appleLibraryDescription=new AppleLibraryDescription(appleConfig,cxxLibraryDescription);
+  AppleLibraryDescription appleLibraryDescription=new AppleLibraryDescription(appleConfig,cxxLibraryDescription,cxxPlatforms,appleCxxPlatformsToAppleSdkPaths);
   builder.register(appleLibraryDescription);
   builder.register(new AndroidAarDescription(new AndroidManifestDescription()));
   builder.register(new AndroidBinaryDescription(androidBinaryOptions,proGuardConfig,ndkCxxPlatforms));
@@ -59,9 +59,8 @@
   builder.register(new AndroidResourceDescription());
   builder.register(new ApkGenruleDescription());
   builder.register(new AppleAssetCatalogDescription());
-  builder.register(new AppleBinaryDescription(appleConfig,cxxBinaryDescription));
+  builder.register(new AppleBinaryDescription(appleConfig,cxxBinaryDescription,cxxPlatforms,appleCxxPlatformsToAppleSdkPaths));
   builder.register(new AppleBundleDescription());
-  builder.register(new AppleLibraryDescription(appleConfig,cxxLibraryDescription));
   builder.register(new AppleResourceDescription());
   builder.register(new AppleTestDescription(appleLibraryDescription));
   builder.register(new BuckExtensionDescription(defaultJavacOptions));

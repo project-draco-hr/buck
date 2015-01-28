@@ -6,7 +6,24 @@
   output.platformLinkerFlags=Optional.of(ImmutableList.<Pair<String,ImmutableList<String>>>of());
   output.preprocessorFlags=Optional.of(ImmutableList.<String>of());
   output.langPreprocessorFlags=Optional.of(ImmutableMap.<CxxSource.Type,ImmutableList<String>>of());
-  output.frameworkSearchPaths=Optional.of(ImmutableList.<Path>of());
+  if (appleSdkPaths.isPresent()) {
+    output.frameworkSearchPaths=arg.frameworks.transform(new Function<ImmutableSortedSet<String>,ImmutableList<Path>>(){
+      @Override public ImmutableList<Path> apply(      ImmutableSortedSet<String> frameworkPaths){
+        ImmutableSet.Builder<Path> frameworksSearchPathsBuilder=ImmutableSet.builder();
+        for (        String frameworkPath : frameworkPaths) {
+          Path parentDirectory=Paths.get(frameworkPath).getParent();
+          if (parentDirectory != null) {
+            frameworksSearchPathsBuilder.add(translateAppleSdkPaths(parentDirectory,appleSdkPaths.get()));
+          }
+        }
+        return ImmutableList.copyOf(frameworksSearchPathsBuilder.build());
+      }
+    }
+);
+  }
+ else {
+    output.frameworkSearchPaths=Optional.of(ImmutableList.<Path>of());
+  }
   output.lexSrcs=Optional.of(ImmutableList.<SourcePath>of());
   output.yaccSrcs=Optional.of(ImmutableList.<SourcePath>of());
   output.deps=arg.deps;
