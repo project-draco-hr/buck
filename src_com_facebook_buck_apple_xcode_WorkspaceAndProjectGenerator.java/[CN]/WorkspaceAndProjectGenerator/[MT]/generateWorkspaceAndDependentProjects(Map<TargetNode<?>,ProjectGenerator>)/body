@@ -26,7 +26,7 @@
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   if (combinedProject) {
     LOG.debug("Generating a combined project");
-    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,outputDirectory,workspaceName,projectGeneratorOptions).setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
+    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,outputDirectory,workspaceName,buildFileName,projectGeneratorOptions).setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
     combinedProjectGenerator=Optional.of(generator);
     generator.createXcodeProjects();
     workspaceGenerator.addFilePath(generator.getProjectPath(),Optional.<Path>absent());
@@ -53,7 +53,7 @@
       ProjectGenerator generator=projectGenerators.get(targetNode);
       if (generator == null) {
         LOG.debug("Generating project for target %s",targetNode);
-        generator=new ProjectGenerator(projectGraph,projectArg.rules,projectFilesystem,targetNode.getBuildTarget().getBasePath(),projectArg.projectName,projectGeneratorOptions).setTestsToGenerateAsStaticLibraries(groupableTests);
+        generator=new ProjectGenerator(projectGraph,projectArg.rules,projectFilesystem,targetNode.getBuildTarget().getBasePath(),projectArg.projectName,buildFileName,projectGeneratorOptions).setTestsToGenerateAsStaticLibraries(groupableTests);
         generator.createXcodeProjects();
         projectGenerators.put(targetNode,generator);
       }
@@ -71,7 +71,7 @@
       throw new HumanReadableException("No xcode_project_config rule was found for the following targets: %s",missedTargets);
     }
     if (!groupedTestResults.groupedTests.isEmpty()) {
-      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,BuildTargets.getGenPath(workspaceTargetNode.getBuildTarget(),"%s-CombinedTestBundles"),"_CombinedTestBundles",projectGeneratorOptions);
+      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,BuildTargets.getGenPath(workspaceTargetNode.getBuildTarget(),"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions);
       combinedTestsProjectGenerator.setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).createXcodeProjects();
       workspaceGenerator.addFilePath(combinedTestsProjectGenerator.getProjectPath());
       for (      PBXTarget target : combinedTestsProjectGenerator.getBuildTargetToGeneratedTargetMap().values()) {
