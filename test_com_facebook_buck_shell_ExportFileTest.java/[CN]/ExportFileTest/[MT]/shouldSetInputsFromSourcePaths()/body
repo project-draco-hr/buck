@@ -1,15 +1,13 @@
 {
-  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
-  ExportFileDescription.Arg args=new ExportFileDescription().createUnpopulatedConstructorArg();
-  args.src=Optional.of((SourcePath)new TestSourcePath("chips"));
-  args.out=Optional.of("cake");
-  ExportFile exportFile=new ExportFile(new FakeBuildRuleParamsBuilder(target).build(),pathResolver,args);
+  ExportFileBuilder builder=ExportFileBuilder.newExportFileBuilder(target).setSrc(new TestSourcePath("chips")).setOut("cake");
+  ExportFile exportFile=(ExportFile)builder.build(new BuildRuleResolver());
   assertIterablesEquals(singleton(Paths.get("chips")),exportFile.getInputsToCompareToOutput());
-  FakeBuildRule rule=new FakeBuildRule(ExportFileDescription.TYPE,BuildTargetFactory.newInstance("//example:one"),pathResolver);
-  args.src=Optional.of((SourcePath)new BuildTargetSourcePath(rule.getBuildTarget()));
-  exportFile=new ExportFile(new FakeBuildRuleParamsBuilder(target).build(),pathResolver,args);
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  FakeBuildRule rule=new FakeBuildRule(ExportFileDescription.TYPE,BuildTargetFactory.newInstance("//example:one"),new SourcePathResolver(ruleResolver));
+  builder.setSrc(new BuildTargetSourcePath(rule.getBuildTarget()));
+  exportFile=(ExportFile)builder.build(ruleResolver);
   assertTrue(Iterables.isEmpty(exportFile.getInputsToCompareToOutput()));
-  args.src=Optional.absent();
-  exportFile=new ExportFile(new FakeBuildRuleParamsBuilder(target).build(),pathResolver,args);
+  builder.setSrc(null);
+  exportFile=(ExportFile)builder.build(new BuildRuleResolver());
   assertIterablesEquals(singleton(Paths.get("example.html")),exportFile.getInputsToCompareToOutput());
 }
