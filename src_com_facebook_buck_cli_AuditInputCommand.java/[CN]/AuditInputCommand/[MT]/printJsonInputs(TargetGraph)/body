@@ -1,26 +1,28 @@
 {
-  final Multimap<String,Path> targetInputs=TreeMultimap.create();
+  final SortedMap<String,ImmutableSortedSet<Path>> targetToInputs=new TreeMap<>();
   new AbstractBottomUpTraversal<TargetNode<?>,Void>(graph){
     @Override public void visit(    TargetNode<?> node){
+      LOG.debug("Looking at inputs for %s",node.getBuildTarget().getFullyQualifiedName());
+      SortedSet<Path> targetInputs=new TreeSet<>();
       for (      Path input : node.getInputs()) {
         LOG.debug("Walking input %s",input);
         try {
           if (!getProjectFilesystem().exists(input)) {
             throw new HumanReadableException("Target %s refers to non-existent input file: %s",node,input);
           }
-          ImmutableSortedSet<Path> nodeContents=ImmutableSortedSet.copyOf(getProjectFilesystem().getFilesUnderPath(input));
-          targetInputs.putAll(node.getBuildTarget().getFullyQualifiedName(),nodeContents);
+          targetInputs.addAll(getProjectFilesystem().getFilesUnderPath(input));
         }
  catch (        IOException e) {
           throw new RuntimeException(e);
         }
       }
+      targetToInputs.put(node.getBuildTarget().getFullyQualifiedName(),ImmutableSortedSet.copyOf(targetInputs));
     }
     @Override public Void getResult(){
       return null;
     }
   }
 .traverse();
-  getObjectMapper().writeValue(console.getStdOut(),targetInputs.asMap());
+  getObjectMapper().writeValue(console.getStdOut(),targetToInputs);
   return 0;
 }
