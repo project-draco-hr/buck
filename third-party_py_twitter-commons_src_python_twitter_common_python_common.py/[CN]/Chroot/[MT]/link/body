@@ -4,12 +4,15 @@ def link(self, src, dst, label=None):
     self._mkdir_for(dst)
     abs_src = self._rootjoin(src)
     abs_dst = os.path.join(self.chroot, dst)
-    try:
-        os.link(abs_src, abs_dst)
-    except OSError as e:
-        if (e.errno == errno.EEXIST):
-            pass
-        elif (e.errno == errno.EXDEV):
-            shutil.copyfile(abs_src, abs_dst)
-        else:
-            raise
+    if hasattr(os, 'link'):
+        try:
+            os.link(abs_src, abs_dst)
+        except OSError as e:
+            if (e.errno == errno.EEXIST):
+                pass
+            elif (e.errno == errno.EXDEV):
+                shutil.copyfile(abs_src, abs_dst)
+            else:
+                raise
+    elif (os.path.normcase(os.path.abspath(abs_src)) != os.path.normcase(os.path.abspath(abs_dst))):
+        shutil.copyfile(abs_src, abs_dst)
