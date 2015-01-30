@@ -6,13 +6,13 @@
   ImmutableJavacOptions.Builder javacOptions=JavaLibraryDescription.getJavacOptions(pathResolver,args,defaultOptions);
   AnnotationProcessingParams annotationParams=args.buildAnnotationProcessingParams(params.getBuildTarget(),params.getProjectFilesystem(),resolver);
   javacOptions.setAnnotationProcessingParams(annotationParams);
-  AndroidLibraryGraphEnhancer graphEnhancer=new AndroidLibraryGraphEnhancer(params.getBuildTarget(),params.copyWithExtraDeps(resolver.getAllRules(args.exportedDeps.get())),javacOptions.build(),ResourceDependencyMode.FIRST_ORDER);
+  AndroidLibraryGraphEnhancer graphEnhancer=new AndroidLibraryGraphEnhancer(params.getBuildTarget(),params.copyWithExtraDeps(Suppliers.ofInstance(resolver.getAllRules(args.exportedDeps.get()))),javacOptions.build(),ResourceDependencyMode.FIRST_ORDER);
   Optional<DummyRDotJava> dummyRDotJava=graphEnhancer.createBuildableForAndroidResources(resolver,false);
   ImmutableSet<Path> additionalClasspathEntries=ImmutableSet.of();
   if (dummyRDotJava.isPresent()) {
     additionalClasspathEntries=ImmutableSet.of(dummyRDotJava.get().getRDotJavaBinFolder());
     ImmutableSortedSet<BuildRule> newDeclaredDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).add(dummyRDotJava.get()).build();
-    params=params.copyWithDeps(newDeclaredDeps,params.getExtraDeps());
+    params=params.copyWithDeps(Suppliers.ofInstance(newDeclaredDeps),Suppliers.ofInstance(params.getExtraDeps()));
   }
   return new AndroidLibrary(params,pathResolver,args.srcs.get(),JavaLibraryDescription.validateResources(pathResolver,args,params.getProjectFilesystem()),args.proguardConfig,args.postprocessClassesCommands.get(),resolver.getAllRules(args.exportedDeps.get()),resolver.getAllRules(args.providedDeps.get()),additionalClasspathEntries,javacOptions.build(),args.resourcesRoot,args.manifest,false);
 }
