@@ -33,12 +33,15 @@
  else     if (determinant instanceof String) {
       return set(key,(List<String>)val);
     }
- else {
+ else     if (determinant == null || determinant instanceof Enum || determinant instanceof Path) {
       setKey(key);
       for (      Object item : (List<?>)val) {
         setVal(item == null ? null : String.valueOf(item));
       }
       return separate();
+    }
+ else {
+      throw new RuntimeException(String.format("Unsupported value type: List<%s>",determinant.getClass()));
     }
   }
  else   if (val instanceof Set) {
@@ -49,16 +52,31 @@
  else     if (determinant instanceof SourcePath) {
       return setSourcePaths(key,ImmutableSortedSet.copyOf((Set<SourcePath>)val));
     }
- else {
+ else     if (determinant instanceof String) {
+      return set(key,ImmutableSortedSet.copyOf((Set<String>)val));
+    }
+ else     if (determinant == null || determinant instanceof Enum) {
       setKey(key);
       for (      Object item : (Set<?>)val) {
         setVal(item == null ? null : String.valueOf(item));
       }
       return separate();
     }
+ else {
+      throw new RuntimeException(String.format("Unsupported value type: Set<%s>",determinant.getClass()));
+    }
   }
   if (val instanceof Iterator) {
     return setInputs(key,(Iterator<Path>)val);
   }
-  return set(key,String.valueOf(val));
+ else   if (val instanceof BuildTarget) {
+    return set(key,((BuildTarget)val).getFullyQualifiedName());
+  }
+ else   if (val instanceof Enum || val instanceof Number) {
+    return set(key,String.valueOf(val));
+  }
+ else   if (val instanceof String) {
+    return set(key,(String)val);
+  }
+  throw new RuntimeException(String.format("Unsupported value type: %s",val.getClass()));
 }
