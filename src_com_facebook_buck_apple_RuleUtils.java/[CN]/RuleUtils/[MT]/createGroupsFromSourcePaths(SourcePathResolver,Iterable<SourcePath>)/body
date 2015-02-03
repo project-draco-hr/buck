@@ -1,0 +1,25 @@
+{
+  Path rootPath=Paths.get("root");
+  ImmutableMultimap.Builder<Path,SourcePath> entriesBuilder=ImmutableMultimap.builder();
+  for (  SourcePath sourcePath : sourcePaths) {
+    Path path=rootPath.resolve(resolver.getPath(sourcePath));
+    Path parent=Preconditions.checkNotNull(path.getParent());
+    entriesBuilder.put(parent,sourcePath);
+  }
+  ImmutableMultimap<Path,SourcePath> entries=entriesBuilder.build();
+  ImmutableMultimap.Builder<Path,String> subgroupsBuilder=ImmutableMultimap.builder();
+  for (  Path groupPath : entries.keys()) {
+    Path parent=groupPath.getParent();
+    while (parent != null) {
+      subgroupsBuilder.put(parent,groupPath.getFileName().toString());
+      groupPath=parent;
+      parent=groupPath.getParent();
+    }
+  }
+  ImmutableMultimap<Path,String> subgroups=subgroupsBuilder.build();
+  ImmutableList<GroupedSource> groupedSources=createGroupsFromEntryMaps(subgroups,entries,rootPath);
+  while (groupedSources.size() == 1 && groupedSources.get(0).getType() == GroupedSource.Type.SOURCE_GROUP) {
+    groupedSources=ImmutableList.copyOf(groupedSources.get(0).getSourceGroup().get());
+  }
+  return groupedSources;
+}
