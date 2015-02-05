@@ -1,0 +1,12 @@
+{
+  ImmutableSet.Builder<BuildTarget> binaryTargetsInsideBundlesBuilder=ImmutableSet.builder();
+  for (  TargetNode<?> projectTargetNode : projectGraph.getAll(projectBuildTargets)) {
+    if (projectTargetNode.getType() == AppleBundleDescription.TYPE) {
+      AppleBundleDescription.Arg appleBundleDescriptionArg=(AppleBundleDescription.Arg)projectTargetNode.getConstructorArg();
+      Preconditions.checkState(appleBundleDescriptionArg.binary.getBasePath().equals(projectTargetNode.getBuildTarget().getBasePath()),"apple_bundle target %s contains reference to binary %s outside base path %s",projectTargetNode.getBuildTarget(),appleBundleDescriptionArg.binary,projectTargetNode.getBuildTarget().getBasePath());
+      binaryTargetsInsideBundlesBuilder.add(appleBundleDescriptionArg.binary);
+    }
+  }
+  ImmutableSet<BuildTarget> binaryTargetsInsideBundles=binaryTargetsInsideBundlesBuilder.build();
+  return ImmutableSet.copyOf(Sets.difference(projectBuildTargets,binaryTargetsInsideBundles));
+}
