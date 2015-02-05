@@ -1,6 +1,12 @@
 {
-  MakeCleanDirectoryStep mkdir=new MakeCleanDirectoryStep(output.getParent());
-  GenerateShellScriptStep generateShellScript=new GenerateShellScriptStep(getBuildTarget().getBasePath(),getResolver().getPath(main),getResolver().getAllPaths(resources),output);
   buildableContext.recordArtifact(output);
-  return ImmutableList.of(mkdir,generateShellScript);
+  return ImmutableList.of(new MakeCleanDirectoryStep(output.getParent()),new StringTemplateStep(TEMPLATE,output,new Function<ST,ST>(){
+    @Override public ST apply(    ST input){
+      int levelsBelowRoot=output.getNameCount() - 1;
+      String pathBackToRoot=Joiner.on("/").join(Collections.nCopies(levelsBelowRoot,".."));
+      ImmutableList<String> resourceStrings=FluentIterable.from(getResolver().getAllPaths(resources)).transform(Functions.toStringFunction()).transform(Escaper.BASH_ESCAPER).toList();
+      return input.add("path_back_to_root",pathBackToRoot).add("script_to_run",Escaper.escapeAsBashString(getResolver().getPath(main))).add("resources",resourceStrings);
+    }
+  }
+),new MakeExecutableStep(output.toString()));
 }
