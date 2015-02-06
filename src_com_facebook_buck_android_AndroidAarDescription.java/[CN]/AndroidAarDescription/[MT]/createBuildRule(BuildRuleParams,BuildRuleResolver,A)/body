@@ -1,12 +1,32 @@
 {
   BuildTarget originalBuildTarget=originalBuildRuleParams.getBuildTarget();
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ImmutableList.Builder<BuildRule> depRules=ImmutableList.builder();
   AndroidManifestDescription.Arg androidManifestArgs=androidManifestDescription.createUnpopulatedConstructorArg();
   androidManifestArgs.skeleton=args.manifestSkeleton;
   androidManifestArgs.deps=args.deps;
   BuildRuleParams androidManifestParams=originalBuildRuleParams.copyWithChanges(AndroidManifestDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ANDROID_MANIFEST_FLAVOR),Suppliers.ofInstance(originalBuildRuleParams.getDeclaredDeps()),Suppliers.ofInstance(originalBuildRuleParams.getExtraDeps()));
   AndroidManifest manifest=androidManifestDescription.createBuildRule(androidManifestParams,resolver,androidManifestArgs);
-  resolver.addToIndex(manifest);
-  BuildRuleParams androidAarParams=originalBuildRuleParams.copyWithChanges(TYPE,originalBuildTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(manifest)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
-  return new AndroidAar(androidAarParams,pathResolver,manifest);
+  depRules.add(resolver.addToIndex(manifest));
+  AndroidPackageableCollector collector=new AndroidPackageableCollector(originalBuildRuleParams.getBuildTarget(),ImmutableSet.<BuildTarget>of(),ImmutableSet.<BuildTarget>of());
+  collector.addPackageables(AndroidPackageableCollector.getPackageableRules(originalBuildRuleParams.getDeps()));
+  ImmutableAndroidPackageableCollection packageableCollection=collector.build();
+  ImmutableSortedSet<BuildRule> androidResourceDeclaredDeps=AndroidResourceHelper.androidResOnly(originalBuildRuleParams.getDeclaredDeps());
+  ImmutableSortedSet<BuildRule> androidResourceExtraDeps=AndroidResourceHelper.androidResOnly(originalBuildRuleParams.getExtraDeps());
+  BuildRuleParams assembleAssetsParams=originalBuildRuleParams.copyWithChanges(originalBuildRuleParams.getBuildRuleType(),BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ASSEMBLE_ASSETS_FLAVOR),Suppliers.ofInstance(androidResourceDeclaredDeps),Suppliers.ofInstance(androidResourceExtraDeps));
+  ImmutableCollection<SourcePath> assetsDirectories=getSourcePathForDirectories(assembleAssetsParams.getBuildTarget(),packageableCollection.getAssetsDirectories());
+  AssembleDirectories assembleAssetsDirectories=new AssembleDirectories(assembleAssetsParams,pathResolver,assetsDirectories);
+  depRules.add(resolver.addToIndex(assembleAssetsDirectories));
+  BuildRuleParams assembleResourceParams=originalBuildRuleParams.copyWithChanges(originalBuildRuleParams.getBuildRuleType(),BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ASSEMBLE_RESOURCE_FLAVOR),Suppliers.ofInstance(androidResourceDeclaredDeps),Suppliers.ofInstance(androidResourceExtraDeps));
+  ImmutableCollection<SourcePath> resDirectories=getSourcePathForDirectories(assembleResourceParams.getBuildTarget(),packageableCollection.getResourceDetails().getResourceDirectories());
+  AssembleDirectories assembleResourceDirectories=new AssembleDirectories(assembleResourceParams,pathResolver,resDirectories);
+  depRules.add(resolver.addToIndex(assembleResourceDirectories));
+  BuildRuleParams androidResourceParams=originalBuildRuleParams.copyWithChanges(AndroidLibraryDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ANDROID_RESOURCE_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(manifest,assembleAssetsDirectories,assembleResourceDirectories)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  AndroidResource androidResource=new AndroidResource(androidResourceParams,pathResolver,ImmutableSortedSet.copyOf(depRules.build()),assembleResourceDirectories.getPathToOutputFile(),ImmutableSortedSet.<Path>of(),null,assembleAssetsDirectories.getPathToOutputFile(),ImmutableSortedSet.<Path>of(),new BuildTargetSourcePath(manifest.getBuildTarget()),false);
+  depRules.add(resolver.addToIndex(androidResource));
+  BuildRuleParams androidLibraryParams=originalBuildRuleParams.copyWithChanges(AndroidLibraryDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ANDROID_LIBRARY_FLAVOR),Suppliers.ofInstance(originalBuildRuleParams.getDeclaredDeps()),Suppliers.ofInstance(originalBuildRuleParams.getExtraDeps()));
+  BuildRule androidLibrary=androidLibraryDescription.createBuildRule(androidLibraryParams,resolver,args);
+  depRules.add(resolver.addToIndex(androidLibrary));
+  BuildRuleParams androidAarParams=originalBuildRuleParams.copyWithChanges(TYPE,originalBuildTarget,Suppliers.ofInstance(ImmutableSortedSet.copyOf(depRules.build())),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  return new AndroidAar(androidAarParams,pathResolver,manifest,androidResource,(AndroidLibrary)androidLibrary,assembleResourceDirectories,assembleAssetsDirectories);
 }
