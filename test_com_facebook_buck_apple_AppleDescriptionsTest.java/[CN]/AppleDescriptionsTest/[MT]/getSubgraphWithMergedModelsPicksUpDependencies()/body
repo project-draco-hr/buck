@@ -1,0 +1,14 @@
+{
+  BuildTarget binaryTarget=BuildTargetFactory.newInstance("//:binary");
+  BuildTarget libraryTarget=BuildTargetFactory.newInstance("//:library");
+  BuildTarget modelTarget=BuildTargetFactory.newInstance("//:model");
+  BuildTarget genruleTarget=BuildTargetFactory.newInstance("//:genrule");
+  TargetNode<AppleNativeTargetDescriptionArg> binary=AppleBinaryBuilder.createBuilder(binaryTarget).setDeps(Optional.of(ImmutableSortedSet.of(libraryTarget))).build();
+  TargetNode<AppleNativeTargetDescriptionArg> library=AppleLibraryBuilder.createBuilder(libraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(modelTarget))).build();
+  TargetNode<GraphQLDataDescription.Arg> model=GraphQLDataBuilder.createBuilder(modelTarget).setQueries(ImmutableSortedSet.<SourcePath>of(new BuildTargetSourcePath(genruleTarget))).build();
+  TargetNode<GenruleDescription.Arg> genrule=GenruleBuilder.newGenruleBuilder(genruleTarget).build();
+  TargetGraph graph=TargetGraphFactory.newInstance(ImmutableSet.of(binary,library,model,genrule));
+  TargetNode<GraphQLDataDescription.Arg> mergedModel=AppleDescriptions.mergeGraphQLModels(ImmutableSet.of(model));
+  TargetGraph subgraph=AppleDescriptions.getSubgraphWithMergedModels(graph,ImmutableSet.of(mergedModel));
+  assertEquals(TargetGraphFactory.newInstance(ImmutableSet.of(mergedModel,genrule)),subgraph);
+}

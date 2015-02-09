@@ -1,0 +1,31 @@
+{
+  final ImmutableSet<TargetNode<?>> unmergedModels=FluentIterable.from(targetGraph.getNodes()).filter(new Predicate<TargetNode<?>>(){
+    @Override public boolean apply(    TargetNode<?> input){
+      return input.getType().equals(GraphQLDataDescription.TYPE);
+    }
+  }
+).toSet();
+  final MutableDirectedGraph<TargetNode<?>> subgraph=new MutableDirectedGraph<>();
+  new AbstractBreadthFirstTraversal<TargetNode<?>>(unmergedModels){
+    @Override public ImmutableSet<TargetNode<?>> visit(    TargetNode<?> node){
+      ImmutableSet<TargetNode<?>> dependencies=ImmutableSet.copyOf(targetGraph.getAll(node.getDeps()));
+      if (unmergedModels.contains(node)) {
+        return dependencies;
+      }
+      subgraph.addNode(node);
+      for (      TargetNode<?> dependency : dependencies) {
+        subgraph.addEdge(node,dependency);
+      }
+      return dependencies;
+    }
+  }
+.start();
+  for (  TargetNode<?> mergedModel : mergedModels) {
+    subgraph.addNode(mergedModel);
+    for (    TargetNode<?> dependency : targetGraph.getAll(mergedModel.getDeps())) {
+      Preconditions.checkNotNull(targetGraph.get(dependency.getBuildTarget()));
+      subgraph.addEdge(mergedModel,dependency);
+    }
+  }
+  return new TargetGraph(subgraph);
+}
