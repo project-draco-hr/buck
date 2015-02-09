@@ -24,9 +24,16 @@
   BuildRuleParams androidResourceParams=originalBuildRuleParams.copyWithChanges(AndroidLibraryDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ANDROID_RESOURCE_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(manifest,assembleAssetsDirectories,assembleResourceDirectories)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   AndroidResource androidResource=new AndroidResource(androidResourceParams,pathResolver,ImmutableSortedSet.copyOf(depRules.build()),assembleResourceDirectories.getPathToOutputFile(),ImmutableSortedSet.<Path>of(),null,assembleAssetsDirectories.getPathToOutputFile(),ImmutableSortedSet.<Path>of(),new BuildTargetSourcePath(manifest.getBuildTarget()),false);
   depRules.add(resolver.addToIndex(androidResource));
-  BuildRuleParams androidLibraryParams=originalBuildRuleParams.copyWithChanges(AndroidLibraryDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ANDROID_LIBRARY_FLAVOR),Suppliers.ofInstance(originalBuildRuleParams.getDeclaredDeps()),Suppliers.ofInstance(originalBuildRuleParams.getExtraDeps()));
-  BuildRule androidLibrary=androidLibraryDescription.createBuildRule(androidLibraryParams,resolver,args);
-  depRules.add(resolver.addToIndex(androidLibrary));
+  JavaBinaryDescription.Args javaBinaryArgs=javaBinaryDescription.createUnpopulatedConstructorArg();
+  javaBinaryArgs.deps=args.deps;
+  javaBinaryArgs.mainClass=Optional.absent();
+  javaBinaryArgs.manifestFile=Optional.absent();
+  javaBinaryArgs.mergeManifests=Optional.absent();
+  javaBinaryArgs.metaInfDirectory=Optional.absent();
+  javaBinaryArgs.blacklist=Optional.absent();
+  BuildRuleParams javaBinaryParams=originalBuildRuleParams.copyWithChanges(JavaBinaryDescription.TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_JAVA_BINARY_FLAVOR),Suppliers.ofInstance(originalBuildRuleParams.getDeclaredDeps()),Suppliers.ofInstance(originalBuildRuleParams.getExtraDeps()));
+  BuildRule javaBinary=javaBinaryDescription.createBuildRule(javaBinaryParams,resolver,javaBinaryArgs);
+  depRules.add(resolver.addToIndex(javaBinary));
   BuildRuleParams androidAarParams=originalBuildRuleParams.copyWithChanges(TYPE,originalBuildTarget,Suppliers.ofInstance(ImmutableSortedSet.copyOf(depRules.build())),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
-  return new AndroidAar(androidAarParams,pathResolver,manifest,androidResource,(AndroidLibrary)androidLibrary,assembleResourceDirectories,assembleAssetsDirectories);
+  return new AndroidAar(androidAarParams,pathResolver,manifest,androidResource,(JavaBinary)javaBinary,assembleResourceDirectories,assembleAssetsDirectories);
 }
