@@ -1,0 +1,28 @@
+{
+  final Path workingDir=BuildTargets.getBinPath(getBuildTarget(),"%s");
+  final Path outputDir=BuildTargets.getGenPath(getBuildTarget(),"%s");
+  buildableContext.recordArtifactsInDirectory(outputDir);
+  ImmutableList.Builder<Step> builder=ImmutableList.builder();
+  builder.add(new MakeCleanDirectoryStep(workingDir));
+  builder.add(writeDefaultFiles(workingDir));
+  builder.add(new StringTemplateStep(PATH_TO_GRAPH_QL_BATCH_TEMPLATE,workingDir.resolve(BATCH_NAME),new Function<ST,ST>(){
+    @Override public ST apply(    ST input){
+      return input.add("for_linking",mode == GraphQLGenerationMode.FOR_LINKING).add("output_dir",workingDir.relativize(outputDir)).add("model_tags",modelTags).add("persist_ids",workingDir.relativize(getResolver().getPath(persistIds)));
+    }
+  }
+));
+  Path modelGenerator=getResolver().getPath(this.modelGenerator);
+  Path consistencyConfig=getResolver().getPath(this.consistencyConfig);
+  Path knownIssuesFile=getResolver().getPath(this.knownIssuesFile);
+  ImmutableList<String> queries=FluentIterable.from(this.queries).transform(new Function<SourcePath,String>(){
+    @Override public String apply(    SourcePath input){
+      return workingDir.relativize(getResolver().getPath(input)).toString();
+    }
+  }
+).toList();
+  ImmutableList.Builder<String> args=ImmutableList.builder();
+  args.add(workingDir.relativize(modelGenerator).toString(),"run-objc-batch","--known-issues-file",workingDir.relativize(knownIssuesFile).toString(),"-B",BATCH_NAME,"-x",workingDir.relativize(consistencyConfig).toString());
+  args.addAll(queries);
+  builder.add(new DefaultShellStep(pathAbsolutifier.apply(workingDir),args.build()));
+  return builder.build();
+}
