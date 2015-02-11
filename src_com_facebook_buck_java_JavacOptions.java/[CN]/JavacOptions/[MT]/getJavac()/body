@@ -1,7 +1,20 @@
 {
   Optional<Path> externalJavac=getJavacPath();
   if (externalJavac.isPresent()) {
-    return new ExternalJavac(externalJavac.get());
+    if (!getProcessExecutor().isPresent()) {
+      throw new RuntimeException("Misconfigured JavacOptions --- no process executor");
+    }
+    ProcessExecutorParams params=ImmutableProcessExecutorParams.builder().setCommand(ImmutableList.of(externalJavac.get().toString(),"-version")).build();
+    ProcessExecutor.Result result=null;
+    try {
+      result=getProcessExecutor().get().launchAndExecute(params);
+    }
+ catch (    InterruptedException|IOException e) {
+      throw new RuntimeException(e);
+    }
+    Optional<String> stderr=result.getStderr();
+    JavacVersion version=ImmutableJavacVersion.of(stderr.or("unknown version"));
+    return new ExternalJavac(externalJavac.get(),version);
   }
   return new Jsr199Javac(getJavacJarPath());
 }
