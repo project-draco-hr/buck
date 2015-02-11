@@ -1,0 +1,25 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//cheese:peas");
+  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
+  BuildRule rule=new EmptyRule(target);
+  DefaultRuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(new NullFileHashCache());
+  RuleKey.Builder builder=factory.newInstance(rule,pathResolver);
+  builder.setReflectively("exoticCheese","bavarian smoked");
+  builder.setReflectively("target",target.getFullyQualifiedName());
+  RuleKey.Builder.RuleKeyPair expected=builder.build();
+class Parent extends EmptyRule {
+    @AddToRuleKey private BuildTarget target;
+    public Parent(    BuildTarget target){
+      super(target);
+      this.target=target;
+    }
+  }
+class Child extends Parent {
+    @AddToRuleKey private String exoticCheese="bavarian smoked";
+    public Child(    BuildTarget target){
+      super(target);
+    }
+  }
+  RuleKey.Builder seen=factory.newInstance(new Child(target),pathResolver);
+  assertEquals(expected,seen.build());
+}

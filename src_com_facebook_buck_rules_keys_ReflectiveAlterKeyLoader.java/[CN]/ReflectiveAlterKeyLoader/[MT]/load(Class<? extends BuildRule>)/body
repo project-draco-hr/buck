@@ -1,0 +1,26 @@
+{
+  ImmutableList.Builder<AlterRuleKey> builder=ImmutableList.builder();
+  for (Class<?> current=key; !Object.class.equals(current); current=current.getSuperclass()) {
+    ImmutableSortedMap.Builder<Field,AlterRuleKey> fields=ImmutableSortedMap.orderedBy(FIELD_COMPARATOR);
+    for (    final Field field : current.getDeclaredFields()) {
+      field.setAccessible(true);
+      final AddToRuleKey annotation=field.getAnnotation(AddToRuleKey.class);
+      if (annotation == null) {
+        continue;
+      }
+      AlterRuleKey ark;
+      if (annotation.stringify()) {
+        ark=new StringifyAlterRuleKey(field);
+      }
+ else       if (RuleKeyAppendable.class.isAssignableFrom(field.getType())) {
+        ark=new AppendingAlterRuleKey(field);
+      }
+ else {
+        ark=new DefaultAlterRuleKey(field);
+      }
+      fields.put(field,ark);
+    }
+    builder.addAll(fields.build().values());
+  }
+  return builder.build();
+}

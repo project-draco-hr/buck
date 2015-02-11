@@ -1,0 +1,21 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//cheese:peas");
+  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
+  BuildRule rule=new EmptyRule(target);
+  DefaultRuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(new NullFileHashCache());
+  RuleKey.Builder builder=factory.newInstance(rule,pathResolver);
+  builder.setReflectively("alpha","stilton");
+  builder.setReflectively("beta",1);
+  builder.setReflectively("gamma","stinking bishop");
+  RuleKey.Builder.RuleKeyPair expected=builder.build();
+class UnsortedFields extends EmptyRule {
+    @AddToRuleKey private String gamma="stinking bishop";
+    @AddToRuleKey private int beta=1;
+    @AddToRuleKey private String alpha="stilton";
+    public UnsortedFields(    BuildTarget target){
+      super(target);
+    }
+  }
+  RuleKey.Builder seen=factory.newInstance(new UnsortedFields(target),pathResolver);
+  assertEquals(expected,seen.build());
+}

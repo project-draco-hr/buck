@@ -1,0 +1,17 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//cheese:peas");
+  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
+  BuildRule rule=new EmptyRule(target);
+  DefaultRuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(new NullFileHashCache());
+  RuleKey.Builder builder=factory.newInstance(rule,pathResolver);
+  builder.setReflectively("field","cheddar");
+  RuleKey.Builder.RuleKeyPair expected=builder.build();
+class AppendingField extends EmptyRule {
+    @AddToRuleKey(stringify=true) private Appender field=new Appender();
+    public AppendingField(    BuildTarget target){
+      super(target);
+    }
+  }
+  RuleKey.Builder seen=factory.newInstance(new AppendingField(target),pathResolver);
+  assertEquals(expected,seen.build());
+}

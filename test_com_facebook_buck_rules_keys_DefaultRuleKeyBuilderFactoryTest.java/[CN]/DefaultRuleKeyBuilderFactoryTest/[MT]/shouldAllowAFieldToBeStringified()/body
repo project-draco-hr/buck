@@ -1,0 +1,22 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//cheese:peas");
+  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
+  BuildRule rule=new EmptyRule(target);
+  DefaultRuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(new NullFileHashCache());
+  RuleKey.Builder builder=factory.newInstance(rule,pathResolver);
+  builder.setReflectively("field","sausages");
+  RuleKey.Builder.RuleKeyPair expected=builder.build();
+class Stringifiable {
+    @Override public String toString(){
+      return "sausages";
+    }
+  }
+class StringifiedField extends EmptyRule {
+    @AddToRuleKey(stringify=true) private Stringifiable field=new Stringifiable();
+    public StringifiedField(    BuildTarget target){
+      super(target);
+    }
+  }
+  RuleKey.Builder seen=factory.newInstance(new StringifiedField(target),pathResolver);
+  assertEquals(expected,seen.build());
+}
