@@ -1,20 +1,35 @@
 {
+  LOG.verbose("Getting recursive dependencies of node %s, mode %s, including only types %s\n",targetNode,mode,types);
   final ImmutableList.Builder<TargetNode<?>> filteredRules=ImmutableList.builder();
   AbstractAcyclicDepthFirstPostOrderTraversal<TargetNode<?>> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<TargetNode<?>>(){
     @Override protected Iterator<TargetNode<?>> findChildren(    TargetNode<?> node) throws IOException {
-      ImmutableSortedSet<TargetNode<?>> defaultDeps=ImmutableSortedSet.copyOf(targetGraph.getAll(node.getDeps()));
+      LOG.verbose("Finding children of node: %s",node);
+      ImmutableSortedSet.Builder<TargetNode<?>> defaultDepsBuilder=ImmutableSortedSet.naturalOrder();
+      ImmutableSortedSet.Builder<TargetNode<?>> exportedDepsBuilder=ImmutableSortedSet.naturalOrder();
+      addDirectAndExportedDeps(targetGraph,node,defaultDepsBuilder,exportedDepsBuilder);
+      ImmutableSortedSet<TargetNode<?>> defaultDeps=defaultDepsBuilder.build();
+      ImmutableSortedSet<TargetNode<?>> exportedDeps=exportedDepsBuilder.build();
       if (node.getType().equals(AppleBundleDescription.TYPE)) {
         AppleBundleDescription.Arg arg=(AppleBundleDescription.Arg)node.getConstructorArg();
         ImmutableSortedSet.Builder<TargetNode<?>> editedDeps=ImmutableSortedSet.naturalOrder();
+        ImmutableSortedSet.Builder<TargetNode<?>> editedExportedDeps=ImmutableSortedSet.naturalOrder();
         for (        TargetNode<?> rule : defaultDeps) {
           if (!rule.getBuildTarget().equals(arg.binary)) {
             editedDeps.add(rule);
           }
  else {
-            editedDeps.addAll(targetGraph.getAll(Preconditions.checkNotNull(targetGraph.get(arg.binary)).getDeps()));
+            addDirectAndExportedDeps(targetGraph,targetGraph.get(arg.binary),editedDeps,editedExportedDeps);
           }
         }
-        defaultDeps=editedDeps.build();
+        ImmutableSortedSet<TargetNode<?>> newDefaultDeps=editedDeps.build();
+        ImmutableSortedSet<TargetNode<?>> newExportedDeps=editedExportedDeps.build();
+        LOG.verbose("Transformed deps for bundle %s: %s -> %s, exported deps %s -> %s",node,defaultDeps,newDefaultDeps,exportedDeps,newExportedDeps);
+        defaultDeps=newDefaultDeps;
+        exportedDeps=newExportedDeps;
+      }
+      LOG.verbose("Default deps for node %s mode %s: %s",node,mode,defaultDeps);
+      if (!exportedDeps.isEmpty()) {
+        LOG.verbose("Exported deps for node %s mode %s: %s",node,mode,exportedDeps);
       }
       ImmutableSortedSet<TargetNode<?>> deps=ImmutableSortedSet.of();
       if (node != targetNode) {
@@ -22,14 +37,14 @@ switch (mode) {
 case LINKING:
           if (node.getType().equals(AppleLibraryDescription.TYPE)) {
             if (AppleLibraryDescription.isSharedLibraryTarget(node.getBuildTarget())) {
-              deps=ImmutableSortedSet.of();
+              deps=exportedDeps;
             }
  else {
               deps=defaultDeps;
             }
           }
  else           if (node.getType().equals(AppleBundleDescription.TYPE)) {
-            deps=ImmutableSortedSet.of();
+            deps=exportedDeps;
           }
  else {
             deps=defaultDeps;
@@ -44,12 +59,14 @@ case COPYING:
       }
     break;
 case BUILDING:
-  return defaultDeps.iterator();
+  deps=defaultDeps;
+break;
 }
 }
  else {
-return defaultDeps.iterator();
+deps=defaultDeps;
 }
+LOG.verbose("Walking children of node %s: %s",node,deps);
 return deps.iterator();
 }
 @Override protected void onNodeExplored(TargetNode<?> node){
@@ -67,5 +84,7 @@ traversal.traverse(ImmutableList.of(targetNode));
  catch (AbstractAcyclicDepthFirstPostOrderTraversal.CycleException|IOException|InterruptedException e) {
 throw new RuntimeException(e);
 }
-return filteredRules.build();
+ImmutableList<TargetNode<?>> result=filteredRules.build();
+LOG.verbose("Got recursive dependencies of node %s mode %s types %s: %s\n",targetNode,mode,types,result);
+return result;
 }
