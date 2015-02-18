@@ -1,4 +1,5 @@
 {
+  LOG.debug("Preprocessing %s -> %s",input,output);
   ProcessBuilder builder=new ProcessBuilder();
   builder.command(getCommand());
   builder.directory(context.getProjectDirectoryRoot().toAbsolutePath().toFile());
@@ -7,6 +8,7 @@
   Path outputPath=context.getProjectFilesystem().resolve(this.output);
   Path outputTempPath=context.getProjectFilesystem().resolve(this.output + ".tmp");
   try {
+    LOG.debug("Running command (pwd=%s): %s",builder.directory(),Joiner.on(' ').join(Iterables.transform(builder.command(),Escaper.BASH_ESCAPER)));
     Process process=builder.start();
     ByteArrayOutputStream error=new ByteArrayOutputStream();
     try (OutputStream output=Files.newOutputStream(outputTempPath);FunctionLineProcessorThread outputProcessor=new FunctionLineProcessorThread(process.getInputStream(),output,createOutputLineProcessor(context.getProjectDirectoryRoot(),replacementPaths,sanitizer));FunctionLineProcessorThread errorProcessor=new FunctionLineProcessorThread(process.getErrorStream(),error,createErrorLineProcessor())){
@@ -20,6 +22,9 @@
     String err=new String(error.toByteArray());
     if (!err.isEmpty()) {
       context.getConsole().printErrorText(err);
+    }
+    if (exitCode != 0) {
+      LOG.warn("Error %d preprocessing %s: %s",exitCode,input,err);
     }
     return exitCode;
   }
