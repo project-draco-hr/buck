@@ -1,10 +1,8 @@
 {
   SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
   BuildTarget target=params.getBuildTarget();
-  String libDir=args.libDir.or("lib");
-  String libName=args.libName.or(target.getShortName());
-  String soname=args.soname.or(String.format("lib%s.so",libName));
-  Path staticLibraryPath=target.getBasePath().resolve(libDir).resolve(String.format("lib%s.a",libName));
+  String soname=getSoname(target,cxxPlatform,args.soname,args.libName);
+  Path staticLibraryPath=getStaticLibraryPath(target,cxxPlatform,args.libDir,args.libName);
   BuildTarget sharedTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(CxxDescriptionEnhancer.SHARED_FLAVOR).build();
   Path builtSharedLibraryPath=BuildTargets.getBinPath(sharedTarget,"%s").resolve(soname);
   return CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,pathResolver,ImmutableList.<String>of(),ImmutableList.<String>of(),sharedTarget,Linker.LinkType.SHARED,Optional.of(soname),builtSharedLibraryPath,ImmutableList.<SourcePath>of(new PathSourcePath(params.getProjectFilesystem(),staticLibraryPath)),Linker.LinkableDepType.SHARED,params.getDeps());
