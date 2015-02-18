@@ -1,4 +1,11 @@
 {
+  CxxPreprocessorInput cxxPreprocessorInputFromDeps;
+  try {
+    cxxPreprocessorInputFromDeps=CxxPreprocessables.getTransitiveCxxPreprocessorInput(ocamlBuckConfig.getCxxPlatform(),FluentIterable.from(params.getDeps()).filter(Predicates.instanceOf(CxxPreprocessorDep.class)));
+  }
+ catch (  CxxPreprocessorInput.ConflictingHeadersException e) {
+    throw e.getHumanReadableExceptionForBuildTarget(params.getBuildTarget());
+  }
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   ImmutableList<String> includes=FluentIterable.from(params.getDeps()).transformAndConcat(getLibInclude(false)).toList();
   ImmutableList<String> bytecodeIncludes=FluentIterable.from(params.getDeps()).transformAndConcat(getLibInclude(true)).toList();
@@ -11,7 +18,6 @@
   final BuildRuleParams compileParams=params.copyWithChanges(NativeLinkable.NATIVE_LINKABLE_TYPE,buildTarget,Suppliers.ofInstance(ImmutableSortedSet.copyOf(pathResolver.filterBuildRuleInputs(allInputs))),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   ImmutableList.Builder<String> flagsBuilder=ImmutableList.builder();
   flagsBuilder.addAll(argFlags);
-  CxxPreprocessorInput cxxPreprocessorInputFromDeps=CxxPreprocessables.getTransitiveCxxPreprocessorInput(ocamlBuckConfig.getCxxPlatform(),FluentIterable.from(params.getDeps()).filter(Predicates.instanceOf(CxxPreprocessorDep.class)));
   final OCamlBuildContext ocamlContext=OCamlBuildContext.builder(ocamlBuckConfig,pathResolver).setFlags(flagsBuilder.build()).setIncludes(includes).setBytecodeIncludes(bytecodeIncludes).setOcamlInput(ocamlInput).setLinkableInput(linkableInput).setUpDirectories(buildTarget,isLibrary).setCxxPreprocessorInput(cxxPreprocessorInputFromDeps).setInput(getInput(srcs)).build();
   File baseDir=params.getProjectFilesystem().getRootPath().toAbsolutePath().toFile();
   ImmutableMap<SourcePath,ImmutableList<SourcePath>> mlInput=getMLInputWithDeps(pathResolver,baseDir,ocamlContext);
