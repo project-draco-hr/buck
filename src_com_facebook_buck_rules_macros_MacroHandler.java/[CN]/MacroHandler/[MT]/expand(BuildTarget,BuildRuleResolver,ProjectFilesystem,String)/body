@@ -1,25 +1,12 @@
 {
-  StringBuilder expanded=new StringBuilder();
-  int lastEnd=0;
-  Matcher matcher=MACRO_PATTERN.matcher(blob);
-  while (matcher.find()) {
-    if (matcher.start() > 0 && blob.charAt(matcher.start() - 1) == '\\') {
-      expanded.append(blob.substring(lastEnd,matcher.start() - 1));
-      expanded.append(blob.substring(matcher.start(),matcher.end()));
-    }
- else {
-      expanded.append(blob.substring(lastEnd,matcher.start()));
-      String name=matcher.group(1);
-      String input=Optional.fromNullable(matcher.group(2)).or("");
-      try {
-        expanded.append(getExpander(name).expand(target,resolver,filesystem,input));
-      }
- catch (      MacroException e) {
-        throw new MacroException(String.format("expanding %s: %s",matcher.group(),e.getMessage()),e);
+  ImmutableMap.Builder<String,MacroReplacer> replacers=ImmutableMap.builder();
+  for (  final Map.Entry<String,MacroExpander> entry : expanders.entrySet()) {
+    replacers.put(entry.getKey(),new MacroReplacer(){
+      @Override public String replace(      String input) throws MacroException {
+        return getExpander(entry.getKey()).expand(target,resolver,filesystem,input);
       }
     }
-    lastEnd=matcher.end();
+);
   }
-  expanded.append(blob.substring(lastEnd,blob.length()));
-  return expanded.toString();
+  return MACRO_FINDER.replace(replacers.build(),blob);
 }

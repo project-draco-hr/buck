@@ -1,0 +1,29 @@
+{
+  StringBuilder expanded=new StringBuilder();
+  int lastEnd=0;
+  Matcher matcher=MACRO_PATTERN.matcher(blob);
+  while (matcher.find()) {
+    if (matcher.start() > 0 && blob.charAt(matcher.start() - 1) == '\\') {
+      expanded.append(blob.substring(lastEnd,matcher.start() - 1));
+      expanded.append(blob.substring(matcher.start(),matcher.end()));
+    }
+ else {
+      expanded.append(blob.substring(lastEnd,matcher.start()));
+      String name=matcher.group(1);
+      MacroReplacer replacer=replacers.get(name);
+      if (replacer == null) {
+        throw new MacroException(String.format("expanding %s: no such macro \"%s\"",matcher.group(),name));
+      }
+      String input=Optional.fromNullable(matcher.group(2)).or("");
+      try {
+        expanded.append(replacer.replace(input));
+      }
+ catch (      MacroException e) {
+        throw new MacroException(String.format("expanding %s: %s",matcher.group(),e.getMessage()),e);
+      }
+    }
+    lastEnd=matcher.end();
+  }
+  expanded.append(blob.substring(lastEnd,blob.length()));
+  return expanded.toString();
+}
