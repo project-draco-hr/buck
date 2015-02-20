@@ -1,0 +1,28 @@
+{
+  ImmutableList<Path> newCycleDetector=ImmutableList.<Path>builder().addAll(cycleDetector).add(mlSource).build();
+  if (cycleDetector.contains(mlSource)) {
+    throw new HumanReadableException("Dependency cycle detected: %s",Joiner.on(" -> ").join(newCycleDetector));
+  }
+  if (sourceToRule.containsKey(mlSource)) {
+    return;
+  }
+  ImmutableList.Builder<BuildRule> deps=ImmutableList.builder();
+  if (sources.containsKey(mlSource)) {
+    for (    Path dep : Preconditions.checkNotNull(sources.get(mlSource))) {
+      generateSingleMLBytecodeCompilation(sourceToRule,cmoFiles,dep,sources,newCycleDetector);
+      deps.add(sourceToRule.get(dep));
+    }
+  }
+  String name=mlSource.toFile().getName();
+  BuildTarget buildTarget=createMLBytecodeCompileBuildTarget(params.getBuildTarget(),name);
+  BuildRuleParams compileParams=params.copyWithChanges(OCAML_ML_BYTECODE_COMPILE_TYPE,buildTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).addAll(deps.build()).build()),Suppliers.ofInstance(params.getExtraDeps()));
+  String outputFileName=getMLBytecodeOutputName(name);
+  Path outputPath=ocamlContext.getCompileBytecodeOutputDir().resolve(outputFileName);
+  final ImmutableList<String> compileFlags=getCompileFlags(true,false);
+  BuildRule compileBytecode=new OCamlMLCompile(compileParams,pathResolver,new OCamlMLCompileStep.Args(cCompiler.getCommandPrefix(pathResolver),ocamlContext.getOcamlBytecodeCompiler(),outputPath,mlSource,compileFlags));
+  resolver.addToIndex(compileBytecode);
+  sourceToRule.put(mlSource,compileBytecode);
+  if (!outputFileName.endsWith(OCamlCompilables.OCAML_CMI)) {
+    cmoFiles.add(new BuildTargetSourcePath(compileBytecode.getProjectFilesystem(),compileBytecode.getBuildTarget()));
+  }
+}

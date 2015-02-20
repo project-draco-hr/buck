@@ -1,0 +1,26 @@
+{
+  ImmutableList.Builder<Path> toolSearchPathsBuilder=ImmutableList.builder();
+  toolSearchPathsBuilder.add(sdkPaths.getSdkPath().resolve(USR_BIN)).add(sdkPaths.getPlatformDeveloperPath().resolve(USR_BIN));
+  for (  Path toolchainPath : sdkPaths.getToolchainPaths()) {
+    toolSearchPathsBuilder.add(toolchainPath.resolve(USR_BIN));
+  }
+  ImmutableList<Path> toolSearchPaths=toolSearchPathsBuilder.build();
+  Tool clangPath=new SourcePathTool(getTool(projectFilesystem,"clang",toolSearchPaths,pathIsExecutableChecker));
+  Tool clangXxPath=new SourcePathTool(getTool(projectFilesystem,"clang++",toolSearchPaths,pathIsExecutableChecker));
+  ImmutableList.Builder<String> cflagsBuilder=ImmutableList.builder();
+  cflagsBuilder.add("-isysroot",sdkPaths.getSdkPath().toString());
+  cflagsBuilder.add("-arch",targetArchitecture);
+switch (targetPlatform) {
+case MACOSX:
+    cflagsBuilder.add("-mmacosx-version-min=" + targetVersion);
+  break;
+case IPHONESIMULATOR:
+case IPHONEOS:
+cflagsBuilder.add("-mios-version-min=" + targetVersion);
+break;
+}
+ImmutableList<String> cflags=cflagsBuilder.build();
+ImmutableCxxPlatform.Builder platformBuilder=ImmutableCxxPlatform.builder().setFlavor(ImmutableFlavor.of(targetSdkName + "-" + targetArchitecture)).setAs(clangPath).setAspp(clangPath).setCc(clangPath).addAllCflags(cflags).setCpp(clangPath).addAllCppflags(cflags).setCxx(clangXxPath).addAllCxxflags(cflags).setCxxpp(clangXxPath).addAllCxxppflags(cflags).setCxxld(clangXxPath).addAllCxxldflags(cflags).setLex(getOptionalTool(projectFilesystem,"lex",toolSearchPaths,pathIsExecutableChecker)).setYacc(getOptionalTool(projectFilesystem,"yacc",toolSearchPaths,pathIsExecutableChecker)).setLd(new DarwinLinker(new SourcePathTool(getTool(projectFilesystem,"libtool",toolSearchPaths,pathIsExecutableChecker)))).setAr(new SourcePathTool(getTool(projectFilesystem,"ar",toolSearchPaths,pathIsExecutableChecker))).setDebugPathSanitizer(Optional.of(new DebugPathSanitizer(250,File.separatorChar,Paths.get("."),ImmutableBiMap.<Path,Path>of()))).setSharedLibraryExtension("dylib");
+DefaultCxxPlatforms.addToolFlagsFromConfig(buckConfig,platformBuilder);
+return platformBuilder.build();
+}

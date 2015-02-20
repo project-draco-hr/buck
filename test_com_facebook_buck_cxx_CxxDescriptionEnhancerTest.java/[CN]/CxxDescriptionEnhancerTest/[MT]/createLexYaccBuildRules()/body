@@ -6,13 +6,13 @@
   Path yaccPath=Paths.get("yacc");
   filesystem.touch(yaccPath);
   FakeBuckConfig buckConfig=new FakeBuckConfig(ImmutableMap.<String,Map<String,String>>of("cxx",ImmutableMap.of("lex",lexPath.toString(),"yacc",yaccPath.toString())),filesystem);
-  CxxPlatform cxxBuckConfig=DefaultCxxPlatforms.build(buckConfig);
+  CxxPlatform cxxBuckConfig=DefaultCxxPlatforms.build(filesystem,buckConfig);
   BuildTarget target=BuildTargetFactory.newInstance("//:test");
   BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
   String lexSourceName="test.ll";
   BuildTarget genruleTarget=BuildTargetFactory.newInstance("//:genrule_lex");
   Genrule genrule=(Genrule)GenruleBuilder.newGenruleBuilder(genruleTarget).setOut(lexSourceName).build(resolver);
-  SourcePath lexSource=new BuildTargetSourcePath(genrule.getBuildTarget());
+  SourcePath lexSource=new BuildTargetSourcePath(filesystem,genrule.getBuildTarget());
   String yaccSourceName="test.yy";
   SourcePath yaccSource=new TestSourcePath(yaccSourceName);
   CxxHeaderSourceSpec actual=CxxDescriptionEnhancer.createLexYaccBuildRules(params,resolver,cxxBuckConfig,ImmutableList.<String>of(),ImmutableMap.of(lexSourceName,lexSource),ImmutableList.<String>of(),ImmutableMap.of(yaccSourceName,yaccSource));
@@ -27,6 +27,6 @@
   Path yaccOutputPrefix=CxxDescriptionEnhancer.getYaccOutputPrefix(target,yaccSourceName);
   Path yaccOutputSource=Yacc.getSourceOutputPath(yaccOutputPrefix);
   Path yaccOutputHeader=Yacc.getHeaderOutputPath(yaccOutputPrefix);
-  CxxHeaderSourceSpec expected=ImmutableCxxHeaderSourceSpec.of(ImmutableMap.<Path,SourcePath>of(target.getBasePath().resolve(lexSourceName + ".h"),new BuildTargetSourcePath(lex.getBuildTarget(),lexOutputHeader),target.getBasePath().resolve(yaccSourceName + ".h"),new BuildTargetSourcePath(yacc.getBuildTarget(),yaccOutputHeader)),ImmutableMap.<String,CxxSource>of(lexSourceName + ".cc",ImmutableCxxSource.of(CxxSource.Type.CXX,new BuildTargetSourcePath(lex.getBuildTarget(),lexOutputSource)),yaccSourceName + ".cc",ImmutableCxxSource.of(CxxSource.Type.CXX,new BuildTargetSourcePath(yacc.getBuildTarget(),yaccOutputSource))));
+  CxxHeaderSourceSpec expected=ImmutableCxxHeaderSourceSpec.of(ImmutableMap.<Path,SourcePath>of(target.getBasePath().resolve(lexSourceName + ".h"),new BuildTargetSourcePath(filesystem,lex.getBuildTarget(),lexOutputHeader),target.getBasePath().resolve(yaccSourceName + ".h"),new BuildTargetSourcePath(filesystem,yacc.getBuildTarget(),yaccOutputHeader)),ImmutableMap.<String,CxxSource>of(lexSourceName + ".cc",ImmutableCxxSource.of(CxxSource.Type.CXX,new BuildTargetSourcePath(filesystem,lex.getBuildTarget(),lexOutputSource)),yaccSourceName + ".cc",ImmutableCxxSource.of(CxxSource.Type.CXX,new BuildTargetSourcePath(filesystem,yacc.getBuildTarget(),yaccOutputSource))));
   assertEquals(expected,actual);
 }

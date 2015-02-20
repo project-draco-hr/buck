@@ -1,0 +1,21 @@
+{
+  if (!buildPlatform.equals(Platform.MACOS)) {
+    return;
+  }
+  Path appleDeveloperDirectory=appleDeveloperDirectorySupplier.get();
+  if (!Files.isDirectory(appleDeveloperDirectory)) {
+    return;
+  }
+  ImmutableMap<String,Path> toolchainPaths=AppleToolchainDiscovery.discoverAppleToolchainPaths(appleDeveloperDirectory);
+  ImmutableMap<AppleSdk,AppleSdkPaths> sdkPaths=AppleSdkDiscovery.discoverAppleSdkPaths(appleDeveloperDirectory,toolchainPaths);
+  for (  Map.Entry<AppleSdk,AppleSdkPaths> entry : sdkPaths.entrySet()) {
+    AppleSdk sdk=entry.getKey();
+    AppleSdkPaths appleSdkPaths=entry.getValue();
+    String targetSdkVersion=appleConfig.getTargetSdkVersion(sdk.getApplePlatform()).or(sdk.getVersion());
+    LOG.debug("SDK %s using default version %s",sdk,targetSdkVersion);
+    for (    String architecture : sdk.getArchitectures()) {
+      CxxPlatform appleCxxPlatform=AppleCxxPlatforms.build(projectFilesystem,sdk.getApplePlatform(),sdk.getName(),targetSdkVersion,architecture,appleSdkPaths,buckConfig);
+      appleCxxPlatformsToAppleSdkPathsBuilder.put(appleCxxPlatform,appleSdkPaths);
+    }
+  }
+}

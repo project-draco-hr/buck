@@ -1,8 +1,9 @@
 {
+  ProjectFilesystem projectFilesystem=new FakeProjectFilesystem();
   SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
   BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
   BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
-  CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(new FakeBuckConfig());
+  CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(projectFilesystem,new FakeBuckConfig());
   final BuildTarget headerTarget=BuildTargetFactory.newInstance("//:header");
   final BuildTarget headerSymlinkTreeTarget=BuildTargetFactory.newInstance("//:symlink");
   final Path headerSymlinkTreeRoot=Paths.get("symlink/tree/root");
@@ -16,10 +17,10 @@
       return CxxPreprocessorInput.builder().addRules(headerTarget,headerSymlinkTreeTarget).addIncludeRoots(headerSymlinkTreeRoot).build();
     }
     @Override public NativeLinkableInput getNativeLinkableInput(    CxxPlatform cxxPlatform,    Linker.LinkableDepType type){
-      return type == Linker.LinkableDepType.STATIC ? ImmutableNativeLinkableInput.of(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(archive.getBuildTarget())),ImmutableList.of(archiveOutput.toString())) : ImmutableNativeLinkableInput.of(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(sharedLibrary.getBuildTarget())),ImmutableList.of(sharedLibraryOutput.toString()));
+      return type == Linker.LinkableDepType.STATIC ? ImmutableNativeLinkableInput.of(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(getProjectFilesystem(),archive.getBuildTarget())),ImmutableList.of(archiveOutput.toString())) : ImmutableNativeLinkableInput.of(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(getProjectFilesystem(),sharedLibrary.getBuildTarget())),ImmutableList.of(sharedLibraryOutput.toString()));
     }
     @Override public PythonPackageComponents getPythonPackageComponents(    CxxPlatform cxxPlatform){
-      return ImmutablePythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(sharedLibraryOutput)));
+      return ImmutablePythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(getProjectFilesystem(),sharedLibraryOutput)));
     }
     @Override public Iterable<AndroidPackageable> getRequiredPackageables(){
       return ImmutableList.of();
@@ -33,11 +34,11 @@
 ;
   CxxPreprocessorInput expectedCxxPreprocessorInput=CxxPreprocessorInput.builder().addRules(headerTarget,headerSymlinkTreeTarget).addIncludeRoots(headerSymlinkTreeRoot).build();
   assertEquals(expectedCxxPreprocessorInput,cxxLibrary.getCxxPreprocessorInput(cxxPlatform));
-  NativeLinkableInput expectedStaticNativeLinkableInput=ImmutableNativeLinkableInput.of(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(archive.getBuildTarget())),ImmutableList.of(archiveOutput.toString()));
+  NativeLinkableInput expectedStaticNativeLinkableInput=ImmutableNativeLinkableInput.of(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(projectFilesystem,archive.getBuildTarget())),ImmutableList.of(archiveOutput.toString()));
   assertEquals(expectedStaticNativeLinkableInput,cxxLibrary.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.STATIC));
-  NativeLinkableInput expectedSharedNativeLinkableInput=ImmutableNativeLinkableInput.of(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(sharedLibrary.getBuildTarget())),ImmutableList.of(sharedLibraryOutput.toString()));
+  NativeLinkableInput expectedSharedNativeLinkableInput=ImmutableNativeLinkableInput.of(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(projectFilesystem,sharedLibrary.getBuildTarget())),ImmutableList.of(sharedLibraryOutput.toString()));
   assertEquals(expectedSharedNativeLinkableInput,cxxLibrary.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.SHARED));
-  PythonPackageComponents expectedPythonPackageComponents=ImmutablePythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(sharedLibraryOutput)));
+  PythonPackageComponents expectedPythonPackageComponents=ImmutablePythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(projectFilesystem,sharedLibraryOutput)));
   assertEquals(expectedPythonPackageComponents,cxxLibrary.getPythonPackageComponents(cxxPlatform));
   assertEquals(ImmutableList.<Step>of(),cxxLibrary.getBuildSteps(null,null));
   assertNull(cxxLibrary.getPathToOutputFile());

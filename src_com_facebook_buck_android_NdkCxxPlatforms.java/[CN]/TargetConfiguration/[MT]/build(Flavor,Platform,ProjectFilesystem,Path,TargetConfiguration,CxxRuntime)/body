@@ -1,0 +1,12 @@
+{
+  String version=readVersion(ndkRoot);
+  Host host=Preconditions.checkNotNull(BUILD_PLATFORMS.get(platform));
+  ImmutableCxxPlatform.Builder cxxPlatformBuilder=ImmutableCxxPlatform.builder();
+  cxxPlatformBuilder.setFlavor(flavor).setAs(getTool(projectFilesystem,ndkRoot,targetConfiguration,host,"as",version)).addAsflags("--noexecstack").setAspp(getTool(projectFilesystem,ndkRoot,targetConfiguration,host,"gcc",version)).setCc(getTool(projectFilesystem,ndkRoot,targetConfiguration,host,"gcc",version)).addAllCflags(getCflagsInternal(targetConfiguration)).setCpp(getCppTool(projectFilesystem,ndkRoot,targetConfiguration,host,"gcc",version)).addAllCppflags(getCppflags(ndkRoot,targetConfiguration)).setCxx(getTool(projectFilesystem,ndkRoot,targetConfiguration,host,"g++",version)).addAllCxxflags(getCxxflagsInternal(targetConfiguration)).setCxxpp(getCppTool(projectFilesystem,ndkRoot,targetConfiguration,host,"g++",version)).addAllCxxppflags(getCxxppflags(ndkRoot,targetConfiguration)).setCxxld(getCcLinkTool(projectFilesystem,ndkRoot,targetConfiguration,host,cxxRuntime,"g++",version)).addAllCxxldflags(targetConfiguration.linkerFlags).setLd(new GnuLinker(getTool(projectFilesystem,ndkRoot,targetConfiguration,host,"ld.gold",version))).addLdflags("-z","noexecstack","--gc-sections","-z","nocopyreloc","--as-needed").setAr(getTool(projectFilesystem,ndkRoot,targetConfiguration,host,"ar",version)).setDebugPathSanitizer(Optional.of(new DebugPathSanitizer(250,File.separatorChar,Paths.get("."),ImmutableBiMap.of(getNdkToolRoot(ndkRoot,targetConfiguration,host),Paths.get("ANDROID_TOOLS_ROOT"),ndkRoot,Paths.get("ANDROID_NDK_ROOT"))))).setSharedLibraryExtension("so");
+  if (cxxRuntime != CxxRuntime.SYSTEM) {
+    cxxPlatformBuilder.putRuntimeLdflags(Linker.LinkableDepType.SHARED,"-l" + cxxRuntime.getSharedName());
+    cxxPlatformBuilder.putRuntimeLdflags(Linker.LinkableDepType.STATIC,"-l" + cxxRuntime.getStaticName());
+  }
+  CxxPlatform cxxPlatform=cxxPlatformBuilder.build();
+  return ImmutableNdkCxxPlatform.builder().setCxxPlatform(cxxPlatform).setObjcopy(getSourcePath(projectFilesystem,ndkRoot,targetConfiguration,host,"objcopy")).setCxxRuntime(cxxRuntime).setCxxSharedRuntimePath(getCxxRuntimeDirectory(ndkRoot,targetConfiguration).resolve(cxxRuntime.getSoname())).build();
+}

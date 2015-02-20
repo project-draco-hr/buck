@@ -1,23 +1,23 @@
 {
-  ImmutableMap.Builder<SourcePath,ImmutableList<SourcePath>> mapBuilder=ImmutableMap.builder();
+  ImmutableMap.Builder<Path,ImmutableList<Path>> mapBuilder=ImmutableMap.builder();
   Iterable<String> lines=Splitter.on(LINE_SEPARATOR).split(depString);
   for (  String line : lines) {
     List<String> sourceAndDeps=Splitter.on(OCAML_SOURCE_AND_DEPS_SEPARATOR).trimResults().splitToList(line);
     if (sourceAndDeps.size() >= 1) {
       String source=replaceObjExtWithSourceExt(sourceAndDeps.get(0));
       if (source.endsWith(OCamlCompilables.OCAML_ML) || source.endsWith(OCamlCompilables.OCAML_MLI)) {
-        FluentIterable<SourcePath> dependencies=FluentIterable.from(Splitter.on(OCAML_DEPS_SEPARATOR).trimResults().splitToList(sourceAndDeps.get(1))).filter(new Predicate<String>(){
+        FluentIterable<Path> dependencies=FluentIterable.from(Splitter.on(OCAML_DEPS_SEPARATOR).trimResults().splitToList(sourceAndDeps.get(1))).filter(new Predicate<String>(){
           @Override public boolean apply(          String input){
             return !input.isEmpty();
           }
         }
-).transform(new Function<String,SourcePath>(){
-          @Override public SourcePath apply(          String input){
-            return new PathSourcePath(Paths.get(replaceObjExtWithSourceExt(input)));
+).transform(new Function<String,Path>(){
+          @Override public Path apply(          String input){
+            return Paths.get(replaceObjExtWithSourceExt(input));
           }
         }
 );
-        mapBuilder.put(new PathSourcePath(Paths.get(source)),ImmutableList.copyOf(dependencies));
+        mapBuilder.put(Paths.get(source),ImmutableList.copyOf(dependencies));
       }
     }
   }

@@ -1,12 +1,13 @@
 {
+  ProjectFilesystem projectFilesystem=new FakeProjectFilesystem();
   BuildTarget target=BuildTargetFactory.newInstance("//:target");
   BuildRuleResolver resolver=new BuildRuleResolver();
   CxxPlatform cxxPlatform=CxxPythonExtensionBuilder.createDefaultPlatform();
   CxxPythonExtensionBuilder extensionBuilder=getBuilder(target);
   CxxPythonExtensionDescription desc=(CxxPythonExtensionDescription)extensionBuilder.build().getDescription();
-  CxxPythonExtension extension=(CxxPythonExtension)extensionBuilder.build(resolver,new FakeProjectFilesystem(),TargetGraphFactory.newInstance(extensionBuilder.build(),GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).build()));
+  CxxPythonExtension extension=(CxxPythonExtension)extensionBuilder.build(resolver,projectFilesystem,TargetGraphFactory.newInstance(extensionBuilder.build(),GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).build()));
   PythonPackageComponents actualComponent=extension.getPythonPackageComponents(cxxPlatform);
   BuildRule rule=resolver.getRule(desc.getExtensionTarget(target,cxxPlatform.getFlavor()));
-  PythonPackageComponents expectedComponents=ImmutablePythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(target.getBasePath().resolve(desc.getExtensionName(target)),new BuildTargetSourcePath(rule.getBuildTarget())),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of());
+  PythonPackageComponents expectedComponents=ImmutablePythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(target.getBasePath().resolve(desc.getExtensionName(target)),new BuildTargetSourcePath(projectFilesystem,rule.getBuildTarget())),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of());
   assertEquals(expectedComponents,actualComponent);
 }
