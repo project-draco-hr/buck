@@ -1,11 +1,19 @@
 {
   assumeTrue(Platform.detect() != Platform.WINDOWS);
   final long timeoutMillis=100;
-  final long intervalMillis=timeoutMillis * 2;
   final ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"exclusive_execution",tmp);
   workspace.setUp();
-  try (TestContext context=new TestContext(ImmutableMap.copyOf(System.getenv()),TestContext.createHeartBeatStream(intervalMillis),timeoutMillis)){
-    ProcessResult result=workspace.runBuckdCommand(context,"test","//:test");
+  final DelegatingInputStream inputStream=new DelegatingInputStream(TestContext.createHeartBeatStream(timeoutMillis / 10));
+  try (TestContext context=new TestContext(ImmutableMap.copyOf(System.getenv()),inputStream,timeoutMillis)){
+    BuckEventListener listener=new BuckEventListener(){
+      @Subscribe @SuppressWarnings("unused") public void onEvent(      TestRunEvent.Started event){
+        inputStream.setDelegate(TestContext.createHeartBeatStream(2 * timeoutMillis));
+      }
+      @Override public void outputTrace(      BuildId buildId) throws InterruptedException {
+      }
+    }
+;
+    ProcessResult result=workspace.runBuckdCommand(context,listener,"test","//:test");
     result.assertFailure();
     assertThat(result.getStderr(),containsString("InterruptedException"));
   }
