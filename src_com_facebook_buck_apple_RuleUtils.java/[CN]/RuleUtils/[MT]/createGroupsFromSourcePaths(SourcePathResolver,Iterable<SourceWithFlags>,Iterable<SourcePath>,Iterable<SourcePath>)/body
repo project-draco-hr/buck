@@ -1,0 +1,36 @@
+{
+  Path rootPath=Paths.get("root");
+  ImmutableMultimap.Builder<Path,GroupedSource> entriesBuilder=ImmutableMultimap.builder();
+  for (  SourceWithFlags sourceWithFlags : sources) {
+    Path path=rootPath.resolve(resolver.getPath(sourceWithFlags.getSourcePath()));
+    GroupedSource groupedSource=GroupedSource.ofSourceWithFlags(sourceWithFlags);
+    entriesBuilder.put(Preconditions.checkNotNull(path.getParent()),groupedSource);
+  }
+  for (  SourcePath publicHeader : publicHeaders) {
+    Path path=rootPath.resolve(resolver.getPath(publicHeader));
+    GroupedSource groupedSource=GroupedSource.ofPublicHeader(publicHeader);
+    entriesBuilder.put(Preconditions.checkNotNull(path.getParent()),groupedSource);
+  }
+  for (  SourcePath privateHeader : privateHeaders) {
+    Path path=rootPath.resolve(resolver.getPath(privateHeader));
+    GroupedSource groupedSource=GroupedSource.ofPrivateHeader(privateHeader);
+    entriesBuilder.put(Preconditions.checkNotNull(path.getParent()),groupedSource);
+  }
+  ImmutableMultimap<Path,GroupedSource> entries=entriesBuilder.build();
+  ImmutableMultimap.Builder<Path,String> subgroupsBuilder=ImmutableMultimap.builder();
+  for (  Path groupPath : entries.keys()) {
+    Path parent=groupPath.getParent();
+    while (parent != null) {
+      subgroupsBuilder.put(parent,groupPath.getFileName().toString());
+      groupPath=parent;
+      parent=groupPath.getParent();
+    }
+  }
+  ImmutableMultimap<Path,String> subgroups=subgroupsBuilder.build();
+  GroupedSourceNameComparator groupedSourceNameComparator=new GroupedSourceNameComparator(resolver);
+  ImmutableList<GroupedSource> groupedSources=createGroupsFromEntryMaps(subgroups,entries,groupedSourceNameComparator,rootPath);
+  while (groupedSources.size() == 1 && groupedSources.get(0).getType() == GroupedSource.Type.SOURCE_GROUP) {
+    groupedSources=ImmutableList.copyOf(groupedSources.get(0).getSourceGroup().get());
+  }
+  return groupedSources;
+}
