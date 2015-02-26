@@ -1,0 +1,36 @@
+{
+  final ImmutableSet<String> fullyQualifiedBuildTargets=ImmutableSet.copyOf(options.getArgumentsFormattedAsBuildTargets());
+  if (fullyQualifiedBuildTargets.isEmpty()) {
+    console.printBuildFailure("Must specify at least one build target.");
+    return 1;
+  }
+  ImmutableSet<BuildTarget> targets=FluentIterable.from(options.getArgumentsFormattedAsBuildTargets()).transform(new Function<String,BuildTarget>(){
+    @Override public BuildTarget apply(    String input){
+      return getParser().getBuildTargetParser().parse(input,BuildTargetPatternParser.fullyQualified(getParser().getBuildTargetParser()));
+    }
+  }
+).toSet();
+  TargetGraph graph;
+  try {
+    graph=getParser().buildTargetGraphForBuildTargets(targets,new ParserConfig(options.getBuckConfig()),getBuckEventBus(),console,environment,options.getEnableProfiling());
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    console.printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  ImmutableSet<BuildTarget> targetsToPrint=options.shouldShowTransitiveDependencies() ? getTransitiveDependencies(targets,graph) : getImmediateDependencies(targets,graph);
+  Collection<String> namesToPrint=Collections2.transform(targetsToPrint,new Function<BuildTarget,String>(){
+    @Override public String apply(    final BuildTarget target){
+      return target.getFullyQualifiedName();
+    }
+  }
+);
+  ImmutableSortedSet<String> sortedNames=ImmutableSortedSet.copyOf(namesToPrint);
+  if (options.shouldGenerateJsonOutput()) {
+    printJSON(sortedNames);
+  }
+ else {
+    printToConsole(sortedNames);
+  }
+  return 0;
+}
