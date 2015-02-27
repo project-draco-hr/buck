@@ -1,18 +1,19 @@
 {
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  TargetSources targetSources=TargetSources.fromSourcesWithFlags(args.srcs.get(),args.headers.get(),args.exportedHeaders.get());
-  Optional<BuildRule> flavoredRule=AppleDescriptions.createFlavoredRule(params,resolver,args,appleConfig,pathResolver,targetSources);
+  Optional<BuildRule> flavoredRule=AppleDescriptions.createFlavoredRule(params,resolver,args,appleConfig,pathResolver);
   if (flavoredRule.isPresent()) {
     return flavoredRule.get();
   }
   CxxLibraryDescription.Arg delegateArg=delegate.createUnpopulatedConstructorArg();
   CxxLibraryDescription.TypeAndPlatform typeAndPlatform=CxxLibraryDescription.getTypeAndPlatform(params.getBuildTarget(),cxxPlatformFlavorDomain);
   Optional<AppleSdkPaths> appleSdkPaths=Optional.fromNullable(appleCxxPlatformsToAppleSdkPaths.get(typeAndPlatform.getPlatform()));
-  Sets.SetView<SourcePath> allHeaderPaths=Sets.union(targetSources.getPublicHeaderPaths(),targetSources.getPrivateHeaderPaths());
+  ImmutableSet<SourcePath> publicHeaders=args.exportedHeaders.get();
+  ImmutableSet<SourcePath> privateHeaders=args.headers.get();
+  Sets.SetView<SourcePath> allHeaderPaths=Sets.union(publicHeaders,privateHeaders);
   Path headerPathPrefix=Paths.get(AppleDescriptions.getHeaderPathPrefix(args,params.getBuildTarget()));
-  ImmutableMap<String,SourcePath> headerMap=ImmutableMap.<String,SourcePath>builder().putAll(AppleDescriptions.convertToFlatCxxHeaders(Paths.get(""),pathResolver,allHeaderPaths)).putAll(AppleDescriptions.convertToFlatCxxHeaders(headerPathPrefix,pathResolver,targetSources.getPrivateHeaderPaths())).build();
-  AppleDescriptions.populateCxxConstructorArg(delegateArg,args,ImmutableSet.copyOf(Iterables.transform(targetSources.getSourcesWithFlags(),SourceWithFlags.TO_SOURCE_PATH)),headerMap,appleSdkPaths);
-  delegateArg.exportedHeaders=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofRight(AppleDescriptions.convertToFlatCxxHeaders(headerPathPrefix,pathResolver,targetSources.getPublicHeaderPaths())));
+  ImmutableMap<String,SourcePath> headerMap=ImmutableMap.<String,SourcePath>builder().putAll(AppleDescriptions.convertToFlatCxxHeaders(Paths.get(""),pathResolver,allHeaderPaths)).putAll(AppleDescriptions.convertToFlatCxxHeaders(headerPathPrefix,pathResolver,privateHeaders)).build();
+  AppleDescriptions.populateCxxConstructorArg(delegateArg,args,ImmutableSet.copyOf(Iterables.transform(args.srcs.get(),SourceWithFlags.TO_SOURCE_PATH)),headerMap,appleSdkPaths);
+  delegateArg.exportedHeaders=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofRight(AppleDescriptions.convertToFlatCxxHeaders(headerPathPrefix,pathResolver,publicHeaders)));
   delegateArg.exportedPreprocessorFlags=Optional.of(ImmutableList.<String>of());
   delegateArg.exportedLangPreprocessorFlags=Optional.of(ImmutableMap.<CxxSource.Type,ImmutableList<String>>of());
   delegateArg.soname=Optional.absent();
