@@ -1,19 +1,19 @@
 {
   NewNativeTargetProjectMutator mutator=mutatorWithCommonDefaults();
-  SourcePath foo=new TestSourcePath("foo.m");
-  SourcePath bar=new TestSourcePath("bar.m");
-  SourcePath baz=new TestSourcePath("baz.m");
-  Iterable<GroupedSource> sources=ImmutableList.of(GroupedSource.ofSourceGroup("Group1",ImmutableList.of(GroupedSource.ofSourceWithFlags(SourceWithFlags.of(foo)),GroupedSource.ofSourceWithFlags(SourceWithFlags.of(bar,ImmutableList.of("-Wall"))))),GroupedSource.ofSourceGroup("Group2",ImmutableList.of(GroupedSource.ofSourceWithFlags(SourceWithFlags.of(baz)))));
+  SourcePath foo=new TestSourcePath("Group1/foo.m");
+  SourcePath bar=new TestSourcePath("Group1/bar.m");
+  SourcePath baz=new TestSourcePath("Group2/baz.m");
+  TargetSources sources=TargetSources.fromSourcesWithFlags(ImmutableSortedSet.of(SourceWithFlags.of(foo),SourceWithFlags.of(bar,ImmutableList.of("-Wall")),SourceWithFlags.of(baz)),ImmutableSortedSet.<SourcePath>of(),ImmutableSortedSet.<SourcePath>of());
   mutator.setSources(sources);
   NewNativeTargetProjectMutator.Result result=mutator.buildTargetAndAddToProject(generatedProject);
   PBXGroup sourcesGroup=result.targetGroup.getOrCreateChildGroupByName("Sources");
   PBXGroup group1=(PBXGroup)Iterables.get(sourcesGroup.getChildren(),0);
   assertEquals("Group1",group1.getName());
   assertThat(group1.getChildren(),hasSize(2));
-  PBXFileReference fileRefFoo=(PBXFileReference)Iterables.get(group1.getChildren(),0);
-  assertEquals("foo.m",fileRefFoo.getName());
-  PBXFileReference fileRefBar=(PBXFileReference)Iterables.get(group1.getChildren(),1);
+  PBXFileReference fileRefBar=(PBXFileReference)Iterables.get(group1.getChildren(),0);
   assertEquals("bar.m",fileRefBar.getName());
+  PBXFileReference fileRefFoo=(PBXFileReference)Iterables.get(group1.getChildren(),1);
+  assertEquals("foo.m",fileRefFoo.getName());
   PBXGroup group2=(PBXGroup)Iterables.get(sourcesGroup.getChildren(),1);
   assertEquals("Group2",group2.getName());
   assertThat(group2.getChildren(),hasSize(1));
