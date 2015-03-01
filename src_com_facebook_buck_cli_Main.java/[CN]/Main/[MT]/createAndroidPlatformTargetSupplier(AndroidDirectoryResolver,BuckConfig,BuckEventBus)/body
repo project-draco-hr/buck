@@ -1,0 +1,21 @@
+{
+  return Suppliers.memoize(new Supplier<Optional<AndroidPlatformTarget>>(){
+    @Override public Optional<AndroidPlatformTarget> get(){
+      Optional<Path> androidSdkDirOption=androidDirectoryResolver.findAndroidSdkDirSafe();
+      if (!androidSdkDirOption.isPresent()) {
+        return Optional.absent();
+      }
+      String androidPlatformTargetId;
+      Optional<String> target=buckConfig.getAndroidTarget();
+      if (target.isPresent()) {
+        androidPlatformTargetId=target.get();
+      }
+ else {
+        androidPlatformTargetId=AndroidPlatformTarget.DEFAULT_ANDROID_PLATFORM_TARGET;
+        eventBus.post(ConsoleEvent.warning("No Android platform target specified. Using default: %s",androidPlatformTargetId));
+      }
+      return AndroidPlatformTarget.getTargetForId(androidPlatformTargetId,androidDirectoryResolver,buckConfig.getAaptOverride());
+    }
+  }
+);
+}
