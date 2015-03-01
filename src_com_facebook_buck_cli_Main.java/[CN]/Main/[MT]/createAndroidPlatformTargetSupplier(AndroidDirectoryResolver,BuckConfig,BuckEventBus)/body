@@ -1,9 +1,18 @@
 {
-  return Suppliers.memoize(new Supplier<Optional<AndroidPlatformTarget>>(){
-    @Override public Optional<AndroidPlatformTarget> get(){
+  return new Supplier<AndroidPlatformTarget>(){
+    @Nullable private AndroidPlatformTarget androidPlatformTarget;
+    @Nullable private NoAndroidSdkException exception;
+    @Override public AndroidPlatformTarget get(){
+      if (androidPlatformTarget != null) {
+        return androidPlatformTarget;
+      }
+ else       if (exception != null) {
+        throw exception;
+      }
       Optional<Path> androidSdkDirOption=androidDirectoryResolver.findAndroidSdkDirSafe();
       if (!androidSdkDirOption.isPresent()) {
-        return Optional.absent();
+        exception=new NoAndroidSdkException();
+        throw exception;
       }
       String androidPlatformTargetId;
       Optional<String> target=buckConfig.getAndroidTarget();
@@ -14,8 +23,16 @@
         androidPlatformTargetId=AndroidPlatformTarget.DEFAULT_ANDROID_PLATFORM_TARGET;
         eventBus.post(ConsoleEvent.warning("No Android platform target specified. Using default: %s",androidPlatformTargetId));
       }
-      return AndroidPlatformTarget.getTargetForId(androidPlatformTargetId,androidDirectoryResolver,buckConfig.getAaptOverride());
+      Optional<AndroidPlatformTarget> androidPlatformTargetOptional=AndroidPlatformTarget.getTargetForId(androidPlatformTargetId,androidDirectoryResolver,buckConfig.getAaptOverride());
+      if (androidPlatformTargetOptional.isPresent()) {
+        androidPlatformTarget=androidPlatformTargetOptional.get();
+        return androidPlatformTarget;
+      }
+ else {
+        exception=NoAndroidSdkException.createExceptionForPlatformThatCannotBeFound(androidPlatformTargetId);
+        throw exception;
+      }
     }
   }
-);
+;
 }
