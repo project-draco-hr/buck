@@ -5,7 +5,7 @@
   FakeBuckEventListener listener=new FakeBuckEventListener();
   eventBus.register(listener);
   ExecutionContext context=TestExecutionContext.newBuilder().setEventBus(eventBus).build();
-  DefaultStepRunner runner=new DefaultStepRunner(context,3);
+  DefaultStepRunner runner=new DefaultStepRunner(context,MoreExecutors.newDirectExecutorService());
   runner.runStep(passingStep);
   try {
     runner.runStep(failingStep);
@@ -13,9 +13,6 @@
   }
  catch (  StepFailedException e) {
     assertEquals(e.getStep(),failingStep);
-  }
- finally {
-    runner.close();
   }
   ImmutableList<StepEvent> expected=ImmutableList.of(TestEventConfigerator.configureTestEvent(StepEvent.started(passingStep,"fake step 1"),eventBus),TestEventConfigerator.configureTestEvent(StepEvent.finished(passingStep,"fake step 1",0),eventBus),TestEventConfigerator.configureTestEvent(StepEvent.started(failingStep,"fake step 1"),eventBus),TestEventConfigerator.configureTestEvent(StepEvent.finished(failingStep,"fake step 1",1),eventBus));
   Iterable<StepEvent> events=Iterables.filter(listener.getEvents(),StepEvent.class);

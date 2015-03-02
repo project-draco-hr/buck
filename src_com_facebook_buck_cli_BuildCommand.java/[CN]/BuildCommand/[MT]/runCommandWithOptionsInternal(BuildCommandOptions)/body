@@ -24,14 +24,10 @@
     console.printBuildFailureWithoutStacktrace(e);
     return 1;
   }
-  build=options.createBuild(options.getBuckConfig(),actionGraph,getProjectFilesystem(),getAndroidDirectoryResolver(),getBuildEngine(),artifactCache,console,getBuckEventBus(),Optional.<TargetDevice>absent(),getCommandRunnerParams().getPlatform(),getCommandRunnerParams().getEnvironment(),getCommandRunnerParams().getObjectMapper(),getCommandRunnerParams().getClock());
-  int exitCode=0;
-  try {
-    exitCode=build.executeAndPrintFailuresToConsole(buildTargets,options.isKeepGoing(),console,options.getPathToBuildReport());
+  try (CommandThreadManager pool=new CommandThreadManager("Build",options.getNumThreads());Build build=options.createBuild(options.getBuckConfig(),actionGraph,getProjectFilesystem(),getAndroidDirectoryResolver(),getBuildEngine(),artifactCache,console,getBuckEventBus(),Optional.<TargetDevice>absent(),getCommandRunnerParams().getPlatform(),getCommandRunnerParams().getEnvironment(),getCommandRunnerParams().getObjectMapper(),getCommandRunnerParams().getClock(),pool.getExecutor())){
+    lastBuild=build;
+    int exitCode=build.executeAndPrintFailuresToConsole(buildTargets,options.isKeepGoing(),console,options.getPathToBuildReport());
+    getBuckEventBus().post(BuildEvent.finished(buildTargets,exitCode));
+    return exitCode;
   }
-  finally {
-    build.close();
-  }
-  getBuckEventBus().post(BuildEvent.finished(buildTargets,exitCode));
-  return exitCode;
-}
+ }

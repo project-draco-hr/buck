@@ -34,7 +34,7 @@
     printMatchingTestRules(console,testRules);
   }
   ArtifactCache artifactCache=getArtifactCache();
-  try (Build build=options.createBuild(options.getBuckConfig(),graph,getProjectFilesystem(),getAndroidDirectoryResolver(),getBuildEngine(),artifactCache,console,getBuckEventBus(),options.getTargetDeviceOptional(),getCommandRunnerParams().getPlatform(),getCommandRunnerParams().getEnvironment(),getCommandRunnerParams().getObjectMapper(),getCommandRunnerParams().getClock())){
+  try (CommandThreadManager pool=new CommandThreadManager("Test",options.getNumThreads());Build build=options.createBuild(options.getBuckConfig(),graph,getProjectFilesystem(),getAndroidDirectoryResolver(),getBuildEngine(),artifactCache,console,getBuckEventBus(),options.getTargetDeviceOptional(),getCommandRunnerParams().getPlatform(),getCommandRunnerParams().getEnvironment(),getCommandRunnerParams().getObjectMapper(),getCommandRunnerParams().getClock(),pool.getExecutor())){
     int exitCode=build.executeAndPrintFailuresToConsole(testRules,options.isKeepGoing(),console,options.getPathToBuildReport());
     getBuckEventBus().post(BuildEvent.finished(explicitBuildTargets,exitCode));
     if (exitCode != 0) {
@@ -44,7 +44,7 @@
       testRules=filterTestRules(options,testRules);
     }
     try {
-      return runTestsAndShutdownExecutor(testRules,Preconditions.checkNotNull(build.getBuildContext()),build.getExecutionContext(),options);
+      return runTestsAndShutdownExecutor(testRules,Preconditions.checkNotNull(build.getBuildContext()),build.getExecutionContext(),options,pool.getExecutor());
     }
  catch (    ExecutionException e) {
       console.printBuildFailureWithoutStacktrace(e);

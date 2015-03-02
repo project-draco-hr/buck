@@ -1,6 +1,11 @@
 {
-  try (DefaultStepRunner stepRunner=new DefaultStepRunner(context,numThreads.or(determineOptimalThreadCount()))){
+  ExecutorService service=MoreExecutors.newMultiThreadExecutor(new CommandThreadFactory("SmartDexing"),numThreads.or(determineOptimalThreadCount()));
+  try {
+    DefaultStepRunner stepRunner=new DefaultStepRunner(context,listeningDecorator(service));
     List<Step> dxSteps=generateDxCommands(context.getProjectFilesystem(),outputToInputs);
     stepRunner.runStepsInParallelAndWait(dxSteps);
   }
- }
+  finally {
+    MoreExecutors.shutdown(service);
+  }
+}
