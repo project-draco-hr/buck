@@ -3,8 +3,8 @@
     checkForAndKillXcodeIfRunning(options.getIdePrompt());
   }
   ImmutableSet<BuildTarget> passedInTargetsSet=getBuildTargets(options.getArgumentsFormattedAsBuildTargets());
-  ProjectGraphParser projectGraphParser=createProjectGraphParser(getParser(),new ParserConfig(options.getBuckConfig()),getBuckEventBus(),console,environment,options,getProjectFilesystem().getIgnorePaths());
-  TargetGraph projectGraph=projectGraphParser.buildTargetGraphForBuildTargets(passedInTargetsSet);
+  ProjectGraphParser projectGraphParser=createProjectGraphParser(getParser(),new ParserConfig(options.getBuckConfig()),getBuckEventBus(),console,environment,options.getEnableProfiling());
+  TargetGraph projectGraph=projectGraphParser.buildTargetGraphForTargetNodeSpecs(getTargetNodeSpecsForIde(options.getIde(),passedInTargetsSet,getProjectFilesystem().getIgnorePaths()));
   ProjectPredicates projectPredicates=getProjectPredicates(options.getIde(),passedInTargetsSet,options.getDefaultExcludePaths());
   ImmutableSet<BuildTarget> graphRoots;
   if (!passedInTargetsSet.isEmpty()) {
@@ -13,7 +13,7 @@
  else {
     graphRoots=getRootsFromPredicate(projectGraph,projectPredicates.getProjectRootsPredicate());
   }
-  TargetGraphAndTargets targetGraphAndTargets=createTargetGraph(projectGraph,graphRoots,projectGraphParser,projectPredicates.getAssociatedProjectPredicate(),options.isWithTests());
+  TargetGraphAndTargets targetGraphAndTargets=createTargetGraph(projectGraph,graphRoots,projectGraphParser,projectPredicates.getAssociatedProjectPredicate(),options.isWithTests(),options.getIde(),getProjectFilesystem().getIgnorePaths());
   if (options.getDryRun()) {
     for (    TargetNode<?> targetNode : targetGraphAndTargets.getTargetGraph().getNodes()) {
       console.getStdOut().println(targetNode.toString());
