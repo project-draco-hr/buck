@@ -1,0 +1,13 @@
+{
+  BuildInfoRecorder buildInfoRecorder=createBuildInfoRecorder(new FakeProjectFilesystem(){
+    @Override public void createZip(    Collection<Path> pathsToIncludeInZip,    File out,    ImmutableMap<Path,String> additionalFileContents) throws IOException {
+      writeBytesToPath(out.toString().getBytes(),out.toPath());
+    }
+  }
+);
+  DebuggableTemporaryFolder cacheDir=new DebuggableTemporaryFolder();
+  cacheDir.create();
+  ArtifactCache artifactCache=new DirArtifactCache(cacheDir.getRoot(),true,Optional.<Long>absent());
+  buildInfoRecorder.performUploadToArtifactCache(artifactCache,new BuckEventBus(new DefaultClock(),new BuildId()));
+  assertTrue(cacheDir.getRootPath().resolve(Paths.get(RULE_KEY)).toFile().exists());
+}
