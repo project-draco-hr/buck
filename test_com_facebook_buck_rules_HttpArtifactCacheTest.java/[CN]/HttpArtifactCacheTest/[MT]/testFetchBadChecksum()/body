@@ -1,23 +1,20 @@
 {
   String data="test";
-  HashCode hashCode=HashCode.fromString("deadbeef");
   HashCode badHashCode=HashCode.fromString("deafbead");
   expect(connection.getResponseCode()).andReturn(HttpURLConnection.HTTP_OK);
-  InputStream is=new ByteArrayInputStream(createFileContentsWithHashCode(hashCode,data));
+  InputStream is=new ByteArrayInputStream(createFileContentsWithHashCode(badHashCode,data));
   expect(connection.getInputStream()).andReturn(is);
   File file=File.createTempFile("000","");
   Path path=file.toPath();
   Path temp=File.createTempFile("000","").toPath();
+  Files.write(temp,data.getBytes(),StandardOpenOption.WRITE);
   projectFilesystem.createParentDirs(path);
   expect(projectFilesystem.createTempFile(path.getParent(),path.getFileName().toString(),".tmp")).andReturn(temp);
   projectFilesystem.copyToPath(is,temp,StandardCopyOption.REPLACE_EXISTING);
-  expect(fileHashCache.get(temp)).andReturn(badHashCode);
   expect(projectFilesystem.deleteFileAtPath(temp)).andReturn(true);
-  replay(fileHashCache);
   replay(connection);
   replay(projectFilesystem);
   assertEquals(cache.fetch(new RuleKey("00000000000000000000000000000000"),file),CacheResult.MISS);
-  verify(fileHashCache);
   verify(connection);
   verify(projectFilesystem);
 }
