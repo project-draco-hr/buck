@@ -2,18 +2,16 @@
   connection.setDoOutput(true);
   connection.setRequestProperty("Content-Type","multipart/form-data; boundary=" + BOUNDARY);
   connection.setRequestProperty("Buck-Artifact-Count","1");
-  try (OutputStream os=new BufferedOutputStream(connection.getOutputStream());InputStream is=projectFilesystem.newFileInputStream(file.toPath())){
-    os.write(("--" + BOUNDARY + "\r\n").getBytes(StandardCharsets.UTF_8));
-    os.write("Content-Disposition: form-data; name=\"key0\"\r\n\r\n".getBytes(StandardCharsets.UTF_8));
-    os.write(key.getBytes(StandardCharsets.UTF_8));
-    os.write(("\r\n--" + BOUNDARY + "\r\n").getBytes(StandardCharsets.UTF_8));
-    os.write("Content-Disposition: form-data; name=\"data0\"\r\n".getBytes(StandardCharsets.UTF_8));
-    os.write("Content-Type: application/octet-stream\r\n\r\n".getBytes(StandardCharsets.UTF_8));
-    try (ObjectOutputStream objectStream=new ObjectOutputStream(os)){
-      objectStream.writeObject(hashCode);
-      objectStream.flush();
+  byte[] header=("--" + BOUNDARY + "\r\n"+ "Content-Disposition: form-data; name=\"key0\"\r\n\r\n"+ key+ "\r\n--"+ BOUNDARY+ "\r\n"+ "Content-Disposition: form-data; name=\"data0\"\r\n"+ "Content-Type: application/octet-stream\r\n\r\n").getBytes(Charsets.UTF_8);
+  byte[] hashCodeBytes=hashCode.asBytes();
+  byte[] footer=("\r\n--" + BOUNDARY + "--\r\n").getBytes(Charsets.UTF_8);
+  connection.setFixedLengthStreamingMode(header.length + hashCodeBytes.length + file.length()+ footer.length);
+  try (OutputStream os=new BufferedOutputStream(connection.getOutputStream())){
+    os.write(header);
+    os.write(hashCodeBytes);
+    try (InputStream is=projectFilesystem.newFileInputStream(file.toPath())){
       ByteStreams.copy(is,os);
-      os.write(("\r\n--" + BOUNDARY + "--\r\n").getBytes(StandardCharsets.UTF_8));
     }
-   }
+     os.write(footer);
+  }
  }

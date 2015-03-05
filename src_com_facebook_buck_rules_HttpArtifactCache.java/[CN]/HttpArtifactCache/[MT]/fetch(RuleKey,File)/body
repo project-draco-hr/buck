@@ -28,17 +28,11 @@ case HttpURLConnection.HTTP_OK:
       projectFilesystem.createParentDirs(path);
       Path temp=projectFilesystem.createTempFile(path.getParent(),path.getFileName().toString(),".tmp");
       try (InputStream input=connection.getInputStream()){
-        try (ObjectInputStream objectStream=new ObjectInputStream(input)){
-          try {
-            expectedHashCode=(HashCode)objectStream.readObject();
-          }
- catch (          ClassNotFoundException|ClassCastException e) {
-            logger.warn("fetch(%s): could not deserialize artifact checksum",ruleKey);
-            return CacheResult.MISS;
-          }
-          projectFilesystem.copyToPath(input,temp,StandardCopyOption.REPLACE_EXISTING);
-        }
-       }
+        byte[] hashCodeBytes=new byte[hashFunction.bits() / Byte.SIZE];
+        ByteStreams.readFully(input,hashCodeBytes);
+        expectedHashCode=HashCode.fromBytes(hashCodeBytes);
+        projectFilesystem.copyToPath(input,temp,StandardCopyOption.REPLACE_EXISTING);
+      }
        HashCode actualHashCode=Files.hash(temp.toFile(),hashFunction);
       if (!expectedHashCode.equals(actualHashCode)) {
         logger.warn("fetch(%s): artifact had invalid checksum",ruleKey);
