@@ -1,12 +1,14 @@
 {
-  Path temp=Files.createTempFile("example","file");
+  Path root=Files.createTempDirectory("root");
+  FakeProjectFilesystem projectFilesystem=new FakeProjectFilesystem(root.toFile());
+  Path temp=Files.createTempFile(root,"example","file");
   temp.toFile().deleteOnExit();
   Files.write(temp,"I like cheese".getBytes(UTF_8));
-  ExportFileBuilder builder=ExportFileBuilder.newExportFileBuilder(BuildTargetFactory.newInstance("//some:file")).setSrc(new TestSourcePath(temp.toAbsolutePath().toString()));
-  ExportFile rule=(ExportFile)builder.build(new BuildRuleResolver());
+  ExportFileBuilder builder=ExportFileBuilder.newExportFileBuilder(BuildTargetFactory.newInstance("//some:file")).setSrc(new TestSourcePath(MorePaths.relativize(root,temp).toString()));
+  ExportFile rule=(ExportFile)builder.build(new BuildRuleResolver(),projectFilesystem);
   RuleKey original=rule.getRuleKey();
   Files.write(temp,"I really like cheese".getBytes(UTF_8));
-  rule=(ExportFile)builder.build(new BuildRuleResolver());
+  rule=(ExportFile)builder.build(new BuildRuleResolver(),projectFilesystem);
   RuleKey refreshed=rule.getRuleKey();
   assertNotEquals(original,refreshed);
 }
