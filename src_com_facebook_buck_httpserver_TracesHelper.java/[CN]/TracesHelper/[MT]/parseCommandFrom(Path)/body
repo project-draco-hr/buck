@@ -2,21 +2,20 @@
   try (InputStream input=projectFilesystem.newFileInputStream(pathToTrace);JsonReader jsonReader=new JsonReader(new InputStreamReader(input))){
     jsonReader.beginArray();
     Gson gson=new Gson();
-    JsonObject json=gson.fromJson(jsonReader,JsonObject.class);
-    JsonElement nameEl=json.get("name");
-    if (nameEl == null || !nameEl.isJsonPrimitive()) {
-      return Optional.absent();
+    for (int i=0; i < 4; i++) {
+      if (jsonReader.peek().equals(JsonToken.END_ARRAY)) {
+        break;
+      }
+      JsonObject json=gson.fromJson(jsonReader,JsonObject.class);
+      Optional<String> command=tryToFindCommand(json);
+      if (command.isPresent()) {
+        return command;
+      }
     }
-    JsonElement argsEl=json.get("args");
-    if (argsEl == null || !argsEl.isJsonObject() || argsEl.getAsJsonObject().get("command_args") == null || !argsEl.getAsJsonObject().get("command_args").isJsonPrimitive()) {
-      return Optional.absent();
-    }
-    String name=nameEl.getAsString();
-    String commandArgs=argsEl.getAsJsonObject().get("command_args").getAsString();
-    String command="buck " + name + " "+ commandArgs;
-    return Optional.of(command);
+    return Optional.absent();
   }
  catch (  IOException e) {
-    throw new RuntimeException(e);
+    logger.error(e);
+    return Optional.absent();
   }
 }
