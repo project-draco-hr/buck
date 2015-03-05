@@ -16,17 +16,25 @@
   buildInfoRecorder.addMetadata(CachingBuildEngine.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,TestAbstractCachingBuildRule.ABI_KEY_FOR_DEPS_HASH);
   buildInfoRecorder.writeMetadataToDisk(true);
   buildInfoRecorder.performUploadToArtifactCache(artifactCache,buckEventBus);
+  expectLastCall().andAnswer(new IAnswer<Object>(){
+    @Override public Object answer() throws Throwable {
+      Thread.sleep(500);
+      return null;
+    }
+  }
+);
+  ListeningExecutorService service=listeningDecorator(Executors.newFixedThreadPool(2));
   expect(buildContext.createOnDiskBuildInfoFor(buildTarget)).andReturn(onDiskBuildInfo);
-  expect(buildContext.getStepRunner()).andReturn(createSameThreadStepRunner());
+  expect(buildContext.getStepRunner()).andReturn(createStepRunner(service,null));
   expect(buildContext.getEventBus()).andReturn(buckEventBus).anyTimes();
   replayAll();
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine();
   ListenableFuture<BuildRuleSuccess> result=cachingBuildEngine.build(buildContext,buildRule);
-  buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
   BuildRuleSuccess success=result.get();
   assertEquals(BuildRuleSuccess.Type.BUILT_LOCALLY,success.getType());
+  assertTrue(service.shutdownNow().isEmpty());
   List<BuckEvent> events=listener.getEvents();
-  assertEquals(events.get(0),configureTestEvent(BuildRuleEvent.started(buildRule),buckEventBus));
-  assertEquals(events.get(1),configureTestEvent(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.MISS,Optional.of(BuildRuleSuccess.Type.BUILT_LOCALLY)),buckEventBus));
+  assertEquals(configureTestEvent(BuildRuleEvent.started(buildRule),buckEventBus).getEventName(),events.get(0).getEventName());
+  assertEquals(configureTestEvent(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.MISS,Optional.of(BuildRuleSuccess.Type.BUILT_LOCALLY)),buckEventBus).getEventName(),events.get(1).getEventName());
   verifyAll();
 }

@@ -13,6 +13,7 @@
   projectFilesystem.writeContentsToPath(anyObject(String.class),anyObject(Path.class));
   projectFilesystem.writeContentsToPath(anyObject(String.class),anyObject(Path.class));
   ArtifactCache artifactCache=createMock(ArtifactCache.class);
+  expect(artifactCache.isStoreSupported()).andReturn(false);
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   StepRunner stepRunner=createSameThreadStepRunner(buckEventBus);
   BuildContext buildContext=ImmutableBuildContext.builder().setActionGraph(RuleMap.createGraphFromSingleRule(buildRule)).setStepRunner(stepRunner).setProjectFilesystem(projectFilesystem).setClock(new DefaultClock()).setBuildId(new BuildId()).setArtifactCache(artifactCache).setJavaPackageFinder(createMock(JavaPackageFinder.class)).setEventBus(buckEventBus).build();
@@ -21,8 +22,6 @@
   ListenableFuture<BuildRuleSuccess> result=cachingBuildEngine.build(buildContext,buildRule);
   buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
   verifyAll();
-  result.get();
-  assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(result));
   BuildRuleSuccess success=result.get();
   assertEquals(BuildRuleSuccess.Type.BUILT_LOCALLY,success.getType());
   assertTrue(((BuildableAbstractCachingBuildRule)buildRule).isInitializedFromDisk());
