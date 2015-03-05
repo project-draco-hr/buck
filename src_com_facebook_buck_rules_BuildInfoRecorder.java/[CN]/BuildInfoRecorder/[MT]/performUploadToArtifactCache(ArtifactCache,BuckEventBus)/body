@@ -17,6 +17,7 @@
     throw new RuntimeException(e);
   }
   ImmutableSet<Path> pathsToIncludeInZip=pathsToIncludeInZipBuilder.build();
+  eventBus.post(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.COMPRESS,ruleKey));
   File zip;
   try {
     zip=File.createTempFile(MoreFiles.sanitize(buildTarget.getFullyQualifiedName()),".zip");
@@ -28,6 +29,9 @@
     eventBus.post(ConsoleEvent.info("Failed to create zip for %s containing:\n%s",buildTarget,Joiner.on('\n').join(ImmutableSortedSet.copyOf(pathsToIncludeInZip))));
     e.printStackTrace();
     return;
+  }
+ finally {
+    eventBus.post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.COMPRESS,ruleKey));
   }
   artifactCache.store(ruleKey,zip);
   zip.delete();

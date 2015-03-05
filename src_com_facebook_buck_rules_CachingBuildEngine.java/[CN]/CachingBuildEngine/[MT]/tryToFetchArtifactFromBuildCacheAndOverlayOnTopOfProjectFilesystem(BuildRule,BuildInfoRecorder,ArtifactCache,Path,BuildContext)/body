@@ -11,13 +11,17 @@
     zipFile.delete();
     return cacheResult;
   }
+  buildContext.getEventBus().post(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.DECOMPRESS,rule.getRuleKey()));
   try {
     Unzip.extractZipFile(zipFile.toPath().toAbsolutePath(),projectRoot.toAbsolutePath(),true);
+    Files.delete(zipFile.toPath());
   }
  catch (  IOException e) {
     buildContext.getEventBus().post(ConsoleEvent.warning("Failed to unzip the artifact for %s at %s.\n" + "The rule will be built locally, " + "but here is the stacktrace of the failed unzip call:\n"+ rule.getBuildTarget(),zipFile.getAbsolutePath(),Throwables.getStackTraceAsString(e)));
     return CacheResult.MISS;
   }
-  zipFile.delete();
+ finally {
+    buildContext.getEventBus().post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.DECOMPRESS,rule.getRuleKey()));
+  }
   return cacheResult;
 }
