@@ -11,27 +11,27 @@
  catch (  Repository.MissingBuildFileException e) {
     throw new HumanReadableException(e);
   }
-  BuildTarget unflavored=buildTarget.getUnflavoredTarget();
+  UnflavoredBuildTarget unflavored=buildTarget.getUnflavoredBuildTarget();
   List<Map<String,Object>> rules=state.getRawRules(buildFilePath);
   for (  Map<String,Object> map : rules) {
     if (!buildTarget.getShortName().equals(map.get("name"))) {
       continue;
     }
     BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(map);
-    targetsToFile.put(unflavored,normalize(Paths.get((String)map.get("buck.base_path"))).resolve(buildFileName).toAbsolutePath());
+    targetsToFile.put(BuildTarget.of(unflavored),normalize(Paths.get((String)map.get("buck.base_path"))).resolve(buildFileName).toAbsolutePath());
     Description<?> description=repository.getDescription(buildRuleType);
     if (description == null) {
-      throw new HumanReadableException("Unrecognized rule %s while parsing %s%s.",buildRuleType,BuildTarget.BUILD_TARGET_PREFIX,unflavored.getBasePath().resolve(buildFileName));
+      throw new HumanReadableException("Unrecognized rule %s while parsing %s%s.",buildRuleType,UnflavoredBuildTarget.BUILD_TARGET_PREFIX,unflavored.getBasePath().resolve(buildFileName));
     }
     if (buildTarget.isFlavored()) {
       if (description instanceof Flavored) {
         if (!((Flavored)description).hasFlavors(ImmutableSet.copyOf(buildTarget.getFlavors()))) {
-          throw new HumanReadableException("Unrecognized flavor in target %s while parsing %s%s.",buildTarget,BuildTarget.BUILD_TARGET_PREFIX,buildTarget.getBasePath().resolve(buildFileName));
+          throw new HumanReadableException("Unrecognized flavor in target %s while parsing %s%s.",buildTarget,UnflavoredBuildTarget.BUILD_TARGET_PREFIX,buildTarget.getBasePath().resolve(buildFileName));
         }
       }
  else {
-        LOG.warn("Target %s (type %s) must implement the Flavored interface " + "before we can check if it supports flavors: %s",buildTarget.getUnflavoredTarget(),buildRuleType,buildTarget.getFlavors());
-        throw new HumanReadableException("Target %s (type %s) does not currently support flavors (tried %s)",buildTarget.getUnflavoredTarget(),buildRuleType,buildTarget.getFlavors());
+        LOG.warn("Target %s (type %s) must implement the Flavored interface " + "before we can check if it supports flavors: %s",buildTarget.getUnflavoredBuildTarget(),buildRuleType,buildTarget.getFlavors());
+        throw new HumanReadableException("Target %s (type %s) does not currently support flavors (tried %s)",buildTarget.getUnflavoredBuildTarget(),buildRuleType,buildTarget.getFlavors());
       }
     }
     this.pathsToBuildTargets.put(buildFilePath,buildTarget);

@@ -1,6 +1,6 @@
 {
   SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
-  BuildTarget originalBuildTarget=originalBuildRuleParams.getBuildTarget();
+  UnflavoredBuildTarget originalBuildTarget=originalBuildRuleParams.getBuildTarget().checkUnflavored();
   BuildRuleParams unzipAarParams=originalBuildRuleParams.copyWithChanges(UNZIP_AAR_TYPE,BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_UNZIP_FLAVOR),Suppliers.ofInstance(originalBuildRuleParams.getDeclaredDeps()),Suppliers.ofInstance(originalBuildRuleParams.getExtraDeps()));
   UnzipAar unzipAar=new UnzipAar(unzipAarParams,pathResolver,aarFile);
   ruleResolver.addToIndex(unzipAar);
@@ -18,6 +18,6 @@
   ImmutableSortedSet<Path> assetsSrcs=ImmutableSortedSet.of();
   AndroidResource androidResource=new AndroidResource(androidResourceParams,pathResolver,ImmutableSortedSet.<BuildRule>of(unzipAar),unzipAar.getResDirectory(),resSrcs,null,unzipAar.getAssetsDirectory(),assetsSrcs,new BuildTargetSourcePath(manifest.getProjectFilesystem(),manifest.getBuildTarget()),false);
   ruleResolver.addToIndex(androidResource);
-  BuildRuleParams androidLibraryParams=originalBuildRuleParams.copyWithChanges(AndroidLibraryDescription.TYPE,originalBuildTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(androidResource,prebuiltJar,unzipAar)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  BuildRuleParams androidLibraryParams=originalBuildRuleParams.copyWithChanges(AndroidLibraryDescription.TYPE,BuildTarget.of(originalBuildTarget),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(androidResource,prebuiltJar,unzipAar)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   return new AndroidPrebuiltAar(androidLibraryParams,pathResolver,unzipAar.getProguardConfig(),unzipAar.getNativeLibsDirectory(),prebuiltJar,androidResource,javacOptions);
 }
