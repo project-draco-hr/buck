@@ -1,14 +1,18 @@
 {
   Path root=Files.createTempDirectory("root");
-  FakeProjectFilesystem projectFilesystem=new FakeProjectFilesystem(root.toFile());
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem(root.toFile());
   Path temp=Files.createTempFile(root,"example","file");
   temp.toFile().deleteOnExit();
+  FileHashCache hashCache=new DefaultFileHashCache(filesystem);
+  RuleKeyBuilderFactory ruleKeyFactory=new DefaultRuleKeyBuilderFactory(hashCache);
   Files.write(temp,"I like cheese".getBytes(UTF_8));
   ExportFileBuilder builder=ExportFileBuilder.newExportFileBuilder(BuildTargetFactory.newInstance("//some:file")).setSrc(new TestSourcePath(MorePaths.relativize(root,temp).toString()));
-  ExportFile rule=(ExportFile)builder.build(new BuildRuleResolver(),projectFilesystem);
-  RuleKey original=rule.getRuleKey();
+  ExportFile rule=(ExportFile)builder.build(new BuildRuleResolver(),filesystem);
+  RuleKey original=ruleKeyFactory.newInstance(rule,new SourcePathResolver(new BuildRuleResolver())).build().getTotalRuleKey();
   Files.write(temp,"I really like cheese".getBytes(UTF_8));
-  rule=(ExportFile)builder.build(new BuildRuleResolver(),projectFilesystem);
-  RuleKey refreshed=rule.getRuleKey();
+  rule=(ExportFile)builder.build(new BuildRuleResolver(),filesystem);
+  hashCache=new DefaultFileHashCache(filesystem);
+  ruleKeyFactory=new DefaultRuleKeyBuilderFactory(hashCache);
+  RuleKey refreshed=ruleKeyFactory.newInstance(rule,new SourcePathResolver(new BuildRuleResolver())).build().getTotalRuleKey();
   assertNotEquals(original,refreshed);
 }
