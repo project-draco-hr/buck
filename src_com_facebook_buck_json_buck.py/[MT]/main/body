@@ -7,13 +7,16 @@ def main():
     parser.add_option('--allow_empty_globs', action='store_true', dest='allow_empty_globs', help='Tells the parser not to raise an error when glob returns no results.')
     parser.add_option('--include', action='append', dest='include')
     (options, args) = parser.parse_args()
+    options.project_root = cygwin_adjusted_path(options.project_root)
     project_root = os.path.abspath(options.project_root)
     buildFileProcessor = BuildFileProcessor(project_root, options.build_file_name, options.allow_empty_globs, implicit_includes=(options.include or []))
     for build_file in args:
+        build_file = cygwin_adjusted_path(build_file)
         values = buildFileProcessor.process(build_file)
         to_parent.write(json.dumps(values))
         to_parent.flush()
     for build_file in iter(sys.stdin.readline, ''):
+        build_file = cygwin_adjusted_path(build_file)
         values = buildFileProcessor.process(build_file.rstrip())
         to_parent.write(json.dumps(values))
         to_parent.flush()
