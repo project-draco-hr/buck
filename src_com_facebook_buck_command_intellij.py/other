@@ -6,7 +6,7 @@ import sys
 from collections import defaultdict
 MODULE_XML_START = '<?xml version="1.0" encoding="UTF-8"?>\n<module type="%(type)s" version="4">'
 MODULE_XML_END = '\n</module>\n'
-ANDROID_FACET = '\n  <component name="FacetManager">\n    <facet type="android" name="Android">\n      <configuration>\n        <option name="GEN_FOLDER_RELATIVE_PATH_APT" value="%(module_gen_path)s" />\n        <option name="GEN_FOLDER_RELATIVE_PATH_AIDL" value="%(module_gen_path)s" />\n        <option name="MANIFEST_FILE_RELATIVE_PATH" value="%(android_manifest)s" />\n        <option name="RES_FOLDER_RELATIVE_PATH" value="%(res)s" />\n        <option name="ASSETS_FOLDER_RELATIVE_PATH" value="/assets" />\n        <option name="LIBS_FOLDER_RELATIVE_PATH" value="%(libs_path)s" />\n        <option name="USE_CUSTOM_APK_RESOURCE_FOLDER" value="false" />\n        <option name="CUSTOM_APK_RESOURCE_FOLDER" value="" />\n        <option name="USE_CUSTOM_COMPILER_MANIFEST" value="false" />\n        <option name="CUSTOM_COMPILER_MANIFEST" value="" />\n        <option name="APK_PATH" value="" />\n        <option name="LIBRARY_PROJECT" value="%(is_android_library_project)s" />\n        <option name="RUN_PROCESS_RESOURCES_MAVEN_TASK" value="true" />\n        <option name="GENERATE_UNSIGNED_APK" value="false" />\n        <option name="CUSTOM_DEBUG_KEYSTORE_PATH" value="%(keystore)s" />\n        <option name="PACK_TEST_CODE" value="false" />\n        <option name="RUN_PROGUARD" value="%(run_proguard)s" />\n        <option name="PROGUARD_CFG_PATH" value="%(proguard_config)s" />\n        <resOverlayFolders />\n        <includeSystemProguardFile>false</includeSystemProguardFile>\n        <includeAssetsFromLibraries>true</includeAssetsFromLibraries>\n        <additionalNativeLibs />\n      </configuration>\n    </facet>\n  </component>'
+ANDROID_FACET = '\n  <component name="FacetManager">\n    <facet type="android" name="Android">\n      <configuration>\n        <option name="ENABLE_SOURCES_AUTOGENERATION" value="%(enable_sources_autogeneration)s" />\n        <option name="GEN_FOLDER_RELATIVE_PATH_APT" value="%(module_gen_path)s" />\n        <option name="GEN_FOLDER_RELATIVE_PATH_AIDL" value="%(module_gen_path)s" />\n        <option name="MANIFEST_FILE_RELATIVE_PATH" value="%(android_manifest)s" />\n        <option name="RES_FOLDER_RELATIVE_PATH" value="%(res)s" />\n        <option name="ASSETS_FOLDER_RELATIVE_PATH" value="/assets" />\n        <option name="LIBS_FOLDER_RELATIVE_PATH" value="%(libs_path)s" />\n        <option name="USE_CUSTOM_APK_RESOURCE_FOLDER" value="false" />\n        <option name="CUSTOM_APK_RESOURCE_FOLDER" value="" />\n        <option name="USE_CUSTOM_COMPILER_MANIFEST" value="false" />\n        <option name="CUSTOM_COMPILER_MANIFEST" value="" />\n        <option name="APK_PATH" value="" />\n        <option name="LIBRARY_PROJECT" value="%(is_android_library_project)s" />\n        <option name="RUN_PROCESS_RESOURCES_MAVEN_TASK" value="true" />\n        <option name="GENERATE_UNSIGNED_APK" value="false" />\n        <option name="CUSTOM_DEBUG_KEYSTORE_PATH" value="%(keystore)s" />\n        <option name="PACK_TEST_CODE" value="false" />\n        <option name="RUN_PROGUARD" value="%(run_proguard)s" />\n        <option name="PROGUARD_CFG_PATH" value="%(proguard_config)s" />\n        <resOverlayFolders />\n        <includeSystemProguardFile>false</includeSystemProguardFile>\n        <includeAssetsFromLibraries>true</includeAssetsFromLibraries>\n        <additionalNativeLibs />\n      </configuration>\n    </facet>\n  </component>'
 ALL_MODULES_XML_START = '<?xml version="1.0" encoding="UTF-8"?>\n<project version="4">\n  <component name="ProjectModuleManager">\n    <modules>'
 ALL_MODULES_XML_END = '\n    </modules>\n  </component>\n</project>\n'
 LIBRARY_XML_START = '<component name="libraryTable">\n  <library name="%(name)s">\n    <CLASSES>\n      <root url="jar://$PROJECT_DIR$/%(binary_jar)s!/" />\n    </CLASSES>'
@@ -24,13 +24,17 @@ CONTAINS_IML_MARKER = '/*contains_iml*/'
 if (__name__ == '__main__'):
     json_file = sys.argv[1]
     generate_minimum_project = False
-    if (len(sys.argv) == 3):
-        generate_minimum_project = (sys.argv[2] == '--generate_minimum_project')
+    android_auto_generation_enabled = False
+    for key in sys.argv[2:]:
+        if (key == '--generate_minimum_project'):
+            generate_minimum_project = True
+        if (key == '--enable_android_auto_generation'):
+            android_auto_generation_enabled = True
     parsed_json = json.load(open(json_file, 'r'))
     libraries = parsed_json['libraries']
     write_libraries(libraries)
     modules = parsed_json['modules']
-    write_modules(modules, generate_minimum_project)
+    write_modules(modules, generate_minimum_project, android_auto_generation_enabled)
     write_all_modules(modules)
     write_run_configs()
     for path in MODIFIED_FILES:
