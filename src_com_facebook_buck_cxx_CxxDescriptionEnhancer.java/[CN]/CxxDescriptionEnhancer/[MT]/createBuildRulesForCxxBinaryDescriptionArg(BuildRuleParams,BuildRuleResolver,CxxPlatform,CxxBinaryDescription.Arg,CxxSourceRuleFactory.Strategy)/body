@@ -1,0 +1,16 @@
+{
+  ImmutableMap<String,CxxSource> srcs=parseCxxSources(params,resolver,args);
+  ImmutableMap<Path,SourcePath> headers=parseHeaders(params,resolver,args);
+  ImmutableMap<String,SourcePath> lexSrcs=parseLexSources(params,resolver,args);
+  ImmutableMap<String,SourcePath> yaccSrcs=parseYaccSources(params,resolver,args);
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
+  CxxHeaderSourceSpec lexYaccSources=requireLexYaccSources(params,resolver,sourcePathResolver,cxxPlatform,lexSrcs,yaccSrcs);
+  SymlinkTree headerSymlinkTree=requireHeaderSymlinkTree(params,resolver,sourcePathResolver,cxxPlatform,true,lexSrcs,yaccSrcs,headers,HeaderVisibility.PRIVATE);
+  CxxPreprocessorInput cxxPreprocessorInput=combineCxxPreprocessorInput(params,cxxPlatform,CxxPreprocessorFlags.fromArgs(args.preprocessorFlags,args.langPreprocessorFlags),args.prefixHeaders.get(),ImmutableList.of(headerSymlinkTree),args.frameworkSearchPaths.get());
+  ImmutableMap<String,CxxSource> sources=ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build();
+  ImmutableList<SourcePath> objects=CxxSourceRuleFactory.createPreprocessAndCompileRules(params,resolver,sourcePathResolver,cxxPlatform,cxxPreprocessorInput,args.compilerFlags.or(ImmutableList.<String>of()),compileStrategy,sources,CxxSourceRuleFactory.PicType.PDC);
+  Path output=getOutputPath(params.getBuildTarget());
+  CxxLink cxxLink=CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,sourcePathResolver,ImmutableList.<String>of(),ImmutableList.<String>builder().addAll(args.linkerFlags.or(ImmutableList.<String>of())).addAll(CxxDescriptionEnhancer.getPlatformFlags(args.platformLinkerFlags.get(),cxxPlatform.getFlavor().toString())).build(),createCxxLinkTarget(params.getBuildTarget()),Linker.LinkType.EXECUTABLE,Optional.<String>absent(),output,objects,Linker.LinkableDepType.STATIC,params.getDeps());
+  resolver.addToIndex(cxxLink);
+  return cxxLink;
+}

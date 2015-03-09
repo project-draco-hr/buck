@@ -1,0 +1,17 @@
+{
+  Path original=Paths.get("buck-out/foo#bar/world.h");
+  ImmutableMap<Path,Path> replacementPaths=ImmutableMap.of(original,Paths.get("hello/////world.h"));
+  Path finalPath=Paths.get("SANITIZED/world.h");
+  ImmutableList<String> compiler=ImmutableList.of("compiler");
+  ImmutableList<String> flags=ImmutableList.of("-Dtest=blah");
+  Path output=Paths.get("test.ii");
+  Path input=Paths.get("test.cpp");
+  Path compilationDirectory=Paths.get("compDir");
+  DebugPathSanitizer sanitizer=new DebugPathSanitizer(9,File.separatorChar,"PWD",ImmutableBiMap.of(Paths.get("hello"),"SANITIZED"));
+  CxxPreprocessAndCompileStep cxxPreprocessStep=new CxxPreprocessAndCompileStep(compiler,CxxPreprocessAndCompileStep.Operation.PREPROCESS,flags,output,input,replacementPaths,Optional.of(sanitizer));
+  Function<String,String> processor=cxxPreprocessStep.createPreprocessOutputLineProcessor(compilationDirectory);
+  assertEquals(String.format("# 12 \"%s\"",finalPath),processor.apply(String.format("# 12 \"%s\"",original)));
+  assertEquals(String.format("# 12 \"%s\" 2 1",finalPath),processor.apply(String.format("# 12 \"%s\" 2 1",original)));
+  assertEquals("# 4 \"test.h\"",processor.apply("# 4 \"test.h\""));
+  assertEquals("int main() {",processor.apply("int main() {"));
+}

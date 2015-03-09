@@ -1,0 +1,56 @@
+{
+  LOG.debug("%s %s -> %s",operation.toString().toLowerCase(),input,output);
+  ProcessBuilder builder=new ProcessBuilder();
+  builder.command(getCommand());
+  builder.directory(context.getProjectDirectoryRoot().toAbsolutePath().toFile());
+  builder.redirectError(ProcessBuilder.Redirect.PIPE);
+  if (operation == Operation.PREPROCESS) {
+    builder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+  }
+  if (operation == Operation.COMPILE && sanitizer.isPresent()) {
+    builder.environment().put("PWD",sanitizer.get().getExpandedPath(context.getProjectDirectoryRoot().toAbsolutePath()));
+  }
+  try {
+    LOG.debug("Running command (pwd=%s): %s",builder.directory(),Joiner.on(' ').join(Iterables.transform(builder.command(),Escaper.BASH_ESCAPER)));
+    Process process=builder.start();
+    ByteArrayOutputStream error=new ByteArrayOutputStream();
+    int exitCode;
+    try {
+      try (FunctionLineProcessorThread errorProcessor=new FunctionLineProcessorThread(process.getErrorStream(),error,createErrorLineProcessor(context.getProjectDirectoryRoot()))){
+        errorProcessor.start();
+        if (operation == Operation.PREPROCESS) {
+          try (OutputStream output=context.getProjectFilesystem().newFileOutputStream(this.output);FunctionLineProcessorThread outputProcessor=new FunctionLineProcessorThread(process.getInputStream(),output,createPreprocessOutputLineProcessor(context.getProjectDirectoryRoot()))){
+            outputProcessor.start();
+          }
+         }
+      }
+       exitCode=process.waitFor();
+    }
+  finally {
+      process.destroy();
+      process.waitFor();
+    }
+    String err=new String(error.toByteArray());
+    if (!err.isEmpty()) {
+      context.getConsole().printErrorText(err);
+    }
+    if (exitCode == 0 && operation == Operation.COMPILE && sanitizer.isPresent()) {
+      try {
+        sanitizer.get().restoreCompilationDirectory(context.getProjectDirectoryRoot().toAbsolutePath().resolve(output),context.getProjectDirectoryRoot().toAbsolutePath());
+      }
+ catch (      IOException e) {
+        context.logError(e,"error updating compilation directory");
+        return 1;
+      }
+    }
+    if (exitCode != 0) {
+      LOG.warn("error %d %s %s: %s",exitCode,operation.toString().toLowerCase(),input,err);
+    }
+    return exitCode;
+  }
+ catch (  Exception e) {
+    MoreThrowables.propagateIfInterrupt(e);
+    context.getConsole().printBuildFailureWithStacktrace(e);
+    return 1;
+  }
+}

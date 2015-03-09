@@ -3,12 +3,14 @@
   BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
   BuildRuleResolver resolver=new BuildRuleResolver();
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  CxxPreprocessorInput cxxPreprocessorInput=CxxPreprocessorInput.EMPTY;
-  String name="source.cpp";
-  CxxSource cxxSource=ImmutableCxxSource.of(CxxSource.Type.CXX,new TestSourcePath(name),ImmutableList.<String>of());
   ImmutableList<String> platformFlags=ImmutableList.of("-some","-flags");
   CxxPlatform platform=DefaultCxxPlatforms.build(new FakeBuckConfig(ImmutableMap.<String,Map<String,String>>of("cxx",ImmutableMap.of("cxxppflags",Joiner.on(" ").join(platformFlags)))));
-  Map.Entry<String,CxxSource> output=CxxSourceRuleFactory.createPreprocessBuildRule(params,resolver,platform,cxxPreprocessorInput,false,name,cxxSource);
-  CxxPreprocess cxxPreprocess=(CxxPreprocess)pathResolver.getRule(output.getValue().getPath()).get();
+  CxxPreprocessorInput cxxPreprocessorInput=CxxPreprocessorInput.EMPTY;
+  CxxSourceRuleFactory cxxSourceRuleFactory=new CxxSourceRuleFactory(params,resolver,pathResolver,platform,cxxPreprocessorInput,ImmutableList.<String>of());
+  String name="source.cpp";
+  CxxSource cxxSource=ImmutableCxxSource.of(CxxSource.Type.CXX,new TestSourcePath(name),ImmutableList.<String>of());
+  CxxPreprocessAndCompile cxxPreprocess=cxxSourceRuleFactory.createPreprocessBuildRule(name,cxxSource,CxxSourceRuleFactory.PicType.PDC);
   assertNotEquals(-1,Collections.indexOfSubList(cxxPreprocess.getFlags(),platformFlags));
+  CxxPreprocessAndCompile cxxPreprocessAndCompile=cxxSourceRuleFactory.createPreprocessAndCompileBuildRule(name,cxxSource,CxxSourceRuleFactory.PicType.PDC);
+  assertNotEquals(-1,Collections.indexOfSubList(cxxPreprocessAndCompile.getFlags(),platformFlags));
 }

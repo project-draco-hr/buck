@@ -1,0 +1,26 @@
+{
+  BuildRuleResolver buildRuleResolver=new BuildRuleResolver();
+  BuildTarget target=BuildTargetFactory.newInstance("//:target");
+  BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
+  ProjectFilesystem filesystem=new AllExistingProjectFilesystem();
+  ImmutableList<String> explicitCompilerFlags=ImmutableList.of("-fobjc-arc");
+  FakeBuckConfig buckConfig=new FakeBuckConfig(filesystem);
+  CxxPlatform platform=DefaultCxxPlatforms.build(buckConfig);
+  CxxSourceRuleFactory cxxSourceRuleFactory=new CxxSourceRuleFactory(params,buildRuleResolver,new SourcePathResolver(buildRuleResolver),platform,CxxPreprocessorInput.EMPTY,explicitCompilerFlags);
+  String objcSourceName="test.mi";
+  CxxSource objcSource=ImmutableCxxSource.of(CxxSource.Type.OBJC_CPP_OUTPUT,new TestSourcePath(objcSourceName),ImmutableList.<String>of());
+  CxxPreprocessAndCompile objcCompile=cxxSourceRuleFactory.createCompileBuildRule(objcSourceName,objcSource,CxxSourceRuleFactory.PicType.PDC);
+  assertContains(objcCompile.getFlags(),explicitCompilerFlags);
+  objcSourceName="test.m";
+  objcSource=ImmutableCxxSource.of(CxxSource.Type.OBJC,new TestSourcePath(objcSourceName),ImmutableList.<String>of());
+  CxxPreprocessAndCompile objcPreprocessAndCompile=cxxSourceRuleFactory.createPreprocessAndCompileBuildRule(objcSourceName,objcSource,CxxSourceRuleFactory.PicType.PDC);
+  assertContains(objcPreprocessAndCompile.getFlags(),explicitCompilerFlags);
+  String objcxxSourceName="test.mii";
+  CxxSource objcxxSource=ImmutableCxxSource.of(CxxSource.Type.OBJCXX_CPP_OUTPUT,new TestSourcePath(objcxxSourceName),ImmutableList.<String>of());
+  CxxPreprocessAndCompile objcxxCompile=cxxSourceRuleFactory.createCompileBuildRule(objcxxSourceName,objcxxSource,CxxSourceRuleFactory.PicType.PDC);
+  assertContains(objcxxCompile.getFlags(),explicitCompilerFlags);
+  objcxxSourceName="test.mm";
+  objcxxSource=ImmutableCxxSource.of(CxxSource.Type.OBJCXX,new TestSourcePath(objcxxSourceName),ImmutableList.<String>of());
+  CxxPreprocessAndCompile objcxxPreprocessAndCompile=cxxSourceRuleFactory.createPreprocessAndCompileBuildRule(objcxxSourceName,objcxxSource,CxxSourceRuleFactory.PicType.PDC);
+  assertContains(objcxxPreprocessAndCompile.getFlags(),explicitCompilerFlags);
+}

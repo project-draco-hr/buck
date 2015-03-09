@@ -1,0 +1,28 @@
+{
+  Path original=Paths.get("buck-out/foo#bar/world.h");
+  Path replacement=Paths.get("hello/world.h");
+  ImmutableList<String> compiler=ImmutableList.of("compiler");
+  ImmutableList<String> flags=ImmutableList.of("-Dtest=blah");
+  Path output=Paths.get("test.ii");
+  Path input=Paths.get("test.cpp");
+  ImmutableMap<Path,Path> replacementPaths=ImmutableMap.of(original,replacement);
+  Path compilationDirectory=Paths.get("compDir");
+  Path sanitizedDir=Paths.get("hello");
+  Path unsanitizedDir=Paths.get("buck-out/foo#bar");
+  DebugPathSanitizer sanitizer=new DebugPathSanitizer(unsanitizedDir.toString().length(),File.separatorChar,compilationDirectory,ImmutableBiMap.of(unsanitizedDir,sanitizedDir));
+  CxxPreprocessAndCompileStep cxxPreprocessStep=new CxxPreprocessAndCompileStep(compiler,CxxPreprocessAndCompileStep.Operation.COMPILE,flags,output,input,replacementPaths,Optional.of(sanitizer));
+  Function<String,String> processor=cxxPreprocessStep.createErrorLineProcessor(compilationDirectory);
+  assertEquals(String.format("In file included from %s:",replacement),processor.apply(String.format("In file included from %s:",original)));
+  assertEquals(String.format("In file included from %s:3:2:",replacement),processor.apply(String.format("In file included from %s:3:2:",original)));
+  assertEquals(String.format("In file included from %s,",replacement),processor.apply(String.format("In file included from %s,",original)));
+  assertEquals(String.format("In file included from %s:7,",replacement),processor.apply(String.format("In file included from %s:7,",original)));
+  assertEquals(String.format("   from %s:",replacement),processor.apply(String.format("   from %s:",original)));
+  assertEquals(String.format("   from %s:3:2:",replacement),processor.apply(String.format("   from %s:3:2:",original)));
+  assertEquals(String.format("   from %s,",replacement),processor.apply(String.format("   from %s,",original)));
+  assertEquals(String.format("   from %s:7,",replacement),processor.apply(String.format("   from %s:7,",original)));
+  assertEquals(String.format("%s: something bad",replacement),processor.apply(String.format("%s: something bad",original)));
+  assertEquals(String.format("%s:4: something bad",replacement),processor.apply(String.format("%s:4: something bad",original)));
+  assertEquals(String.format("%s:4:2: something bad",replacement),processor.apply(String.format("%s:4:2: something bad",original)));
+  assertEquals("In file included from test.h:",processor.apply("In file included from test.h:"));
+  assertEquals(" error message!",processor.apply(" error message!"));
+}
