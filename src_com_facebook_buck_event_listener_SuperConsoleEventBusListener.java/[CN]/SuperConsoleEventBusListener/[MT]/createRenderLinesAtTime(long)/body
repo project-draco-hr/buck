@@ -5,11 +5,20 @@
   }
   long parseTime=logEventPair("PROCESSING BUCK FILES",Optional.<String>absent(),currentTimeMillis,0L,parseStarted,actionGraphFinished,lines);
   if (parseTime != UNFINISHED_EVENT_PAIR) {
-    Optional<String> suffix=Optional.absent();
+    String jobsCount=null;
     if (ruleCount.isPresent()) {
-      suffix=Optional.of(String.format("(%d/%d JOBS)",numRulesCompleted.get(),ruleCount.get()));
+      jobsCount=String.format("(%d/%d JOBS)",numRulesCompleted.get(),ruleCount.get());
     }
-    long buildTime=logEventPair("BUILDING",suffix,currentTimeMillis,parseTime,buildStarted,buildFinished,lines);
+    String buildTrace=null;
+    if (buildFinished != null && webServer.isPresent()) {
+      Optional<Integer> port=webServer.get().getPort();
+      if (port.isPresent()) {
+        buildTrace=String.format("Details: http://localhost:%s/trace/%s",port.get(),buildFinished.getBuildId());
+      }
+    }
+    String suffix=Joiner.on(" ").join(FluentIterable.of(new String[]{jobsCount,buildTrace}).filter(Predicates.notNull()));
+    Optional<String> suffixOptional=suffix.isEmpty() ? Optional.<String>absent() : Optional.of(suffix);
+    long buildTime=logEventPair("BUILDING",suffixOptional,currentTimeMillis,parseTime,buildStarted,buildFinished,lines);
     if (buildTime == UNFINISHED_EVENT_PAIR) {
       renderRules(currentTimeMillis,lines);
     }
