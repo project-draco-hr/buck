@@ -1,0 +1,14 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  FakeBuildRule dep=resolver.addToIndex(new FakeBuildRule("//:dep1",new SourcePathResolver(new BuildRuleResolver())));
+  CxxPreprocessorInput cxxPreprocessorInput=CxxPreprocessorInput.builder().addRules(dep.getBuildTarget()).build();
+  String name="foo/bar.cpp";
+  SourcePath input=new PathSourcePath(PROJECT_FILESYSTEM,target.getBasePath().resolve(name));
+  CxxSource cxxSource=ImmutableCxxSource.of(CxxSource.Type.CXX,input,ImmutableList.<String>of());
+  Map.Entry<String,CxxSource> entry=CxxSourceRuleFactory.createPreprocessBuildRule(params,resolver,CXX_PLATFORM,cxxPreprocessorInput,false,name,cxxSource);
+  BuildRule cxxPreprocess=pathResolver.getRule(entry.getValue().getPath()).get();
+  assertEquals(ImmutableSortedSet.<BuildRule>of(dep),cxxPreprocess.getDeps());
+}
