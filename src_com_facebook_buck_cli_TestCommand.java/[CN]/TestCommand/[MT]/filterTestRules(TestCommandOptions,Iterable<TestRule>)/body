@@ -5,19 +5,19 @@
     }
   }
 );
-  if (!options.shouldExcludeWin()) {
-    ImmutableSet<String> allTargets=options.getArgumentsFormattedAsBuildTargets();
-    for (    TestRule rule : testRules) {
-      if (allTargets.contains(rule.getBuildTarget().getFullyQualifiedName())) {
-        builder.add(rule);
-      }
+  ImmutableSet<String> allTargets=options.getArgumentsFormattedAsBuildTargets();
+  for (  TestRule rule : testRules) {
+    boolean explicitArgument=allTargets.contains(rule.getBuildTarget().getFullyQualifiedName());
+    boolean matchesLabel=options.isMatchedByLabelOptions(rule.getLabels());
+    if (options.shouldExcludeWin() && !matchesLabel) {
+      continue;
+    }
+    if (options.shouldExcludeTransitiveTests() && !explicitArgument) {
+      continue;
+    }
+    if (explicitArgument || matchesLabel) {
+      builder.add(rule);
     }
   }
-  builder.addAll(Iterables.filter(testRules,new Predicate<TestRule>(){
-    @Override public boolean apply(    TestRule rule){
-      return options.isMatchedByLabelOptions(rule.getLabels());
-    }
-  }
-));
   return builder.build();
 }
