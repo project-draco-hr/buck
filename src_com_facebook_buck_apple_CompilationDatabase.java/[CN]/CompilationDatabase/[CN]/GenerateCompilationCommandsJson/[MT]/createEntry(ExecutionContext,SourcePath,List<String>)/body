@@ -18,10 +18,12 @@
   commandArgs.add("-isysroot");
   Path sysroot=appleSdkPaths.getSdkPath();
   commandArgs.add(sysroot.toString());
-  String sdkRoot=appleSdkPaths.getSdkPath().toString();
-  for (  String framework : frameworks) {
-    framework=framework.replace("$SDKROOT",sdkRoot);
-    commandArgs.add("-F" + framework);
+  for (  FrameworkPath framework : frameworks) {
+    Optional<SourceTreePath> sourceTreePath=framework.getSourceTreePath();
+    if (!sourceTreePath.isPresent()) {
+      throw new HumanReadableException("Cannot add framework '%s' to compilation database:\nCompilation database " + "generation only supports source tree path framework references",framework.getSourcePath().get());
+    }
+    commandArgs.add("-F" + appleSdkPaths.resolve(sourceTreePath.get()));
   }
   for (  Path includePath : includePaths) {
     commandArgs.add("-I" + projectFilesystem.resolve(includePath));

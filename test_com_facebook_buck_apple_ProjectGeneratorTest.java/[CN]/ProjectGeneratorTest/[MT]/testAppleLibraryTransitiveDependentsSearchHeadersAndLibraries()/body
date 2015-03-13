@@ -1,11 +1,11 @@
 {
   ImmutableSortedMap<String,ImmutableMap<String,String>> configs=ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of());
   BuildTarget libraryDepTarget=BuildTarget.builder("//bar","lib").build();
-  TargetNode<?> libraryDepNode=AppleLibraryBuilder.createBuilder(libraryDepTarget).setConfigs(Optional.of(configs)).setSrcs(Optional.of(ImmutableList.of(SourceWithFlags.of(new TestSourcePath("foo.m"))))).setFrameworks(Optional.of(ImmutableSortedSet.of("$SDKROOT/Library.framework"))).build();
+  TargetNode<?> libraryDepNode=AppleLibraryBuilder.createBuilder(libraryDepTarget).setConfigs(Optional.of(configs)).setSrcs(Optional.of(ImmutableList.of(SourceWithFlags.of(new TestSourcePath("foo.m"))))).setFrameworks(Optional.of(ImmutableSortedSet.of(ImmutableFrameworkPath.ofSourceTreePath(new SourceTreePath(PBXReference.SourceTree.SDKROOT,Paths.get("Library.framework")))))).build();
   BuildTarget libraryTarget=BuildTarget.builder("//foo","lib").build();
-  TargetNode<?> libraryNode=AppleLibraryBuilder.createBuilder(libraryTarget).setConfigs(Optional.of(configs)).setSrcs(Optional.of(ImmutableList.of(SourceWithFlags.of(new TestSourcePath("foo.m"))))).setFrameworks(Optional.of(ImmutableSortedSet.of("$SDKROOT/Library.framework"))).setDeps(Optional.of(ImmutableSortedSet.of(libraryDepTarget))).build();
+  TargetNode<?> libraryNode=AppleLibraryBuilder.createBuilder(libraryTarget).setConfigs(Optional.of(configs)).setSrcs(Optional.of(ImmutableList.of(SourceWithFlags.of(new TestSourcePath("foo.m"))))).setFrameworks(Optional.of(ImmutableSortedSet.of(ImmutableFrameworkPath.ofSourceTreePath(new SourceTreePath(PBXReference.SourceTree.SDKROOT,Paths.get("Library.framework")))))).setDeps(Optional.of(ImmutableSortedSet.of(libraryDepTarget))).build();
   BuildTarget testTarget=BuildTarget.builder("//foo","xctest").build();
-  TargetNode<?> testNode=AppleTestBuilder.createBuilder(testTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.XCTEST)).setConfigs(Optional.of(configs)).setSrcs(Optional.of(ImmutableList.of(SourceWithFlags.of(new TestSourcePath("fooTest.m"))))).setFrameworks(Optional.of(ImmutableSortedSet.of("$SDKROOT/Test.framework"))).setDeps(Optional.of(ImmutableSortedSet.of(libraryTarget))).build();
+  TargetNode<?> testNode=AppleTestBuilder.createBuilder(testTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.XCTEST)).setConfigs(Optional.of(configs)).setSrcs(Optional.of(ImmutableList.of(SourceWithFlags.of(new TestSourcePath("fooTest.m"))))).setFrameworks(Optional.of(ImmutableSortedSet.of(ImmutableFrameworkPath.ofSourceTreePath(new SourceTreePath(PBXReference.SourceTree.SDKROOT,Paths.get("Test.framework")))))).setDeps(Optional.of(ImmutableSortedSet.of(libraryTarget))).build();
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(libraryDepNode,libraryNode,testNode),ImmutableSet.<ProjectGenerator.Option>of());
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:xctest");
@@ -13,5 +13,5 @@
   assertEquals("$(inherited) " + "$BUILT_PRODUCTS_DIR/F4XWEYLSHJWGSYQ/Headers " + "$BUILT_PRODUCTS_DIR/F4XWM33PHJWGSYQ/Headers",settings.get("HEADER_SEARCH_PATHS"));
   assertEquals("$(inherited) ",settings.get("USER_HEADER_SEARCH_PATHS"));
   assertEquals("$(inherited) " + "$BUILT_PRODUCTS_DIR/F4XWEYLSHJWGSYQ " + "$BUILT_PRODUCTS_DIR/F4XWM33PHJWGSYQ",settings.get("LIBRARY_SEARCH_PATHS"));
-  assertEquals("$(inherited) ",settings.get("FRAMEWORK_SEARCH_PATHS"));
+  assertEquals("$(inherited) " + "$SDKROOT",settings.get("FRAMEWORK_SEARCH_PATHS"));
 }

@@ -6,13 +6,18 @@
   }
   CxxLibraryDescription.Arg delegateArg=delegate.createUnpopulatedConstructorArg();
   CxxLibraryDescription.TypeAndPlatform typeAndPlatform=CxxLibraryDescription.getTypeAndPlatform(params.getBuildTarget(),cxxPlatformFlavorDomain);
-  Optional<AppleSdkPaths> appleSdkPaths=Optional.fromNullable(appleCxxPlatformsToAppleSdkPaths.get(typeAndPlatform.getPlatform()));
+  Optional<AppleSdkPaths> appleSdkPaths=Optionals.bind(typeAndPlatform.getPlatform(),new Function<Map.Entry<Flavor,CxxPlatform>,Optional<AppleSdkPaths>>(){
+    @Override public Optional<AppleSdkPaths> apply(    Map.Entry<Flavor,CxxPlatform> input){
+      return Optional.fromNullable(appleCxxPlatformsToAppleSdkPaths.get(input.getValue()));
+    }
+  }
+);
   ImmutableSet<SourcePath> publicHeaders=args.exportedHeaders.get();
   ImmutableSet<SourcePath> privateHeaders=args.headers.get();
   Sets.SetView<SourcePath> allHeaderPaths=Sets.union(publicHeaders,privateHeaders);
   Path headerPathPrefix=Paths.get(AppleDescriptions.getHeaderPathPrefix(args,params.getBuildTarget()));
   ImmutableMap<String,SourcePath> headerMap=ImmutableMap.<String,SourcePath>builder().putAll(AppleDescriptions.convertToFlatCxxHeaders(Paths.get(""),pathResolver,allHeaderPaths)).putAll(AppleDescriptions.convertToFlatCxxHeaders(headerPathPrefix,pathResolver,privateHeaders)).build();
-  AppleDescriptions.populateCxxConstructorArg(delegateArg,args,headerMap,appleSdkPaths);
+  AppleDescriptions.populateCxxConstructorArg(pathResolver,delegateArg,args,headerMap,appleSdkPaths);
   delegateArg.exportedHeaders=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofRight(AppleDescriptions.convertToFlatCxxHeaders(headerPathPrefix,pathResolver,publicHeaders)));
   delegateArg.exportedPreprocessorFlags=Optional.of(ImmutableList.<String>of());
   delegateArg.exportedLangPreprocessorFlags=Optional.of(ImmutableMap.<CxxSource.Type,ImmutableList<String>>of());
