@@ -1,0 +1,18 @@
+{
+  if (sourcePath instanceof PathSourcePath) {
+    return ((PathSourcePath)sourcePath).getRelativePath();
+  }
+  Preconditions.checkArgument(sourcePath instanceof BuildTargetSourcePath);
+  BuildTargetSourcePath buildTargetSourcePath=(BuildTargetSourcePath)sourcePath;
+  BuildTarget buildTarget=buildTargetSourcePath.getTarget();
+  TargetNode<?> node=Preconditions.checkNotNull(targetGraph.get(buildTarget));
+  Optional<TargetNode<ExportFileDescription.Arg>> exportFileNode=node.castArg(ExportFileDescription.Arg.class);
+  if (!exportFileNode.isPresent()) {
+    throw new HumanReadableException("Project generation only supports source paths that refer to paths or export_file " + "targets.\n" + "'%s' is a '%s' target.",node.getBuildTarget(),node.getType());
+  }
+  Optional<SourcePath> src=exportFileNode.get().getConstructorArg().src;
+  if (!src.isPresent()) {
+    return buildTarget.getBasePath().resolve(buildTarget.getShortNameAndFlavorPostfix());
+  }
+  return resolveSourcePath(src.get());
+}
