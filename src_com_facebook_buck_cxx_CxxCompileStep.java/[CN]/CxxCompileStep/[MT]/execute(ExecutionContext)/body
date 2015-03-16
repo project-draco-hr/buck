@@ -11,10 +11,15 @@
     LOG.debug("Running command (pwd=%s): %s",builder.directory(),Joiner.on(' ').join(Iterables.transform(builder.command(),Escaper.BASH_ESCAPER)));
     Process process=builder.start();
     ByteArrayOutputStream error=new ByteArrayOutputStream();
+    int exitCode;
     try (FunctionLineProcessorThread errorProcessor=new FunctionLineProcessorThread(process.getErrorStream(),error,createErrorLineProcessor(context.getProjectDirectoryRoot().toAbsolutePath()))){
       errorProcessor.start();
+      exitCode=process.waitFor();
     }
-     int exitCode=process.waitFor();
+  finally {
+      process.destroy();
+      process.waitFor();
+    }
     String err=new String(error.toByteArray());
     if (!err.isEmpty()) {
       context.getConsole().printErrorText(err);
@@ -31,13 +36,10 @@
         return 1;
       }
     }
-    LOG.warn("Error compiling %s: %s (%d)",input,err,exitCode);
     return exitCode;
   }
- catch (  InterruptedException|InterruptedIOException e) {
-    throw new InterruptedException();
-  }
-catch (  Exception e) {
+ catch (  Exception e) {
+    MoreThrowables.propagateIfInterrupt(e);
     context.getConsole().printBuildFailureWithStacktrace(e);
     return 1;
   }
