@@ -1,10 +1,17 @@
 {
   CxxPlatform cxxPlatform;
+  ImmutableSet<Flavor> flavors=ImmutableSet.copyOf(params.getBuildTarget().getFlavors());
   try {
-    cxxPlatform=cxxPlatforms.getValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors())).or(defaultCxxPlatform);
+    cxxPlatform=cxxPlatforms.getValue(flavors).or(defaultCxxPlatform);
   }
  catch (  FlavorDomainException e) {
     throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+  }
+  if (flavors.contains(CxxDescriptionEnhancer.HEADER_SYMLINK_TREE_FLAVOR)) {
+    flavors=ImmutableSet.copyOf(Sets.difference(flavors,ImmutableSet.of(CxxDescriptionEnhancer.HEADER_SYMLINK_TREE_FLAVOR)));
+    BuildTarget target=BuildTarget.builder(params.getBuildTarget().getUnflavoredBuildTarget()).addAllFlavors(flavors).build();
+    BuildRuleParams typeParams=params.copyWithChanges(params.getBuildRuleType(),target,Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps()));
+    return createHeaderSymlinkTreeBuildRule(typeParams,resolver,cxxPlatform,args);
   }
   CxxLink cxxLink=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(params,resolver,cxxPlatform,args);
   return new CxxBinary(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).add(cxxLink).build()),Suppliers.ofInstance(params.getExtraDeps())),new SourcePathResolver(resolver),cxxLink.getOutput(),cxxLink);
