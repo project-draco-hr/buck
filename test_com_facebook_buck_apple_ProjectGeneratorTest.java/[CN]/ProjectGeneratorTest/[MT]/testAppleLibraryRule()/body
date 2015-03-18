@@ -1,6 +1,6 @@
 {
   BuildTarget buildTarget=BuildTarget.builder("//foo","lib").build();
-  TargetNode<?> node=AppleLibraryBuilder.createBuilder(buildTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).setSrcs(Optional.of(ImmutableList.of(SourceWithFlags.of(new TestSourcePath("foo.m"),ImmutableList.of("-foo")),SourceWithFlags.of(new TestSourcePath("bar.m"))))).setHeaders(Optional.of(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("foo.h")))).build();
+  TargetNode<?> node=AppleLibraryBuilder.createBuilder(buildTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).setSrcs(Optional.of(ImmutableList.of(SourceWithFlags.of(new TestSourcePath("foo.m"),ImmutableList.of("-foo")),SourceWithFlags.of(new TestSourcePath("bar.m"))))).setExtraXcodeSources(Optional.of(ImmutableList.<SourcePath>of(new TestSourcePath("libsomething.a")))).setHeaders(Optional.of(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("foo.h")))).build();
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:lib");
@@ -8,7 +8,7 @@
   assertThat(target.getProductType(),equalTo(PBXTarget.ProductType.STATIC_LIBRARY));
   assertHasConfigurations(target,"Debug");
   assertEquals("Should have exact number of build phases",2,target.getBuildPhases().size());
-  assertHasSingletonSourcesPhaseWithSourcesAndFlags(target,ImmutableMap.of("foo.m",Optional.of("-foo"),"bar.m",Optional.<String>absent()));
+  assertHasSingletonSourcesPhaseWithSourcesAndFlags(target,ImmutableMap.of("foo.m",Optional.of("-foo"),"bar.m",Optional.<String>absent(),"libsomething.a",Optional.<String>absent()));
 {
     PBXBuildPhase headersBuildPhase=Iterables.find(target.getBuildPhases(),new Predicate<PBXBuildPhase>(){
       @Override public boolean apply(      PBXBuildPhase input){
