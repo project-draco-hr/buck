@@ -3,14 +3,15 @@
   ImmutableMap<Path,SourcePath> headers=parseHeaders(params,resolver,args);
   ImmutableMap<String,SourcePath> lexSrcs=parseLexSources(params,resolver,args);
   ImmutableMap<String,SourcePath> yaccSrcs=parseYaccSources(params,resolver,args);
-  CxxHeaderSourceSpec lexYaccSources=createLexYaccBuildRules(params,resolver,cxxPlatform,ImmutableList.<String>of(),lexSrcs,ImmutableList.<String>of(),yaccSrcs);
-  SymlinkTree headerSymlinkTree=createHeaderSymlinkTreeBuildRule(params,resolver,cxxPlatform.getFlavor(),ImmutableMap.<Path,SourcePath>builder().putAll(headers).putAll(lexYaccSources.getCxxHeaders()).build(),HeaderVisibility.PRIVATE);
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
+  CxxHeaderSourceSpec lexYaccSources=requireLexYaccSources(params,resolver,sourcePathResolver,cxxPlatform,lexSrcs,yaccSrcs);
+  SymlinkTree headerSymlinkTree=requireHeaderSymlinkTree(params,resolver,sourcePathResolver,cxxPlatform,true,lexSrcs,yaccSrcs,headers,HeaderVisibility.PRIVATE);
   CxxPreprocessorInput cxxPreprocessorInput=combineCxxPreprocessorInput(params,cxxPlatform,CxxPreprocessorFlags.fromArgs(args.preprocessorFlags,args.langPreprocessorFlags),args.prefixHeaders.get(),ImmutableList.of(headerSymlinkTree),args.frameworkSearchPaths.get());
   ImmutableMap<String,CxxSource> sources=ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build();
   ImmutableMap<String,CxxSource> preprocessed=CxxPreprocessables.createPreprocessBuildRules(params,resolver,cxxPlatform,cxxPreprocessorInput,false,sources);
   ImmutableList<SourcePath> objects=createCompileBuildRules(params,resolver,cxxPlatform,args.compilerFlags.or(ImmutableList.<String>of()),false,preprocessed);
   Path output=getOutputPath(params.getBuildTarget());
-  CxxLink cxxLink=CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,new SourcePathResolver(resolver),ImmutableList.<String>of(),ImmutableList.<String>builder().addAll(args.linkerFlags.or(ImmutableList.<String>of())).addAll(CxxDescriptionEnhancer.getPlatformFlags(args.platformLinkerFlags.get(),cxxPlatform.getFlavor().toString())).build(),createCxxLinkTarget(params.getBuildTarget()),Linker.LinkType.EXECUTABLE,Optional.<String>absent(),output,objects,Linker.LinkableDepType.STATIC,params.getDeps());
+  CxxLink cxxLink=CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,sourcePathResolver,ImmutableList.<String>of(),ImmutableList.<String>builder().addAll(args.linkerFlags.or(ImmutableList.<String>of())).addAll(CxxDescriptionEnhancer.getPlatformFlags(args.platformLinkerFlags.get(),cxxPlatform.getFlavor().toString())).build(),createCxxLinkTarget(params.getBuildTarget()),Linker.LinkType.EXECUTABLE,Optional.<String>absent(),output,objects,Linker.LinkableDepType.STATIC,params.getDeps());
   resolver.addToIndex(cxxLink);
   return cxxLink;
 }
