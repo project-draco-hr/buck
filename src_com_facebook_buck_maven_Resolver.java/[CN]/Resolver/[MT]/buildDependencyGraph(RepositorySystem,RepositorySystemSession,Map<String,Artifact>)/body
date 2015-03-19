@@ -1,0 +1,28 @@
+{
+  MutableDirectedGraph<Artifact> graph;
+  graph=new MutableDirectedGraph<>();
+  for (  Artifact dep : knownDeps.values()) {
+    String key=buildKey(dep);
+    Preconditions.checkNotNull(knownDeps.get(key));
+    graph.addNode(dep);
+    List<Dependency> dependencies=getDependenciesOf(repoSys,session,dep);
+    for (    Dependency dependency : dependencies) {
+      if (dependency.getArtifact() == null) {
+        System.out.println("Skipping because artifact missing: " + dependency);
+        continue;
+      }
+      String depKey=buildKey(dependency.getArtifact());
+      Artifact actualDep=knownDeps.get(depKey);
+      if (actualDep == null) {
+        continue;
+      }
+      if (isTestTime(dependency)) {
+        continue;
+      }
+      Preconditions.checkNotNull(actualDep,key + " -> " + dep+ " in "+ knownDeps.keySet());
+      graph.addNode(actualDep);
+      graph.addEdge(actualDep,dep);
+    }
+  }
+  return graph;
+}

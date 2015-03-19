@@ -1,0 +1,34 @@
+{
+  CollectRequest collectRequest=new CollectRequest();
+  collectRequest.setRequestContext(JavaScopes.RUNTIME);
+  collectRequest.setRepositories(repos);
+  for (  String coord : mavenCoords) {
+    DefaultArtifact artifact=new DefaultArtifact(coord);
+    collectRequest.addDependency(new Dependency(artifact,JavaScopes.RUNTIME));
+    ArtifactDescriptorRequest descriptorRequest=new ArtifactDescriptorRequest();
+    descriptorRequest.setArtifact(artifact);
+    descriptorRequest.setRepositories(repos);
+    ArtifactDescriptorResult descriptorResult=repoSys.readArtifactDescriptor(session,descriptorRequest);
+    for (    Dependency dependency : descriptorResult.getDependencies()) {
+      if (isTestTime(dependency)) {
+        continue;
+      }
+      collectRequest.addDependency(dependency);
+    }
+    for (    Dependency dependency : descriptorResult.getManagedDependencies()) {
+      if (isTestTime(dependency)) {
+        continue;
+      }
+      collectRequest.addManagedDependency(dependency);
+    }
+  }
+  DependencyFilter filter=DependencyFilterUtils.classpathFilter(JavaScopes.RUNTIME);
+  DependencyRequest dependencyRequest=new DependencyRequest(collectRequest,filter);
+  DependencyResult dependencyResult=repoSys.resolveDependencies(session,dependencyRequest);
+  ImmutableSortedMap.Builder<String,Artifact> knownDeps=ImmutableSortedMap.naturalOrder();
+  for (  ArtifactResult artifactResult : dependencyResult.getArtifactResults()) {
+    Artifact node=artifactResult.getArtifact();
+    knownDeps.put(buildKey(node),node);
+  }
+  return knownDeps.build();
+}

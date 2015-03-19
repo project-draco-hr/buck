@@ -1,0 +1,20 @@
+{
+  Resolver resolver=new Resolver(buckRepoRoot,thirdPartyRelative,localRepo,httpd.getUri("/").toString());
+  resolver.resolve("com.example:no-deps:jar:1.0");
+  Path groupDir=thirdParty.resolve("example");
+  assertTrue(Files.exists(groupDir));
+  Path original=repo.resolve("com/example/no-deps/1.0/no-deps-1.0.jar");
+  HashCode expected=MorePaths.asByteSource(original).hash(Hashing.sha1());
+  Path jarFile=groupDir.resolve("no-deps-1.0.jar");
+  HashCode seen=MorePaths.asByteSource(jarFile).hash(Hashing.sha1());
+  assertEquals(expected,seen);
+  List<Map<String,Object>> rules=buildFileParser.getAll(groupDir.resolve("BUCK"));
+  assertEquals(1,rules.size());
+  Map<String,Object> rule=rules.get(0);
+  assertEquals("no-deps",rule.get("name"));
+  assertEquals("no-deps-1.0.jar",rule.get("binaryJar"));
+  assertTrue(rule.containsKey("sourceJar"));
+  assertNull(rule.get("sourceJar"));
+  assertEquals(ImmutableList.of(),rule.get("visibility"));
+  assertEquals(ImmutableList.of(),rule.get("deps"));
+}
