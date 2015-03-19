@@ -2,43 +2,10 @@
   if (!isStoreSupported()) {
     return;
   }
-  String method="POST";
-  HttpURLConnection connection;
   try {
-    HashCode hashCode=Files.hash(file,hashFunction);
-    connection=createConnection(new URL(url,"artifact"));
-    connection.setRequestMethod(method);
-    prepareFileUpload(connection,file,ruleKey.toString(),hashCode);
-  }
- catch (  NotSerializableException e) {
-    logger.error(e,"store(%s): could not write hash code: %s",ruleKey);
-    return;
-  }
-catch (  MalformedURLException e) {
-    logger.error(e,"store(%s): malformed URL: %s",ruleKey,e.getMessage());
-    return;
-  }
-catch (  ProtocolException e) {
-    logger.error(e,"store(%s): invalid protocol: %s",ruleKey,method);
-    return;
-  }
-catch (  ConnectException e) {
-    reportConnectionFailure(String.format("store(%s)",ruleKey),e);
-    return;
-  }
-catch (  IOException e) {
-    logger.warn(e,"store(%s): IOException: %s",ruleKey,e.getMessage());
-    return;
-  }
-  int responseCode;
-  try {
-    responseCode=connection.getResponseCode();
+    storeImpl(ruleKey,output);
   }
  catch (  IOException e) {
-    reportConnectionFailure(String.format("store(%s)",ruleKey),e);
-    return;
-  }
-  if (responseCode != HttpURLConnection.HTTP_ACCEPTED) {
-    logger.warn("store(%s): unexpected response: %d",ruleKey,responseCode);
+    LOGGER.warn(e,"store(%s): IOException: %s",ruleKey,e.getMessage());
   }
 }

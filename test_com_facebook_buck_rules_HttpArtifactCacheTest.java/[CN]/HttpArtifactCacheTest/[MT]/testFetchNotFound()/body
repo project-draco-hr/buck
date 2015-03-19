@@ -1,7 +1,11 @@
 {
-  connection.setReadTimeout((int)TIMEOUT_UNIT.toMillis(TIMEOUT));
-  expect(connection.getResponseCode()).andReturn(HttpURLConnection.HTTP_NOT_FOUND);
-  replay(connection);
-  assertEquals(cache.fetch(new RuleKey("00000000000000000000000000000000"),File.createTempFile("000","")),CacheResult.MISS);
-  verify(connection);
+  HttpArtifactCache cache=new HttpArtifactCache(null,null,new URL("http://localhost:8080"),true,new FakeProjectFilesystem(),HASH_FUNCTION){
+    @Override protected Response fetchCall(    Request request) throws IOException {
+      return new Response.Builder().code(HttpURLConnection.HTTP_NOT_FOUND).protocol(Protocol.HTTP_1_1).request(request).build();
+    }
+  }
+;
+  CacheResult result=cache.fetch(new RuleKey("00000000000000000000000000000000"),new File("output/file"));
+  assertEquals(result,CacheResult.MISS);
+  cache.close();
 }

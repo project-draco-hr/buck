@@ -1,0 +1,40 @@
+{
+  Request request=createRequestBuilder(ruleKey.toString()).get().build();
+  Response response=fetchCall(request);
+  if (response.code() == HttpURLConnection.HTTP_NOT_FOUND) {
+    LOGGER.info("fetch(%s): cache miss",ruleKey);
+    return CacheResult.MISS;
+  }
+  if (response.code() != HttpURLConnection.HTTP_OK) {
+    LOGGER.warn("fetch(%s): unexpected response: %d",ruleKey,response.code());
+    return CacheResult.MISS;
+  }
+  HashCode expectedHashCode, actualHashCode;
+  Path path=file.toPath();
+  projectFilesystem.createParentDirs(path);
+  Path temp=projectFilesystem.createTempFile(path.getParent(),path.getFileName().toString(),".tmp");
+  try (DataInputStream input=new DataInputStream(response.body().byteStream())){
+    long length=input.readLong();
+    try (BoundedInputStream boundedInput=new BoundedInputStream(input,length);HashingInputStream hashingInput=new HashingInputStream(hashFunction,boundedInput);OutputStream output=projectFilesystem.newFileOutputStream(temp)){
+      ByteStreams.copy(hashingInput,output);
+      actualHashCode=hashingInput.hash();
+    }
+     byte[] hashCodeBytes=new byte[hashFunction.bits() / Byte.SIZE];
+    ByteStreams.readFully(input,hashCodeBytes);
+    expectedHashCode=HashCode.fromBytes(hashCodeBytes);
+    try (OutputStream output=ByteStreams.nullOutputStream()){
+      if (ByteStreams.copy(input,output) != 0) {
+        LOGGER.warn("fetch(%s): unexpected end of input",ruleKey);
+        return CacheResult.MISS;
+      }
+    }
+   }
+   if (!expectedHashCode.equals(actualHashCode)) {
+    LOGGER.warn("fetch(%s): artifact had invalid checksum",ruleKey);
+    projectFilesystem.deleteFileAtPath(temp);
+    return CacheResult.MISS;
+  }
+  projectFilesystem.move(temp,path,StandardCopyOption.REPLACE_EXISTING);
+  LOGGER.info("fetch(%s): cache hit",ruleKey);
+  return CacheResult.HTTP_HIT;
+}

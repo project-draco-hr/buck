@@ -1,0 +1,22 @@
+{
+  Request request=createRequestBuilder(ruleKey.toString()).put(new RequestBody(){
+    @Override public MediaType contentType(){
+      return OCTET_STREAM;
+    }
+    @Override public long contentLength() throws IOException {
+      return Long.SIZE / Byte.SIZE + projectFilesystem.getFileSize(file.toPath()) + hashFunction.bits() / Byte.SIZE;
+    }
+    @Override public void writeTo(    BufferedSink sink) throws IOException {
+      try (DataOutputStream output=new DataOutputStream(sink.outputStream());InputStream input=projectFilesystem.newFileInputStream(file.toPath());HashingInputStream hasher=new HashingInputStream(hashFunction,input)){
+        output.writeLong(projectFilesystem.getFileSize(file.toPath()));
+        ByteStreams.copy(hasher,output);
+        output.write(hasher.hash().asBytes());
+      }
+     }
+  }
+).build();
+  Response response=storeCall(request);
+  if (response.code() != HttpURLConnection.HTTP_ACCEPTED) {
+    LOGGER.warn("store(%s): unexpected response: %d",ruleKey,response.code());
+  }
+}

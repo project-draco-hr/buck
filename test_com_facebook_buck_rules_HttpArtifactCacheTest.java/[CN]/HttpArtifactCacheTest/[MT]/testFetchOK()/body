@@ -1,21 +1,16 @@
 {
-  String data="test";
-  HashCode hashCode=HASH_FUNCTION.hashString(data,Charset.defaultCharset());
-  connection.setReadTimeout((int)TIMEOUT_UNIT.toMillis(TIMEOUT));
-  expect(connection.getResponseCode()).andReturn(HttpURLConnection.HTTP_OK);
-  InputStream is=new ByteArrayInputStream(createFileContentsWithHashCode(hashCode,data));
-  expect(connection.getInputStream()).andReturn(is);
-  File file=File.createTempFile("000","");
-  Path path=file.toPath();
-  Path temp=File.createTempFile("000","").toPath();
-  Files.write(temp,data.getBytes(),StandardOpenOption.WRITE);
-  projectFilesystem.createParentDirs(path);
-  expect(projectFilesystem.createTempFile(path.getParent(),path.getFileName().toString(),".tmp")).andReturn(temp);
-  projectFilesystem.copyToPath(is,temp,StandardCopyOption.REPLACE_EXISTING);
-  projectFilesystem.move(temp,path,StandardCopyOption.REPLACE_EXISTING);
-  replay(connection);
-  replay(projectFilesystem);
-  assertEquals(cache.fetch(new RuleKey("00000000000000000000000000000000"),file),CacheResult.HTTP_HIT);
-  verify(connection);
-  verify(projectFilesystem);
+  File output=new File("output/file");
+  final String data="test";
+  final RuleKey ruleKey=new RuleKey("00000000000000000000000000000000");
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  HttpArtifactCache cache=new HttpArtifactCache(null,null,new URL("http://localhost:8080"),true,filesystem,HASH_FUNCTION){
+    @Override protected Response fetchCall(    Request request) throws IOException {
+      return new Response.Builder().code(HttpURLConnection.HTTP_OK).request(request).protocol(Protocol.HTTP_1_1).body(createBody(data)).build();
+    }
+  }
+;
+  CacheResult result=cache.fetch(ruleKey,output);
+  assertEquals(CacheResult.HTTP_HIT,result);
+  assertEquals(Optional.of(data),filesystem.readFileIfItExists(output.toPath()));
+  cache.close();
 }

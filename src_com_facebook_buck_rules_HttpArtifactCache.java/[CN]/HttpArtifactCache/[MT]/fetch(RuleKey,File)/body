@@ -1,57 +1,9 @@
 {
-  HttpURLConnection connection;
   try {
-    connection=createConnection(new URL(url,"artifact/key/" + ruleKey.toString()));
-  }
- catch (  MalformedURLException e) {
-    logger.error(e,"fetch(%s): malformed URL: %s",ruleKey,url);
-    return CacheResult.MISS;
-  }
-catch (  IOException e) {
-    logger.warn(e,"fetch(%s): [init] IOException: %s",ruleKey,e.getMessage());
-    return CacheResult.MISS;
-  }
-  connection.setReadTimeout((int)TimeUnit.SECONDS.toMillis(timeoutSeconds));
-  int responseCode;
-  try {
-    responseCode=connection.getResponseCode();
+    return fetchImpl(ruleKey,output);
   }
  catch (  IOException e) {
-    reportConnectionFailure(String.format("fetch(%s)",ruleKey),e);
+    LOGGER.warn(e,"fetch(%s): IOException: %s",ruleKey,e.getMessage());
     return CacheResult.MISS;
   }
-switch (responseCode) {
-case HttpURLConnection.HTTP_OK:
-    try {
-      HashCode expectedHashCode;
-      Path path=file.toPath();
-      projectFilesystem.createParentDirs(path);
-      Path temp=projectFilesystem.createTempFile(path.getParent(),path.getFileName().toString(),".tmp");
-      try (InputStream input=connection.getInputStream()){
-        byte[] hashCodeBytes=new byte[hashFunction.bits() / Byte.SIZE];
-        ByteStreams.readFully(input,hashCodeBytes);
-        expectedHashCode=HashCode.fromBytes(hashCodeBytes);
-        projectFilesystem.copyToPath(input,temp,StandardCopyOption.REPLACE_EXISTING);
-      }
-       HashCode actualHashCode=Files.hash(temp.toFile(),hashFunction);
-      if (!expectedHashCode.equals(actualHashCode)) {
-        logger.warn("fetch(%s): artifact had invalid checksum",ruleKey);
-        projectFilesystem.deleteFileAtPath(temp);
-        return CacheResult.MISS;
-      }
-      projectFilesystem.move(temp,path,StandardCopyOption.REPLACE_EXISTING);
-    }
- catch (    IOException e) {
-      logger.warn(e,"fetch(%s): [write] IOException: %s",ruleKey,e.getMessage());
-      return CacheResult.MISS;
-    }
-  logger.info("fetch(%s): cache hit",ruleKey);
-return CacheResult.HTTP_HIT;
-case HttpURLConnection.HTTP_NOT_FOUND:
-logger.info("fetch(%s): cache miss",ruleKey);
-return CacheResult.MISS;
-default :
-logger.warn("fetch(%s): unexpected response: %d",ruleKey,responseCode);
-return CacheResult.MISS;
-}
 }
