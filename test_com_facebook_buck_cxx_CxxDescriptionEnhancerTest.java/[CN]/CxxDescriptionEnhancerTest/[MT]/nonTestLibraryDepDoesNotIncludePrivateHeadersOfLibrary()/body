@@ -1,0 +1,10 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
+  BuildTarget libTarget=BuildTargetFactory.newInstance("//:lib");
+  BuildRuleParams libParams=BuildRuleParamsFactory.createTrivialBuildRuleParams(libTarget);
+  FakeCxxLibrary libRule=new FakeCxxLibrary(libParams,pathResolver,BuildTargetFactory.newInstance("//:header"),BuildTargetFactory.newInstance("//:symlink"),Paths.get("symlink/tree/lib"),BuildTargetFactory.newInstance("//:privateheader"),BuildTargetFactory.newInstance("//:privatesymlink"),Paths.get("private/symlink/tree/lib"),new FakeBuildRule("//:archive",pathResolver),Paths.get("output/path/lib.a"),new FakeBuildRule("//:shared",pathResolver),Paths.get("output/path/lib.so"),"lib.so",ImmutableSortedSet.<BuildTarget>of());
+  BuildTarget otherLibDepTarget=BuildTargetFactory.newInstance("//:other");
+  BuildRuleParams otherLibDepParams=new FakeBuildRuleParamsBuilder(otherLibDepTarget).setDeps(ImmutableSortedSet.<BuildRule>of(libRule)).build();
+  CxxPreprocessorInput otherInput=CxxDescriptionEnhancer.combineCxxPreprocessorInput(otherLibDepParams,CxxPlatformUtils.DEFAULT_PLATFORM,ImmutableMultimap.<CxxSource.Type,String>of(),ImmutableList.<SourcePath>of(),ImmutableList.<SymlinkTree>of(),ImmutableList.<Path>of());
+  assertThat("Non-test rule with library dep should include public and not private headers",otherInput.getIncludeRoots(),allOf(hasItem(Paths.get("symlink/tree/lib")),not(hasItem(Paths.get("private/symlink/tree/lib")))));
+}

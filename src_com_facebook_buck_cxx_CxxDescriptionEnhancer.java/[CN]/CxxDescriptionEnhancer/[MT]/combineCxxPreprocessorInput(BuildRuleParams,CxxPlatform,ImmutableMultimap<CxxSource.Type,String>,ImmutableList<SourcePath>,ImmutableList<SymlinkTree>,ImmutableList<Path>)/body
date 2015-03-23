@@ -2,6 +2,17 @@
   CxxPreprocessorInput cxxPreprocessorInputFromDeps;
   try {
     cxxPreprocessorInputFromDeps=CxxPreprocessables.getTransitiveCxxPreprocessorInput(cxxPlatform,FluentIterable.from(params.getDeps()).filter(Predicates.instanceOf(CxxPreprocessorDep.class)));
+    BuildTarget targetWithoutFlavor=BuildTarget.of(params.getBuildTarget().getUnflavoredBuildTarget());
+    ImmutableSet.Builder<AbstractCxxLibrary> librariesTestedByTargetBuilder=ImmutableSet.builder();
+    for (    BuildRule rule : params.getDeps()) {
+      if (rule instanceof AbstractCxxLibrary) {
+        AbstractCxxLibrary libraryRule=(AbstractCxxLibrary)rule;
+        if (libraryRule.getTests().contains(targetWithoutFlavor)) {
+          librariesTestedByTargetBuilder.add(libraryRule);
+        }
+      }
+    }
+    cxxPreprocessorInputFromDeps=CxxPreprocessorInput.concat(ImmutableList.of(cxxPreprocessorInputFromDeps,getPrivateCxxPreprocessorInputFromLibraries(cxxPlatform,librariesTestedByTargetBuilder.build())));
   }
  catch (  CxxPreprocessorInput.ConflictingHeadersException e) {
     throw e.getHumanReadableExceptionForBuildTarget(params.getBuildTarget());
