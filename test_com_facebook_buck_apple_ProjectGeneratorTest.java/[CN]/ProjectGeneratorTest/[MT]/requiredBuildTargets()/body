@@ -1,0 +1,12 @@
+{
+  ImmutableSortedMap<String,ImmutableMap<String,String>> configs=ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of());
+  BuildTarget binaryTarget=BuildTarget.builder("//foo","bin").build();
+  BuildTarget libraryTarget=BuildTarget.builder("//foo","lib").build();
+  BuildTarget testTarget=BuildTarget.builder("//foo","test").build();
+  TargetNode<?> binaryNode=AppleBinaryBuilder.createBuilder(binaryTarget).setConfigs(Optional.of(configs)).build();
+  TargetNode<?> libraryNode=AppleLibraryBuilder.createBuilder(libraryTarget).setConfigs(Optional.of(configs)).setTests(Optional.of(ImmutableSortedSet.of(testTarget))).build();
+  TargetNode<?> testNode=AppleTestBuilder.createBuilder(testTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.XCTEST)).setConfigs(Optional.of(configs)).setDeps(Optional.of(ImmutableSortedSet.of(libraryTarget))).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(binaryNode,libraryNode,testNode),ImmutableSet.<ProjectGenerator.Option>of());
+  projectGenerator.createXcodeProjects();
+  assertEquals(ImmutableSet.<BuildTarget>of(),projectGenerator.getRequiredBuildTargets());
+}
