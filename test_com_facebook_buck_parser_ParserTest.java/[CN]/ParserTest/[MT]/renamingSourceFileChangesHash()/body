@@ -6,12 +6,13 @@
   File testFooJavaFile=tempDir.newFile("foo/Foo.java");
   Files.write("// Ceci n'est pas une Javafile\n",testFooJavaFile,Charsets.UTF_8);
   BuildTarget fooLibTarget=BuildTarget.builder("//foo","lib").build();
-  assertEquals(ImmutableMap.of(fooLibTarget,HashCode.fromString("d57f85b354fba3fc10722747c2048af7d88b7625")),buildTargetGraphAndGetHashCodes(parser,fooLibTarget));
+  HashCode originalHash=buildTargetGraphAndGetHashCodes(parser,fooLibTarget).get(fooLibTarget);
   Path testFooJavaFilePath=testFooJavaFile.toPath();
   java.nio.file.Files.move(testFooJavaFilePath,testFooJavaFilePath.resolveSibling("Bar.java"));
   WatchEvent<Path> deleteEvent=createPathEvent(Paths.get("foo/Foo.java"),StandardWatchEventKinds.ENTRY_DELETE);
   WatchEvent<Path> createEvent=createPathEvent(Paths.get("foo/Bar.java"),StandardWatchEventKinds.ENTRY_CREATE);
   parser.onFileSystemChange(deleteEvent);
   parser.onFileSystemChange(createEvent);
-  assertEquals(ImmutableMap.of(fooLibTarget,HashCode.fromString("361b267b0c9a71296fca5d3f11aec39912289c42")),buildTargetGraphAndGetHashCodes(parser,fooLibTarget));
+  HashCode updatedHash=buildTargetGraphAndGetHashCodes(parser,fooLibTarget).get(fooLibTarget);
+  assertNotEquals(originalHash,updatedHash);
 }
