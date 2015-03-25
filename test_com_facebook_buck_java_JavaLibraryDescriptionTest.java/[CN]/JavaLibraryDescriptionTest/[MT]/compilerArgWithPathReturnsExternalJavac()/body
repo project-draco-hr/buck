@@ -1,0 +1,14 @@
+{
+  Path externalJavac=Paths.get("/foo/bar/javac.exe");
+  Either<BuiltInJavac,Either<BuildTarget,Path>> either=Either.ofRight(Either.<BuildTarget,Path>ofRight(externalJavac));
+  ProcessExecutorParams version=ImmutableProcessExecutorParams.builder().setCommand(ImmutableList.of(externalJavac.toString(),"-version")).build();
+  FakeProcess process=new FakeProcess(0,"","1.2.3");
+  FakeProcessExecutor executor=new FakeProcessExecutor(ImmutableMap.of(version,process));
+  ImmutableJavacOptions newDefaults=ImmutableJavacOptions.builder(defaults).setProcessExecutor(executor).build();
+  arg.compiler=Optional.of(either);
+  JavacOptions options=JavaLibraryDescription.getJavacOptions(ruleResolver,resolver,arg,newDefaults).build();
+  Javac javac=options.getJavac();
+  assertEquals(Optional.<Path>absent(),options.getJavacJarPath());
+  assertEquals(Optional.of(externalJavac),options.getJavacPath());
+  assertTrue(javac.getClass().getName(),javac instanceof ExternalJavac);
+}

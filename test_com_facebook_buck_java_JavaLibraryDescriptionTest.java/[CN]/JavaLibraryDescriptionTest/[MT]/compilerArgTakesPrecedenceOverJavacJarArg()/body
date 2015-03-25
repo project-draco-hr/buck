@@ -1,0 +1,13 @@
+{
+  Path javacJarPath=Paths.get("langtools").resolve("javac.jar");
+  BuildTarget target=BuildTargetFactory.newInstance("//langtools:javac");
+  PrebuiltJarBuilder.createBuilder(target).setBinaryJar(javacJarPath).build(ruleResolver);
+  Either<BuiltInJavac,Either<BuildTarget,Path>> either=Either.ofRight(Either.<BuildTarget,Path>ofLeft(target));
+  arg.compiler=Optional.of(either);
+  arg.javacJar=Optional.<SourcePath>of(new PathSourcePath(new FakeProjectFilesystem(),Paths.get("does-not-exist")));
+  JavacOptions options=JavaLibraryDescription.getJavacOptions(ruleResolver,resolver,arg,defaults).build();
+  Javac javac=options.getJavac();
+  assertEquals(Optional.of(javacJarPath),options.getJavacJarPath());
+  assertEquals(Optional.<Path>absent(),options.getJavacPath());
+  assertTrue(javac.getClass().getName(),javac instanceof Jsr199Javac);
+}
