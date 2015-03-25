@@ -1,13 +1,13 @@
 {
   BuildRule projectRule=Preconditions.checkNotNull(projectConfig.getProjectRule());
-  Preconditions.checkState(projectRule instanceof JavaLibrary || projectRule instanceof JavaBinary || projectRule instanceof AndroidLibrary|| projectRule instanceof AndroidResource|| projectRule instanceof AndroidBinary|| projectRule instanceof NdkLibrary,"project_config() does not know how to process a src_target of type %s.",projectRule.getType().getName());
+  Preconditions.checkState(projectRule instanceof AndroidBinary || projectRule instanceof AndroidLibrary || projectRule instanceof AndroidResource|| projectRule instanceof JavaBinary|| projectRule instanceof JavaLibrary|| projectRule instanceof NdkLibrary,"project_config() does not know how to process a src_target of type %s.",projectRule.getType().getName());
   LinkedHashSet<DependentModule> dependencies=Sets.newLinkedHashSet();
   final BuildTarget target=projectConfig.getBuildTarget();
   Module module=new Module(projectRule,target);
   module.name=getIntellijNameForRule(projectRule);
   module.isIntelliJPlugin=projectConfig.getIsIntelliJPlugin();
-  String relativePath=projectConfig.getBuildTarget().getBasePathWithSlash();
-  module.pathToImlFile=String.format("%s%s.iml",relativePath,module.name);
+  Path relativePath=projectConfig.getBuildTarget().getBasePath();
+  module.pathToImlFile=relativePath.resolve(String.format("%s.iml",module.name));
   boolean includeSourceFolder=true;
   boolean hasSourceFoldersForTestRule=addSourceFolders(module,projectConfig.getTestRule(),projectConfig.getTestsSourceRoots(),true);
   BuildRule testRule=projectConfig.getTestRule();
@@ -28,10 +28,10 @@
     }
   }
   walkRuleAndAdd(projectRule,false,dependencies,projectConfig.getSrcRule());
-  String basePathWithSlash=projectConfig.getBuildTarget().getBasePathWithSlash();
-  module.moduleGenPath=generateRelativeGenPath(basePathWithSlash).toString();
+  Path basePath=projectConfig.getBuildTarget().getBasePath();
+  module.moduleGenPath=generateRelativeGenPath(basePath);
   if (turnOffAutoSourceGeneration && rJava.isPresent()) {
-    module.moduleRJavaPath=Paths.get("/",Paths.get(basePathWithSlash).relativize(Paths.get("")).toString(),rJava.get().toString()).toString();
+    module.moduleRJavaPath=basePath.relativize(Paths.get("")).resolve(rJava.get());
   }
   DependentModule jdkDependency;
   if (isAndroidRule) {
@@ -39,7 +39,7 @@
       NdkLibrary ndkLibrary=(NdkLibrary)projectRule;
       module.isAndroidLibraryProject=true;
       module.keystorePath=null;
-      module.nativeLibs=Paths.get(relativePath).relativize(ndkLibrary.getLibraryPath()).toString();
+      module.nativeLibs=relativePath.relativize(ndkLibrary.getLibraryPath());
     }
  else     if (projectRule instanceof AndroidResource) {
       AndroidResource androidResource=(AndroidResource)projectRule;
@@ -52,7 +52,7 @@
       module.resFolder=null;
       module.isAndroidLibraryProject=false;
       KeystoreProperties keystoreProperties=KeystoreProperties.createFromPropertiesFile(androidBinary.getKeystore().getPathToStore(),androidBinary.getKeystore().getPathToPropertiesFile(),projectFilesystem);
-      module.keystorePath=Paths.get(relativePath).relativize(keystoreProperties.getKeystore()).toString();
+      module.keystorePath=relativePath.relativize(keystoreProperties.getKeystore());
     }
  else {
       module.isAndroidLibraryProject=true;
@@ -61,14 +61,13 @@
     module.hasAndroidFacet=true;
     module.proguardConfigPath=null;
     if (pathToDefaultAndroidManifest.isPresent()) {
-      Path androidManifest=Paths.get(basePathWithSlash,"AndroidManifest.xml");
+      Path androidManifest=basePath.resolve("AndroidManifest.xml");
       if (!projectFilesystem.exists(androidManifest)) {
         String manifestPath=this.pathToDefaultAndroidManifest.get();
         String rootPrefix="//";
         Preconditions.checkState(manifestPath.startsWith(rootPrefix),"Currently, we expect this option to start with '%s', " + "indicating that it is relative to the root of the repository.",rootPrefix);
         manifestPath=manifestPath.substring(rootPrefix.length());
-        String relativePathToManifest=Paths.get(basePathWithSlash).relativize(Paths.get(manifestPath)).toString();
-        module.androidManifest="/" + relativePathToManifest;
+        module.androidManifest=basePath.relativize(Paths.get(manifestPath));
       }
     }
     jdkDependency=DependentModule.newInheritedJdk();
@@ -91,7 +90,7 @@
     AnnotationProcessingParams processingParams=javaLibrary.getAnnotationProcessingParams();
     Path annotationGenSrc=processingParams.getGeneratedSourceFolderName();
     if (annotationGenSrc != null) {
-      module.annotationGenPath="/" + Paths.get(basePathWithSlash).relativize(annotationGenSrc).toString();
+      module.annotationGenPath=basePath.relativize(annotationGenSrc);
       module.annotationGenIsForTest=!hasSourceFoldersForSrcRule;
     }
   }

@@ -3,7 +3,7 @@
   if (resources.isEmpty()) {
     return allSteps.build();
   }
-  String targetPackageDir=javaPackageFinder.findJavaPackageForPath(target.getBasePathWithSlash()).replace('.',File.separatorChar);
+  String targetPackageDir=javaPackageFinder.findJavaPackage(target);
   for (  SourcePath rawResource : resources) {
     final Path pathToResource=resolver.getPath(rawResource);
     String resource=MorePaths.pathWithUnixSeparators(pathToResource);
@@ -11,13 +11,13 @@
     if ((matcher=GENERATED_FILE_PATTERN.matcher(resource)).matches()) {
       resource=matcher.group(1);
     }
-    String javaPackageAsPath=javaPackageFinder.findJavaPackageFolderForPath(resource);
+    Path javaPackageAsPath=javaPackageFinder.findJavaPackageFolder(Paths.get(resource));
     Path relativeSymlinkPath;
-    if ("".equals(javaPackageAsPath)) {
+    if ("".equals(javaPackageAsPath.toString())) {
       relativeSymlinkPath=pathToResource.getFileName();
     }
  else {
-      int lastIndex=resource.lastIndexOf(javaPackageAsPath);
+      int lastIndex=resource.lastIndexOf(javaPackageAsPath.toString());
       if (lastIndex < 0) {
         Preconditions.checkState(rawResource instanceof BuildTargetSourcePath,"If resource path %s does not contain %s, then it must be a BuildTargetSourcePath.",pathToResource,javaPackageAsPath);
         relativeSymlinkPath=Paths.get(String.format("%s%s%s",targetPackageDir,targetPackageDir.isEmpty() ? "" : "/",resolver.getPath(rawResource).getFileName()));
