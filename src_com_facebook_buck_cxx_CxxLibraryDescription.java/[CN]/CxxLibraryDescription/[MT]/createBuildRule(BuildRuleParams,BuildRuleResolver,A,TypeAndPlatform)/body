@@ -20,5 +20,15 @@
     }
   }
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  return new CxxLibrary(params,resolver,pathResolver,CxxPreprocessorFlags.fromArgs(args.exportedPreprocessorFlags,args.exportedLangPreprocessorFlags),args.linkerFlags.or(ImmutableList.<String>of()),args.platformLinkerFlags.get(),args.frameworkSearchPaths.get(),args.linkWhole.or(false),args.soname,args.tests.get());
+  return new CxxLibrary(params,resolver,pathResolver,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
+    @Override public ImmutableMultimap<CxxSource.Type,String> apply(    CxxPlatform input){
+      return CxxFlags.getLanguageFlags(args.exportedPreprocessorFlags,args.exportedPlatformPreprocessorFlags,args.exportedLangPreprocessorFlags,input.getFlavor());
+    }
+  }
+,new Function<CxxPlatform,ImmutableList<String>>(){
+    @Override public ImmutableList<String> apply(    CxxPlatform input){
+      return CxxFlags.getFlags(args.linkerFlags,args.platformLinkerFlags,input.getFlavor());
+    }
+  }
+,args.frameworkSearchPaths.get(),args.linkWhole.or(false),args.soname,args.tests.get());
 }
