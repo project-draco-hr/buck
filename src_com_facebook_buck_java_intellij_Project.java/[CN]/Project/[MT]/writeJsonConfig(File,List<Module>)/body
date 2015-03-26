@@ -12,7 +12,14 @@
     String javadocUrl=prebuiltJar.getJavadocUrl().orNull();
     libraries.add(new SerializablePrebuiltJarRule(name,binaryJar,sourceJar,javadocUrl));
   }
-  Map<String,Object> config=ImmutableMap.<String,Object>of("modules",modules,"libraries",libraries);
+  List<SerializableAndroidAar> aars=Lists.newArrayListWithCapacity(androidAars.size());
+  for (  BuildRule aar : androidAars) {
+    Preconditions.checkState(aar instanceof AndroidPrebuiltAar);
+    AndroidPrebuiltAar preBuiltAar=(AndroidPrebuiltAar)aar;
+    String name=getIntellijNameForAar(preBuiltAar);
+    aars.add(createSerializableAndroidAar(name,preBuiltAar));
+  }
+  Map<String,Object> config=ImmutableMap.of("modules",modules,"libraries",libraries,"aars",aars,"java",createSerializableIntellijSettings(intellijConfig));
   try (Writer writer=new FileWriter(jsonTempFile)){
     if (executionContext.getVerbosity().shouldPrintOutput()) {
       ObjectWriter objectWriter=objectMapper.writerWithDefaultPrettyPrinter();

@@ -11,9 +11,6 @@
  else       if (dep.getProperties().is(LIBRARY) && dep instanceof ExportDependencies) {
         depsToVisit=((ExportDependencies)dep).getExportedDeps();
       }
- else       if (dep.getProperties().is(LIBRARY) && dep instanceof ExportDependencies) {
-        depsToVisit=((ExportDependencies)dep).getExportedDeps();
-      }
  else {
         depsToVisit=ImmutableSet.of();
       }
@@ -21,9 +18,18 @@
         depsToVisit=dep.getDeps();
       }
       DependentModule dependentModule;
-      if (dep instanceof PrebuiltJar) {
+      if (androidAars.contains(dep)) {
+        AndroidPrebuiltAar aar=androidAars.getParentAar(dep);
+        dependentModule=DependentModule.newLibrary(aar.getBuildTarget(),getIntellijNameForAar(aar));
+      }
+ else       if (dep instanceof PrebuiltJar) {
         libraryJars.add(dep);
         String libraryName=getIntellijNameForRule(dep);
+        dependentModule=DependentModule.newLibrary(dep.getBuildTarget(),libraryName);
+      }
+ else       if (dep instanceof AndroidPrebuiltAar) {
+        androidAars.add((AndroidPrebuiltAar)dep);
+        String libraryName=getIntellijNameForAar(dep);
         dependentModule=DependentModule.newLibrary(dep.getBuildTarget(),libraryName);
       }
  else       if (dep instanceof NdkLibrary) {
@@ -38,6 +44,9 @@
         dependentModule=DependentModule.newModule(dep.getBuildTarget(),moduleName);
       }
  else {
+        return depsToVisit;
+      }
+      if (librariesToAdd.contains(dependentModule) || modulesToAdd.contains(dependentModule)) {
         return depsToVisit;
       }
       if (isForTests) {

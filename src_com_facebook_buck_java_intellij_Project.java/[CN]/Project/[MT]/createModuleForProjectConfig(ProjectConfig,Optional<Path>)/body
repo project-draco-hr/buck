@@ -41,6 +41,12 @@
       module.keystorePath=null;
       module.nativeLibs=relativePath.relativize(ndkLibrary.getLibraryPath());
     }
+ else     if (projectRule instanceof AndroidLibrary) {
+      module.isAndroidLibraryProject=true;
+      module.keystorePath=null;
+      module.resFolder=intellijConfig.getAndroidResources().orNull();
+      module.assetFolder=intellijConfig.getAndroidAssets().orNull();
+    }
  else     if (projectRule instanceof AndroidResource) {
       AndroidResource androidResource=(AndroidResource)projectRule;
       module.resFolder=createRelativePath(androidResource.getRes(),target);
@@ -49,8 +55,10 @@
     }
  else     if (projectRule instanceof AndroidBinary) {
       AndroidBinary androidBinary=(AndroidBinary)projectRule;
-      module.resFolder=null;
+      module.resFolder=intellijConfig.getAndroidResources().orNull();
+      module.assetFolder=intellijConfig.getAndroidAssets().orNull();
       module.isAndroidLibraryProject=false;
+      module.binaryPath=generateRelativeAPKPath(projectRule.getBuildTarget().getShortName(),basePath);
       KeystoreProperties keystoreProperties=KeystoreProperties.createFromPropertiesFile(androidBinary.getKeystore().getPathToStore(),androidBinary.getKeystore().getPathToPropertiesFile(),projectFilesystem);
       module.keystorePath=relativePath.relativize(keystoreProperties.getKeystore());
     }
@@ -60,16 +68,7 @@
     }
     module.hasAndroidFacet=true;
     module.proguardConfigPath=null;
-    if (pathToDefaultAndroidManifest.isPresent()) {
-      Path androidManifest=basePath.resolve("AndroidManifest.xml");
-      if (!projectFilesystem.exists(androidManifest)) {
-        String manifestPath=this.pathToDefaultAndroidManifest.get();
-        String rootPrefix="//";
-        Preconditions.checkState(manifestPath.startsWith(rootPrefix),"Currently, we expect this option to start with '%s', " + "indicating that it is relative to the root of the repository.",rootPrefix);
-        manifestPath=manifestPath.substring(rootPrefix.length());
-        module.androidManifest=basePath.relativize(Paths.get(manifestPath));
-      }
-    }
+    module.androidManifest=resolveAndroidManifestRelativePath(basePath);
     jdkDependency=DependentModule.newInheritedJdk();
   }
  else {
