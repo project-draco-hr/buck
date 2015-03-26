@@ -1,0 +1,17 @@
+{
+  if (!isPrimaryDex) {
+    String tmpname="dex-tmp-" + inputPath.getFileName().toString() + "-%s";
+    Path temp=BuildTargets.getBinPath(buildTarget,tmpname);
+    steps.add(new MakeCleanDirectoryStep(temp));
+    steps.add(new UnzipStep(inputPath,temp));
+    steps.add(new DefaultShellStep(ImmutableList.of(reorderTool.toString(),reorderDataFile.toString(),temp.resolve("classes.dex").toString())));
+    steps.add(new RmStep(inputPath,true));
+    Path outputPath=Paths.get(inputPath.toString().replace(inputSubDir,outputSubDir));
+    steps.add(new ZipStep(outputPath,ImmutableSet.<Path>of(),false,ZipStep.MAX_COMPRESSION_LEVEL,temp));
+  }
+ else {
+    steps.add(CopyStep.forFile(inputPrimaryDexPath,outputPrimaryDexPath));
+    steps.add(new DefaultShellStep(ImmutableList.of(reorderTool.toString(),reorderDataFile.toString(),inputPrimaryDexPath.toString())));
+  }
+  return 0;
+}
