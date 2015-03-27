@@ -1,0 +1,17 @@
+def process_jar(infile, outfile, include_paths, exclude_paths):
+    with tempdir() as temp_dir:
+        with contextlib.closing(zipfile.ZipFile(infile)) as input:
+            for info in input.infolist():
+                include = (len(include_paths) == 0)
+                for path in include_paths:
+                    include = (include or info.filename.startswith(path))
+                exclude = False
+                for path in exclude_paths:
+                    exclude = (exclude or info.filename.startswith(path))
+                if (include and (not exclude)):
+                    input.extract(info, temp_dir)
+        with contextlib.closing(zipfile.ZipFile(outfile, 'w')) as output:
+            for (root, _, files) in os.walk(temp_dir):
+                for file in files:
+                    file = os.path.join(root, file)
+                    output.write(file, os.path.relpath(file, temp_dir))
