@@ -1,0 +1,15 @@
+{
+  ImmutableSet.Builder<String> builder=ImmutableSet.builder();
+  if (targetNode.getConstructorArg().getUseBuckHeaderMaps()) {
+    builder.add(getHeaderMapFileRelativePath(targetNode,CxxDescriptionEnhancer.HeaderVisibility.PRIVATE).toString());
+    builder.add(getHeaderMapFileRelativePath(targetNode,CxxDescriptionEnhancer.HeaderVisibility.PUBLIC).toString());
+  }
+  for (  TargetNode<?> input : AppleBuildRules.getRecursiveTargetNodeDependenciesOfTypes(targetGraph,AppleBuildRules.RecursiveDependenciesMode.BUILDING,targetNode,Optional.of(AppleBuildRules.XCODE_TARGET_BUILD_RULE_TYPES))) {
+    Optional<TargetNode<AppleNativeTargetDescriptionArg>> nativeNode=getAppleNativeNode(targetGraph,input);
+    if (nativeNode.isPresent() && nativeNode.get().getConstructorArg().getUseBuckHeaderMaps()) {
+      builder.add(getHeaderMapFileRelativePath(nativeNode.get(),CxxDescriptionEnhancer.HeaderVisibility.PUBLIC).toString());
+    }
+  }
+  addHeaderMapFileForSourceUnderTest(targetNode,builder,CxxDescriptionEnhancer.HeaderVisibility.PRIVATE);
+  return builder.build();
+}
