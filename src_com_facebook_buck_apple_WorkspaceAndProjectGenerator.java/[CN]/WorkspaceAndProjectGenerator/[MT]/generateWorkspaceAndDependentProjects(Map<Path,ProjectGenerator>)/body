@@ -1,18 +1,18 @@
 {
-  LOG.debug("Generating workspace for target %s",workspaceTargetNode);
-  String workspaceName=XcodeWorkspaceConfigDescription.getWorkspaceNameFromArg(workspaceTargetNode.getConstructorArg());
+  LOG.debug("Generating workspace for target %s",workspaceArguments.srcTarget);
+  String workspaceName=XcodeWorkspaceConfigDescription.getWorkspaceNameFromArg(workspaceArguments);
   Path outputDirectory;
   if (combinedProject) {
     workspaceName+="-Combined";
-    outputDirectory=BuildTargets.getGenPath(workspaceTargetNode.getBuildTarget(),"%s").getParent();
+    outputDirectory=BuildTargets.getGenPath(workspaceArguments.srcTarget.get(),"%s").getParent();
   }
  else {
-    outputDirectory=workspaceTargetNode.getBuildTarget().getBasePath();
+    outputDirectory=workspaceArguments.srcTarget.get().getBasePath();
   }
   WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,workspaceName,outputDirectory);
   ImmutableSet<TargetNode<?>> orderedTargetNodes;
-  if (workspaceTargetNode.getConstructorArg().srcTarget.isPresent()) {
-    orderedTargetNodes=AppleBuildRules.getSchemeBuildableTargetNodes(projectGraph,Preconditions.checkNotNull(projectGraph.get(workspaceTargetNode.getConstructorArg().srcTarget.get().getBuildTarget())));
+  if (workspaceArguments.srcTarget.isPresent()) {
+    orderedTargetNodes=AppleBuildRules.getSchemeBuildableTargetNodes(projectGraph,Preconditions.checkNotNull(projectGraph.get(workspaceArguments.srcTarget.get().getBuildTarget())));
   }
  else {
     orderedTargetNodes=ImmutableSet.of();
@@ -77,7 +77,7 @@
       }
     }
     if (!groupedTestResults.groupedTests.isEmpty()) {
-      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,BuildTargets.getGenPath(workspaceTargetNode.getBuildTarget(),"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions);
+      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,BuildTargets.getGenPath(workspaceArguments.srcTarget.get(),"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions);
       combinedTestsProjectGenerator.setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).createXcodeProjects();
       workspaceGenerator.addFilePath(combinedTestsProjectGenerator.getProjectPath());
       requiredBuildTargetsBuilder.addAll(combinedTestsProjectGenerator.getRequiredBuildTargets());
@@ -99,7 +99,7 @@
     }
   }
 ;
-  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,workspaceTargetNode.getConstructorArg().srcTarget.transform(Functions.forMap(buildTargetToTarget)),Iterables.transform(orderedTargetNodes,targetNodeToPBXTargetTransformer),FluentIterable.from(buildForTestNodes).transform(targetNodeToPBXTargetTransformer).append(synthesizedCombinedTestTargets),FluentIterable.from(groupedTestResults.ungroupedTests).transform(targetNodeToPBXTargetTransformer).append(synthesizedCombinedTestTargets),workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),XcodeWorkspaceConfigDescription.getActionConfigNamesFromArg(workspaceTargetNode.getConstructorArg()),targetToProjectPathMapBuilder.build());
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,workspaceArguments.srcTarget.transform(Functions.forMap(buildTargetToTarget)),Iterables.transform(orderedTargetNodes,targetNodeToPBXTargetTransformer),FluentIterable.from(buildForTestNodes).transform(targetNodeToPBXTargetTransformer).append(synthesizedCombinedTestTargets),FluentIterable.from(groupedTestResults.ungroupedTests).transform(targetNodeToPBXTargetTransformer).append(synthesizedCombinedTestTargets),workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),XcodeWorkspaceConfigDescription.getActionConfigNamesFromArg(workspaceArguments),targetToProjectPathMapBuilder.build());
   schemeGenerator.writeScheme();
   this.schemeGenerator=Optional.of(schemeGenerator);
   return workspacePath;

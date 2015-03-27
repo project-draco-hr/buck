@@ -25,16 +25,25 @@
   ImmutableSet<TargetNode<?>> testTargetNodes=targetGraphAndTargets.getAssociatedTests();
   ImmutableSet<TargetNode<AppleTestDescription.Arg>> groupableTests=options.getCombineTestBundles() ? AppleBuildRules.filterGroupableTests(testTargetNodes) : ImmutableSet.<TargetNode<AppleTestDescription.Arg>>of();
   ImmutableSet.Builder<BuildTarget> requiredBuildTargetsBuilder=ImmutableSet.builder();
-  for (  BuildTarget workspaceTarget : targets) {
-    TargetNode<?> workspaceNode=Preconditions.checkNotNull(targetGraphAndTargets.getTargetGraph().get(workspaceTarget));
-    if (workspaceNode.getType() != XcodeWorkspaceConfigDescription.TYPE) {
-      throw new HumanReadableException("%s must be a xcode_workspace_config",workspaceTarget);
+  for (  BuildTarget inputTarget : targets) {
+    TargetNode<?> inputNode=Preconditions.checkNotNull(targetGraphAndTargets.getTargetGraph().get(inputTarget));
+    XcodeWorkspaceConfigDescription.Arg workspaceArgs;
+    BuildRuleType type=inputNode.getType();
+    if (type == XcodeWorkspaceConfigDescription.TYPE) {
+      TargetNode<XcodeWorkspaceConfigDescription.Arg> castedWorkspaceNode=castToXcodeWorkspaceTargetNode(inputNode);
+      workspaceArgs=castedWorkspaceNode.getConstructorArg();
     }
-    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphAndTargets.getTargetGraph(),castToXcodeWorkspaceTargetNode(workspaceNode),optionsBuilder.build(),combinedProject,new ParserConfig(options.getBuckConfig()).getBuildFileName());
+ else     if (canGenerateImplicitWorkspaceForType(type)) {
+      workspaceArgs=createImplicitWorkspaceArgs(inputNode);
+    }
+ else {
+      throw new HumanReadableException("%s must be a xcode_workspace_config, apple_bundle, or apple_library",inputNode);
+    }
+    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphAndTargets.getTargetGraph(),workspaceArgs,optionsBuilder.build(),combinedProject,new ParserConfig(options.getBuckConfig()).getBuildFileName());
     generator.setGroupableTests(groupableTests);
     generator.generateWorkspaceAndDependentProjects(projectGenerators);
     ImmutableSet<BuildTarget> requiredBuildTargetsForWorkspace=generator.getRequiredBuildTargets();
-    LOG.debug("Required build targets for workspace %s: %s",workspaceTarget,requiredBuildTargetsForWorkspace);
+    LOG.debug("Required build targets for workspace %s: %s",inputTarget,requiredBuildTargetsForWorkspace);
     requiredBuildTargetsBuilder.addAll(requiredBuildTargetsForWorkspace);
   }
   int exitCode=0;
