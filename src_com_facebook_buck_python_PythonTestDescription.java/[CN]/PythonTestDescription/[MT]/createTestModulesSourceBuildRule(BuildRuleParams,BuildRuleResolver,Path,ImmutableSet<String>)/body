@@ -1,20 +1,27 @@
 {
   BuildRuleParams newParams=params.copyWithChanges(BuildRuleType.of("create_test_modules_list"),BuildTargets.createFlavoredBuildTarget(params.getBuildTarget().checkUnflavored(),ImmutableFlavor.of("test_module")),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
-  final String contents=getTestModulesListContents(testModules);
-  return new AbstractBuildRule(newParams,new SourcePathResolver(resolver)){
+  String contents=getTestModulesListContents(testModules);
+class WriteFile extends AbstractBuildRule {
+    @AddToRuleKey private final String fileContents;
+    @AddToRuleKey(stringify=true) private final Path output;
+    public WriteFile(    BuildRuleParams buildRuleParams,    SourcePathResolver resolver,    String fileContents,    Path output){
+      super(buildRuleParams,resolver);
+      this.fileContents=fileContents;
+      this.output=output;
+    }
     @Override protected ImmutableCollection<Path> getInputsToCompareToOutput(){
       return ImmutableList.of();
     }
     @Override protected RuleKey.Builder appendDetailsToRuleKey(    RuleKey.Builder builder){
-      return builder.setReflectively("contents",contents).setReflectively("output",outputPath.toString());
+      return builder;
     }
     @Override public ImmutableList<Step> getBuildSteps(    BuildContext context,    BuildableContext buildableContext){
-      buildableContext.recordArtifact(outputPath);
-      return ImmutableList.of(new MkdirStep(outputPath.getParent()),new WriteFileStep(contents,outputPath));
+      buildableContext.recordArtifact(output);
+      return ImmutableList.of(new MkdirStep(output.getParent()),new WriteFileStep(fileContents,output));
     }
     @Override public Path getPathToOutputFile(){
-      return outputPath;
+      return output;
     }
   }
-;
+  return new WriteFile(newParams,new SourcePathResolver(resolver),contents,outputPath);
 }
