@@ -14,9 +14,7 @@
   String productName=getProductName(buildTarget);
   AppleNativeTargetDescriptionArg arg=targetNode.getConstructorArg();
   NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver);
-  ImmutableSet<SourcePath> exportedHeaders=ImmutableSet.copyOf(getHeaderSourcePaths(arg.exportedHeaders));
-  ImmutableSet<SourcePath> headers=ImmutableSet.copyOf(getHeaderSourcePaths(arg.headers));
-  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(targetGid).setShouldGenerateCopyHeadersPhase(!targetNode.getConstructorArg().getUseBuckHeaderMaps()).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setExtraXcodeSources(ImmutableSet.copyOf(arg.extraXcodeSources.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setResources(resources);
+  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(targetGid).setShouldGenerateCopyHeadersPhase(!targetNode.getConstructorArg().getUseBuckHeaderMaps()).setSourcesWithFlags(arg.srcs.get()).setExtraXcodeSources(arg.extraXcodeSources.get()).setPublicHeaders(arg.exportedHeaders.get()).setPrivateHeaders(arg.headers.get()).setResources(resources);
   if (options.contains(Option.CREATE_DIRECTORY_STRUCTURE)) {
     ImmutableList.Builder<String> targetGroupPathBuilder=ImmutableList.builder();
     for (    Path pathPart : buildTarget.getBasePath()) {
@@ -92,10 +90,10 @@
 ,target,targetGroup,targetNode.getConstructorArg().configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
   if (arg.getUseBuckHeaderMaps()) {
     requiredBuildTargetsBuilder.add(CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(BuildTarget.of(targetNode.getBuildTarget().getUnflavoredBuildTarget()),DefaultCxxPlatforms.FLAVOR,CxxDescriptionEnhancer.HeaderVisibility.PRIVATE));
-    requireAllBuildRuleDependencies(headers);
+    requireAllBuildRuleDependencies(arg.headers.get());
     if (targetNode.getType() == AppleLibraryDescription.TYPE) {
       requiredBuildTargetsBuilder.add(CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(BuildTarget.of(targetNode.getBuildTarget().getUnflavoredBuildTarget()),DefaultCxxPlatforms.FLAVOR,CxxDescriptionEnhancer.HeaderVisibility.PUBLIC));
-      requireAllBuildRuleDependencies(exportedHeaders);
+      requireAllBuildRuleDependencies(arg.exportedHeaders.get());
     }
   }
   addCoreDataModelBuildPhase(targetGroup,FluentIterable.from(targetNode.getDeps()).transform(new Function<BuildTarget,TargetNode<?>>(){
