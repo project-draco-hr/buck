@@ -1,6 +1,6 @@
 {
   BuildTarget buildTarget=BuildTarget.builder("//foo","lib").build();
-  TargetNode<?> node=AppleLibraryBuilder.createBuilder(buildTarget).setSrcs(Optional.of(ImmutableList.<SourceWithFlags>of())).setHeaders(Optional.of(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("HeaderGroup1/foo.h"),new TestSourcePath("HeaderGroup2/baz.h")))).setExportedHeaders(Optional.of(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("HeaderGroup1/bar.h")))).setUseBuckHeaderMaps(Optional.of(true)).build();
+  TargetNode<?> node=AppleLibraryBuilder.createBuilder(buildTarget).setSrcs(Optional.of(ImmutableList.<SourceWithFlags>of())).setHeaders(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("HeaderGroup1/foo.h"),new TestSourcePath("HeaderGroup2/baz.h"))).setExportedHeaders(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("HeaderGroup1/bar.h"))).setUseBuckHeaderMaps(Optional.of(true)).build();
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node));
   projectGenerator.createXcodeProjects();
   PBXProject project=projectGenerator.getGeneratedProject();
@@ -27,11 +27,9 @@
   }
 ));
   List<Path> headerMaps=projectGenerator.getGeneratedHeaderMaps();
-  assertThat(headerMaps,hasSize(3));
+  assertThat(headerMaps,hasSize(2));
   assertEquals("buck-out/gen/foo/lib-public-headers.hmap",headerMaps.get(0).toString());
   assertThatHeaderMapFileContains(Paths.get("buck-out/gen/foo/lib-public-headers.hmap"),ImmutableMap.of("lib/bar.h","HeaderGroup1/bar.h"));
   assertEquals("buck-out/gen/foo/lib-target-headers.hmap",headerMaps.get(1).toString());
-  assertThatHeaderMapFileContains(Paths.get("buck-out/gen/foo/lib-target-headers.hmap"),ImmutableMap.of("lib/foo.h","HeaderGroup1/foo.h","lib/bar.h","HeaderGroup1/bar.h","lib/baz.h","HeaderGroup2/baz.h"));
-  assertEquals("buck-out/gen/foo/lib-target-user-headers.hmap",headerMaps.get(2).toString());
-  assertThatHeaderMapFileContains(Paths.get("buck-out/gen/foo/lib-target-user-headers.hmap"),ImmutableMap.of("foo.h","HeaderGroup1/foo.h","bar.h","HeaderGroup1/bar.h","baz.h","HeaderGroup2/baz.h"));
+  assertThatHeaderMapFileContains(Paths.get("buck-out/gen/foo/lib-target-headers.hmap"),ImmutableMap.<String,String>builder().put("lib/foo.h","HeaderGroup1/foo.h").put("lib/baz.h","HeaderGroup2/baz.h").put("foo.h","HeaderGroup1/foo.h").put("bar.h","HeaderGroup1/bar.h").put("baz.h","HeaderGroup2/baz.h").build());
 }
