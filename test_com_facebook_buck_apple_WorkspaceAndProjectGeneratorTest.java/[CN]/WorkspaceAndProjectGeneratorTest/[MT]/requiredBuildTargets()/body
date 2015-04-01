@@ -1,0 +1,12 @@
+{
+  BuildTarget genruleTarget=BuildTarget.builder("//foo","gen").build();
+  TargetNode<GenruleDescription.Arg> genrule=GenruleBuilder.newGenruleBuilder(genruleTarget).setOut("source.m").build();
+  BuildTarget libraryTarget=BuildTarget.builder("//foo","lib").build();
+  TargetNode<AppleNativeTargetDescriptionArg> library=AppleLibraryBuilder.createBuilder(libraryTarget).setSrcs(Optional.of(ImmutableList.of(SourceWithFlags.of(new BuildTargetSourcePath(projectFilesystem,genruleTarget))))).build();
+  TargetNode<XcodeWorkspaceConfigDescription.Arg> workspaceNode=XcodeWorkspaceConfigBuilder.createBuilder(BuildTarget.builder("//foo","workspace").build()).setSrcTarget(Optional.of(libraryTarget)).build();
+  TargetGraph targetGraph=TargetGraphFactory.newInstance(genrule,library);
+  WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(projectFilesystem,targetGraph,workspaceNode.getConstructorArg(),workspaceNode.getBuildTarget(),ImmutableSet.<ProjectGenerator.Option>of(),false,"BUCK",getOutputPathOfNodeFunction(targetGraph));
+  Map<Path,ProjectGenerator> projectGenerators=new HashMap<>();
+  generator.generateWorkspaceAndDependentProjects(projectGenerators);
+  assertEquals(generator.getRequiredBuildTargets(),ImmutableSet.of(genruleTarget));
+}

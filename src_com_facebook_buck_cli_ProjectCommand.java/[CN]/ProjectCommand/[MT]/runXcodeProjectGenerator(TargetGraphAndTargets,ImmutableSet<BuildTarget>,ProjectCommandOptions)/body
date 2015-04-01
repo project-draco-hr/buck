@@ -24,7 +24,8 @@
   Map<Path,ProjectGenerator> projectGenerators=new HashMap<>();
   ImmutableSet<TargetNode<?>> testTargetNodes=targetGraphAndTargets.getAssociatedTests();
   ImmutableSet<TargetNode<AppleTestDescription.Arg>> groupableTests=options.getCombineTestBundles() ? AppleBuildRules.filterGroupableTests(testTargetNodes) : ImmutableSet.<TargetNode<AppleTestDescription.Arg>>of();
-  for (  BuildTarget inputTarget : targets) {
+  ImmutableSet.Builder<BuildTarget> requiredBuildTargetsBuilder=ImmutableSet.builder();
+  for (  final BuildTarget inputTarget : targets) {
     TargetNode<?> inputNode=Preconditions.checkNotNull(targetGraphAndTargets.getTargetGraph().get(inputTarget));
     XcodeWorkspaceConfigDescription.Arg workspaceArgs;
     BuildRuleType type=inputNode.getType();
@@ -38,9 +39,29 @@
  else {
       throw new HumanReadableException("%s must be a xcode_workspace_config, apple_bundle, or apple_library",inputNode);
     }
-    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphAndTargets.getTargetGraph(),workspaceArgs,inputTarget,optionsBuilder.build(),combinedProject,new ParserConfig(options.getBuckConfig()).getBuildFileName());
+    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(getProjectFilesystem(),targetGraphAndTargets.getTargetGraph(),workspaceArgs,inputTarget,optionsBuilder.build(),combinedProject,new ParserConfig(options.getBuckConfig()).getBuildFileName(),new Function<TargetNode<?>,Path>(){
+      @Nullable @Override public Path apply(      TargetNode<?> input){
+        TargetGraphToActionGraph targetGraphToActionGraph=new TargetGraphToActionGraph(getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer());
+        TargetGraph subgraph=targetGraphAndTargets.getTargetGraph().getSubgraph(ImmutableSet.of(input));
+        ActionGraph actionGraph=Preconditions.checkNotNull(targetGraphToActionGraph.apply(subgraph));
+        BuildRule rule=Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(input.getBuildTarget()));
+        return rule.getPathToOutputFile();
+      }
+    }
+);
     generator.setGroupableTests(groupableTests);
     generator.generateWorkspaceAndDependentProjects(projectGenerators);
+    ImmutableSet<BuildTarget> requiredBuildTargetsForWorkspace=generator.getRequiredBuildTargets();
+    LOG.debug("Required build targets for workspace %s: %s",inputTarget,requiredBuildTargetsForWorkspace);
+    requiredBuildTargetsBuilder.addAll(requiredBuildTargetsForWorkspace);
   }
-  return 0;
+  int exitCode=0;
+  ImmutableSet<BuildTarget> requiredBuildTargets=requiredBuildTargetsBuilder.build();
+  if (!requiredBuildTargets.isEmpty()) {
+    BuildCommand buildCommand=new BuildCommand(getCommandRunnerParams());
+    BuildCommandOptions buildCommandOptions=new BuildCommandOptions(options.getBuckConfig());
+    buildCommandOptions.setArguments(FluentIterable.from(requiredBuildTargets).transform(Functions.toStringFunction()).toList());
+    exitCode=buildCommand.runCommandWithOptions(buildCommandOptions);
+  }
+  return exitCode;
 }

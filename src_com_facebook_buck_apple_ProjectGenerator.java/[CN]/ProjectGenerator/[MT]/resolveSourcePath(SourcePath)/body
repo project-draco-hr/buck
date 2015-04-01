@@ -8,7 +8,12 @@
   TargetNode<?> node=Preconditions.checkNotNull(targetGraph.get(buildTarget));
   Optional<TargetNode<ExportFileDescription.Arg>> exportFileNode=node.castArg(ExportFileDescription.Arg.class);
   if (!exportFileNode.isPresent()) {
-    throw new HumanReadableException("Project generation only supports source paths that refer to paths or export_file " + "targets.\n" + "'%s' is a '%s' target.",node.getBuildTarget(),node.getType());
+    Path output=outputPathOfNode.apply(node);
+    if (output == null) {
+      throw new HumanReadableException("The target '%s' does not have an output.",node.getBuildTarget());
+    }
+    requiredBuildTargetsBuilder.add(buildTarget);
+    return output;
   }
   Optional<SourcePath> src=exportFileNode.get().getConstructorArg().src;
   if (!src.isPresent()) {

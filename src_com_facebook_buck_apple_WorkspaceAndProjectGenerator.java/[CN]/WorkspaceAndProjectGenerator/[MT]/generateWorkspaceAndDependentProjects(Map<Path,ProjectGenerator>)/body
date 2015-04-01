@@ -26,10 +26,11 @@
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   if (combinedProject) {
     LOG.debug("Generating a combined project");
-    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,outputDirectory,workspaceName,buildFileName,projectGeneratorOptions).setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
+    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,outputDirectory,workspaceName,buildFileName,projectGeneratorOptions,outputPathOfNode).setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
     combinedProjectGenerator=Optional.of(generator);
     generator.createXcodeProjects();
     workspaceGenerator.addFilePath(generator.getProjectPath(),Optional.<Path>absent());
+    requiredBuildTargetsBuilder.addAll(generator.getRequiredBuildTargets());
     buildTargetToPbxTargetMapBuilder.putAll(generator.getBuildTargetToGeneratedTargetMap());
     for (    PBXTarget target : generator.getBuildTargetToGeneratedTargetMap().values()) {
       targetToProjectPathMapBuilder.put(target,generator.getProjectPath());
@@ -61,8 +62,9 @@
  else {
           projectName=projectDirectory.getFileName().toString();
         }
-        generator=new ProjectGenerator(projectGraph,rules,projectFilesystem,projectDirectory,projectName,buildFileName,projectGeneratorOptions).setTestsToGenerateAsStaticLibraries(groupableTests);
+        generator=new ProjectGenerator(projectGraph,rules,projectFilesystem,projectDirectory,projectName,buildFileName,projectGeneratorOptions,outputPathOfNode).setTestsToGenerateAsStaticLibraries(groupableTests);
         generator.createXcodeProjects();
+        requiredBuildTargetsBuilder.addAll(generator.getRequiredBuildTargets());
         projectGenerators.put(projectDirectory,generator);
       }
  else {
@@ -75,9 +77,10 @@
       }
     }
     if (!groupedTestResults.groupedTests.isEmpty()) {
-      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,BuildTargets.getGenPath(workspaceBuildTarget,"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions);
+      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,BuildTargets.getGenPath(workspaceBuildTarget,"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions,outputPathOfNode);
       combinedTestsProjectGenerator.setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).createXcodeProjects();
       workspaceGenerator.addFilePath(combinedTestsProjectGenerator.getProjectPath());
+      requiredBuildTargetsBuilder.addAll(combinedTestsProjectGenerator.getRequiredBuildTargets());
       for (      PBXTarget target : combinedTestsProjectGenerator.getBuildTargetToGeneratedTargetMap().values()) {
         targetToProjectPathMapBuilder.put(target,combinedTestsProjectGenerator.getProjectPath());
       }
