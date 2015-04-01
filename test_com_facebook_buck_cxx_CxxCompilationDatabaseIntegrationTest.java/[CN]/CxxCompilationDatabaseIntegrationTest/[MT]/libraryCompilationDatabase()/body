@@ -1,0 +1,21 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"compilation_database",tmp);
+  workspace.setUp();
+  File compilationDatabase=workspace.buildAndReturnOutput("//:library_with_header#default,compilation-database");
+  assertEquals(Paths.get("buck-out/gen/__library_with_header#compilation-database,default.json"),tmp.getRootPath().relativize(compilationDatabase.toPath()));
+  String headerSymlinkTreeFolder="buck-out/gen/library_with_header#default,header-symlink-tree";
+  String exportedHeaderSymlinkTreeFoler="buck-out/gen/library_with_header#default,exported-header-symlink-tree";
+  assertTrue(Files.exists(tmp.getRootPath().resolve(headerSymlinkTreeFolder)));
+  assertTrue(Files.exists(tmp.getRootPath().resolve(exportedHeaderSymlinkTreeFoler)));
+  Gson gson=new Gson();
+  FileReader fileReader=new FileReader(compilationDatabase);
+  List<JsonSerializableDatabaseEntry> entries=gson.fromJson(fileReader,new TypeToken<List<JsonSerializableDatabaseEntry>>(){
+  }
+.getType());
+  Map<String,JsonSerializableDatabaseEntry> fileToEntry=Maps.newHashMap();
+  for (  JsonSerializableDatabaseEntry entry : entries) {
+    fileToEntry.put(entry.file,entry);
+  }
+  assertEquals(1,entries.size());
+  assertHasEntry(fileToEntry,"bar.cpp",new ImmutableList.Builder<String>().add(COMPILER_PATH).add("-c").add("-x").add("c++").add("-fPIC").add("-I").add(headerSymlinkTreeFolder).add("-I").add(exportedHeaderSymlinkTreeFoler).add("-fPIC").add("-o").add("buck-out/bin/library_with_header#compile-pic-bar.cpp.o,default/bar.cpp.o").add("bar.cpp").build());
+}

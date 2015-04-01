@@ -1,0 +1,31 @@
+{
+  BuildTarget testBuildTarget=BuildTarget.builder(BuildTargetFactory.newInstance("//foo:baz")).addAllFlavors(ImmutableSet.of(CxxCompilationDatabase.COMPILATION_DATABASE)).build();
+  BuildRuleParams testBuildRuleParams=new FakeBuildRuleParamsBuilder(testBuildTarget).setTargetGraph(TargetGraphFactory.newInstance(new CxxLibraryBuilder(testBuildTarget).build())).build();
+  BuildRuleResolver testBuildRuleResolver=new BuildRuleResolver();
+  SourcePathResolver testSourcePathResolver=new SourcePathResolver(testBuildRuleResolver);
+  BuildTarget compileTarget=BuildTarget.builder(testBuildRuleParams.getBuildTarget().getUnflavoredBuildTarget()).addFlavors(ImmutableFlavor.of("compile-test.cpp")).build();
+  BuildRuleParams compileBuildRuleParams=new FakeBuildRuleParamsBuilder(compileTarget).build();
+  CxxPreprocessAndCompile testCompileRule=new CxxPreprocessAndCompile(compileBuildRuleParams,testSourcePathResolver,new HashedFileTool(Paths.get("compiler")),CxxPreprocessAndCompileStep.Operation.COMPILE,ImmutableList.<String>of(),Paths.get("test.o"),new TestSourcePath("test.cpp"),ImmutableList.of(Paths.get("foo/bar"),Paths.get("test")),ImmutableList.<Path>of(),ImmutableList.<Path>of(),ImmutableCxxHeaders.builder().build(),Optional.<DebugPathSanitizer>absent());
+  testBuildRuleResolver.addToIndex(testCompileRule);
+  CxxCompilationDatabase compilationDatabase=CxxCompilationDatabase.createCompilationDatabase(testBuildRuleParams,testBuildRuleResolver,testSourcePathResolver,CxxSourceRuleFactory.Strategy.COMBINED_PREPROCESS_AND_COMPILE);
+  assertEquals("getPathToOutputFile() should be a function of the build target.",Paths.get("buck-out/gen/foo/__baz#compilation-database.json"),compilationDatabase.getPathToOutputFile());
+  BuildContext buildContext=FakeBuildContext.NOOP_CONTEXT;
+  BuildableContext buildableContext=new FakeBuildableContext();
+  List<Step> buildSteps=compilationDatabase.getBuildSteps(buildContext,buildableContext);
+  assertEquals(2,buildSteps.size());
+  assertTrue(buildSteps.get(0) instanceof MkdirStep);
+  assertTrue(buildSteps.get(1) instanceof CxxCompilationDatabase.GenerateCompilationCommandsJson);
+  final String root="/Users/user/src";
+  final Path fakeRoot=Paths.get(root);
+  ProjectFilesystem projectFilesystem=new FakeProjectFilesystem(){
+    @Override public Path resolve(    Path relativePath){
+      return fakeRoot.resolve(relativePath);
+    }
+  }
+;
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
+  CxxCompilationDatabase.GenerateCompilationCommandsJson step=(CxxCompilationDatabase.GenerateCompilationCommandsJson)buildSteps.get(1);
+  Iterable<JsonSerializableDatabaseEntry> observedEntries=step.createEntries(context);
+  Iterable<JsonSerializableDatabaseEntry> expectedEntries=ImmutableList.of(new JsonSerializableDatabaseEntry(root + "/foo",root + "/test.cpp",Joiner.on(' ').join("compiler","-c","-I","foo/bar","-I","test","-o","test.o","test.cpp")));
+  MoreAsserts.assertIterablesEquals(observedEntries,expectedEntries);
+}

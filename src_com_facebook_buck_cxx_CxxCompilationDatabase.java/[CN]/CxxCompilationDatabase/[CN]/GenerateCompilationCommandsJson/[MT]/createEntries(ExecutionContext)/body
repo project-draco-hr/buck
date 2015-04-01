@@ -1,0 +1,19 @@
+{
+  List<JsonSerializableDatabaseEntry> entries=Lists.newArrayList();
+  for (  CxxPreprocessAndCompile compileRule : compileRules) {
+    Optional<CxxPreprocessAndCompile> preprocessRule=Optional.<CxxPreprocessAndCompile>absent();
+    if (compileStrategy == CxxSourceRuleFactory.Strategy.SEPARATE_PREPROCESS_AND_COMPILE) {
+      for (      BuildRule buildRule : compileRule.getDeclaredDeps()) {
+        if (CxxSourceRuleFactory.isPreprocessFlavoredBuildTarget(buildRule.getBuildTarget())) {
+          preprocessRule=Optional.<CxxPreprocessAndCompile>of((CxxPreprocessAndCompile)buildRule);
+          break;
+        }
+      }
+      if (!preprocessRule.isPresent()) {
+        throw new HumanReadableException("Can't find preprocess rule for " + compileRule);
+      }
+    }
+    entries.add(createEntry(context,preprocessRule,compileRule));
+  }
+  return entries;
+}

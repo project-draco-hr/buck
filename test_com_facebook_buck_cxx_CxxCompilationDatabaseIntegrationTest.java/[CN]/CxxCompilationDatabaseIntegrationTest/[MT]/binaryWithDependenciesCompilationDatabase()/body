@@ -1,0 +1,27 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"compilation_database",tmp);
+  workspace.setUp();
+  File compilationDatabase=workspace.buildAndReturnOutput("//:binary_with_dep#compilation-database");
+  assertEquals(Paths.get("buck-out/gen/__binary_with_dep#compilation-database.json"),tmp.getRootPath().relativize(compilationDatabase.toPath()));
+  String binaryHeaderSymlinkTreeFolder="buck-out/gen/binary_with_dep#compilation-database,default,header-symlink-tree";
+  String binaryExportedHeaderSymlinkTreeFoler="buck-out/gen/library_with_header#default,exported-header-symlink-tree";
+  assertTrue(Files.exists(tmp.getRootPath().resolve(binaryHeaderSymlinkTreeFolder)));
+  assertTrue(Files.exists(tmp.getRootPath().resolve(binaryExportedHeaderSymlinkTreeFoler)));
+  String libraryHeaderSymlinkTreeFolder="buck-out/gen/library_with_header#default,header-symlink-tree";
+  String librayExportedHeaderSymlinkTreeFoler="buck-out/gen/library_with_header#default,exported-header-symlink-tree";
+  assertTrue(Files.exists(tmp.getRootPath().resolve(libraryHeaderSymlinkTreeFolder)));
+  assertTrue(Files.exists(tmp.getRootPath().resolve(librayExportedHeaderSymlinkTreeFoler)));
+  assertTrue(Files.exists(tmp.getRootPath().resolve(librayExportedHeaderSymlinkTreeFoler + "/bar.h")));
+  Gson gson=new Gson();
+  FileReader fileReader=new FileReader(compilationDatabase);
+  List<JsonSerializableDatabaseEntry> entries=gson.fromJson(fileReader,new TypeToken<List<JsonSerializableDatabaseEntry>>(){
+  }
+.getType());
+  Map<String,JsonSerializableDatabaseEntry> fileToEntry=Maps.newHashMap();
+  for (  JsonSerializableDatabaseEntry entry : entries) {
+    fileToEntry.put(entry.file,entry);
+  }
+  assertEquals(2,entries.size());
+  assertHasEntry(fileToEntry,"foo.cpp",new ImmutableList.Builder<String>().add(COMPILER_PATH).add("-c").add("-x").add("c++").add("-I").add(binaryHeaderSymlinkTreeFolder).add("-I").add(binaryExportedHeaderSymlinkTreeFoler).add("-o").add("buck-out/bin/binary_with_dep#compilation-database,compile-foo.cpp.o,default" + "/foo.cpp.o").add("foo.cpp").build());
+  assertHasEntry(fileToEntry,"bar.cpp",new ImmutableList.Builder<String>().add(COMPILER_PATH).add("-c").add("-x").add("c++").add("-I").add(libraryHeaderSymlinkTreeFolder).add("-I").add(librayExportedHeaderSymlinkTreeFoler).add("-o").add("buck-out/bin/library_with_header#compile-bar.cpp.o,default/bar.cpp.o").add("bar.cpp").build());
+}
