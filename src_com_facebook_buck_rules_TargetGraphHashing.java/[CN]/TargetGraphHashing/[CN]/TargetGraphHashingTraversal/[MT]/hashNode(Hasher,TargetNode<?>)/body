@@ -4,17 +4,8 @@
   HashCode targetRuleHashCode=buildTargetToRuleHashCode.apply(node.getBuildTarget());
   LOG.verbose("Got rules hash %s",targetRuleHashCode);
   hasher.putBytes(targetRuleHashCode.asBytes());
-  try (final OutputStream hasherOutputStream=Funnels.asOutputStream(hasher)){
-    for (    Path path : walkedPathsInSortedOrder(node.getInputs())) {
-      LOG.verbose("Node %s: adding input file contents %s",node,path);
-      StringHashing.hashStringAndLength(hasher,MorePaths.pathWithUnixSeparators(path));
-      hasher.putLong(projectFilesystem.getFileSize(path));
-      try (InputStream inputStream=projectFilesystem.newFileInputStream(path)){
-        ByteStreams.copy(inputStream,hasherOutputStream);
-      }
-     }
-  }
-   for (  BuildTarget dependency : node.getDeps()) {
+  PathHashing.hashPaths(hasher,projectFilesystem,node.getInputs());
+  for (  BuildTarget dependency : node.getDeps()) {
     HashCode dependencyHashCode=buildTargetHashes.get(dependency);
     Preconditions.checkState(dependencyHashCode != null);
     LOG.verbose("Node %s: adding dependency %s (%s)",node,dependency,dependencyHashCode);
