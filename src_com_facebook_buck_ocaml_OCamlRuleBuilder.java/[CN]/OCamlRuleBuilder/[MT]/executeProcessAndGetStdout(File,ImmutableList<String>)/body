@@ -1,8 +1,7 @@
 {
-  PrintStream stdout=new CapturingPrintStream();
-  PrintStream stderr=new CapturingPrintStream();
+  CapturingPrintStream stdout=new CapturingPrintStream();
+  CapturingPrintStream stderr=new CapturingPrintStream();
   ImmutableSet.Builder<ProcessExecutor.Option> options=ImmutableSet.builder();
-  options.add(ProcessExecutor.Option.EXPECTING_STD_ERR);
   options.add(ProcessExecutor.Option.EXPECTING_STD_OUT);
   Console console=new Console(Verbosity.SILENT,stdout,stderr,Ansi.withoutTty());
   ProcessExecutor exe=new ProcessExecutor(console);
@@ -10,9 +9,7 @@
   processBuilder.directory(baseDir);
   ProcessExecutor.Result result=exe.execute(processBuilder.start(),options.build(),Optional.<String>absent(),Optional.<Long>absent());
   if (result.getExitCode() != 0) {
-    return Optional.absent();
+    throw new HumanReadableException(stderr.getContentsAsString(StandardCharsets.UTF_8));
   }
- else {
-    return result.getStdout();
-  }
+  return result.getStdout();
 }
