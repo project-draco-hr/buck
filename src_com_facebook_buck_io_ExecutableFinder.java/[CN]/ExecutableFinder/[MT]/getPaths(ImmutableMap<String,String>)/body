@@ -1,0 +1,20 @@
+{
+  ImmutableSet.Builder<Path> paths=ImmutableSet.builder();
+  paths.add(Paths.get(""));
+  String pathEnv=env.get("PATH");
+  if (pathEnv != null) {
+    paths.addAll(FluentIterable.from(Splitter.on(pathSeparator).omitEmptyStrings().split(pathEnv)).transform(MorePaths.TO_PATH));
+  }
+  if (platform == Platform.MACOS) {
+    Path osXPaths=Paths.get("/etc/paths");
+    if (Files.exists(osXPaths)) {
+      try {
+        paths.addAll(FluentIterable.from(Files.readAllLines(osXPaths,Charset.defaultCharset())).transform(MorePaths.TO_PATH));
+      }
+ catch (      IOException e) {
+        LOG.warn("Unable to read mac-specific paths. Skipping");
+      }
+    }
+  }
+  return paths.build();
+}

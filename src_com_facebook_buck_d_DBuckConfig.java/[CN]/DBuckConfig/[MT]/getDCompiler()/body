@@ -1,20 +1,5 @@
 {
   Path compilerPath=delegate.getPath("d","compiler").or(DEFAULT_D_COMPILER);
-  if (!compilerPath.toString().contains(File.separator)) {
-    ImmutableList.Builder<Path> paths=ImmutableList.builder();
-    for (    String path : delegate.getEnv("PATH",File.pathSeparator)) {
-      paths.add(Paths.get(path));
-    }
-    Optional<Path> compiler=MorePaths.searchPathsForExecutable(compilerPath,paths.build(),ImmutableList.copyOf(delegate.getEnv("PATHEXT",File.pathSeparator)));
-    if (compiler.isPresent()) {
-      compilerPath=compiler.get();
-    }
-  }
-  if (!Files.exists(compilerPath)) {
-    throw new HumanReadableException("D compiler " + compilerPath.toString() + " not found");
-  }
- else   if (!Files.isExecutable(compilerPath)) {
-    throw new HumanReadableException("D compiler " + compilerPath.toString() + " is not executable");
-  }
-  return new HashedFileTool(compilerPath);
+  Path compiler=new ExecutableFinder().getExecutable(compilerPath,delegate.getEnvironment());
+  return new HashedFileTool(compiler);
 }
