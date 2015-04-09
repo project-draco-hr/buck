@@ -5,9 +5,8 @@
   AndroidBuildConfigJavaLibrary buildConfigJavaLibrary=AndroidBuildConfigDescription.createBuildRule(buildConfigParams,"com.example.buck",BuildConfigFields.empty(),Optional.<SourcePath>absent(),false,ANDROID_JAVAC_OPTIONS,ruleResolver);
   BuildTarget apkTarget=BuildTargetFactory.newInstance("//java/com/example:apk");
   BuildRuleParams originalParams=new FakeBuildRuleParamsBuilder(apkTarget).setDeps(ImmutableSortedSet.<BuildRule>of(buildConfigJavaLibrary)).build();
-  originalParams.getProjectFilesystem().writeContentsToPath(FAKE_ANDROID_MANIFEST,Paths.get("AndroidManifest.xml"));
   Keystore keystore=createStrictMock(Keystore.class);
-  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,ruleResolver,ResourcesFilter.ResourceCompressionMode.ENABLED_WITH_STRINGS_AS_ASSETS,FilterResourcesStep.ResourceFilter.EMPTY_FILTER,ImmutableSet.<String>of(),new PathSourcePath(originalParams.getProjectFilesystem(),Paths.get("AndroidManifest.xml")),AndroidBinary.PackageType.DEBUG,ImmutableSet.<TargetCpuType>of(),false,false,BuildTargets.getScratchPath(apkTarget,"%s/classes.dex"),DexSplitMode.NO_SPLIT,ImmutableSet.<BuildTarget>of(),ImmutableSet.<BuildTarget>of(),false,ANDROID_JAVAC_OPTIONS,EnumSet.of(ExopackageMode.SECONDARY_DEX),keystore,BuildConfigFields.empty(),Optional.<SourcePath>absent(),ImmutableMap.<TargetCpuType,NdkCxxPlatform>of());
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(originalParams,ruleResolver,ResourcesFilter.ResourceCompressionMode.ENABLED_WITH_STRINGS_AS_ASSETS,FilterResourcesStep.ResourceFilter.EMPTY_FILTER,ImmutableSet.<String>of(),new TestSourcePath("AndroidManifest.xml"),AndroidBinary.PackageType.DEBUG,ImmutableSet.<TargetCpuType>of(),false,false,BuildTargets.getScratchPath(apkTarget,"%s/classes.dex"),DexSplitMode.NO_SPLIT,ImmutableSet.<BuildTarget>of(),ImmutableSet.<BuildTarget>of(),false,ANDROID_JAVAC_OPTIONS,EnumSet.of(ExopackageMode.SECONDARY_DEX),keystore,BuildConfigFields.empty(),Optional.<SourcePath>absent(),ImmutableMap.<TargetCpuType,NdkCxxPlatform>of());
   replay(keystore);
   AndroidGraphEnhancementResult result=graphEnhancer.createAdditionalBuildables();
   String flavor="buildconfig_com_example_buck";
@@ -19,7 +18,7 @@
   AndroidBuildConfig androidBuildConfig=enhancedBuildConfigJavaLibrary.getAndroidBuildConfig();
   assertEquals("com.example.buck",androidBuildConfig.getJavaPackage());
   assertTrue(androidBuildConfig.isUseConstantExpressions());
-  assertEquals("IS_EXOPACKAGE defaults to false, but should now be true. DEBUG should still be true.",BuildConfigFields.fromFields(ImmutableList.<BuildConfigFields.Field>of(BuildConfigFields.Field.of("boolean","DEBUG","true"),BuildConfigFields.Field.of("boolean","IS_EXOPACKAGE","true"),BuildConfigFields.Field.of("int","EXOPACKAGE_FLAGS","1"),BuildConfigFields.Field.of("String","PACKAGE_NAME","\"com.example.buck\""),BuildConfigFields.Field.of("int","VERSION_CODE","1"),BuildConfigFields.Field.of("String","VERSION_NAME","\"1.0\""))),androidBuildConfig.getBuildConfigFields());
+  assertEquals("IS_EXOPACKAGE defaults to false, but should now be true. DEBUG should still be true.",BuildConfigFields.fromFields(ImmutableList.<BuildConfigFields.Field>of(BuildConfigFields.Field.of("boolean","DEBUG","true"),BuildConfigFields.Field.of("boolean","IS_EXOPACKAGE","true"),BuildConfigFields.Field.of("int","EXOPACKAGE_FLAGS","1"))),androidBuildConfig.getBuildConfigFields());
   ImmutableSortedSet<BuildRule> finalDeps=result.getFinalDeps();
   assertEquals(1,finalDeps.size());
   BuildRule computeExopackageDepsAbiRule=findRuleOfType(ruleResolver,ComputeExopackageDepsAbi.class);
