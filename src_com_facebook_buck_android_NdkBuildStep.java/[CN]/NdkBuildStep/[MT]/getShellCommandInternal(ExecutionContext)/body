@@ -7,8 +7,12 @@
   if (!ndkBuild.isPresent()) {
     throw new HumanReadableException("Unable to find ndk-build");
   }
+  ConcurrencyLimit concurrencyLimit=context.getConcurrencyLimit();
   ImmutableList.Builder<String> builder=ImmutableList.builder();
-  builder.add(ndkBuild.get().toAbsolutePath().toString(),"-j",Integer.toString(this.maxJobCount),"-C",this.root.toString());
+  builder.add(ndkBuild.get().toAbsolutePath().toString(),"-j",Integer.toString(concurrencyLimit.threadLimit),"-C",this.root.toString());
+  if (concurrencyLimit.loadLimit < Double.POSITIVE_INFINITY) {
+    builder.add("--load-average",Double.toString(concurrencyLimit.loadLimit));
+  }
   Iterable<String> flags=Iterables.transform(this.flags,macroExpander);
   builder.addAll(flags);
   ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
