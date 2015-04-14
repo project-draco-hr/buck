@@ -1,0 +1,47 @@
+{
+  Preconditions.checkArgument(!targetNodes.isEmpty());
+  final ImmutableSet<TargetNode<?>> mutuallyExclusiveTargets=getMutuallyExclusiveTargets(targetNodes);
+  final ImmutableList<BuildTarget> targetsOverrides=FluentIterable.from(targetNodes).firstMatch(new Predicate<TargetNode<?>>(){
+    @Override public boolean apply(    TargetNode<?> input){
+      return input.getType() == ProjectConfigDescription.TYPE;
+    }
+  }
+).transform(new Function<TargetNode<?>,ImmutableList<BuildTarget>>(){
+    @Nullable @Override public ImmutableList<BuildTarget> apply(    TargetNode<?> input){
+      ImmutableList.Builder<BuildTarget> rootOverridesBuilder=ImmutableList.builder();
+      ProjectConfigDescription.Arg arg=(ProjectConfigDescription.Arg)input.getConstructorArg();
+      if (arg.srcTarget.isPresent()) {
+        rootOverridesBuilder.add(arg.srcTarget.get());
+      }
+      if (arg.testTarget.isPresent()) {
+        rootOverridesBuilder.add(arg.testTarget.get());
+      }
+      return rootOverridesBuilder.build();
+    }
+  }
+).or(ImmutableList.<BuildTarget>of());
+  if (mutuallyExclusiveTargets.size() > 1 && !targetsOverrides.isEmpty()) {
+    targetNodes=FluentIterable.from(targetNodes).filter(new Predicate<TargetNode<?>>(){
+      @Override public boolean apply(      TargetNode<?> input){
+        return !mutuallyExclusiveTargets.contains(input) || targetsOverrides.contains(input.getBuildTarget());
+      }
+    }
+).toSet();
+  }
+  Preconditions.checkArgument(getMutuallyExclusiveTargets(targetNodes).size() <= 1);
+  ModuleBuildContext context=new ModuleBuildContext(moduleBasePath,IjModule.builder(),Optional.<IjModuleAndroidFacet.Builder>absent());
+  for (  TargetNode<?> targetNode : targetNodes) {
+    IjModuleRule<?> rule=moduleRuleIndex.get(targetNode.getType());
+    if (rule == null) {
+      continue;
+    }
+    rule.apply((TargetNode)targetNode,context);
+  }
+  Optional<IjModuleAndroidFacet> androidFacetOptional=context.androidFacetBuilder.transform(new Function<IjModuleAndroidFacet.Builder,IjModuleAndroidFacet>(){
+    @Override public IjModuleAndroidFacet apply(    IjModuleAndroidFacet.Builder input){
+      return input.build();
+    }
+  }
+);
+  return context.moduleBuilder.setModuleBasePath(moduleBasePath).setTargets(targetNodes).addAllLibraries(libraryFactory.getLibraries(targetNodes)).setAndroidFacet(androidFacetOptional).build();
+}

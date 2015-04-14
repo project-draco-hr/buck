@@ -1,9 +1,18 @@
 {
-  List<Module> modules=createModulesForProjectConfigs();
-  writeJsonConfig(jsonTempFile,modules);
+  List<SerializableModule> modules;
+  if (experimentalProjectGeneration) {
+    IjProject ijProject=IjProject.create(targetGraph,javaPackageFinder,resolver);
+    modules=Lists.newArrayList(ijProject.getSerializedProjectDescription());
+    writeJsonConfig(jsonTempFile,modules,ImmutableList.<SerializablePrebuiltJarRule>of(),ijProject.getSerializedLibrariesDescription());
+  }
+ else {
+    modules=Lists.<SerializableModule>newArrayList(createModulesForProjectConfigs());
+    writeJsonConfig(jsonTempFile,modules);
+  }
   List<String> modifiedFiles=Lists.newArrayList();
   ExitCodeAndOutput result=processJsonConfig(jsonTempFile,generateMinimalProject);
   if (result.exitCode != 0) {
+    Logger.get(Project.class).error(result.stdErr);
     return result.exitCode;
   }
  else {

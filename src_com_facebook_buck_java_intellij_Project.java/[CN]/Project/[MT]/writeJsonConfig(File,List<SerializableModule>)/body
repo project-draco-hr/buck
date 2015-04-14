@@ -1,0 +1,23 @@
+{
+  List<SerializablePrebuiltJarRule> libraries=Lists.newArrayListWithCapacity(libraryJars.size());
+  for (  BuildRule libraryJar : libraryJars) {
+    Preconditions.checkState(libraryJar instanceof PrebuiltJar);
+    String name=getIntellijNameForRule(libraryJar,null);
+    PrebuiltJar prebuiltJar=(PrebuiltJar)libraryJar;
+    String binaryJar=resolver.getPath(prebuiltJar.getBinaryJar()).toString();
+    String sourceJar=null;
+    if (prebuiltJar.getSourceJar().isPresent()) {
+      sourceJar=prebuiltJar.getSourceJar().get().toString();
+    }
+    String javadocUrl=prebuiltJar.getJavadocUrl().orNull();
+    libraries.add(new SerializablePrebuiltJarRule(name,binaryJar,sourceJar,javadocUrl));
+  }
+  List<SerializableAndroidAar> aars=Lists.newArrayListWithCapacity(androidAars.size());
+  for (  BuildRule aar : androidAars) {
+    Preconditions.checkState(aar instanceof AndroidPrebuiltAar);
+    AndroidPrebuiltAar preBuiltAar=(AndroidPrebuiltAar)aar;
+    String name=getIntellijNameForAar(preBuiltAar);
+    aars.add(createSerializableAndroidAar(name,preBuiltAar));
+  }
+  writeJsonConfig(jsonTempFile,modules,libraries,aars);
+}

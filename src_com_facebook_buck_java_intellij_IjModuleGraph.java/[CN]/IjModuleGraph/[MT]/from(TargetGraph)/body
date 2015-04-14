@@ -1,0 +1,28 @@
+{
+  final MutableDirectedGraph<IjModule> moduleGraph=new MutableDirectedGraph<>();
+  final ImmutableMap<BuildTarget,IjModule> rulesToModules=createModules(targetGraph);
+  for (  IjModule module : rulesToModules.values()) {
+    moduleGraph.addNode(module);
+  }
+  AbstractBottomUpTraversal<TargetNode<?>,IjModuleGraph> bottomUpTraversal=new AbstractBottomUpTraversal<TargetNode<?>,IjModuleGraph>(targetGraph){
+    @Override public void visit(    TargetNode<?> node){
+      IjModule module=rulesToModules.get(node.getBuildTarget());
+      if (module == null) {
+        return;
+      }
+      for (      BuildTarget dep : node.getDeps()) {
+        IjModule depModule=rulesToModules.get(dep);
+        if (depModule == null || depModule.equals(module)) {
+          continue;
+        }
+        moduleGraph.addEdge(module,depModule);
+      }
+    }
+    @Override public IjModuleGraph getResult(){
+      return new IjModuleGraph(moduleGraph);
+    }
+  }
+;
+  bottomUpTraversal.traverse();
+  return bottomUpTraversal.getResult();
+}
