@@ -1,5 +1,5 @@
 {
-  ImmutableList.Builder<SourcePath> objects=ImmutableList.builder();
+  ImmutableList.Builder<CxxPreprocessAndCompile> objects=ImmutableList.builder();
   for (  Map.Entry<String,CxxSource> entry : sources.entrySet()) {
     String name=entry.getKey();
     CxxSource source=entry.getValue();
@@ -7,7 +7,7 @@
 switch (strategy) {
 case COMBINED_PREPROCESS_AND_COMPILE:
 {
-        BuildRule rule;
+        CxxPreprocessAndCompile rule;
         if (CxxSourceTypes.isPreprocessableType(source.getType())) {
           rule=createPreprocessAndCompileBuildRule(name,source,pic);
         }
@@ -15,24 +15,30 @@ case COMBINED_PREPROCESS_AND_COMPILE:
           rule=createCompileBuildRule(name,source,pic);
         }
         resolver.addToIndex(rule);
-        objects.add(new BuildTargetSourcePath(params.getProjectFilesystem(),rule.getBuildTarget()));
+        objects.add(rule);
         break;
       }
 case SEPARATE_PREPROCESS_AND_COMPILE:
 {
       if (CxxSourceTypes.isPreprocessableType(source.getType())) {
-        BuildRule rule=createPreprocessBuildRule(name,source,pic);
+        CxxPreprocessAndCompile rule=createPreprocessBuildRule(name,source,pic);
         resolver.addToIndex(rule);
         source=CxxSource.copyOf(source).withType(CxxSourceTypes.getPreprocessorOutputType(source.getType())).withPath(new BuildTargetSourcePath(params.getProjectFilesystem(),rule.getBuildTarget()));
       }
-      BuildRule rule=createCompileBuildRule(name,source,pic);
+      CxxPreprocessAndCompile rule=createCompileBuildRule(name,source,pic);
       resolver.addToIndex(rule);
-      objects.add(new BuildTargetSourcePath(params.getProjectFilesystem(),rule.getBuildTarget()));
+      objects.add(rule);
       break;
     }
 default :
   throw new IllegalStateException();
 }
 }
-return objects.build();
+final ProjectFilesystem projectFilesystem=params.getProjectFilesystem();
+return FluentIterable.from(objects.build()).toMap(new Function<CxxPreprocessAndCompile,SourcePath>(){
+@Override public SourcePath apply(CxxPreprocessAndCompile input){
+return new BuildTargetSourcePath(projectFilesystem,input.getBuildTarget());
+}
+}
+);
 }
