@@ -26,7 +26,7 @@
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   if (combinedProject) {
     LOG.debug("Generating a combined project");
-    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,outputDirectory,workspaceName,buildFileName,projectGeneratorOptions,outputPathOfNode).setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
+    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,outputDirectory,workspaceName,buildFileName,projectGeneratorOptions,outputPathOfNode).setAdditionalCombinedTestTargets(groupedTestResults.getGroupedTests()).setTestsToGenerateAsStaticLibraries(groupableTests);
     combinedProjectGenerator=Optional.of(generator);
     generator.createXcodeProjects();
     workspaceGenerator.addFilePath(generator.getProjectPath(),Optional.<Path>absent());
@@ -76,9 +76,9 @@
         targetToProjectPathMapBuilder.put(target,generator.getProjectPath());
       }
     }
-    if (!groupedTestResults.groupedTests.isEmpty()) {
+    if (!groupedTestResults.getGroupedTests().isEmpty()) {
       ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,BuildTargets.getGenPath(workspaceBuildTarget,"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions,outputPathOfNode);
-      combinedTestsProjectGenerator.setAdditionalCombinedTestTargets(groupedTestResults.groupedTests).createXcodeProjects();
+      combinedTestsProjectGenerator.setAdditionalCombinedTestTargets(groupedTestResults.getGroupedTests()).createXcodeProjects();
       workspaceGenerator.addFilePath(combinedTestsProjectGenerator.getProjectPath());
       requiredBuildTargetsBuilder.addAll(combinedTestsProjectGenerator.getRequiredBuildTargets());
       for (      PBXTarget target : combinedTestsProjectGenerator.getBuildTargetToGeneratedTargetMap().values()) {
@@ -99,7 +99,7 @@
     }
   }
 ;
-  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,workspaceArguments.srcTarget.transform(Functions.forMap(buildTargetToTarget)),Iterables.transform(orderedTargetNodes,targetNodeToPBXTargetTransformer),FluentIterable.from(buildForTestNodes).transform(targetNodeToPBXTargetTransformer).append(synthesizedCombinedTestTargets),FluentIterable.from(groupedTestResults.ungroupedTests).transform(targetNodeToPBXTargetTransformer).append(synthesizedCombinedTestTargets),workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),XcodeWorkspaceConfigDescription.getActionConfigNamesFromArg(workspaceArguments),targetToProjectPathMapBuilder.build());
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,workspaceArguments.srcTarget.transform(Functions.forMap(buildTargetToTarget)),Iterables.transform(orderedTargetNodes,targetNodeToPBXTargetTransformer),FluentIterable.from(buildForTestNodes).transform(targetNodeToPBXTargetTransformer).append(synthesizedCombinedTestTargets),FluentIterable.from(groupedTestResults.getUngroupedTests()).transform(targetNodeToPBXTargetTransformer).append(synthesizedCombinedTestTargets),workspaceName,outputDirectory.resolve(workspaceName + ".xcworkspace"),XcodeWorkspaceConfigDescription.getActionConfigNamesFromArg(workspaceArguments),targetToProjectPathMapBuilder.build());
   schemeGenerator.writeScheme();
   this.schemeGenerator=Optional.of(schemeGenerator);
   return workspacePath;
