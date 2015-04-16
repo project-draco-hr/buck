@@ -1,0 +1,35 @@
+{
+  setUpWorkspaceWithSchemeAndProjects();
+  WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(projectFilesystem,targetGraph,workspaceWithExtraSchemeNode.getConstructorArg(),workspaceWithExtraSchemeNode.getBuildTarget(),ImmutableSet.of(ProjectGenerator.Option.INCLUDE_TESTS),false,"BUCK",getOutputPathOfNodeFunction(targetGraph));
+  Map<Path,ProjectGenerator> projectGenerators=new HashMap<>();
+  generator.generateWorkspaceAndDependentProjects(projectGenerators);
+  ProjectGenerator fooProjectGenerator=projectGenerators.get(Paths.get("foo"));
+  ProjectGenerator barProjectGenerator=projectGenerators.get(Paths.get("bar"));
+  ProjectGenerator bazProjectGenerator=projectGenerators.get(Paths.get("baz"));
+  ProjectGenerator quxProjectGenerator=projectGenerators.get(Paths.get("qux"));
+  assertNotNull("The Qux project should have been generated",quxProjectGenerator);
+  assertNotNull("The Foo project should have been generated",fooProjectGenerator);
+  assertNotNull("The Bar project should have been generated",barProjectGenerator);
+  assertNotNull("The Baz project should have been generated",bazProjectGenerator);
+  ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(fooProjectGenerator.getGeneratedProject(),"//foo:FooBin");
+  ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(fooProjectGenerator.getGeneratedProject(),"//foo:FooLib");
+  ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(fooProjectGenerator.getGeneratedProject(),"//foo:FooBinTest");
+  ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(fooProjectGenerator.getGeneratedProject(),"//foo:FooLibTest");
+  ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(barProjectGenerator.getGeneratedProject(),"//bar:BarLib");
+  ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(bazProjectGenerator.getGeneratedProject(),"//baz:BazLib");
+  ProjectGeneratorTestUtils.assertTargetExistsAndReturnTarget(quxProjectGenerator.getGeneratedProject(),"//qux:QuxBin");
+  XCScheme mainScheme=generator.getSchemeGenerators().get("workspace").getOutputScheme().get();
+  XCScheme.BuildAction mainSchemeBuildAction=mainScheme.getBuildAction().get();
+  assertThat(mainSchemeBuildAction.getBuildActionEntries(),hasSize(2));
+  assertThat(mainSchemeBuildAction.getBuildActionEntries().get(0),withNameAndBuildingFor("BarLib",equalTo(XCScheme.BuildActionEntry.BuildFor.DEFAULT)));
+  assertThat(mainSchemeBuildAction.getBuildActionEntries().get(1),withNameAndBuildingFor("QuxBin",equalTo(XCScheme.BuildActionEntry.BuildFor.DEFAULT)));
+  XCScheme fooScheme=generator.getSchemeGenerators().get("FooScheme").getOutputScheme().get();
+  XCScheme.BuildAction fooSchemeBuildAction=fooScheme.getBuildAction().get();
+  assertThat(fooSchemeBuildAction.getBuildActionEntries(),hasSize(6));
+  assertThat(fooSchemeBuildAction.getBuildActionEntries().get(0),withNameAndBuildingFor("BarLib",equalTo(XCScheme.BuildActionEntry.BuildFor.DEFAULT)));
+  assertThat(fooSchemeBuildAction.getBuildActionEntries().get(1),withNameAndBuildingFor("FooLib",equalTo(XCScheme.BuildActionEntry.BuildFor.DEFAULT)));
+  assertThat(fooSchemeBuildAction.getBuildActionEntries().get(2),withNameAndBuildingFor("FooBin",equalTo(XCScheme.BuildActionEntry.BuildFor.DEFAULT)));
+  assertThat(fooSchemeBuildAction.getBuildActionEntries().get(3),withNameAndBuildingFor("BazLib",equalTo(XCScheme.BuildActionEntry.BuildFor.TEST_ONLY)));
+  assertThat(fooSchemeBuildAction.getBuildActionEntries().get(4),withNameAndBuildingFor("FooLibTest",equalTo(XCScheme.BuildActionEntry.BuildFor.TEST_ONLY)));
+  assertThat(fooSchemeBuildAction.getBuildActionEntries().get(5),withNameAndBuildingFor("FooBinTest",equalTo(XCScheme.BuildActionEntry.BuildFor.TEST_ONLY)));
+}
