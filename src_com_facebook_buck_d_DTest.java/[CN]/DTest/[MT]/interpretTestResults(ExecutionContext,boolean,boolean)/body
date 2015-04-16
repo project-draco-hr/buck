@@ -1,0 +1,34 @@
+{
+  return new Callable<TestResults>(){
+    @Override public TestResults call() throws Exception {
+      ResultType resultType=ResultType.FAILURE;
+      try {
+        int exitCode=Integer.parseInt(new String(Files.readAllBytes(executionContext.getProjectFilesystem().resolve(getPathToTestExitCode()))));
+        if (exitCode == 0) {
+          resultType=ResultType.SUCCESS;
+        }
+      }
+ catch (      IOException e) {
+        resultType=ResultType.FAILURE;
+      }
+      String testOutput=executionContext.getProjectFilesystem().readFileIfItExists(getPathToTestOutput()).or("");
+      String message="";
+      String stackTrace="";
+      String testName="";
+      if (resultType == ResultType.FAILURE && !testOutput.isEmpty()) {
+        int firstNewline=testOutput.indexOf('\n');
+        String firstLine=firstNewline == -1 ? testOutput : testOutput.substring(0,firstNewline);
+        Pattern firstLinePattern=Pattern.compile("^[^@]*@([^:]*): (.*)");
+        Matcher m=firstLinePattern.matcher(firstLine);
+        if (m.matches()) {
+          testName=m.group(1);
+          message=m.group(2);
+        }
+        stackTrace=testOutput;
+      }
+      TestResultSummary summary=new TestResultSummary(getBuildTarget().getShortName(),testName,resultType,0,message,stackTrace,testOutput,"");
+      return new TestResults(getBuildTarget(),ImmutableList.<TestCaseSummary>of(new TestCaseSummary("main",ImmutableList.of(summary))),contacts,FluentIterable.from(labels).transform(Functions.toStringFunction()).toSet());
+    }
+  }
+;
+}
