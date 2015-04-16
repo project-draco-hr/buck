@@ -11,18 +11,18 @@
   }
   WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,workspaceName,outputDirectory);
   ImmutableMap.Builder<String,XcodeWorkspaceConfigDescription.Arg> schemeConfigsBuilder=ImmutableMap.builder();
-  ImmutableSetMultimap.Builder<String,TargetNode<?>> orderedTargetNodesBuilder=ImmutableSetMultimap.builder();
+  ImmutableSetMultimap.Builder<String,Optional<TargetNode<?>>> schemeNameToSrcTargetNodeBuilder=ImmutableSetMultimap.builder();
   ImmutableSetMultimap.Builder<String,TargetNode<?>> buildForTestNodesBuilder=ImmutableSetMultimap.builder();
   ImmutableMultimap.Builder<AppleTestBundleParamsKey,TargetNode<AppleTestDescription.Arg>> groupedTestsBuilder=ImmutableMultimap.builder();
   ImmutableSetMultimap.Builder<String,TargetNode<AppleTestDescription.Arg>> ungroupedTestsBuilder=ImmutableSetMultimap.builder();
-  buildWorkspaceSchemes(projectGraph,projectGeneratorOptions.contains(ProjectGenerator.Option.INCLUDE_TESTS),groupableTests,workspaceName,workspaceArguments,schemeConfigsBuilder,orderedTargetNodesBuilder,buildForTestNodesBuilder,groupedTestsBuilder,ungroupedTestsBuilder);
+  buildWorkspaceSchemes(projectGraph,projectGeneratorOptions.contains(ProjectGenerator.Option.INCLUDE_TESTS),groupableTests,workspaceName,workspaceArguments,schemeConfigsBuilder,schemeNameToSrcTargetNodeBuilder,buildForTestNodesBuilder,groupedTestsBuilder,ungroupedTestsBuilder);
   ImmutableMap<String,XcodeWorkspaceConfigDescription.Arg> schemeConfigs=schemeConfigsBuilder.build();
-  ImmutableSetMultimap<String,TargetNode<?>> orderedTargetNodes=orderedTargetNodesBuilder.build();
+  ImmutableSetMultimap<String,Optional<TargetNode<?>>> schemeNameToSrcTargetNode=schemeNameToSrcTargetNodeBuilder.build();
   ImmutableSetMultimap<String,TargetNode<?>> buildForTestNodes=buildForTestNodesBuilder.build();
   ImmutableMultimap<AppleTestBundleParamsKey,TargetNode<AppleTestDescription.Arg>> groupedTests=groupedTestsBuilder.build();
   ImmutableSetMultimap<String,TargetNode<AppleTestDescription.Arg>> ungroupedTests=ungroupedTestsBuilder.build();
   Iterable<PBXTarget> synthesizedCombinedTestTargets=ImmutableList.of();
-  ImmutableSet<BuildTarget> targetsInRequiredProjects=FluentIterable.from(orderedTargetNodes.values()).append(buildForTestNodes.values()).transform(HasBuildTarget.TO_TARGET).toSet();
+  ImmutableSet<BuildTarget> targetsInRequiredProjects=FluentIterable.from(Optional.presentInstances(schemeNameToSrcTargetNode.values())).append(buildForTestNodes.values()).transform(HasBuildTarget.TO_TARGET).toSet();
   ImmutableMap.Builder<BuildTarget,PBXTarget> buildTargetToPbxTargetMapBuilder=ImmutableMap.builder();
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   if (combinedProject) {
@@ -100,6 +100,6 @@
     }
   }
 ;
-  writeWorkspaceSchemes(workspaceName,outputDirectory,schemeConfigs,orderedTargetNodes,buildForTestNodes,ungroupedTests,targetToProjectPathMapBuilder.build(),synthesizedCombinedTestTargets,targetNodeToPBXTargetTransformer,Functions.forMap(buildTargetToTarget));
+  writeWorkspaceSchemes(workspaceName,outputDirectory,schemeConfigs,schemeNameToSrcTargetNode,buildForTestNodes,ungroupedTests,targetToProjectPathMapBuilder.build(),synthesizedCombinedTestTargets,targetNodeToPBXTargetTransformer,Functions.forMap(buildTargetToTarget));
   return workspacePath;
 }
