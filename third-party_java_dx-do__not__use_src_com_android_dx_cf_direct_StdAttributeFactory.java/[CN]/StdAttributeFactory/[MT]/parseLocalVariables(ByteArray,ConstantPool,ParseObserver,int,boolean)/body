@@ -1,0 +1,35 @@
+{
+  if (bytes.size() != (count * 10)) {
+    throwBadLength((count * 10) + 2);
+  }
+  ByteArray.MyDataInputStream in=bytes.makeDataInputStream();
+  LocalVariableList list=new LocalVariableList(count);
+  try {
+    for (int i=0; i < count; i++) {
+      int startPc=in.readUnsignedShort();
+      int length=in.readUnsignedShort();
+      int nameIdx=in.readUnsignedShort();
+      int typeIdx=in.readUnsignedShort();
+      int index=in.readUnsignedShort();
+      CstString name=(CstString)pool.get(nameIdx);
+      CstString type=(CstString)pool.get(typeIdx);
+      CstString descriptor=null;
+      CstString signature=null;
+      if (typeTable) {
+        signature=type;
+      }
+ else {
+        descriptor=type;
+      }
+      list.set(i,startPc,length,name,descriptor,signature,index);
+      if (observer != null) {
+        observer.parsed(bytes,i * 10,10,Hex.u2(startPc) + ".." + Hex.u2(startPc + length)+ " "+ Hex.u2(index)+ " "+ name.toHuman()+ " "+ type.toHuman());
+      }
+    }
+  }
+ catch (  IOException ex) {
+    throw new RuntimeException("shouldn't happen",ex);
+  }
+  list.setImmutable();
+  return list;
+}

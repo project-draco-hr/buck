@@ -1,0 +1,41 @@
+{
+  int size=insns.size();
+  boolean anyFixed=false;
+  for (int i=0; i < size; i++) {
+    DalvInsn insn=insns.get(i);
+    if (!(insn instanceof TargetInsn)) {
+      continue;
+    }
+    Dop opcode=insn.getOpcode();
+    TargetInsn target=(TargetInsn)insn;
+    if (opcode.getFormat().branchFits(target)) {
+      continue;
+    }
+    if (opcode.getFamily() == Opcodes.GOTO) {
+      opcode=findOpcodeForInsn(insn,opcode);
+      if (opcode == null) {
+        throw new UnsupportedOperationException("method too long");
+      }
+      insns.set(i,insn.withOpcode(opcode));
+    }
+ else {
+      CodeAddress newTarget;
+      try {
+        newTarget=(CodeAddress)insns.get(i + 1);
+      }
+ catch (      IndexOutOfBoundsException ex) {
+        throw new IllegalStateException("unpaired TargetInsn (dangling)");
+      }
+catch (      ClassCastException ex) {
+        throw new IllegalStateException("unpaired TargetInsn");
+      }
+      TargetInsn gotoInsn=new TargetInsn(Dops.GOTO,target.getPosition(),RegisterSpecList.EMPTY,target.getTarget());
+      insns.set(i,gotoInsn);
+      insns.add(i,target.withNewTargetAndReversed(newTarget));
+      size++;
+      i++;
+    }
+    anyFixed=true;
+  }
+  return anyFixed;
+}

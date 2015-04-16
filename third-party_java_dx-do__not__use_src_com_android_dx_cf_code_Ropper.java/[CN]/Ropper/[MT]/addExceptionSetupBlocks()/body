@@ -1,0 +1,20 @@
+{
+  int len=catchInfos.length;
+  for (int i=0; i < len; i++) {
+    CatchInfo catches=catchInfos[i];
+    if (catches != null) {
+      for (      ExceptionHandlerSetup one : catches.getSetups()) {
+        Insn proto=labelToBlock(i).getFirstInsn();
+        SourcePosition pos=proto.getPosition();
+        InsnList il=new InsnList(2);
+        Insn insn=new PlainInsn(Rops.opMoveException(one.getCaughtType()),pos,RegisterSpec.make(maxLocals,one.getCaughtType()),RegisterSpecList.EMPTY);
+        il.set(0,insn);
+        insn=new PlainInsn(Rops.GOTO,pos,null,RegisterSpecList.EMPTY);
+        il.set(1,insn);
+        il.setImmutable();
+        BasicBlock bb=new BasicBlock(one.getLabel(),il,IntList.makeImmutable(i),i);
+        addBlock(bb,startFrames[i].getSubroutines());
+      }
+    }
+  }
+}

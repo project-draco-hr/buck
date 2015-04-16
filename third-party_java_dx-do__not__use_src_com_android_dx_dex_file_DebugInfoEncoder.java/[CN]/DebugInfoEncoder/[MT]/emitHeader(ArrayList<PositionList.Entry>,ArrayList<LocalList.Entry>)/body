@@ -1,0 +1,64 @@
+{
+  boolean annotate=(annotateTo != null) || (debugPrint != null);
+  int mark=output.getCursor();
+  if (sortedPositions.size() > 0) {
+    PositionList.Entry entry=sortedPositions.get(0);
+    line=entry.getPosition().getLine();
+  }
+  output.writeUleb128(line);
+  if (annotate) {
+    annotate(output.getCursor() - mark,"line_start: " + line);
+  }
+  int curParam=getParamBase();
+  StdTypeList paramTypes=desc.getParameterTypes();
+  int szParamTypes=paramTypes.size();
+  if (!isStatic) {
+    for (    LocalList.Entry arg : methodArgs) {
+      if (curParam == arg.getRegister()) {
+        lastEntryForReg[curParam]=arg;
+        break;
+      }
+    }
+    curParam++;
+  }
+  mark=output.getCursor();
+  output.writeUleb128(szParamTypes);
+  if (annotate) {
+    annotate(output.getCursor() - mark,String.format("parameters_size: %04x",szParamTypes));
+  }
+  for (int i=0; i < szParamTypes; i++) {
+    Type pt=paramTypes.get(i);
+    LocalList.Entry found=null;
+    mark=output.getCursor();
+    for (    LocalList.Entry arg : methodArgs) {
+      if (curParam == arg.getRegister()) {
+        found=arg;
+        if (arg.getSignature() != null) {
+          emitStringIndex(null);
+        }
+ else {
+          emitStringIndex(arg.getName());
+        }
+        lastEntryForReg[curParam]=arg;
+        break;
+      }
+    }
+    if (found == null) {
+      emitStringIndex(null);
+    }
+    if (annotate) {
+      String parameterName=(found == null || found.getSignature() != null) ? "<unnamed>" : found.getName().toHuman();
+      annotate(output.getCursor() - mark,"parameter " + parameterName + " "+ RegisterSpec.PREFIX+ curParam);
+    }
+    curParam+=pt.getCategory();
+  }
+  for (  LocalList.Entry arg : lastEntryForReg) {
+    if (arg == null) {
+      continue;
+    }
+    CstString signature=arg.getSignature();
+    if (signature != null) {
+      emitLocalStartExtended(arg);
+    }
+  }
+}

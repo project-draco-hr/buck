@@ -1,0 +1,45 @@
+{
+  File incrementalOutFile=null;
+  if (args.incremental) {
+    if (args.outName == null) {
+      System.err.println("error: no incremental output name specified");
+      return -1;
+    }
+    incrementalOutFile=new File(args.outName);
+    if (incrementalOutFile.exists()) {
+      minimumFileAge=incrementalOutFile.lastModified();
+    }
+  }
+  if (!processAllFiles()) {
+    return 1;
+  }
+  if (args.incremental && !anyFilesProcessed) {
+    return 0;
+  }
+  byte[] outArray=null;
+  if (!outputDex.isEmpty() || (args.humanOutName != null)) {
+    outArray=writeDex();
+    if (outArray == null) {
+      return 2;
+    }
+  }
+  if (args.incremental) {
+    outArray=mergeIncremental(outArray,incrementalOutFile);
+  }
+  outArray=mergeLibraryDexBuffers(outArray);
+  if (args.jarOutput) {
+    outputDex=null;
+    if (outArray != null) {
+      outputResources.put(DexFormat.DEX_IN_JAR_NAME,outArray);
+    }
+    if (!createJar(args.outName)) {
+      return 3;
+    }
+  }
+ else   if (outArray != null && args.outName != null) {
+    OutputStream out=openOutput(args.outName);
+    out.write(outArray);
+    closeOutput(out);
+  }
+  return 0;
+}

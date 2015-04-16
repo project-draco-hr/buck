@@ -1,0 +1,70 @@
+{
+  Insn ropInsn=insn.getOriginalRopInsn();
+  if (ropInsn.getOpcode().getBranchingness() != Rop.BRANCH_NONE || ropInsn.getOpcode().isCallLike()) {
+    simulateBranch(insn);
+  }
+  int opcode=insn.getOpcode().getOpcode();
+  RegisterSpec result=insn.getResult();
+  if (result == null) {
+    if (opcode == RegOps.DIV || opcode == RegOps.REM) {
+      SsaBasicBlock succ=insn.getBlock().getPrimarySuccessor();
+      result=succ.getInsns().get(0).getResult();
+    }
+ else {
+      return;
+    }
+  }
+  int resultReg=result.getReg();
+  int resultValue=VARYING;
+  Constant resultConstant=null;
+switch (opcode) {
+case RegOps.CONST:
+{
+      CstInsn cstInsn=(CstInsn)ropInsn;
+      resultValue=CONSTANT;
+      resultConstant=cstInsn.getConstant();
+      break;
+    }
+case RegOps.MOVE:
+{
+    if (insn.getSources().size() == 1) {
+      int sourceReg=insn.getSources().get(0).getReg();
+      resultValue=latticeValues[sourceReg];
+      resultConstant=latticeConstants[sourceReg];
+    }
+    break;
+  }
+case RegOps.ADD:
+case RegOps.SUB:
+case RegOps.MUL:
+case RegOps.DIV:
+case RegOps.AND:
+case RegOps.OR:
+case RegOps.XOR:
+case RegOps.SHL:
+case RegOps.SHR:
+case RegOps.USHR:
+case RegOps.REM:
+{
+  resultConstant=simulateMath(insn,result.getBasicType());
+  if (resultConstant != null) {
+    resultValue=CONSTANT;
+  }
+  break;
+}
+case RegOps.MOVE_RESULT_PSEUDO:
+{
+if (latticeValues[resultReg] == CONSTANT) {
+  resultValue=latticeValues[resultReg];
+  resultConstant=latticeConstants[resultReg];
+}
+break;
+}
+default :
+{
+}
+}
+if (setLatticeValueTo(resultReg,resultValue,resultConstant)) {
+addUsersToWorklist(resultReg,resultValue);
+}
+}

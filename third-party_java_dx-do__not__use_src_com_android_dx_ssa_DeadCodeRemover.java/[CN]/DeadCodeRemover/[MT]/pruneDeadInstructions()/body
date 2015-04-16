@@ -1,0 +1,28 @@
+{
+  HashSet<SsaInsn> deletedInsns=new HashSet<SsaInsn>();
+  ssaMeth.computeReachability();
+  for (  SsaBasicBlock block : ssaMeth.getBlocks()) {
+    if (block.isReachable())     continue;
+    for (int i=0; i < block.getInsns().size(); i++) {
+      SsaInsn insn=block.getInsns().get(i);
+      RegisterSpecList sources=insn.getSources();
+      int sourcesSize=sources.size();
+      if (sourcesSize != 0) {
+        deletedInsns.add(insn);
+      }
+      for (int j=0; j < sourcesSize; j++) {
+        RegisterSpec source=sources.get(j);
+        useList[source.getReg()].remove(insn);
+      }
+      RegisterSpec result=insn.getResult();
+      if (result == null)       continue;
+      for (      SsaInsn use : useList[result.getReg()]) {
+        if (use instanceof PhiInsn) {
+          PhiInsn phiUse=(PhiInsn)use;
+          phiUse.removePhiRegister(result);
+        }
+      }
+    }
+  }
+  ssaMeth.deleteInsns(deletedInsns);
+}

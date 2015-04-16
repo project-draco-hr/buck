@@ -1,0 +1,59 @@
+{
+  contentsOut.debugInfos.size++;
+  int lineStart=in.readUleb128();
+  debugInfoOut.writeUleb128(lineStart);
+  int parametersSize=in.readUleb128();
+  debugInfoOut.writeUleb128(parametersSize);
+  for (int p=0; p < parametersSize; p++) {
+    int parameterName=in.readUleb128p1();
+    debugInfoOut.writeUleb128p1(indexMap.adjustString(parameterName));
+  }
+  int addrDiff;
+  int lineDiff;
+  int registerNum;
+  int nameIndex;
+  int typeIndex;
+  int sigIndex;
+  while (true) {
+    int opcode=in.readByte();
+    debugInfoOut.writeByte(opcode);
+switch (opcode) {
+case DBG_END_SEQUENCE:
+      return;
+case DBG_ADVANCE_PC:
+    addrDiff=in.readUleb128();
+  debugInfoOut.writeUleb128(addrDiff);
+break;
+case DBG_ADVANCE_LINE:
+lineDiff=in.readSleb128();
+debugInfoOut.writeSleb128(lineDiff);
+break;
+case DBG_START_LOCAL:
+case DBG_START_LOCAL_EXTENDED:
+registerNum=in.readUleb128();
+debugInfoOut.writeUleb128(registerNum);
+nameIndex=in.readUleb128p1();
+debugInfoOut.writeUleb128p1(indexMap.adjustString(nameIndex));
+typeIndex=in.readUleb128p1();
+debugInfoOut.writeUleb128p1(indexMap.adjustType(typeIndex));
+if (opcode == DBG_START_LOCAL_EXTENDED) {
+sigIndex=in.readUleb128p1();
+debugInfoOut.writeUleb128p1(indexMap.adjustString(sigIndex));
+}
+break;
+case DBG_END_LOCAL:
+case DBG_RESTART_LOCAL:
+registerNum=in.readUleb128();
+debugInfoOut.writeUleb128(registerNum);
+break;
+case DBG_SET_FILE:
+nameIndex=in.readUleb128p1();
+debugInfoOut.writeUleb128p1(indexMap.adjustString(nameIndex));
+break;
+case DBG_SET_PROLOGUE_END:
+case DBG_SET_EPILOGUE_BEGIN:
+default :
+break;
+}
+}
+}

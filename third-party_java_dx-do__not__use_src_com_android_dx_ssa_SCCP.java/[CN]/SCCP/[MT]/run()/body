@@ -1,0 +1,44 @@
+{
+  SsaBasicBlock firstBlock=ssaMeth.getEntryBlock();
+  addBlockToWorklist(firstBlock);
+  while (!cfgWorklist.isEmpty() || !cfgPhiWorklist.isEmpty() || !ssaWorklist.isEmpty()|| !varyingWorklist.isEmpty()) {
+    while (!cfgWorklist.isEmpty()) {
+      int listSize=cfgWorklist.size() - 1;
+      SsaBasicBlock block=cfgWorklist.remove(listSize);
+      simulateBlock(block);
+    }
+    while (!cfgPhiWorklist.isEmpty()) {
+      int listSize=cfgPhiWorklist.size() - 1;
+      SsaBasicBlock block=cfgPhiWorklist.remove(listSize);
+      simulatePhiBlock(block);
+    }
+    while (!varyingWorklist.isEmpty()) {
+      int listSize=varyingWorklist.size() - 1;
+      SsaInsn insn=varyingWorklist.remove(listSize);
+      if (!executableBlocks.get(insn.getBlock().getIndex())) {
+        continue;
+      }
+      if (insn instanceof PhiInsn) {
+        simulatePhi((PhiInsn)insn);
+      }
+ else {
+        simulateStmt(insn);
+      }
+    }
+    while (!ssaWorklist.isEmpty()) {
+      int listSize=ssaWorklist.size() - 1;
+      SsaInsn insn=ssaWorklist.remove(listSize);
+      if (!executableBlocks.get(insn.getBlock().getIndex())) {
+        continue;
+      }
+      if (insn instanceof PhiInsn) {
+        simulatePhi((PhiInsn)insn);
+      }
+ else {
+        simulateStmt(insn);
+      }
+    }
+  }
+  replaceConstants();
+  replaceBranches();
+}

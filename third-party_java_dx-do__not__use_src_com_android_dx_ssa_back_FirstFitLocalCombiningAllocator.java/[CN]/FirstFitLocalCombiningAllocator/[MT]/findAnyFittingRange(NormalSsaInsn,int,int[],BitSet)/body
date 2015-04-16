@@ -1,0 +1,49 @@
+{
+  Alignment alignment=Alignment.UNSPECIFIED;
+  if (DexOptions.ALIGN_64BIT_REGS_SUPPORT) {
+    int regNumber=0;
+    int p64bitsAligned=0;
+    int p64bitsNotAligned=0;
+    for (    int category : categoriesForIndex) {
+      if (category == 2) {
+        if (isEven(regNumber)) {
+          p64bitsAligned++;
+        }
+ else {
+          p64bitsNotAligned++;
+        }
+        regNumber+=2;
+      }
+ else {
+        regNumber+=1;
+      }
+    }
+    if (p64bitsNotAligned > p64bitsAligned) {
+      if (isEven(paramRangeEnd)) {
+        alignment=Alignment.ODD;
+      }
+ else {
+        alignment=Alignment.EVEN;
+      }
+    }
+ else     if (p64bitsAligned > 0) {
+      if (isEven(paramRangeEnd)) {
+        alignment=Alignment.EVEN;
+      }
+ else {
+        alignment=Alignment.ODD;
+      }
+    }
+  }
+  int rangeStart=paramRangeEnd;
+  while (true) {
+    rangeStart=findNextUnreservedRopReg(rangeStart,rangeLength,alignment);
+    int fitWidth=fitPlanForRange(rangeStart,insn,categoriesForIndex,outMovesRequired);
+    if (fitWidth >= 0) {
+      break;
+    }
+    rangeStart++;
+    outMovesRequired.clear();
+  }
+  return rangeStart;
+}

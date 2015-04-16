@@ -1,0 +1,59 @@
+{
+switch (opcode) {
+case ByteOps.ANEWARRAY:
+{
+      machine.popArgs(frame,Type.INT);
+      break;
+    }
+case ByteOps.PUTSTATIC:
+{
+    Type fieldType=((CstFieldRef)cst).getType();
+    machine.popArgs(frame,fieldType);
+    break;
+  }
+case ByteOps.GETFIELD:
+case ByteOps.CHECKCAST:
+case ByteOps.INSTANCEOF:
+{
+  machine.popArgs(frame,Type.OBJECT);
+  break;
+}
+case ByteOps.PUTFIELD:
+{
+Type fieldType=((CstFieldRef)cst).getType();
+machine.popArgs(frame,Type.OBJECT,fieldType);
+break;
+}
+case ByteOps.INVOKEINTERFACE:
+{
+cst=((CstInterfaceMethodRef)cst).toMethodRef();
+}
+case ByteOps.INVOKEVIRTUAL:
+case ByteOps.INVOKESPECIAL:
+{
+Prototype prototype=((CstMethodRef)cst).getPrototype(false);
+machine.popArgs(frame,prototype);
+break;
+}
+case ByteOps.INVOKESTATIC:
+{
+Prototype prototype=((CstMethodRef)cst).getPrototype(true);
+machine.popArgs(frame,prototype);
+break;
+}
+case ByteOps.MULTIANEWARRAY:
+{
+Prototype prototype=Prototype.internInts(Type.VOID,value);
+machine.popArgs(frame,prototype);
+break;
+}
+default :
+{
+machine.clearArgs();
+break;
+}
+}
+machine.auxIntArg(value);
+machine.auxCstArg(cst);
+machine.run(frame,offset,opcode);
+}

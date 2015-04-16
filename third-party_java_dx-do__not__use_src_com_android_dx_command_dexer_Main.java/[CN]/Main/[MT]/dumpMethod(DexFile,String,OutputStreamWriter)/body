@@ -1,0 +1,58 @@
+{
+  boolean wildcard=fqName.endsWith("*");
+  int lastDot=fqName.lastIndexOf('.');
+  if ((lastDot <= 0) || (lastDot == (fqName.length() - 1))) {
+    DxConsole.err.println("bogus fully-qualified method name: " + fqName);
+    return;
+  }
+  String className=fqName.substring(0,lastDot).replace('.','/');
+  String methodName=fqName.substring(lastDot + 1);
+  ClassDefItem clazz=dex.getClassOrNull(className);
+  if (clazz == null) {
+    DxConsole.err.println("no such class: " + className);
+    return;
+  }
+  if (wildcard) {
+    methodName=methodName.substring(0,methodName.length() - 1);
+  }
+  ArrayList<EncodedMethod> allMeths=clazz.getMethods();
+  TreeMap<CstNat,EncodedMethod> meths=new TreeMap<CstNat,EncodedMethod>();
+  for (  EncodedMethod meth : allMeths) {
+    String methName=meth.getName().getString();
+    if ((wildcard && methName.startsWith(methodName)) || (!wildcard && methName.equals(methodName))) {
+      meths.put(meth.getRef().getNat(),meth);
+    }
+  }
+  if (meths.size() == 0) {
+    DxConsole.err.println("no such method: " + fqName);
+    return;
+  }
+  PrintWriter pw=new PrintWriter(out);
+  for (  EncodedMethod meth : meths.values()) {
+    meth.debugPrint(pw,args.verboseDump);
+    CstString sourceFile=clazz.getSourceFile();
+    if (sourceFile != null) {
+      pw.println("  source file: " + sourceFile.toQuoted());
+    }
+    Annotations methodAnnotations=clazz.getMethodAnnotations(meth.getRef());
+    AnnotationsList parameterAnnotations=clazz.getParameterAnnotations(meth.getRef());
+    if (methodAnnotations != null) {
+      pw.println("  method annotations:");
+      for (      Annotation a : methodAnnotations.getAnnotations()) {
+        pw.println("    " + a);
+      }
+    }
+    if (parameterAnnotations != null) {
+      pw.println("  parameter annotations:");
+      int sz=parameterAnnotations.size();
+      for (int i=0; i < sz; i++) {
+        pw.println("    parameter " + i);
+        Annotations annotations=parameterAnnotations.get(i);
+        for (        Annotation a : annotations.getAnnotations()) {
+          pw.println("      " + a);
+        }
+      }
+    }
+  }
+  pw.flush();
+}

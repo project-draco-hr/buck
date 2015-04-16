@@ -1,0 +1,25 @@
+{
+  BytecodeArray bytes=method.getCode();
+  ByteCatchList catches=method.getCatches();
+  int catchSz=catches.size();
+  Bits.set(workSet,0);
+  Bits.set(blockSet,0);
+  while (!Bits.isEmpty(workSet)) {
+    try {
+      bytes.processWorkSet(workSet,this);
+    }
+ catch (    IllegalArgumentException ex) {
+      throw new SimException("flow of control falls off " + "end of method",ex);
+    }
+    for (int i=0; i < catchSz; i++) {
+      ByteCatchList.Item item=catches.get(i);
+      int start=item.getStartPc();
+      int end=item.getEndPc();
+      if (Bits.anyInRange(liveSet,start,end)) {
+        Bits.set(blockSet,start);
+        Bits.set(blockSet,end);
+        addWorkIfNecessary(item.getHandlerPc(),true);
+      }
+    }
+  }
+}

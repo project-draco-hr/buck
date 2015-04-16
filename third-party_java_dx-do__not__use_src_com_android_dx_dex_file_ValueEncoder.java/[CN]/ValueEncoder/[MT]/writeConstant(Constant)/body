@@ -1,0 +1,91 @@
+{
+  int type=constantToValueType(cst);
+  int arg;
+switch (type) {
+case VALUE_BYTE:
+case VALUE_SHORT:
+case VALUE_INT:
+case VALUE_LONG:
+{
+      long value=((CstLiteralBits)cst).getLongBits();
+      EncodedValueCodec.writeSignedIntegralValue(out,type,value);
+      break;
+    }
+case VALUE_CHAR:
+{
+    long value=((CstLiteralBits)cst).getLongBits();
+    EncodedValueCodec.writeUnsignedIntegralValue(out,type,value);
+    break;
+  }
+case VALUE_FLOAT:
+{
+  long value=((CstFloat)cst).getLongBits() << 32;
+  EncodedValueCodec.writeRightZeroExtendedValue(out,type,value);
+  break;
+}
+case VALUE_DOUBLE:
+{
+long value=((CstDouble)cst).getLongBits();
+EncodedValueCodec.writeRightZeroExtendedValue(out,type,value);
+break;
+}
+case VALUE_STRING:
+{
+int index=file.getStringIds().indexOf((CstString)cst);
+EncodedValueCodec.writeUnsignedIntegralValue(out,type,(long)index);
+break;
+}
+case VALUE_TYPE:
+{
+int index=file.getTypeIds().indexOf((CstType)cst);
+EncodedValueCodec.writeUnsignedIntegralValue(out,type,(long)index);
+break;
+}
+case VALUE_FIELD:
+{
+int index=file.getFieldIds().indexOf((CstFieldRef)cst);
+EncodedValueCodec.writeUnsignedIntegralValue(out,type,(long)index);
+break;
+}
+case VALUE_METHOD:
+{
+int index=file.getMethodIds().indexOf((CstMethodRef)cst);
+EncodedValueCodec.writeUnsignedIntegralValue(out,type,(long)index);
+break;
+}
+case VALUE_ENUM:
+{
+CstFieldRef fieldRef=((CstEnumRef)cst).getFieldRef();
+int index=file.getFieldIds().indexOf(fieldRef);
+EncodedValueCodec.writeUnsignedIntegralValue(out,type,(long)index);
+break;
+}
+case VALUE_ARRAY:
+{
+out.writeByte(type);
+writeArray((CstArray)cst,false);
+break;
+}
+case VALUE_ANNOTATION:
+{
+out.writeByte(type);
+writeAnnotation(((CstAnnotation)cst).getAnnotation(),false);
+break;
+}
+case VALUE_NULL:
+{
+out.writeByte(type);
+break;
+}
+case VALUE_BOOLEAN:
+{
+int value=((CstBoolean)cst).getIntBits();
+out.writeByte(type | (value << 5));
+break;
+}
+default :
+{
+throw new RuntimeException("Shouldn't happen");
+}
+}
+}

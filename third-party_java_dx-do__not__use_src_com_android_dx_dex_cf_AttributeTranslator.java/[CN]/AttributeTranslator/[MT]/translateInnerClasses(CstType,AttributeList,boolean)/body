@@ -1,0 +1,45 @@
+{
+  AttInnerClasses innerClasses=(AttInnerClasses)attribs.findFirst(AttInnerClasses.ATTRIBUTE_NAME);
+  if (innerClasses == null) {
+    return null;
+  }
+  InnerClassList list=innerClasses.getInnerClasses();
+  int size=list.size();
+  InnerClassList.Item foundThisClass=null;
+  ArrayList<Type> membersList=new ArrayList<Type>();
+  for (int i=0; i < size; i++) {
+    InnerClassList.Item item=list.get(i);
+    CstType innerClass=item.getInnerClass();
+    if (innerClass.equals(thisClass)) {
+      foundThisClass=item;
+    }
+ else     if (thisClass.equals(item.getOuterClass())) {
+      membersList.add(innerClass.getClassType());
+    }
+  }
+  int membersSize=membersList.size();
+  if ((foundThisClass == null) && (membersSize == 0)) {
+    return null;
+  }
+  Annotations result=new Annotations();
+  if (foundThisClass != null) {
+    result.add(AnnotationUtils.makeInnerClass(foundThisClass.getInnerName(),foundThisClass.getAccessFlags()));
+    if (needEnclosingClass) {
+      CstType outer=foundThisClass.getOuterClass();
+      if (outer == null) {
+        throw new Warning("Ignoring InnerClasses attribute for an " + "anonymous inner class\n" + "(" + thisClass.toHuman() + ") that doesn't come with an\n"+ "associated EnclosingMethod attribute. "+ "This class was probably produced by a\n"+ "compiler that did not target the modern "+ ".class file format. The recommended\n"+ "solution is to recompile the class from "+ "source, using an up-to-date compiler\n"+ "and without specifying any \"-target\" type "+ "options. The consequence of ignoring\n"+ "this warning is that reflective operations "+ "on this class will incorrectly\n"+ "indicate that it is *not* an inner class.");
+      }
+      result.add(AnnotationUtils.makeEnclosingClass(foundThisClass.getOuterClass()));
+    }
+  }
+  if (membersSize != 0) {
+    StdTypeList typeList=new StdTypeList(membersSize);
+    for (int i=0; i < membersSize; i++) {
+      typeList.set(i,membersList.get(i));
+    }
+    typeList.setImmutable();
+    result.add(AnnotationUtils.makeMemberClasses(typeList));
+  }
+  result.setImmutable();
+  return result;
+}

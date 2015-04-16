@@ -1,0 +1,37 @@
+{
+  int startCursor=out.getCursor();
+  int sz=size();
+  if (out.annotates()) {
+    boolean verbose=out.isVerbose();
+    for (int i=0; i < sz; i++) {
+      DalvInsn insn=(DalvInsn)get0(i);
+      int codeBytes=insn.codeSize() * 2;
+      String s;
+      if ((codeBytes != 0) || verbose) {
+        s=insn.listingString("  ",out.getAnnotationWidth(),true);
+      }
+ else {
+        s=null;
+      }
+      if (s != null) {
+        out.annotate(codeBytes,s);
+      }
+ else       if (codeBytes != 0) {
+        out.annotate(codeBytes,"");
+      }
+    }
+  }
+  for (int i=0; i < sz; i++) {
+    DalvInsn insn=(DalvInsn)get0(i);
+    try {
+      insn.writeTo(out);
+    }
+ catch (    RuntimeException ex) {
+      throw ExceptionWithContext.withContext(ex,"...while writing " + insn);
+    }
+  }
+  int written=(out.getCursor() - startCursor) / 2;
+  if (written != codeSize()) {
+    throw new RuntimeException("write length mismatch; expected " + codeSize() + " but actually wrote "+ written);
+  }
+}

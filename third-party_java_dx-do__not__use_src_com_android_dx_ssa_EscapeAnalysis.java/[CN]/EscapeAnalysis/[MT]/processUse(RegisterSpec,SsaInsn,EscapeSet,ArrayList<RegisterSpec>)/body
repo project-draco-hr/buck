@@ -1,0 +1,69 @@
+{
+  int useOpcode=use.getOpcode().getOpcode();
+switch (useOpcode) {
+case RegOps.MOVE:
+    escSet.regSet.set(use.getResult().getReg());
+  regWorklist.add(use.getResult());
+break;
+case RegOps.IF_EQ:
+case RegOps.IF_NE:
+case RegOps.CHECK_CAST:
+if (escSet.escape.compareTo(EscapeState.METHOD) < 0) {
+escSet.escape=EscapeState.METHOD;
+}
+break;
+case RegOps.APUT:
+RegisterSpec putIndex=use.getSources().get(2);
+if (!putIndex.getTypeBearer().isConstant()) {
+escSet.replaceableArray=false;
+}
+case RegOps.PUT_FIELD:
+RegisterSpec putValue=use.getSources().get(0);
+if (putValue.getTypeBearer().getBasicType() != Type.BT_OBJECT) {
+break;
+}
+escSet.replaceableArray=false;
+RegisterSpecList sources=use.getSources();
+if (sources.get(0).getReg() == def.getReg()) {
+int setIndex=findSetIndex(sources.get(1));
+if (setIndex != latticeValues.size()) {
+EscapeSet parentSet=latticeValues.get(setIndex);
+addEdge(parentSet,escSet);
+if (escSet.escape.compareTo(parentSet.escape) < 0) {
+escSet.escape=parentSet.escape;
+}
+}
+}
+ else {
+int setIndex=findSetIndex(sources.get(0));
+if (setIndex != latticeValues.size()) {
+EscapeSet childSet=latticeValues.get(setIndex);
+addEdge(escSet,childSet);
+if (childSet.escape.compareTo(escSet.escape) < 0) {
+childSet.escape=escSet.escape;
+}
+}
+}
+break;
+case RegOps.AGET:
+RegisterSpec getIndex=use.getSources().get(1);
+if (!getIndex.getTypeBearer().isConstant()) {
+escSet.replaceableArray=false;
+}
+break;
+case RegOps.PUT_STATIC:
+escSet.escape=EscapeState.GLOBAL;
+break;
+case RegOps.INVOKE_STATIC:
+case RegOps.INVOKE_VIRTUAL:
+case RegOps.INVOKE_SUPER:
+case RegOps.INVOKE_DIRECT:
+case RegOps.INVOKE_INTERFACE:
+case RegOps.RETURN:
+case RegOps.THROW:
+escSet.escape=EscapeState.INTER;
+break;
+default :
+break;
+}
+}

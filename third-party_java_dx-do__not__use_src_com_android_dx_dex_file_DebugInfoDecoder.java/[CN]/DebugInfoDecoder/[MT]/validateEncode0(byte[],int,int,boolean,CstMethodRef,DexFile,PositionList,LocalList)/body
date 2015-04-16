@@ -1,0 +1,85 @@
+{
+  DebugInfoDecoder decoder=new DebugInfoDecoder(info,codeSize,countRegisters,isStatic,ref,file);
+  decoder.decode();
+  List<PositionEntry> decodedEntries=decoder.getPositionList();
+  if (decodedEntries.size() != pl.size()) {
+    throw new RuntimeException("Decoded positions table not same size was " + decodedEntries.size() + " expected "+ pl.size());
+  }
+  for (  PositionEntry entry : decodedEntries) {
+    boolean found=false;
+    for (int i=pl.size() - 1; i >= 0; i--) {
+      PositionList.Entry ple=pl.get(i);
+      if (entry.line == ple.getPosition().getLine() && entry.address == ple.getAddress()) {
+        found=true;
+        break;
+      }
+    }
+    if (!found) {
+      throw new RuntimeException("Could not match position entry: " + entry.address + ", "+ entry.line);
+    }
+  }
+  List<LocalEntry> decodedLocals=decoder.getLocals();
+  int thisStringIdx=decoder.thisStringIdx;
+  int decodedSz=decodedLocals.size();
+  int paramBase=decoder.getParamBase();
+  for (int i=0; i < decodedSz; i++) {
+    LocalEntry entry=decodedLocals.get(i);
+    int idx=entry.nameIndex;
+    if ((idx < 0) || (idx == thisStringIdx)) {
+      for (int j=i + 1; j < decodedSz; j++) {
+        LocalEntry e2=decodedLocals.get(j);
+        if (e2.address != 0) {
+          break;
+        }
+        if ((entry.reg == e2.reg) && e2.isStart) {
+          decodedLocals.set(i,e2);
+          decodedLocals.remove(j);
+          decodedSz--;
+          break;
+        }
+      }
+    }
+  }
+  int origSz=ll.size();
+  int decodeAt=0;
+  boolean problem=false;
+  for (int i=0; i < origSz; i++) {
+    LocalList.Entry origEntry=ll.get(i);
+    if (origEntry.getDisposition() == LocalList.Disposition.END_REPLACED) {
+      continue;
+    }
+    LocalEntry decodedEntry;
+    do {
+      decodedEntry=decodedLocals.get(decodeAt);
+      if (decodedEntry.nameIndex >= 0) {
+        break;
+      }
+      decodeAt++;
+    }
+ while (decodeAt < decodedSz);
+    int decodedAddress=decodedEntry.address;
+    if (decodedEntry.reg != origEntry.getRegister()) {
+      System.err.println("local register mismatch at orig " + i + " / decoded "+ decodeAt);
+      problem=true;
+      break;
+    }
+    if (decodedEntry.isStart != origEntry.isStart()) {
+      System.err.println("local start/end mismatch at orig " + i + " / decoded "+ decodeAt);
+      problem=true;
+      break;
+    }
+    if ((decodedAddress != origEntry.getAddress()) && !((decodedAddress == 0) && (decodedEntry.reg >= paramBase))) {
+      System.err.println("local address mismatch at orig " + i + " / decoded "+ decodeAt);
+      problem=true;
+      break;
+    }
+    decodeAt++;
+  }
+  if (problem) {
+    System.err.println("decoded locals:");
+    for (    LocalEntry e : decodedLocals) {
+      System.err.println("  " + e);
+    }
+    throw new RuntimeException("local table problem");
+  }
+}

@@ -1,0 +1,27 @@
+{
+  int at=(offset + 4) & ~3;
+  int padding=0;
+  for (int i=offset + 1; i < at; i++) {
+    padding=(padding << 8) | bytes.getUnsignedByte(i);
+  }
+  int defaultTarget=offset + bytes.getInt(at);
+  int low=bytes.getInt(at + 4);
+  int high=bytes.getInt(at + 8);
+  int count=high - low + 1;
+  at+=12;
+  if (low > high) {
+    throw new SimException("low / high inversion");
+  }
+  SwitchList cases=new SwitchList(count);
+  for (int i=0; i < count; i++) {
+    int target=offset + bytes.getInt(at);
+    at+=4;
+    cases.add(low + i,target);
+  }
+  cases.setDefaultTarget(defaultTarget);
+  cases.removeSuperfluousDefaults();
+  cases.setImmutable();
+  int length=at - offset;
+  visitor.visitSwitch(ByteOps.LOOKUPSWITCH,offset,length,cases,padding);
+  return length;
+}

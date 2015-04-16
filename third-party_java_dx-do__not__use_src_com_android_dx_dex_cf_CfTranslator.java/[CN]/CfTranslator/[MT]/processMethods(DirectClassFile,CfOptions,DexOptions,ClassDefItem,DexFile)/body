@@ -1,0 +1,82 @@
+{
+  CstType thisClass=cf.getThisClass();
+  MethodList methods=cf.getMethods();
+  int sz=methods.size();
+  for (int i=0; i < sz; i++) {
+    Method one=methods.get(i);
+    try {
+      CstMethodRef meth=new CstMethodRef(thisClass,one.getNat());
+      int accessFlags=one.getAccessFlags();
+      boolean isStatic=AccessFlags.isStatic(accessFlags);
+      boolean isPrivate=AccessFlags.isPrivate(accessFlags);
+      boolean isNative=AccessFlags.isNative(accessFlags);
+      boolean isAbstract=AccessFlags.isAbstract(accessFlags);
+      boolean isConstructor=meth.isInstanceInit() || meth.isClassInit();
+      DalvCode code;
+      if (isNative || isAbstract) {
+        code=null;
+      }
+ else {
+        ConcreteMethod concrete=new ConcreteMethod(one,cf,(cfOptions.positionInfo != PositionList.NONE),cfOptions.localInfo);
+        TranslationAdvice advice;
+        advice=DexTranslationAdvice.THE_ONE;
+        RopMethod rmeth=Ropper.convert(concrete,advice,methods);
+        RopMethod nonOptRmeth=null;
+        int paramSize;
+        paramSize=meth.getParameterWordCount(isStatic);
+        String canonicalName=thisClass.getClassType().getDescriptor() + "." + one.getName().getString();
+        if (cfOptions.optimize && OptimizerOptions.shouldOptimize(canonicalName)) {
+          if (DEBUG) {
+            System.err.println("Optimizing " + canonicalName);
+          }
+          nonOptRmeth=rmeth;
+          rmeth=Optimizer.optimize(rmeth,paramSize,isStatic,cfOptions.localInfo,advice);
+          if (DEBUG) {
+            OptimizerOptions.compareOptimizerStep(nonOptRmeth,paramSize,isStatic,cfOptions,advice,rmeth);
+          }
+          if (cfOptions.statistics) {
+            CodeStatistics.updateRopStatistics(nonOptRmeth,rmeth);
+          }
+        }
+        LocalVariableInfo locals=null;
+        if (cfOptions.localInfo) {
+          locals=LocalVariableExtractor.extract(rmeth);
+        }
+        code=RopTranslator.translate(rmeth,cfOptions.positionInfo,locals,paramSize,dexOptions);
+        if (cfOptions.statistics && nonOptRmeth != null) {
+          updateDexStatistics(cfOptions,dexOptions,rmeth,nonOptRmeth,locals,paramSize,concrete.getCode().size());
+        }
+      }
+      if (AccessFlags.isSynchronized(accessFlags)) {
+        accessFlags|=AccessFlags.ACC_DECLARED_SYNCHRONIZED;
+        if (!isNative) {
+          accessFlags&=~AccessFlags.ACC_SYNCHRONIZED;
+        }
+      }
+      if (isConstructor) {
+        accessFlags|=AccessFlags.ACC_CONSTRUCTOR;
+      }
+      TypeList exceptions=AttributeTranslator.getExceptions(one);
+      EncodedMethod mi=new EncodedMethod(meth,accessFlags,code,exceptions);
+      if (meth.isInstanceInit() || meth.isClassInit() || isStatic|| isPrivate) {
+        out.addDirectMethod(mi);
+      }
+ else {
+        out.addVirtualMethod(mi);
+      }
+      Annotations annotations=AttributeTranslator.getMethodAnnotations(one);
+      if (annotations.size() != 0) {
+        out.addMethodAnnotations(meth,annotations,dexFile);
+      }
+      AnnotationsList list=AttributeTranslator.getParameterAnnotations(one);
+      if (list.size() != 0) {
+        out.addParameterAnnotations(meth,list,dexFile);
+      }
+      dexFile.getMethodIds().intern(meth);
+    }
+ catch (    RuntimeException ex) {
+      String msg="...while processing " + one.getName().toHuman() + " "+ one.getDescriptor().toHuman();
+      throw ExceptionWithContext.withContext(ex,msg);
+    }
+  }
+}

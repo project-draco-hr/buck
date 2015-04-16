@@ -1,0 +1,25 @@
+{
+  int regCount=ssaMeth.getRegCount();
+  for (int reg=0; reg < regCount; reg++) {
+    SsaInsn definsn=ssaMeth.getDefinitionForRegister(reg);
+    if (definsn != null && (definsn.getResult().getBasicType() == Type.BT_VOID)) {
+      worklist.set(reg);
+    }
+  }
+  int reg;
+  while (0 <= (reg=worklist.nextSetBit(0))) {
+    worklist.clear(reg);
+    PhiInsn definsn=(PhiInsn)ssaMeth.getDefinitionForRegister(reg);
+    if (resolveResultType(definsn)) {
+      List<SsaInsn> useList=ssaMeth.getUseListForRegister(reg);
+      int sz=useList.size();
+      for (int i=0; i < sz; i++) {
+        SsaInsn useInsn=useList.get(i);
+        RegisterSpec resultReg=useInsn.getResult();
+        if (resultReg != null && useInsn instanceof PhiInsn) {
+          worklist.set(resultReg.getReg());
+        }
+      }
+    }
+  }
+}

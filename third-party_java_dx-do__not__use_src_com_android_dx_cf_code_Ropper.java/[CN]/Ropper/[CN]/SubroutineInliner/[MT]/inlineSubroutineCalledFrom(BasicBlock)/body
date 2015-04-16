@@ -1,0 +1,14 @@
+{
+  subroutineSuccessor=b.getSuccessors().get(0);
+  subroutineStart=b.getSuccessors().get(1);
+  int newSubStartLabel=mapOrAllocateLabel(subroutineStart);
+  for (int label=workList.nextSetBit(0); label >= 0; label=workList.nextSetBit(0)) {
+    workList.clear(label);
+    int newLabel=origLabelToCopiedLabel.get(label);
+    copyBlock(label,newLabel);
+    if (isSubroutineCaller(labelToBlock(label))) {
+      new SubroutineInliner(labelAllocator,labelToSubroutines).inlineSubroutineCalledFrom(labelToBlock(newLabel));
+    }
+  }
+  addOrReplaceBlockNoDelete(new BasicBlock(b.getLabel(),b.getInsns(),IntList.makeImmutable(newSubStartLabel),newSubStartLabel),labelToSubroutines.get(b.getLabel()));
+}

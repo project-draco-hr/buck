@@ -1,0 +1,31 @@
+{
+  int newRegStart=findRangeAndAdjust(insn);
+  RegisterSpecList sources=insn.getSources();
+  int szSources=sources.size();
+  int nextRopReg=newRegStart;
+  for (int i=0; i < szSources; i++) {
+    RegisterSpec source=sources.get(i);
+    int sourceReg=source.getReg();
+    int category=source.getCategory();
+    int curRopReg=nextRopReg;
+    nextRopReg+=category;
+    if (ssaRegsMapped.get(sourceReg)) {
+      continue;
+    }
+    LocalItem localItem=getLocalItemForReg(sourceReg);
+    addMapping(source,curRopReg);
+    if (localItem != null) {
+      markReserved(curRopReg,category);
+      ArrayList<RegisterSpec> similarRegisters=localVariables.get(localItem);
+      int szSimilar=similarRegisters.size();
+      for (int j=0; j < szSimilar; j++) {
+        RegisterSpec similarSpec=similarRegisters.get(j);
+        int similarReg=similarSpec.getReg();
+        if (-1 != sources.indexOfRegister(similarReg)) {
+          continue;
+        }
+        tryMapReg(similarSpec,curRopReg,category);
+      }
+    }
+  }
+}

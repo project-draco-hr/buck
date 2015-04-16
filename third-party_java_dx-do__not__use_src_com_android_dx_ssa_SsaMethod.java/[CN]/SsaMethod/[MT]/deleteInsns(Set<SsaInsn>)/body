@@ -1,0 +1,24 @@
+{
+  for (  SsaBasicBlock block : getBlocks()) {
+    ArrayList<SsaInsn> insns=block.getInsns();
+    for (int i=insns.size() - 1; i >= 0; i--) {
+      SsaInsn insn=insns.get(i);
+      if (deletedInsns.contains(insn)) {
+        onInsnRemoved(insn);
+        insns.remove(i);
+      }
+    }
+    int insnsSz=insns.size();
+    SsaInsn lastInsn=(insnsSz == 0) ? null : insns.get(insnsSz - 1);
+    if (block != getExitBlock() && (insnsSz == 0 || lastInsn.getOriginalRopInsn() == null || lastInsn.getOriginalRopInsn().getOpcode().getBranchingness() == Rop.BRANCH_NONE)) {
+      Insn gotoInsn=new PlainInsn(Rops.GOTO,SourcePosition.NO_INFO,null,RegisterSpecList.EMPTY);
+      insns.add(SsaInsn.makeFromRop(gotoInsn,block));
+      BitSet succs=block.getSuccessors();
+      for (int i=succs.nextSetBit(0); i >= 0; i=succs.nextSetBit(i + 1)) {
+        if (i != block.getPrimarySuccessorIndex()) {
+          block.removeSuccessor(i);
+        }
+      }
+    }
+  }
+}

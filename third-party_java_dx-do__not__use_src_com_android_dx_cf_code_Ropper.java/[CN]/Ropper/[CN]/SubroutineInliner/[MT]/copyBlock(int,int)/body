@@ -1,0 +1,32 @@
+{
+  BasicBlock origBlock=labelToBlock(origLabel);
+  final IntList origSuccessors=origBlock.getSuccessors();
+  IntList successors;
+  int primarySuccessor=-1;
+  Subroutine subroutine;
+  if (isSubroutineCaller(origBlock)) {
+    successors=IntList.makeImmutable(mapOrAllocateLabel(origSuccessors.get(0)),origSuccessors.get(1));
+  }
+ else   if (null != (subroutine=subroutineFromRetBlock(origLabel))) {
+    if (subroutine.startBlock != subroutineStart) {
+      throw new RuntimeException("ret instruction returns to label " + Hex.u2(subroutine.startBlock) + " expected: "+ Hex.u2(subroutineStart));
+    }
+    successors=IntList.makeImmutable(subroutineSuccessor);
+    primarySuccessor=subroutineSuccessor;
+  }
+ else {
+    int origPrimary=origBlock.getPrimarySuccessor();
+    int sz=origSuccessors.size();
+    successors=new IntList(sz);
+    for (int i=0; i < sz; i++) {
+      int origSuccLabel=origSuccessors.get(i);
+      int newSuccLabel=mapOrAllocateLabel(origSuccLabel);
+      successors.add(newSuccLabel);
+      if (origPrimary == origSuccLabel) {
+        primarySuccessor=newSuccLabel;
+      }
+    }
+    successors.setImmutable();
+  }
+  addBlock(new BasicBlock(newLabel,filterMoveReturnAddressInsns(origBlock.getInsns()),successors,primarySuccessor),labelToSubroutines.get(newLabel));
+}

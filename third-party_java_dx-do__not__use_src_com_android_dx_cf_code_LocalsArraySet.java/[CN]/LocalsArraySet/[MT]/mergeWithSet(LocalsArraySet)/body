@@ -1,0 +1,38 @@
+{
+  OneLocalsArray newPrimary;
+  ArrayList<LocalsArray> newSecondaries;
+  boolean secondariesChanged=false;
+  newPrimary=primary.merge(other.getPrimary());
+  int sz1=secondaries.size();
+  int sz2=other.secondaries.size();
+  int sz=Math.max(sz1,sz2);
+  newSecondaries=new ArrayList(sz);
+  for (int i=0; i < sz; i++) {
+    LocalsArray la1=(i < sz1 ? secondaries.get(i) : null);
+    LocalsArray la2=(i < sz2 ? other.secondaries.get(i) : null);
+    LocalsArray resultla=null;
+    if (la1 == la2) {
+      resultla=la1;
+    }
+ else     if (la1 == null) {
+      resultla=la2;
+    }
+ else     if (la2 == null) {
+      resultla=la1;
+    }
+ else {
+      try {
+        resultla=la1.merge(la2);
+      }
+ catch (      SimException ex) {
+        ex.addContext("Merging locals set for caller block " + Hex.u2(i));
+      }
+    }
+    secondariesChanged=secondariesChanged || (la1 != resultla);
+    newSecondaries.add(resultla);
+  }
+  if ((primary == newPrimary) && !secondariesChanged) {
+    return this;
+  }
+  return new LocalsArraySet(newPrimary,newSecondaries);
+}

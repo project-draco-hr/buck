@@ -1,0 +1,35 @@
+{
+  RegisterSpecList sources=insn.getSources();
+  int szSources=sources.size();
+  int fitWidth=0;
+  IntSet liveOut=insn.getBlock().getLiveOutRegs();
+  RegisterSpecList liveOutSpecs=ssaSetToSpecs(liveOut);
+  BitSet seen=new BitSet(ssaMeth.getRegCount());
+  for (int i=0; i < szSources; i++) {
+    RegisterSpec ssaSpec=sources.get(i);
+    int ssaReg=ssaSpec.getReg();
+    int category=categoriesForIndex[i];
+    if (i != 0) {
+      ropReg+=categoriesForIndex[i - 1];
+    }
+    if (ssaRegsMapped.get(ssaReg) && mapper.oldToNew(ssaReg) == ropReg) {
+      fitWidth+=category;
+    }
+ else     if (rangeContainsReserved(ropReg,category)) {
+      fitWidth=-1;
+      break;
+    }
+ else     if (!ssaRegsMapped.get(ssaReg) && canMapReg(ssaSpec,ropReg) && !seen.get(ssaReg)) {
+      fitWidth+=category;
+    }
+ else     if (!mapper.areAnyPinned(liveOutSpecs,ropReg,category) && !mapper.areAnyPinned(sources,ropReg,category)) {
+      outMovesRequired.set(i);
+    }
+ else {
+      fitWidth=-1;
+      break;
+    }
+    seen.set(ssaReg);
+  }
+  return fitWidth;
+}

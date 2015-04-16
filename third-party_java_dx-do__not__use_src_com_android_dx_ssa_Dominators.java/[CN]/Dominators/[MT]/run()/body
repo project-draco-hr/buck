@@ -1,0 +1,46 @@
+{
+  SsaBasicBlock root=postdom ? meth.getExitBlock() : meth.getEntryBlock();
+  if (root != null) {
+    vertex.add(root);
+    domInfos[root.getIndex()].idom=root.getIndex();
+  }
+  DfsWalker walker=new DfsWalker();
+  meth.forEachBlockDepthFirst(postdom,walker);
+  int dfsMax=vertex.size() - 1;
+  for (int i=dfsMax; i >= 2; --i) {
+    SsaBasicBlock w=vertex.get(i);
+    DFSInfo wInfo=info[w.getIndex()];
+    BitSet preds=getPreds(w);
+    for (int j=preds.nextSetBit(0); j >= 0; j=preds.nextSetBit(j + 1)) {
+      SsaBasicBlock predBlock=blocks.get(j);
+      DFSInfo predInfo=info[predBlock.getIndex()];
+      if (predInfo != null) {
+        int predSemidom=info[eval(predBlock).getIndex()].semidom;
+        if (predSemidom < wInfo.semidom) {
+          wInfo.semidom=predSemidom;
+        }
+      }
+    }
+    info[vertex.get(wInfo.semidom).getIndex()].bucket.add(w);
+    wInfo.ancestor=wInfo.parent;
+    ArrayList<SsaBasicBlock> wParentBucket;
+    wParentBucket=info[wInfo.parent.getIndex()].bucket;
+    while (!wParentBucket.isEmpty()) {
+      int lastItem=wParentBucket.size() - 1;
+      SsaBasicBlock last=wParentBucket.remove(lastItem);
+      SsaBasicBlock U=eval(last);
+      if (info[U.getIndex()].semidom < info[last.getIndex()].semidom) {
+        domInfos[last.getIndex()].idom=U.getIndex();
+      }
+ else {
+        domInfos[last.getIndex()].idom=wInfo.parent.getIndex();
+      }
+    }
+  }
+  for (int i=2; i <= dfsMax; ++i) {
+    SsaBasicBlock w=vertex.get(i);
+    if (domInfos[w.getIndex()].idom != vertex.get(info[w.getIndex()].semidom).getIndex()) {
+      domInfos[w.getIndex()].idom=domInfos[domInfos[w.getIndex()].idom].idom;
+    }
+  }
+}
