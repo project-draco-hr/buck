@@ -1,7 +1,7 @@
 {
   Optional<KeyspaceAndTtl> keyspaceAndTtl=getKeyspaceAndTtl();
   if (!keyspaceAndTtl.isPresent()) {
-    return CacheResult.MISS;
+    return CacheResult.miss();
   }
   OperationResult<ColumnList<String>> result;
   int ttl;
@@ -12,9 +12,9 @@
   }
  catch (  ConnectionException e) {
     reportConnectionFailure("Attempting to fetch " + ruleKey + ".",e);
-    return CacheResult.MISS;
+    return CacheResult.miss();
   }
-  CacheResult success=CacheResult.MISS;
+  CacheResult success=CacheResult.miss();
   try {
     Column<String> column=result.getResult().getColumnByName(ARTIFACT_COLUMN_NAME);
     if (column != null) {
@@ -26,7 +26,7 @@
         }
  catch (        ClassNotFoundException|ClassCastException e) {
           buckEventBus.post(ThrowableConsoleEvent.create(e,"Could not deserialize artifact checksum from %s:%s.",ruleKey,output.getPath()));
-          return CacheResult.MISS;
+          return CacheResult.miss();
         }
         Path path=output.toPath();
         Files.createDirectories(path.getParent());
@@ -36,19 +36,19 @@
         if (!expectedHashCode.equals(actualHashCode)) {
           buckEventBus.post(new CassandraChecksumMismatchEvent(expectedHashCode,actualHashCode));
           Files.delete(temp);
-          return CacheResult.MISS;
+          return CacheResult.miss();
         }
         Files.move(temp,path,StandardCopyOption.REPLACE_EXISTING);
       }
        if (System.currentTimeMillis() * 1000L - column.getTimestamp() > ttl * 1000000L / 2L) {
         store(ruleKey,output);
       }
-      success=CacheResult.CASSANDRA_HIT;
+      success=CacheResult.hit(name);
     }
   }
  catch (  IOException e) {
     buckEventBus.post(ThrowableConsoleEvent.create(e,"Artifact was fetched but could not be written: %s at %s.",ruleKey,output.getPath()));
   }
-  buckEventBus.post(ConsoleEvent.fine("Artifact fetch(%s, %s) cache %s",ruleKey,output.getPath(),(success.isSuccess() ? "hit" : "miss")));
+  buckEventBus.post(ConsoleEvent.fine("Artifact fetch(%s, %s) cache %s",ruleKey,output.getPath(),(success.getType().isSuccess() ? "hit" : "miss")));
   return success;
 }

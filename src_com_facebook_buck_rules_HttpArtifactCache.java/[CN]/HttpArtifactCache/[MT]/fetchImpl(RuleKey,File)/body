@@ -3,11 +3,12 @@
   Response response=fetchCall(request);
   if (response.code() == HttpURLConnection.HTTP_NOT_FOUND) {
     LOGGER.info("fetch(%s, %s): cache miss",url,ruleKey);
-    return CacheResult.MISS;
+    return CacheResult.miss();
   }
   if (response.code() != HttpURLConnection.HTTP_OK) {
-    reportFailure("fetch(%s, %s): unexpected response: %d",url,ruleKey,response.code());
-    return CacheResult.MISS;
+    String msg=String.format("unexpected response: %d",response.code());
+    reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
+    return CacheResult.error(name,msg);
   }
   HashCode expectedHashCode, actualHashCode;
   Path path=file.toPath();
@@ -24,17 +25,19 @@
     expectedHashCode=HashCode.fromBytes(hashCodeBytes);
     try (OutputStream output=ByteStreams.nullOutputStream()){
       if (ByteStreams.copy(input,output) != 0) {
-        reportFailure("fetch(%s, %s): unexpected end of input",url,ruleKey);
-        return CacheResult.MISS;
+        String msg="unexpected end of input";
+        reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
+        return CacheResult.error(name,msg);
       }
     }
    }
    if (!expectedHashCode.equals(actualHashCode)) {
-    reportFailure("fetch(%s, %s): artifact had invalid checksum",url,ruleKey);
+    String msg="artifact had invalid checksum";
+    reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
     projectFilesystem.deleteFileAtPath(temp);
-    return CacheResult.MISS;
+    return CacheResult.error(name,msg);
   }
   projectFilesystem.move(temp,path,StandardCopyOption.REPLACE_EXISTING);
   LOGGER.info("fetch(%s, %s): cache hit",url,ruleKey);
-  return CacheResult.HTTP_HIT;
+  return CacheResult.hit(name);
 }
