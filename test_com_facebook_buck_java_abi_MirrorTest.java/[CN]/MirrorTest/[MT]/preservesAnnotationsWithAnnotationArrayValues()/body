@@ -1,0 +1,20 @@
+{
+  Path annotations=buildAnnotationJar();
+  Path jar=compileToJar(ImmutableSortedSet.of(annotations),"A.java",Joiner.on("\n").join("package com.example.buck;","import java.lang.annotation.*;","@Foo(annotationArrayValue=@Retention(RetentionPolicy.RUNTIME))","public @interface A {}"));
+  new StubJar(jar).writeTo(filesystem,stubJar);
+  ClassNode classNode=readClass(stubJar,"com/example/buck/A.class").getClassNode();
+  List<AnnotationNode> classAnnotations=classNode.visibleAnnotations;
+  assertEquals(1,classAnnotations.size());
+  AnnotationNode annotation=classAnnotations.get(0);
+  assertNotNull(annotation.values);
+  assertEquals(2,annotation.values.size());
+  assertEquals("annotationArrayValue",annotation.values.get(0));
+  @SuppressWarnings("unchecked") List<Object> annotationArray=(List<Object>)annotation.values.get(1);
+  assertEquals(1,annotationArray.size());
+  AnnotationNode nestedAnnotation=(AnnotationNode)annotationArray.get(0);
+  assertEquals("Ljava/lang/annotation/Retention;",nestedAnnotation.desc);
+  assertNotNull(nestedAnnotation.values);
+  assertEquals(2,nestedAnnotation.values.size());
+  assertEquals("value",nestedAnnotation.values.get(0));
+  assertEnumAnnotationValue(nestedAnnotation.values,1,"Ljava/lang/annotation/RetentionPolicy;","RUNTIME");
+}
