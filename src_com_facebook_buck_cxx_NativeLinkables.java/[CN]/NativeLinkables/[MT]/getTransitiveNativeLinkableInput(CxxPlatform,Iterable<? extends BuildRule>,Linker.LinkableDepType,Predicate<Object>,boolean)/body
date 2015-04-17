@@ -1,5 +1,42 @@
 {
-  final DirectedAcyclicGraph<BuildRule> graph=BuildRuleDependencyVisitors.getBuildRuleDirectedGraphFilteredBy(inputs,Predicates.instanceOf(NativeLinkable.class),traverse);
-  final ImmutableList<BuildRule> sorted=TopologicalSort.sort(graph,Predicates.<BuildRule>alwaysTrue());
-  return NativeLinkableInput.concat(FluentIterable.from(reverse ? sorted.reverse() : sorted).filter(NativeLinkable.class).transform(getNativeLinkableInput(cxxPlatform,depType)));
+  final Map<BuildTarget,Linker.LinkableDepType> wanted=Maps.newHashMap();
+  List<NativeLinkableNode> initial=Lists.newArrayList();
+  for (  BuildRule rule : inputs) {
+    initial.add(processBuildRule(cxxPlatform,wanted,rule,depType,AbstractNativeLinkableNode.Pass.ANY));
+  }
+  final MutableDirectedGraph<BuildRule> graph=new MutableDirectedGraph<>();
+  final MutableDirectedGraph<NativeLinkableNode> linkGraph=new MutableDirectedGraph<>();
+  AbstractBreadthFirstTraversal<NativeLinkableNode> visitor=new AbstractBreadthFirstTraversal<NativeLinkableNode>(initial){
+    @Override public ImmutableSet<NativeLinkableNode> visit(    NativeLinkableNode node){
+      linkGraph.addNode(node);
+      graph.addNode(node.getBuildRule());
+      if (!traverse.apply(node.getBuildRule())) {
+        return ImmutableSet.of();
+      }
+      ImmutableSet.Builder<NativeLinkableNode> deps=ImmutableSet.builder();
+      for (      BuildRule dep : node.getBuildRule().getDeps()) {
+        if (traverse.apply(dep)) {
+          NativeLinkableNode nodeDep=processBuildRule(cxxPlatform,wanted,dep,depType,node.getPass());
+          linkGraph.addEdge(node,nodeDep);
+          graph.addEdge(node.getBuildRule(),dep);
+          deps.add(nodeDep);
+        }
+      }
+      return deps.build();
+    }
+  }
+;
+  visitor.start();
+  ImmutableList<BuildRule> sorted=TopologicalSort.sort(graph,Predicates.<BuildRule>alwaysTrue());
+  List<NativeLinkableInput> nativeLinkableInputs=Lists.newArrayList();
+  for (  BuildRule buildRule : reverse ? sorted.reverse() : sorted) {
+    if (buildRule instanceof NativeLinkable) {
+      Linker.LinkableDepType type=wanted.get(buildRule.getBuildTarget());
+      if (type != null) {
+        NativeLinkable linkable=(NativeLinkable)buildRule;
+        nativeLinkableInputs.add(linkable.getNativeLinkableInput(cxxPlatform,type));
+      }
+    }
+  }
+  return NativeLinkableInput.concat(nativeLinkableInputs);
 }
