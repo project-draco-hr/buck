@@ -25,8 +25,19 @@
       return createStaticLibraryBuildRule(typeParams,resolver,platform.get().getValue(),args,compileStrategy,CxxSourceRuleFactory.PicType.PIC);
     }
   }
+  boolean hasObjects=false;
+  if (args.srcs.isPresent()) {
+    Either<ImmutableList<SourceWithFlags>,ImmutableMap<String,SourceWithFlags>> either=args.srcs.get();
+    if (either.isLeft()) {
+      hasObjects=!either.getLeft().isEmpty();
+    }
+ else {
+      hasObjects=!either.getRight().isEmpty();
+    }
+  }
+  hasObjects|=!args.lexSrcs.get().isEmpty() || !args.yaccSrcs.get().isEmpty();
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  return new CxxLibrary(params,resolver,pathResolver,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
+  return new CxxLibrary(params,resolver,pathResolver,hasObjects,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
     @Override public ImmutableMultimap<CxxSource.Type,String> apply(    CxxPlatform input){
       return CxxFlags.getLanguageFlags(args.exportedPreprocessorFlags,args.exportedPlatformPreprocessorFlags,args.exportedLangPreprocessorFlags,input.getFlavor());
     }
