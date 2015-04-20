@@ -18,23 +18,15 @@
     console.printBuildFailureWithoutStacktrace(e);
     return 1;
   }
-  ImmutableSet<BuildTarget> targetsToPrint=options.shouldShowTransitiveDependencies() ? getTransitiveDependencies(targets,graph) : getImmediateDependencies(targets,graph);
-  if (options.shouldIncludeTests()) {
-    ImmutableSet.Builder<BuildTarget> targetsBuilder=ImmutableSet.builder();
-    targetsToPrint=targetsBuilder.addAll(targetsToPrint).addAll(getTestTargetDependencies(targets,graph,options)).build();
+  TreeMultimap<BuildTarget,BuildTarget> targetsAndDependencies=TreeMultimap.create();
+  for (  BuildTarget target : targets) {
+    targetsAndDependencies.putAll(target,getDependenciesWithOptions(target,graph,options));
   }
-  Collection<String> namesToPrint=Collections2.transform(targetsToPrint,new Function<BuildTarget,String>(){
-    @Override public String apply(    final BuildTarget target){
-      return target.getFullyQualifiedName();
-    }
-  }
-);
-  ImmutableSortedSet<String> sortedNames=ImmutableSortedSet.copyOf(namesToPrint);
   if (options.shouldGenerateJsonOutput()) {
-    printJSON(sortedNames);
+    printJSON(targetsAndDependencies);
   }
  else {
-    printToConsole(sortedNames);
+    printToConsole(targetsAndDependencies);
   }
   return 0;
 }
