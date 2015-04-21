@@ -4,6 +4,7 @@
     return new NoopArtifactCache();
   }
   ImmutableList.Builder<ArtifactCache> builder=ImmutableList.builder();
+  boolean useDistributedCache=isWifiUsableForDistributedCache(currentWifiSsid);
   try {
     for (    String mode : modes) {
 switch (ArtifactCacheNames.valueOf(mode)) {
@@ -13,14 +14,18 @@ case dir:
     builder.add(dirArtifactCache);
   break;
 case cassandra:
-ArtifactCache cassandraArtifactCache=createCassandraArtifactCache(currentWifiSsid,buckEventBus,fileHashCache);
-if (cassandraArtifactCache != null) {
-builder.add(cassandraArtifactCache);
+if (useDistributedCache) {
+  ArtifactCache cassandraArtifactCache=createCassandraArtifactCache(buckEventBus,fileHashCache);
+  if (cassandraArtifactCache != null) {
+    builder.add(cassandraArtifactCache);
+  }
 }
 break;
 case http:
+if (useDistributedCache) {
 ArtifactCache httpArtifactCache=createHttpArtifactCache(buckEventBus);
 builder.add(httpArtifactCache);
+}
 break;
 }
 }
