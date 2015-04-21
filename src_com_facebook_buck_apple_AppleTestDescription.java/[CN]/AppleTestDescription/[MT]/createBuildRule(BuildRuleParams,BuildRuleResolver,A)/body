@@ -9,6 +9,16 @@
     return library;
   }
   SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
-  AppleBundle bundle=new AppleBundle(params.copyWithChanges(AppleBundleDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addFlavors(BUNDLE_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(params.getDeclaredDeps()).build()),Suppliers.ofInstance(params.getExtraDeps())),sourcePathResolver,args.extension,args.infoPlist,library);
+  ImmutableSet<AppleResourceDescription.Arg> resourceDescriptions=AppleResources.collectRecursiveResources(params.getTargetGraph(),ImmutableSet.of(params.getTargetGraph().get(params.getBuildTarget())));
+  LOG.debug("Got resource nodes %s",resourceDescriptions);
+  ImmutableMap.Builder<Path,AppleBundleDestination> resourceDirsBuilder=ImmutableMap.builder();
+  resourceDirsBuilder.putAll(args.dirs.get());
+  AppleResources.addResourceDirsToBuilder(resourceDirsBuilder,resourceDescriptions);
+  ImmutableMap<Path,AppleBundleDestination> resourceDirs=resourceDirsBuilder.build();
+  ImmutableMap.Builder<SourcePath,AppleBundleDestination> resourceFilesBuilder=ImmutableMap.builder();
+  resourceFilesBuilder.putAll(args.files.get());
+  AppleResources.addResourceFilesToBuilder(resourceFilesBuilder,resourceDescriptions);
+  ImmutableMap<SourcePath,AppleBundleDestination> resourceFiles=resourceFilesBuilder.build();
+  AppleBundle bundle=new AppleBundle(params.copyWithChanges(AppleBundleDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addFlavors(BUNDLE_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(params.getDeclaredDeps()).build()),Suppliers.ofInstance(params.getExtraDeps())),sourcePathResolver,args.extension,args.infoPlist,Optional.of(library),AppleBundleDescription.IOS_APP_SUBFOLDER_SPEC_MAP,resourceDirs,resourceFiles);
   return new AppleTest(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(bundle)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),sourcePathResolver,bundle,args.contacts.get(),args.labels.get(),ImmutableSet.<BuildRule>of());
 }
