@@ -28,14 +28,22 @@
  else {
     cacheResult=CacheResult.skip();
   }
-  if (cacheResult.getType().isSuccess()) {
-    return new BuildResult(BuildRuleSuccess.Type.FETCHED_FROM_CACHE,cacheResult);
+  BuildableContext buildableContext=new DefaultBuildableContext(buildInfoRecorder);
+  if (!cacheResult.getType().isSuccess()) {
+    try {
+      executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
+    }
+ catch (    StepFailedException e) {
+      return new BuildResult(e);
+    }
   }
-  try {
-    executeCommandsNowThatDepsAreBuilt(rule,context,buildInfoRecorder);
+  if (rule instanceof HasPostBuildSteps) {
+    try {
+      executePostBuildSteps(rule,((HasPostBuildSteps)rule).getPostBuildSteps(context,buildableContext),context);
+    }
+ catch (    StepFailedException e) {
+      return new BuildResult(e);
+    }
   }
- catch (  Exception e) {
-    return new BuildResult(e);
-  }
-  return new BuildResult(BuildRuleSuccess.Type.BUILT_LOCALLY,cacheResult);
+  return new BuildResult(cacheResult.getType().isSuccess() ? BuildRuleSuccess.Type.FETCHED_FROM_CACHE : BuildRuleSuccess.Type.BUILT_LOCALLY,cacheResult);
 }

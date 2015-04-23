@@ -1,26 +1,23 @@
 {
-  Step step=new AbstractExecutionStep("exploding step"){
-    @Override public int execute(    ExecutionContext context){
-      throw new UnsupportedOperationException("build step should not be executed");
-    }
-  }
-;
-  BuildRule buildRule=createRule(new SourcePathResolver(new BuildRuleResolver()),ImmutableSet.<BuildRule>of(),ImmutableList.of(step),ImmutableList.<Step>of(),null,CacheMode.ENABLED);
-  StepRunner stepRunner=createStepRunner();
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
+  StepRunner stepRunner=createStepRunner(buckEventBus);
   ProjectFilesystem projectFilesystem=createMock(ProjectFilesystem.class);
   expect(projectFilesystem.readFileIfItExists(Paths.get("buck-out/bin/src/com/facebook/orca/.orca/metadata/RULE_KEY"))).andReturn(Optional.<String>absent());
   expect(projectFilesystem.getRootPath()).andReturn(tmp.getRoot().toPath());
+  Step buildStep=createMock(Step.class);
+  expect(buildStep.getDescription(anyObject(ExecutionContext.class))).andReturn("Some Description").anyTimes();
+  expect(buildStep.getShortName()).andReturn("Some Short Name").anyTimes();
+  expect(buildStep.execute(anyObject(ExecutionContext.class))).andReturn(0);
+  BuildRule buildRule=createRule(new SourcePathResolver(new BuildRuleResolver()),ImmutableSet.<BuildRule>of(),ImmutableList.<Step>of(),ImmutableList.of(buildStep),null,CacheMode.ENABLED);
   ArtifactCache artifactCache=createMock(ArtifactCache.class);
   Map<String,String> desiredZipEntries=ImmutableMap.of("buck-out/gen/src/com/facebook/orca/orca.jar","Imagine this is the contents of a valid JAR file.");
   expect(artifactCache.fetch(eq(buildRule.getRuleKey()),isA(File.class))).andDelegateTo(new FakeArtifactCacheThatWritesAZipFile(desiredZipEntries));
-  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   BuildContext buildContext=ImmutableBuildContext.builder().setActionGraph(RuleMap.createGraphFromSingleRule(buildRule)).setStepRunner(stepRunner).setProjectFilesystem(projectFilesystem).setClock(new DefaultClock()).setBuildId(new BuildId()).setArtifactCache(artifactCache).setJavaPackageFinder(createMock(JavaPackageFinder.class)).setEventBus(buckEventBus).build();
   replayAll();
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService());
   ListenableFuture<BuildRuleSuccess> result=cachingBuildEngine.build(buildContext,buildRule);
   buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
   verifyAll();
-  assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(result));
   BuildRuleSuccess success=result.get();
   assertEquals(BuildRuleSuccess.Type.FETCHED_FROM_CACHE,success.getType());
   assertTrue(((BuildableAbstractCachingBuildRule)buildRule).isInitializedFromDisk());
