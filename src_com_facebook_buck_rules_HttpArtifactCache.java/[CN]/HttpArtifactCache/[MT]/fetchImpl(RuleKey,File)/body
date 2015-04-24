@@ -14,17 +14,23 @@
   Path path=file.toPath();
   projectFilesystem.createParentDirs(path);
   Path temp=projectFilesystem.createTempFile(path.getParent(),path.getFileName().toString(),".tmp");
-  try (DataInputStream input=new DataInputStream(response.body().byteStream())){
-    long length=input.readLong();
-    try (BoundedInputStream boundedInput=new BoundedInputStream(input,length);HashingInputStream hashingInput=new HashingInputStream(hashFunction,boundedInput);OutputStream output=projectFilesystem.newFileOutputStream(temp)){
-      ByteStreams.copy(hashingInput,output);
-      actualHashCode=hashingInput.hash();
+  try (InputStream raw=response.body().byteStream();HashingInputStream hasher=new HashingInputStream(hashFunction,raw);DataInputStream input=new DataInputStream(hasher)){
+    String key=input.readUTF();
+    if (!key.equals(ruleKey.toString())) {
+      String msg="incorrect key name";
+      reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
+      return CacheResult.error(name,msg);
     }
-     byte[] hashCodeBytes=new byte[hashFunction.bits() / Byte.SIZE];
-    ByteStreams.readFully(input,hashCodeBytes);
+    long length=input.readLong();
+    try (BoundedInputStream boundedInput=new BoundedInputStream(input,length);OutputStream output=projectFilesystem.newFileOutputStream(temp)){
+      ByteStreams.copy(boundedInput,output);
+    }
+     actualHashCode=hasher.hash();
+    byte[] hashCodeBytes=new byte[hashFunction.bits() / Byte.SIZE];
+    ByteStreams.readFully(raw,hashCodeBytes);
     expectedHashCode=HashCode.fromBytes(hashCodeBytes);
-    try (OutputStream output=ByteStreams.nullOutputStream()){
-      if (ByteStreams.copy(input,output) != 0) {
+    try (OutputStream theVoid=ByteStreams.nullOutputStream()){
+      if (ByteStreams.copy(input,theVoid) != 0) {
         String msg="unexpected end of input";
         reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
         return CacheResult.error(name,msg);

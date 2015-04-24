@@ -1,13 +1,14 @@
 {
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  final RuleKey ruleKey=new RuleKey("00000000000000000000000000000000");
   HttpArtifactCache cache=new HttpArtifactCache("http",null,null,new URL("http://localhost:8080"),true,filesystem,BUCK_EVENT_BUS,HASH_FUNCTION){
     @Override protected Response fetchCall(    Request request) throws IOException {
-      return new Response.Builder().code(HttpURLConnection.HTTP_OK).protocol(Protocol.HTTP_1_1).request(request).body(createBody(HashCode.fromInt(0),"test")).build();
+      return new Response.Builder().code(HttpURLConnection.HTTP_OK).protocol(Protocol.HTTP_1_1).request(request).body(createBody(ruleKey.toString(),HashCode.fromInt(0),"test")).build();
     }
   }
 ;
   File output=new File("output/file");
-  CacheResult result=cache.fetch(new RuleKey("00000000000000000000000000000000"),output);
+  CacheResult result=cache.fetch(ruleKey,output);
   assertEquals(CacheResult.Type.ERROR,result.getType());
   assertEquals(Optional.<String>absent(),filesystem.readFileIfItExists(output.toPath()));
   cache.close();
