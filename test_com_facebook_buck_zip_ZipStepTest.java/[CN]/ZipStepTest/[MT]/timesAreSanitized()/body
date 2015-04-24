@@ -1,0 +1,16 @@
+{
+  File parent=tmp.newFolder("zipstep");
+  File toZip=tmp.newFolder("zipdir");
+  assertTrue(new File(toZip,"child").mkdir());
+  Files.touch(new File(toZip,"child/file.txt"));
+  Path outputZip=parent.toPath().resolve("output.zip");
+  ZipStep step=new ZipStep(outputZip,ImmutableSet.<Path>of(),false,ZipStep.DEFAULT_COMPRESSION_LEVEL,Paths.get("zipdir"));
+  assertEquals(0,step.execute(executionContext));
+  assertTrue(java.nio.file.Files.exists(outputZip));
+  Date dosEpoch=new Date(ZipUtil.dosToJavaTime((1 << 21) | (1 << 16)));
+  try (ZipInputStream is=new ZipInputStream(new FileInputStream(outputZip.toFile()))){
+    for (ZipEntry entry=is.getNextEntry(); entry != null; entry=is.getNextEntry()) {
+      assertEquals(entry.getName(),dosEpoch,new Date(entry.getTime()));
+    }
+  }
+ }
