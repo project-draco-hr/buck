@@ -18,7 +18,7 @@
     console.getStdErr().println(commandParseResult.getErrorText().get());
   }
   int exitCode;
-  ImmutableList<BuckEventListener> eventListeners;
+  ImmutableList<BuckEventListener> eventListeners=ImmutableList.of();
   Clock clock;
   if (BUCKD_LAUNCH_TIME_NANOS.isPresent()) {
     long nanosEpoch=Long.parseLong(BUCKD_LAUNCH_TIME_NANOS.get(),10);
@@ -83,21 +83,21 @@
     if (commandSemaphoreAcquired) {
       commandSemaphore.release();
     }
+    for (    BuckEventListener eventListener : eventListeners) {
+      try {
+        eventListener.outputTrace(buildId);
+      }
+ catch (      RuntimeException e) {
+        PrintStream stdErr=console.getStdErr();
+        stdErr.println("Skipping over non-fatal error");
+        e.printStackTrace(stdErr);
+      }
+    }
   }
   if (isDaemon && !rootRepository.getBuckConfig().getFlushEventsBeforeExit()) {
     context.get().in.close();
     context.get().exit(exitCode);
   }
   closeCreatedArtifactCaches(artifactCacheFactory);
-  for (  BuckEventListener eventListener : eventListeners) {
-    try {
-      eventListener.outputTrace(buildId);
-    }
- catch (    RuntimeException e) {
-      PrintStream stdErr=console.getStdErr();
-      stdErr.println("Skipping over non-fatal error");
-      e.printStackTrace(stdErr);
-    }
-  }
   return exitCode;
 }
