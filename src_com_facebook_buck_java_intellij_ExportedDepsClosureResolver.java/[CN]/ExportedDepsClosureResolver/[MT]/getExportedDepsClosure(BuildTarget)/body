@@ -1,0 +1,23 @@
+{
+  if (index.containsKey(buildTarget)) {
+    return index.get(buildTarget);
+  }
+  ImmutableSet<BuildTarget> exportedDeps=ImmutableSet.of();
+  TargetNode<?> targetNode=Preconditions.checkNotNull(targetGraph.get(buildTarget));
+  if (targetNode.getType().equals(JavaLibraryDescription.TYPE)) {
+    JavaLibraryDescription.Arg arg=(JavaLibraryDescription.Arg)targetNode.getConstructorArg();
+    exportedDeps=arg.exportedDeps.get();
+  }
+ else   if (targetNode.getType().equals(AndroidLibraryDescription.TYPE)) {
+    AndroidLibraryDescription.Arg arg=(AndroidLibraryDescription.Arg)targetNode.getConstructorArg();
+    exportedDeps=arg.exportedDeps.get();
+  }
+  ImmutableSet<BuildTarget> exportedDepsClosure=FluentIterable.from(exportedDeps).transformAndConcat(new Function<BuildTarget,Iterable<BuildTarget>>(){
+    @Override public Iterable<BuildTarget> apply(    BuildTarget input){
+      return Iterables.concat(ImmutableSet.of(input),getExportedDepsClosure(input));
+    }
+  }
+).toSet();
+  index.put(buildTarget,exportedDepsClosure);
+  return exportedDepsClosure;
+}
