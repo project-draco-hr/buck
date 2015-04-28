@@ -1,10 +1,14 @@
 {
   boolean createBundle=Sets.intersection(params.getBuildTarget().getFlavors(),NON_LIBRARY_FLAVORS).isEmpty();
-  Set<Flavor> extraFlavors=ImmutableSet.of();
+  boolean addDefaultPlatform=Sets.difference(params.getBuildTarget().getFlavors(),NON_LIBRARY_FLAVORS).isEmpty();
+  ImmutableSet.Builder<Flavor> extraFlavorsBuilder=ImmutableSet.builder();
   if (createBundle) {
-    extraFlavors=ImmutableSet.of(LIBRARY_FLAVOR,CxxDescriptionEnhancer.SHARED_FLAVOR);
+    extraFlavorsBuilder.add(LIBRARY_FLAVOR,CxxDescriptionEnhancer.SHARED_FLAVOR);
   }
-  BuildRule library=appleLibraryDescription.createBuildRule(params.copyWithChanges(AppleLibraryDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addAllFlavors(extraFlavors).build(),Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps())),resolver,args);
+  if (addDefaultPlatform) {
+    extraFlavorsBuilder.add(defaultCxxPlatform.getFlavor());
+  }
+  BuildRule library=appleLibraryDescription.createBuildRule(params.copyWithChanges(AppleLibraryDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addAllFlavors(extraFlavorsBuilder.build()).build(),Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps())),resolver,args);
   if (!createBundle) {
     return library;
   }
