@@ -1,0 +1,16 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//cheese:peas");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
+  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
+  BuildRule buildRule1=new TestRuleKeyAppendableBuildRule(params,pathResolver,"foo","bar");
+  BuildRule buildRule2=new TestRuleKeyAppendableBuildRule(params,pathResolver,"foo","xyzzy");
+  BuildTarget parentTarget=BuildTargetFactory.newInstance("//cheese:milk");
+  BuildRuleParams parentParams1=new FakeBuildRuleParamsBuilder(parentTarget).setDeps(ImmutableSortedSet.of(buildRule1)).build();
+  BuildRule parentRule1=new NoopBuildRule(parentParams1,pathResolver);
+  BuildRuleParams parentParams2=new FakeBuildRuleParamsBuilder(parentTarget).setDeps(ImmutableSortedSet.of(buildRule2)).build();
+  BuildRule parentRule2=new NoopBuildRule(parentParams2,pathResolver);
+  DefaultRuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(new NullFileHashCache());
+  RuleKeyPair ruleKey1=factory.newInstance(parentRule1,pathResolver).build();
+  RuleKeyPair ruleKey2=factory.newInstance(parentRule2,pathResolver).build();
+  assertNotEquals(ruleKey1,ruleKey2);
+}
