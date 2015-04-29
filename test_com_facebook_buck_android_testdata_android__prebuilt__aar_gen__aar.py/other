@@ -1,0 +1,29 @@
+import contextlib
+import os
+import shutil
+import subprocess
+import sys
+import zipfile
+if (__name__ == '__main__'):
+    tmp = sys.argv[1]
+    output = sys.argv[2]
+    with open(os.path.join(tmp, 'AndroidManifest.xml'), 'w') as f:
+        f.write("<manifest\n  xmlns:android='http://schemas.android.com/apk/res/android'\n  package='com.example'\n/>")
+    os.makedirs(os.path.join(tmp, 'res', 'values'))
+    with open(os.path.join(tmp, 'res', 'values', 'strings.xml'), 'w') as f:
+        f.write("<?xml version='1.0' encoding='utf-8' ?>\n<resources>\n  <string name='app_name'>Hello World</string>\n</resources>")
+    with open(os.path.join(tmp, 'Utils.java'), 'w') as f:
+        f.write('package com.example;\npublic class Utils {\n  public static String capitalize(String str) {\n    return str.substring(0, 1).toUpperCase() + str.substring(1);\n  }\n}')
+    os.makedirs(os.path.join(tmp, 'classes'))
+    subprocess.check_call(['javac', '-source', '1.7', '-target', '1.7', '-d', 'classes', 'Utils.java'], cwd=tmp)
+    subprocess.check_call(['jar', '-cf', 'classes.jar', '-C', 'classes', '.'], cwd=tmp)
+    os.remove(os.path.join(tmp, 'Utils.java'))
+    shutil.rmtree(os.path.join(tmp, 'classes'))
+    os.makedirs(os.path.join(tmp, 'jni', 'x86'))
+    with open(os.path.join(tmp, 'jni', 'x86', 'liba.so'), 'w') as f:
+        f.write('Empty')
+    files = [f for f in os.listdir(tmp) if os.path.isfile(os.path.join(tmp, f))]
+    with contextlib.closing(zipfile.ZipFile(output, 'w')) as z:
+        for (dir, _, files) in os.walk(tmp):
+            for f in files:
+                z.write(os.path.join(tmp, dir, f), os.path.relpath(os.path.join(dir, f), tmp))
