@@ -1,0 +1,11 @@
+{
+  ImmutableMap<String,SourcePath> nativeLibrariesStringKeys=JavaLibraryRules.getNativeLibraries(buildRuleParams.getDeps(),cxxPlatform);
+  ImmutableMap.Builder<Path,SourcePath> nativeLibrariesBuilder=ImmutableMap.builder();
+  for (  Map.Entry<String,SourcePath> entry : nativeLibrariesStringKeys.entrySet()) {
+    nativeLibrariesBuilder.put(Paths.get(entry.getKey()),entry.getValue());
+  }
+  ImmutableMap<Path,SourcePath> nativeLibraries=nativeLibrariesBuilder.build();
+  BuildRuleParams paramsForNativeLibsSymlinkTree=buildRuleParams.copyWithChanges(buildRuleParams.getBuildTarget().withFlavors(NATIVE_LIBS_SYMLINKS_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(ImmutableSortedSet.copyOf(pathResolver.filterBuildRuleInputs(nativeLibraries.values()))));
+  Path nativeLibsSymlinkDir=BuildTargets.getScratchPath(paramsForNativeLibsSymlinkTree.getBuildTarget(),"_%s_linktree");
+  return new SymlinkTree(paramsForNativeLibsSymlinkTree,pathResolver,nativeLibsSymlinkDir,nativeLibraries);
+}
