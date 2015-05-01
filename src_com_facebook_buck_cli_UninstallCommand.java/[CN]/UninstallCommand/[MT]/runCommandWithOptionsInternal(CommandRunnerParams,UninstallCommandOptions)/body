@@ -1,0 +1,32 @@
+{
+  if (options.getArguments().size() != 1) {
+    params.getConsole().getStdErr().println("Must specify exactly one android_binary() rule.");
+    return 1;
+  }
+  Parser parser=params.getParser();
+  BuildTargetParser buildTargetParser=parser.getBuildTargetParser();
+  String buildTargetName=options.getArgumentsFormattedAsBuildTargets().get(0);
+  ActionGraph actionGraph;
+  BuildTarget buildTarget;
+  try {
+    buildTarget=buildTargetParser.parse(buildTargetName,BuildTargetPatternParser.fullyQualified(buildTargetParser));
+    TargetGraph targetGraph=parser.buildTargetGraphForBuildTargets(ImmutableList.of(buildTarget),new ParserConfig(options.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+    TargetGraphTransformer<ActionGraph> targetGraphTransformer=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer());
+    actionGraph=targetGraphTransformer.apply(targetGraph);
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  BuildRule buildRule=Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(buildTarget));
+  if (buildRule == null || !(buildRule instanceof InstallableApk)) {
+    params.getConsole().printBuildFailure(String.format("Specified rule %s must be of type android_binary() or apk_genrule() but was %s().\n",buildRule.getFullyQualifiedName(),buildRule.getType().getName()));
+    return 1;
+  }
+  InstallableApk installableApk=(InstallableApk)buildRule;
+  try (ExecutionContext context=createExecutionContext(params)){
+    final AdbHelper adbHelper=new AdbHelper(options.adbOptions(),options.targetDeviceOptions(),context,params.getConsole(),params.getBuckEventBus(),options.getBuckConfig());
+    String appId=AdbHelper.tryToExtractPackageNameFromManifest(installableApk,context);
+    return adbHelper.uninstallApp(appId,options.uninstallOptions()) ? 0 : 1;
+  }
+ }

@@ -1,0 +1,33 @@
+{
+  new AbstractBottomUpTraversal<TargetNode<?>,Void>(graph){
+    final Set<Path> inputs=Sets.newHashSet();
+    @Override public void visit(    TargetNode<?> node){
+      for (      Path input : node.getInputs()) {
+        LOG.debug("Walking input %s",input);
+        try {
+          if (!params.getRepository().getFilesystem().exists(input)) {
+            throw new HumanReadableException("Target %s refers to non-existent input file: %s",node,input);
+          }
+          ImmutableSortedSet<Path> nodeContents=ImmutableSortedSet.copyOf(params.getRepository().getFilesystem().getFilesUnderPath(input));
+          for (          Path path : nodeContents) {
+            putInput(path);
+          }
+        }
+ catch (        IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+    private void putInput(    Path input){
+      boolean isNewInput=inputs.add(input);
+      if (isNewInput) {
+        params.getConsole().getStdOut().println(input);
+      }
+    }
+    @Override public Void getResult(){
+      return null;
+    }
+  }
+.traverse();
+  return 0;
+}

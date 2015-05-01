@@ -1,0 +1,58 @@
+{
+  ImmutableSet<BuildTarget> explicitBuildTargets=options.isRunAllTests() ? ImmutableSet.<BuildTarget>of() : getBuildTargets(params,options.getArgumentsFormattedAsBuildTargets());
+  if (params.getParser().getParseStartTime().isPresent()) {
+    params.getBuckEventBus().post(BuildEvent.started(explicitBuildTargets),params.getParser().getParseStartTime().get());
+  }
+ else {
+    params.getBuckEventBus().post(BuildEvent.started(explicitBuildTargets));
+  }
+  ParserConfig parserConfig=new ParserConfig(options.getBuckConfig());
+  TargetGraph targetGraph;
+  try {
+    if (options.isRunAllTests()) {
+      targetGraph=params.getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(new TargetNodePredicateSpec(new Predicate<TargetNode<?>>(){
+        @Override public boolean apply(        TargetNode<?> input){
+          return input.getType().isTestRule();
+        }
+      }
+,params.getRepository().getFilesystem().getIgnorePaths())),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+    }
+ else {
+      targetGraph=params.getParser().buildTargetGraphForBuildTargets(explicitBuildTargets,parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+    }
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  ActionGraph graph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer()).apply(targetGraph);
+  Iterable<TestRule> testRules=Iterables.filter(graph.getNodes(),TestRule.class);
+  if (!options.isBuildFiltered()) {
+    testRules=filterTestRules(options,testRules);
+  }
+  if (options.isDryRun()) {
+    printMatchingTestRules(params.getConsole(),testRules);
+  }
+  ArtifactCache artifactCache=getArtifactCache(params,options);
+  try (CommandThreadManager pool=new CommandThreadManager("Test",options.getConcurrencyLimit())){
+    CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),options.getBuckConfig().getSkipLocalBuildChainDepth().or(1L));
+    try (Build build=options.createBuild(options.getBuckConfig(),graph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),cachingBuildEngine,artifactCache,params.getConsole(),params.getBuckEventBus(),options.getTargetDeviceOptional(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
+      int exitCode=build.executeAndPrintFailuresToConsole(testRules,options.isKeepGoing(),params.getConsole(),options.getPathToBuildReport());
+      params.getBuckEventBus().post(BuildEvent.finished(explicitBuildTargets,exitCode));
+      if (exitCode != 0) {
+        return exitCode;
+      }
+      if (options.isBuildFiltered()) {
+        testRules=filterTestRules(options,testRules);
+      }
+      ConcurrencyLimit concurrencyLimit=new ConcurrencyLimit(options.getNumTestThreads(),options.getLoadLimit());
+      try (CommandThreadManager testPool=new CommandThreadManager("Test-Run",concurrencyLimit)){
+        return runTests(params,testRules,Preconditions.checkNotNull(build.getBuildContext()),build.getExecutionContext(),options,testPool.getExecutor(),cachingBuildEngine);
+      }
+ catch (      ExecutionException e) {
+        params.getConsole().printBuildFailureWithoutStacktrace(e);
+        return 1;
+      }
+    }
+   }
+ }

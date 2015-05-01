@@ -1,0 +1,44 @@
+{
+  params.getConsole().getStdOut().println("[");
+  ObjectMapper mapper=params.getObjectMapper();
+  Iterator<TargetNode<?>> valueIterator=buildIndex.values().iterator();
+  while (valueIterator.hasNext()) {
+    BuildTarget buildTarget=valueIterator.next().getBuildTarget();
+    List<Map<String,Object>> rules;
+    try {
+      Path buildFile=params.getRepository().getAbsolutePathToBuildFile(buildTarget);
+      rules=params.getParser().parseBuildFile(buildFile,parserConfig,params.getEnvironment(),params.getConsole(),params.getBuckEventBus());
+    }
+ catch (    BuildTargetException e) {
+      params.getConsole().printErrorText("unable to find rule for target " + buildTarget.getFullyQualifiedName());
+      continue;
+    }
+    Map<String,Object> targetRule=null;
+    for (    Map<String,Object> rule : rules) {
+      String name=(String)Preconditions.checkNotNull(rule.get("name"));
+      if (name.equals(buildTarget.getShortNameAndFlavorPostfix())) {
+        targetRule=rule;
+        break;
+      }
+    }
+    if (targetRule == null) {
+      params.getConsole().printErrorText("unable to find rule for target " + buildTarget.getFullyQualifiedName());
+      continue;
+    }
+    SortedMap<String,Object> sortedTargetRule=Maps.newTreeMap();
+    sortedTargetRule.putAll(targetRule);
+    StringWriter stringWriter=new StringWriter();
+    try {
+      mapper.writerWithDefaultPrettyPrinter().writeValue(stringWriter,sortedTargetRule);
+    }
+ catch (    IOException e) {
+      throw Throwables.propagate(e);
+    }
+    String output=stringWriter.getBuffer().toString();
+    if (valueIterator.hasNext()) {
+      output+=",";
+    }
+    params.getConsole().getStdOut().println(output);
+  }
+  params.getConsole().getStdOut().println("]");
+}

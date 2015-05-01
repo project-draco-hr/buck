@@ -1,0 +1,14 @@
+{
+  ActionGraph graph=targetGraphTransformer.apply(targetGraph);
+  Multimap<String,String> targetClasspaths=LinkedHashMultimap.create();
+  for (  BuildTarget target : targets) {
+    BuildRule rule=Preconditions.checkNotNull(graph.findBuildRuleByTarget(target));
+    HasClasspathEntries hasClasspathEntries=getHasClasspathEntriesFrom(rule);
+    if (hasClasspathEntries == null) {
+      continue;
+    }
+    targetClasspaths.putAll(target.getFullyQualifiedName(),Iterables.transform(hasClasspathEntries.getTransitiveClasspathEntries().values(),Functions.toStringFunction()));
+  }
+  params.getObjectMapper().writeValue(params.getConsole().getStdOut(),targetClasspaths.asMap());
+  return 0;
+}

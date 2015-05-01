@@ -1,0 +1,26 @@
+{
+  final ImmutableSet<String> fullyQualifiedBuildTargets=ImmutableSet.copyOf(options.getArgumentsFormattedAsBuildTargets());
+  if (fullyQualifiedBuildTargets.isEmpty()) {
+    params.getConsole().printBuildFailure("Please specify at least one build target.");
+    return 1;
+  }
+  ImmutableSet<BuildTarget> targets=FluentIterable.from(options.getArgumentsFormattedAsBuildTargets()).transform(new Function<String,BuildTarget>(){
+    @Override public BuildTarget apply(    String input){
+      return params.getParser().getBuildTargetParser().parse(input,BuildTargetPatternParser.fullyQualified(params.getParser().getBuildTargetParser()));
+    }
+  }
+).toSet();
+  LOG.debug("Getting input for targets: %s",targets);
+  TargetGraph graph;
+  try {
+    graph=params.getParser().buildTargetGraphForBuildTargets(targets,new ParserConfig(options.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  if (options.shouldGenerateJsonOutput()) {
+    return printJsonInputs(params,graph);
+  }
+  return printInputs(params,graph);
+}

@@ -1,0 +1,33 @@
+{
+  ArtifactCache artifactCache=getArtifactCache(params,options);
+  buildTargets=getBuildTargets(params,options.getArgumentsFormattedAsBuildTargets());
+  if (buildTargets.isEmpty()) {
+    params.getConsole().printBuildFailure("Must specify at least one build target.");
+    ImmutableSet<String> aliases=options.getBuckConfig().getAliases();
+    if (!aliases.isEmpty()) {
+      params.getConsole().getStdErr().println(String.format("Try building one of the following targets:\n%s",Joiner.on(' ').join(Iterators.limit(aliases.iterator(),10))));
+    }
+    return 1;
+  }
+  if (params.getParser().getParseStartTime().isPresent()) {
+    params.getBuckEventBus().post(BuildEvent.started(buildTargets),params.getParser().getParseStartTime().get());
+  }
+ else {
+    params.getBuckEventBus().post(BuildEvent.started(buildTargets));
+  }
+  ActionGraph actionGraph;
+  try {
+    TargetGraph targetGraph=params.getParser().buildTargetGraphForBuildTargets(buildTargets,new ParserConfig(options.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+    actionGraph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer()).apply(targetGraph);
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  try (CommandThreadManager pool=new CommandThreadManager("Build",options.getConcurrencyLimit());Build build=options.createBuild(options.getBuckConfig(),actionGraph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),new CachingBuildEngine(pool.getExecutor(),options.getBuckConfig().getSkipLocalBuildChainDepth().or(1L)),artifactCache,params.getConsole(),params.getBuckEventBus(),Optional.<TargetDevice>absent(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
+    lastBuild=build;
+    int exitCode=build.executeAndPrintFailuresToConsole(buildTargets,options.isKeepGoing(),params.getConsole(),options.getPathToBuildReport());
+    params.getBuckEventBus().post(BuildEvent.finished(buildTargets,exitCode));
+    return exitCode;
+  }
+ }
