@@ -1,12 +1,12 @@
 {
-  ImmutableSet<BuildTarget> explicitBuildTargets=options.isRunAllTests() ? ImmutableSet.<BuildTarget>of() : getBuildTargets(params,options.getArgumentsFormattedAsBuildTargets());
+  ImmutableSet<BuildTarget> explicitBuildTargets=options.isRunAllTests() ? ImmutableSet.<BuildTarget>of() : getBuildTargets(params,options.getArgumentsFormattedAsBuildTargets(params.getBuckConfig()));
   if (params.getParser().getParseStartTime().isPresent()) {
     params.getBuckEventBus().post(BuildEvent.started(explicitBuildTargets),params.getParser().getParseStartTime().get());
   }
  else {
     params.getBuckEventBus().post(BuildEvent.started(explicitBuildTargets));
   }
-  ParserConfig parserConfig=new ParserConfig(options.getBuckConfig());
+  ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
   TargetGraph targetGraph;
   try {
     if (options.isRunAllTests()) {
@@ -27,25 +27,25 @@
   }
   ActionGraph graph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer()).apply(targetGraph);
   Iterable<TestRule> testRules=Iterables.filter(graph.getNodes(),TestRule.class);
-  if (!options.isBuildFiltered()) {
-    testRules=filterTestRules(options,testRules);
+  if (!options.isBuildFiltered(params.getBuckConfig())) {
+    testRules=filterTestRules(params.getBuckConfig(),options,testRules);
   }
   if (options.isDryRun()) {
     printMatchingTestRules(params.getConsole(),testRules);
   }
   ArtifactCache artifactCache=getArtifactCache(params,options);
-  try (CommandThreadManager pool=new CommandThreadManager("Test",options.getConcurrencyLimit())){
-    CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),options.getBuckConfig().getSkipLocalBuildChainDepth().or(1L));
-    try (Build build=options.createBuild(options.getBuckConfig(),graph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),cachingBuildEngine,artifactCache,params.getConsole(),params.getBuckEventBus(),options.getTargetDeviceOptional(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
-      int exitCode=build.executeAndPrintFailuresToConsole(testRules,options.isKeepGoing(),params.getConsole(),options.getPathToBuildReport());
+  try (CommandThreadManager pool=new CommandThreadManager("Test",options.getConcurrencyLimit(params.getBuckConfig()))){
+    CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),params.getBuckConfig().getSkipLocalBuildChainDepth().or(1L));
+    try (Build build=options.createBuild(params.getBuckConfig(),graph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),cachingBuildEngine,artifactCache,params.getConsole(),params.getBuckEventBus(),options.getTargetDeviceOptional(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
+      int exitCode=build.executeAndPrintFailuresToConsole(testRules,options.isKeepGoing(),params.getConsole(),options.getPathToBuildReport(params.getBuckConfig()));
       params.getBuckEventBus().post(BuildEvent.finished(explicitBuildTargets,exitCode));
       if (exitCode != 0) {
         return exitCode;
       }
-      if (options.isBuildFiltered()) {
-        testRules=filterTestRules(options,testRules);
+      if (options.isBuildFiltered(params.getBuckConfig())) {
+        testRules=filterTestRules(params.getBuckConfig(),options,testRules);
       }
-      ConcurrencyLimit concurrencyLimit=new ConcurrencyLimit(options.getNumTestThreads(),options.getLoadLimit());
+      ConcurrencyLimit concurrencyLimit=new ConcurrencyLimit(options.getNumTestThreads(params.getBuckConfig()),options.getLoadLimit(params.getBuckConfig()));
       try (CommandThreadManager testPool=new CommandThreadManager("Test-Run",concurrencyLimit)){
         return runTests(params,testRules,Preconditions.checkNotNull(build.getBuildContext()),build.getExecutionContext(),options,testPool.getExecutor(),cachingBuildEngine);
       }

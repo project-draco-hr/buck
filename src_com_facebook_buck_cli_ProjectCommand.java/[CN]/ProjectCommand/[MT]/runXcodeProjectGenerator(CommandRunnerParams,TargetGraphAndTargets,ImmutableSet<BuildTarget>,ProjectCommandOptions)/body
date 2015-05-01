@@ -1,6 +1,6 @@
 {
   ImmutableSet.Builder<ProjectGenerator.Option> optionsBuilder=ImmutableSet.builder();
-  if (options.getReadOnly()) {
+  if (options.getReadOnly(params.getBuckConfig())) {
     optionsBuilder.add(ProjectGenerator.Option.GENERATE_READ_ONLY_FILES);
   }
   if (options.isWithTests()) {
@@ -39,7 +39,7 @@
  else {
       throw new HumanReadableException("%s must be a xcode_workspace_config, apple_bundle, or apple_library",inputNode);
     }
-    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(params.getRepository().getFilesystem(),targetGraphAndTargets.getTargetGraph(),workspaceArgs,inputTarget,optionsBuilder.build(),combinedProject,new ParserConfig(options.getBuckConfig()).getBuildFileName(),new Function<TargetNode<?>,Path>(){
+    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(params.getRepository().getFilesystem(),targetGraphAndTargets.getTargetGraph(),workspaceArgs,inputTarget,optionsBuilder.build(),combinedProject,new ParserConfig(params.getBuckConfig()).getBuildFileName(),new Function<TargetNode<?>,Path>(){
       @Nullable @Override public Path apply(      TargetNode<?> input){
         TargetGraphToActionGraph targetGraphToActionGraph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer());
         TargetGraph subgraph=targetGraphAndTargets.getTargetGraph().getSubgraph(ImmutableSet.of(input));
@@ -59,7 +59,7 @@
   ImmutableSet<BuildTarget> requiredBuildTargets=requiredBuildTargetsBuilder.build();
   if (!requiredBuildTargets.isEmpty()) {
     BuildCommand buildCommand=new BuildCommand();
-    BuildCommandOptions buildCommandOptions=new BuildCommandOptions(options.getBuckConfig());
+    BuildCommandOptions buildCommandOptions=new BuildCommandOptions();
     buildCommandOptions.setArguments(FluentIterable.from(requiredBuildTargets).transform(Functions.toStringFunction()).toList());
     exitCode=buildCommand.runCommandWithOptions(params,buildCommandOptions);
   }

@@ -20,7 +20,7 @@
     rulesUnderTest=ImmutableSet.of();
   }
   totalNumberOfTests=Iterables.size(tests);
-  params.getBuckEventBus().post(TestRunEvent.started(options.isRunAllTests(),options.getTestSelectorList(),options.shouldExplainTestSelectorList(),options.getArgumentsFormattedAsBuildTargets()));
+  params.getBuckEventBus().post(TestRunEvent.started(options.isRunAllTests(),options.getTestSelectorList(),options.shouldExplainTestSelectorList(),options.getArgumentsFormattedAsBuildTargets(params.getBuckConfig())));
   List<ListenableFuture<TestResults>> results=Lists.newArrayList();
   Verbosity verbosity=params.getConsole().getVerbosity();
   final boolean printTestResults=(verbosity != Verbosity.SILENT);
@@ -31,10 +31,10 @@
   TestRuleKeyFileHelper testRuleKeyFileHelper=new TestRuleKeyFileHelper(executionContext.getProjectFilesystem(),buildEngine);
   for (  TestRule test : tests) {
     boolean isTestRunRequired;
-    isTestRunRequired=isTestRunRequiredForTest(test,buildEngine,executionContext,testRuleKeyFileHelper,options.isResultsCacheEnabled(),!options.getTestSelectorList().isEmpty());
+    isTestRunRequired=isTestRunRequiredForTest(test,buildEngine,executionContext,testRuleKeyFileHelper,options.isResultsCacheEnabled(params.getBuckConfig()),!options.getTestSelectorList().isEmpty());
     List<Step> steps;
     if (isTestRunRequired) {
-      params.getBuckEventBus().post(IndividualTestEvent.started(options.getArgumentsFormattedAsBuildTargets()));
+      params.getBuckEventBus().post(IndividualTestEvent.started(options.getArgumentsFormattedAsBuildTargets(params.getBuckConfig())));
       ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
       Preconditions.checkState(buildEngine.isRuleBuilt(test.getBuildTarget()));
       List<Step> testSteps=test.runTests(buildContext,executionContext,options.isDryRun(),options.isShufflingTests(),options.getTestSelectorList());
@@ -68,7 +68,7 @@ catch (  InterruptedException e) {
     Thread.currentThread().interrupt();
     throw e;
   }
-  params.getBuckEventBus().post(TestRunEvent.finished(options.getArgumentsFormattedAsBuildTargets(),completedResults));
+  params.getBuckEventBus().post(TestRunEvent.finished(options.getArgumentsFormattedAsBuildTargets(params.getBuckConfig()),completedResults));
   String path=options.getPathToXmlTestOutput();
   if (path != null) {
     try (Writer writer=Files.newWriter(new File(path),Charsets.UTF_8)){
@@ -77,7 +77,7 @@ catch (  InterruptedException e) {
    }
   if (options.isCodeCoverageEnabled() && !rulesUnderTest.isEmpty()) {
     try {
-      Optional<DefaultJavaPackageFinder> defaultJavaPackageFinderOptional=options.getJavaPackageFinder();
+      Optional<DefaultJavaPackageFinder> defaultJavaPackageFinderOptional=options.getJavaPackageFinder(params.getBuckConfig());
       stepRunner.runStep(getReportCommand(rulesUnderTest,defaultJavaPackageFinderOptional,params.getRepository().getFilesystem(),JUnitStep.JACOCO_OUTPUT_DIR,options.getCoverageReportFormat()));
     }
  catch (    StepFailedException e) {
@@ -92,7 +92,7 @@ catch (  InterruptedException e) {
   }
 );
   boolean significantAssumptionViolations=false;
-  if (options.getBuckConfig().isTreatingAssumptionsAsErrors()) {
+  if (params.getBuckConfig().isTreatingAssumptionsAsErrors()) {
     significantAssumptionViolations=Iterables.any(completedResults,new Predicate<TestResults>(){
       @Override public boolean apply(      TestResults results){
         return results.hasAssumptionViolations();
