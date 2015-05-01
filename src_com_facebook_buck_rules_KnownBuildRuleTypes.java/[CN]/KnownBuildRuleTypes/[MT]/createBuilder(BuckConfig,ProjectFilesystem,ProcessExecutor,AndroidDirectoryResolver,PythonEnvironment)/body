@@ -45,11 +45,12 @@
   JavaBuckConfig javaConfig=new JavaBuckConfig(config);
   JavacOptions defaultJavacOptions=javaConfig.getDefaultJavacOptions(processExecutor);
   JavacOptions androidBinaryOptions=JavacOptions.builder(defaultJavacOptions).build();
-  CxxBinaryDescription cxxBinaryDescription=new CxxBinaryDescription(cxxBuckConfig,defaultCxxPlatform,cxxPlatforms,CxxSourceRuleFactory.Strategy.SEPARATE_PREPROCESS_AND_COMPILE);
-  CxxLibraryDescription cxxLibraryDescription=new CxxLibraryDescription(cxxBuckConfig,cxxPlatforms,CxxSourceRuleFactory.Strategy.SEPARATE_PREPROCESS_AND_COMPILE);
-  AppleLibraryDescription appleLibraryDescription=new AppleLibraryDescription(new CxxLibraryDescription(cxxBuckConfig,cxxPlatforms,CxxSourceRuleFactory.Strategy.COMBINED_PREPROCESS_AND_COMPILE),cxxPlatforms,appleCxxPlatformsToAppleSdkPaths);
+  CxxSourceRuleFactory.Strategy compileStrategy=cxxBuckConfig.useCombinedPreprocessAndCompile() ? CxxSourceRuleFactory.Strategy.COMBINED_PREPROCESS_AND_COMPILE : CxxSourceRuleFactory.Strategy.SEPARATE_PREPROCESS_AND_COMPILE;
+  CxxBinaryDescription cxxBinaryDescription=new CxxBinaryDescription(cxxBuckConfig,defaultCxxPlatform,cxxPlatforms,compileStrategy);
+  CxxLibraryDescription cxxLibraryDescription=new CxxLibraryDescription(cxxBuckConfig,cxxPlatforms,compileStrategy);
+  AppleLibraryDescription appleLibraryDescription=new AppleLibraryDescription(cxxLibraryDescription,cxxPlatforms,appleCxxPlatformsToAppleSdkPaths);
   builder.register(appleLibraryDescription);
-  AppleBinaryDescription appleBinaryDescription=new AppleBinaryDescription(new CxxBinaryDescription(cxxBuckConfig,defaultCxxPlatform,cxxPlatforms,CxxSourceRuleFactory.Strategy.COMBINED_PREPROCESS_AND_COMPILE),cxxPlatforms,appleCxxPlatformsToAppleSdkPaths);
+  AppleBinaryDescription appleBinaryDescription=new AppleBinaryDescription(cxxBinaryDescription,cxxPlatforms,appleCxxPlatformsToAppleSdkPaths);
   builder.register(appleBinaryDescription);
   builder.register(new AndroidAarDescription(new AndroidManifestDescription(),new JavaBinaryDescription(defaultJavacOptions,defaultCxxPlatform)));
   builder.register(new AndroidBinaryDescription(androidBinaryOptions,proGuardConfig,ndkCxxPlatforms));
