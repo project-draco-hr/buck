@@ -1,3 +1,14 @@
 {
-  return ImmutableList.of();
+  if (!xctoolPath.isPresent()) {
+    throw new HumanReadableException("Set xctool_path = /path/to/xctool in the [apple] section of .buckconfig " + "to run this test");
+  }
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  Path resolvedTestBundleDirectory=executionContext.getProjectFilesystem().resolve(testBundleDirectory);
+  steps.add(new MakeCleanDirectoryStep(resolvedTestBundleDirectory));
+  steps.add(new UnzipStep(testBundle.getPathToOutputFile(),resolvedTestBundleDirectory));
+  Path pathToTestOutput=executionContext.getProjectFilesystem().resolve(getPathToTestOutputDirectory());
+  steps.add(new MakeCleanDirectoryStep(pathToTestOutput));
+  Path resolvedTestOutputPath=executionContext.getProjectFilesystem().resolve(testOutputPath);
+  steps.add(new XctoolRunTestsStep(xctoolPath.get(),arch,sdkName,ImmutableSet.of(resolvedTestBundleDirectory),ImmutableMap.<Path,Path>of(),resolvedTestOutputPath));
+  return steps.build();
 }
