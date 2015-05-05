@@ -17,12 +17,12 @@
   BuildContext buildContext=ImmutableBuildContext.builder().setActionGraph(RuleMap.createGraphFromSingleRule(buildRule)).setStepRunner(stepRunner).setProjectFilesystem(projectFilesystem).setClock(new DefaultClock()).setBuildId(new BuildId()).setArtifactCache(artifactCache).setJavaPackageFinder(createMock(JavaPackageFinder.class)).setEventBus(buckEventBus).build();
   replayAll();
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService());
-  ListenableFuture<BuildRuleSuccess> result=cachingBuildEngine.build(buildContext,buildRule);
+  ListenableFuture<BuildResult> buildResult=cachingBuildEngine.build(buildContext,buildRule);
   buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
   verifyAll();
-  assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(result));
-  BuildRuleSuccess success=result.get();
-  assertEquals(BuildRuleSuccess.Type.FETCHED_FROM_CACHE,success.getType());
+  assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(buildResult));
+  BuildResult result=buildResult.get();
+  assertEquals(BuildRuleSuccess.Type.FETCHED_FROM_CACHE,result.getSuccess());
   assertTrue(((BuildableAbstractCachingBuildRule)buildRule).isInitializedFromDisk());
   assertTrue("The entries in the zip should be extracted as a result of building the rule.",new File(tmp.getRoot(),"buck-out/gen/src/com/facebook/orca/orca.jar").isFile());
 }

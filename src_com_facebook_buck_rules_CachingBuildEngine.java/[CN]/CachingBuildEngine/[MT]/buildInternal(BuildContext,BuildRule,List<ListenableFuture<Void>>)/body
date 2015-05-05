@@ -1,16 +1,16 @@
 {
-  final SettableFuture<BuildRuleSuccess> newFuture=SettableFuture.create();
-  SettableFuture<BuildRuleSuccess> existingFuture=results.putIfAbsent(rule.getBuildTarget(),newFuture);
+  final SettableFuture<BuildResult> newFuture=SettableFuture.create();
+  SettableFuture<BuildResult> existingFuture=results.putIfAbsent(rule.getBuildTarget(),newFuture);
   if (existingFuture != null) {
     return existingFuture;
   }
   try {
-    List<ListenableFuture<BuildRuleSuccess>> builtDeps=Lists.newArrayListWithCapacity(rule.getDeps().size());
+    List<ListenableFuture<BuildResult>> builtDeps=Lists.newArrayListWithCapacity(rule.getDeps().size());
     for (    BuildRule dep : rule.getDeps()) {
       builtDeps.add(buildInternal(context,dep,asyncJobs));
     }
-    ListenableFuture<List<BuildRuleSuccess>> allBuiltDeps=Futures.allAsList(builtDeps);
-    ListenableFuture<Void> callbackFuture=context.getStepRunner().addCallback(allBuiltDeps,new FutureCallback<List<BuildRuleSuccess>>(){
+    ListenableFuture<List<BuildResult>> allBuiltDeps=Futures.allAsList(builtDeps);
+    ListenableFuture<Void> callbackFuture=context.getStepRunner().addCallback(allBuiltDeps,new FutureCallback<List<BuildResult>>(){
       private final BuckEventBus eventBus=context.getEventBus();
       private final OnDiskBuildInfo onDiskBuildInfo=context.createOnDiskBuildInfoFor(rule.getBuildTarget());
       /** 
@@ -39,10 +39,10 @@
       }
 );
       private boolean startOfBuildWasRecordedOnTheEventBus=false;
-      @Override public void onSuccess(      List<BuildRuleSuccess> deps){
+      @Override public void onSuccess(      List<BuildResult> deps){
         eventBus.logVerboseAndPost(LOG,BuildRuleEvent.started(rule));
         startOfBuildWasRecordedOnTheEventBus=true;
-        BuildResult result=null;
+        BuildResult result;
         try {
           ruleKeys.putIfAbsent(rule.getBuildTarget(),rule.getRuleKey());
           result=buildOnceDepsAreBuilt(rule,context,onDiskBuildInfo,buildInfoRecorder.get(),shouldTryToFetchFromCache(rule));
@@ -74,8 +74,7 @@
           }
         }
         doHydrationAfterBuildStepsFinish(rule,onDiskBuildInfo);
-        BuildRuleSuccess buildRuleSuccess=new BuildRuleSuccess(rule,result.getSuccess());
-        newFuture.set(buildRuleSuccess);
+        newFuture.set(result);
         if (success != null && success.shouldUploadResultingArtifact()) {
           buildInfoRecorder.get().performUploadToArtifactCache(context.getArtifactCache(),eventBus);
         }

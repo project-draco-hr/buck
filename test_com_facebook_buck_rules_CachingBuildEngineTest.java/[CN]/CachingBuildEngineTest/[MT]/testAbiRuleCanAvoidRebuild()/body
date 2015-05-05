@@ -14,11 +14,11 @@
   expect(buildContext.getEventBus()).andReturn(buckEventBus).anyTimes();
   replayAll();
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService());
-  ListenableFuture<BuildRuleSuccess> result=cachingBuildEngine.build(buildContext,buildRule);
-  assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(result));
+  ListenableFuture<BuildResult> buildResult=cachingBuildEngine.build(buildContext,buildRule);
+  assertTrue("We expect build() to be synchronous in this case, " + "so the future should already be resolved.",MoreFutures.isSuccess(buildResult));
   buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
-  BuildRuleSuccess success=result.get();
-  assertEquals(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,success.getType());
+  BuildResult result=buildResult.get();
+  assertEquals(BuildRuleSuccess.Type.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,result.getSuccess());
   assertTrue(buildRule.isAbiLoadedFromDisk());
   List<BuckEvent> events=listener.getEvents();
   assertEquals(events.get(0),configureTestEvent(BuildRuleEvent.started(buildRule),buckEventBus));

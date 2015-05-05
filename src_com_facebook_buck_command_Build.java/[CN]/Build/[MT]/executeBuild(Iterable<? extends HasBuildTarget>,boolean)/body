@@ -9,20 +9,20 @@
 ).toSet());
   int numRules=getNumRulesToBuild(targetsToBuild,actionGraph);
   getExecutionContext().getBuckEventBus().post(BuildEvent.ruleCountCalculated(targetsToBuild,numRules));
-  List<ListenableFuture<BuildRuleSuccess>> futures=FluentIterable.from(rulesToBuild).transform(new Function<BuildRule,ListenableFuture<BuildRuleSuccess>>(){
-    @Override public ListenableFuture<BuildRuleSuccess> apply(    BuildRule rule){
+  List<ListenableFuture<BuildResult>> futures=FluentIterable.from(rulesToBuild).transform(new Function<BuildRule,ListenableFuture<BuildResult>>(){
+    @Override public ListenableFuture<BuildResult> apply(    BuildRule rule){
       return buildEngine.build(buildContext,rule);
     }
   }
 ).toList();
-  ListenableFuture<List<BuildRuleSuccess>> buildFuture;
+  ListenableFuture<List<BuildResult>> buildFuture;
   if (isKeepGoing) {
     buildFuture=Futures.successfulAsList(futures);
   }
  else {
     buildFuture=Futures.allAsList(futures);
   }
-  List<BuildRuleSuccess> results;
+  List<BuildResult> results;
   try {
     results=buildFuture.get();
   }
@@ -39,7 +39,10 @@
   Preconditions.checkState(rulesToBuild.size() == results.size());
   for (int i=0, len=rulesToBuild.size(); i < len; i++) {
     BuildRule rule=rulesToBuild.get(i);
-    BuildRuleSuccess success=results.get(i);
+    BuildRuleSuccess success=null;
+    if (results.get(i) != null) {
+      success=new BuildRuleSuccess(rule,results.get(i).getSuccess());
+    }
     resultBuilder.put(rule,Optional.fromNullable(success));
   }
   return resultBuilder;

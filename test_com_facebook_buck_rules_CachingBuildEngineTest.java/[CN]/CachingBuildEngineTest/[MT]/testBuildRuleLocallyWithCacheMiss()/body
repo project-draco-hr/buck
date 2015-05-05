@@ -25,7 +25,7 @@
   expect(context.getStepRunner()).andReturn(createStepRunner(buckEventBus)).anyTimes();
   expect(dep.getBuildTarget()).andStubReturn(depTarget);
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService());
-  cachingBuildEngine.setBuildRuleResult(depTarget,new BuildRuleSuccess(dep,BuildRuleSuccess.Type.FETCHED_FROM_CACHE));
+  cachingBuildEngine.setBuildRuleResult(depTarget,new BuildRuleSuccess(dep,BuildRuleSuccess.Type.FETCHED_FROM_CACHE),CacheResult.skip());
   expect(dep.getRuleKey()).andReturn(new RuleKey("19d2558a6bd3a34fb3f95412de9da27ed32fe208"));
   Step buildStep=createMock(Step.class);
   expect(buildStep.getDescription(anyObject(ExecutionContext.class))).andReturn("Some Description").anyTimes();
@@ -36,8 +36,8 @@
   buildInfoRecorder.writeMetadataToDisk(true);
   buildInfoRecorder.performUploadToArtifactCache(artifactCache,buckEventBus);
   replayAll();
-  BuildRuleSuccess result=cachingBuildEngine.build(context,ruleToTest).get();
-  assertEquals(BuildRuleSuccess.Type.BUILT_LOCALLY,result.getType());
+  BuildResult result=cachingBuildEngine.build(context,ruleToTest).get();
+  assertEquals(BuildRuleSuccess.Type.BUILT_LOCALLY,result.getSuccess());
   buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
   verifyAll();
   List<BuckEvent> events=listener.getEvents();
