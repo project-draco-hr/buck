@@ -1,5 +1,6 @@
 {
-  Preconditions.checkState(!soname.isPresent() || linkType.equals(Linker.LinkType.SHARED));
+  Preconditions.checkState(!soname.isPresent() || SONAME_REQUIRED_LINK_TYPES.contains(linkType));
+  Preconditions.checkState(!bundleLoader.isPresent() || linkType == Linker.LinkType.MACH_O_BUNDLE);
   Linker linker=cxxPlatform.getLd();
   NativeLinkableInput linkableInput=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,nativeLinkableDeps,depType,true);
   ImmutableList<SourcePath> allInputs=ImmutableList.<SourcePath>builder().addAll(inputs).addAll(linkableInput.getInputs()).build();
@@ -11,6 +12,12 @@
   argsBuilder.addAll(iXlinker(extraLdFlags));
   if (linkType == Linker.LinkType.SHARED) {
     argsBuilder.add("-shared");
+  }
+ else   if (linkType == Linker.LinkType.MACH_O_BUNDLE) {
+    argsBuilder.add("-bundle");
+    if (bundleLoader.isPresent()) {
+      argsBuilder.add("-bundle_loader",resolver.getPath(bundleLoader.get()).toString());
+    }
   }
   if (soname.isPresent()) {
     argsBuilder.addAll(iXlinker(linker.soname(soname.get())));
