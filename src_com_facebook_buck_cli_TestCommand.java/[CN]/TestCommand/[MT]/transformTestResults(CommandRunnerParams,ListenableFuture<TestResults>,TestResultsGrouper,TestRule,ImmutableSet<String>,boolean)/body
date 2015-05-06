@@ -1,0 +1,40 @@
+{
+  final SettableFuture<TestResults> transformedTestResults=SettableFuture.create();
+  FutureCallback<TestResults> callback=new FutureCallback<TestResults>(){
+    private void postTestResults(    TestResults testResults){
+      testResults.setSequenceNumber(lastReportedTestSequenceNumber.incrementAndGet());
+      testResults.setTotalNumberOfTests(totalNumberOfTests);
+      params.getBuckEventBus().post(IndividualTestEvent.finished(testTargets,testResults));
+    }
+    private String getStackTrace(    Throwable throwable){
+      StringWriter sw=new StringWriter();
+      PrintWriter pw=new PrintWriter(sw);
+      throwable.printStackTrace(pw);
+      return sw.toString();
+    }
+    @Override public void onSuccess(    TestResults testResults){
+      if (printTestResults) {
+        if (grouper == null) {
+          postTestResults(testResults);
+        }
+ else {
+          Map<TestRule,TestResults> postableTestResultsMap=grouper.post(testRule,testResults);
+          for (          TestResults rr : postableTestResultsMap.values()) {
+            postTestResults(rr);
+          }
+        }
+      }
+      transformedTestResults.set(testResults);
+    }
+    @Override public void onFailure(    Throwable throwable){
+      TestResults testResults=new TestResults(testRule.getBuildTarget(),ImmutableList.of(new TestCaseSummary(testRule.getBuildTarget().toString(),ImmutableList.of(new TestResultSummary(testRule.getBuildTarget().toString(),"main",ResultType.FAILURE,0L,throwable.getMessage(),getStackTrace(throwable),"","")))),testRule.getContacts(),FluentIterable.from(testRule.getLabels()).transform(Functions.toStringFunction()).toSet());
+      if (printTestResults) {
+        postTestResults(testResults);
+      }
+      transformedTestResults.set(testResults);
+    }
+  }
+;
+  Futures.addCallback(originalTestResults,callback);
+  return transformedTestResults;
+}

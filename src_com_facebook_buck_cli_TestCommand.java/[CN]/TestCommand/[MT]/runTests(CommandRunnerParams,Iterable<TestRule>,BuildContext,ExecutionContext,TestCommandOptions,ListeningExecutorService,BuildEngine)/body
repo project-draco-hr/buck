@@ -19,8 +19,9 @@
  else {
     rulesUnderTest=ImmutableSet.of();
   }
+  ImmutableSet<String> testTargets=FluentIterable.from(tests).transform(HasBuildTarget.TO_TARGET).transform(Functions.toStringFunction()).toSet();
   totalNumberOfTests=Iterables.size(tests);
-  params.getBuckEventBus().post(TestRunEvent.started(options.isRunAllTests(),options.getTestSelectorList(),options.shouldExplainTestSelectorList(),options.getArgumentsFormattedAsBuildTargets(params.getBuckConfig())));
+  params.getBuckEventBus().post(TestRunEvent.started(options.isRunAllTests(),options.getTestSelectorList(),options.shouldExplainTestSelectorList(),testTargets));
   List<ListenableFuture<TestResults>> results=Lists.newArrayList();
   Verbosity verbosity=params.getConsole().getVerbosity();
   final boolean printTestResults=(verbosity != Verbosity.SILENT);
@@ -34,7 +35,7 @@
     isTestRunRequired=isTestRunRequiredForTest(test,buildEngine,executionContext,testRuleKeyFileHelper,options.isResultsCacheEnabled(params.getBuckConfig()),!options.getTestSelectorList().isEmpty());
     List<Step> steps;
     if (isTestRunRequired) {
-      params.getBuckEventBus().post(IndividualTestEvent.started(options.getArgumentsFormattedAsBuildTargets(params.getBuckConfig())));
+      params.getBuckEventBus().post(IndividualTestEvent.started(testTargets));
       ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
       Preconditions.checkState(buildEngine.isRuleBuilt(test.getBuildTarget()));
       List<Step> testSteps=test.runTests(buildContext,executionContext,options.isDryRun(),options.isShufflingTests(),options.getTestSelectorList());
@@ -48,7 +49,7 @@
       steps=ImmutableList.of();
     }
     ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext,!options.getTestSelectorList().isEmpty(),options.isDryRun())),test.getBuildTarget(),service);
-    results.add(transformTestResults(params,testResults,grouper,test,options,printTestResults));
+    results.add(transformTestResults(params,testResults,grouper,test,testTargets,printTestResults));
   }
   ListenableFuture<List<TestResults>> uberFuture=Futures.allAsList(results);
   List<TestResults> completedResults;
@@ -68,7 +69,7 @@ catch (  InterruptedException e) {
     Thread.currentThread().interrupt();
     throw e;
   }
-  params.getBuckEventBus().post(TestRunEvent.finished(options.getArgumentsFormattedAsBuildTargets(params.getBuckConfig()),completedResults));
+  params.getBuckEventBus().post(TestRunEvent.finished(testTargets,completedResults));
   String path=options.getPathToXmlTestOutput();
   if (path != null) {
     try (Writer writer=Files.newWriter(new File(path),Charsets.UTF_8)){

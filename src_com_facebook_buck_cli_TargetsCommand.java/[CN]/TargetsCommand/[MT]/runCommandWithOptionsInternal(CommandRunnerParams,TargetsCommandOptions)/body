@@ -19,15 +19,18 @@
       return 1;
     }
   }
-  ImmutableSet<BuildTarget> matchingBuildTargets=ImmutableSet.copyOf(getBuildTargets(params,options.getArgumentsFormattedAsBuildTargets(params.getBuckConfig())));
   ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
+  ImmutableSet<BuildTarget> matchingBuildTargets;
   TargetGraph graph;
   try {
-    if (matchingBuildTargets.isEmpty() || options.isDetectTestChanges()) {
-      graph=params.getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(new TargetNodePredicateSpec(Predicates.<TargetNode<?>>alwaysTrue(),params.getRepository().getFilesystem().getIgnorePaths())),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+    if (options.getArguments().isEmpty() || options.isDetectTestChanges()) {
+      matchingBuildTargets=ImmutableSet.of();
+      graph=params.getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(TargetNodePredicateSpec.of(Predicates.<TargetNode<?>>alwaysTrue(),BuildFileSpec.fromRecursivePath(Paths.get(""),params.getRepository().getFilesystem().getIgnorePaths()))),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling()).getSecond();
     }
  else {
-      graph=params.getParser().buildTargetGraphForBuildTargets(matchingBuildTargets,parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+      Pair<ImmutableSet<BuildTarget>,TargetGraph> results=params.getParser().buildTargetGraphForTargetNodeSpecs(options.parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getRepository().getFilesystem().getIgnorePaths(),options.getArguments()),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+      matchingBuildTargets=results.getFirst();
+      graph=results.getSecond();
     }
   }
  catch (  BuildTargetException|BuildFileParseException e) {

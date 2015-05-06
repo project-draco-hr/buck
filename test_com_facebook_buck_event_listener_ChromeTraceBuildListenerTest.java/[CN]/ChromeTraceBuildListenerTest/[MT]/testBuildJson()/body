@@ -10,13 +10,14 @@
   ExecutionContext context=createMock(ExecutionContext.class);
   replay(context);
   ImmutableSet<BuildTarget> buildTargets=ImmutableSet.of(target);
+  Iterable<String> buildArgs=Iterables.transform(buildTargets,Functions.toStringFunction());
   Clock fakeClock=new IncrementingFakeClock(TimeUnit.MILLISECONDS.toNanos(1));
   BuckEventBus eventBus=BuckEventBusFactory.newInstance(fakeClock,new BuildId("ChromeTraceBuildListenerTestBuildId"));
   eventBus.register(listener);
   eventBus.post(CommandEvent.started("party",ImmutableList.of("arg1","arg2"),true));
   eventBus.post(ArtifactCacheConnectEvent.started());
   eventBus.post(ArtifactCacheConnectEvent.finished());
-  eventBus.post(BuildEvent.started(buildTargets));
+  eventBus.post(BuildEvent.started(buildArgs));
   eventBus.post(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.FETCH,ruleKey));
   eventBus.post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.FETCH,ruleKey,CacheResult.hit("cassandra")));
   eventBus.post(BuildRuleEvent.started(rule));
@@ -27,7 +28,7 @@
     eventBus.post(new TraceEvent("scheming",ChromeTraceEvent.Phase.BEGIN));
     eventBus.post(new TraceEvent("scheming",ChromeTraceEvent.Phase.END,ImmutableMap.of("success","false")));
   }
-   eventBus.post(BuildEvent.finished(buildTargets,0));
+   eventBus.post(BuildEvent.finished(buildArgs,0));
   eventBus.post(CommandEvent.finished("party",ImmutableList.of("arg1","arg2"),true,0));
   listener.outputTrace(new BuildId("BUILD_ID"));
   File resultFile=new File(tmpDir.getRoot(),BuckConstant.BUCK_TRACE_DIR + "/build.trace");

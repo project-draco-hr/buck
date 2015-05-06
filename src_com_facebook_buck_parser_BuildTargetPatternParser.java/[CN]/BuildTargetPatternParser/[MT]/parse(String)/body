@@ -1,20 +1,20 @@
 {
   if (VISIBILITY_PUBLIC.equals(buildTargetPattern)) {
     if (isPublicVisibilityAllowed()) {
-      return BuildTargetPattern.MATCH_ALL;
+      return createForAll();
     }
  else {
       throw new BuildTargetParseException(String.format("%s not supported in the parse context",VISIBILITY_PUBLIC));
     }
   }
   Preconditions.checkArgument(buildTargetPattern.startsWith(BUILD_RULE_PREFIX),String.format("'%s' must start with '//'",buildTargetPattern));
-  if (buildTargetPattern.endsWith(WILDCARD_BUILD_RULE_SUFFIX)) {
+  if (buildTargetPattern.equals(WILDCARD_BUILD_RULE_SUFFIX) || buildTargetPattern.endsWith("/" + WILDCARD_BUILD_RULE_SUFFIX)) {
     if (isWildCardAllowed()) {
       if (buildTargetPattern.contains(BUILD_RULE_SEPARATOR)) {
         throw new BuildTargetParseException(String.format("'%s' cannot contain colon",buildTargetPattern));
       }
       String basePathWithSlash=buildTargetPattern.substring(BUILD_RULE_PREFIX.length(),buildTargetPattern.length() - WILDCARD_BUILD_RULE_SUFFIX.length());
-      return new SubdirectoryBuildTargetPattern(basePathWithSlash);
+      return createForDescendants(basePathWithSlash);
     }
  else {
       throw new BuildTargetParseException(String.format("'%s' cannot end with '...'",buildTargetPattern));
@@ -22,9 +22,9 @@
   }
   BuildTarget target=buildTargetParser.parse(buildTargetPattern,this);
   if (target.getShortNameAndFlavorPostfix().isEmpty()) {
-    return new ImmediateDirectoryBuildTargetPattern(target.getBasePathWithSlash());
+    return createForChildren(target.getBasePathWithSlash());
   }
  else {
-    return new SingletonBuildTargetPattern(target.getFullyQualifiedName());
+    return createForSingleton(target);
   }
 }

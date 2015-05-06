@@ -1,24 +1,27 @@
 {
-  ImmutableSet<BuildTarget> explicitBuildTargets=options.isRunAllTests() ? ImmutableSet.<BuildTarget>of() : getBuildTargets(params,options.getArgumentsFormattedAsBuildTargets(params.getBuckConfig()));
   if (params.getParser().getParseStartTime().isPresent()) {
-    params.getBuckEventBus().post(BuildEvent.started(explicitBuildTargets),params.getParser().getParseStartTime().get());
+    params.getBuckEventBus().post(BuildEvent.started(options.getArguments()),params.getParser().getParseStartTime().get());
   }
  else {
-    params.getBuckEventBus().post(BuildEvent.started(explicitBuildTargets));
+    params.getBuckEventBus().post(BuildEvent.started(options.getArguments()));
   }
   ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
   TargetGraph targetGraph;
+  ImmutableSet<BuildTarget> explicitBuildTargets;
   try {
     if (options.isRunAllTests()) {
-      targetGraph=params.getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(new TargetNodePredicateSpec(new Predicate<TargetNode<?>>(){
+      targetGraph=params.getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(TargetNodePredicateSpec.of(new Predicate<TargetNode<?>>(){
         @Override public boolean apply(        TargetNode<?> input){
           return input.getType().isTestRule();
         }
       }
-,params.getRepository().getFilesystem().getIgnorePaths())),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+,BuildFileSpec.fromRecursivePath(Paths.get(""),params.getRepository().getFilesystem().getIgnorePaths()))),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling()).getSecond();
+      explicitBuildTargets=ImmutableSet.of();
     }
  else {
-      targetGraph=params.getParser().buildTargetGraphForBuildTargets(explicitBuildTargets,parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+      Pair<ImmutableSet<BuildTarget>,TargetGraph> result=params.getParser().buildTargetGraphForTargetNodeSpecs(options.parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getRepository().getFilesystem().getIgnorePaths(),options.getArguments()),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),options.getEnableProfiling());
+      targetGraph=result.getSecond();
+      explicitBuildTargets=result.getFirst();
     }
   }
  catch (  BuildTargetException|BuildFileParseException e) {
@@ -28,7 +31,7 @@
   ActionGraph graph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer()).apply(targetGraph);
   Iterable<TestRule> testRules=Iterables.filter(graph.getNodes(),TestRule.class);
   if (!options.isBuildFiltered(params.getBuckConfig())) {
-    testRules=filterTestRules(params.getBuckConfig(),options,testRules);
+    testRules=filterTestRules(params.getBuckConfig(),options,explicitBuildTargets,testRules);
   }
   if (options.isDryRun()) {
     printMatchingTestRules(params.getConsole(),testRules);
@@ -38,12 +41,12 @@
     CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),params.getBuckConfig().getSkipLocalBuildChainDepth().or(1L));
     try (Build build=options.createBuild(params.getBuckConfig(),graph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),cachingBuildEngine,artifactCache,params.getConsole(),params.getBuckEventBus(),options.getTargetDeviceOptional(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
       int exitCode=build.executeAndPrintFailuresToConsole(testRules,options.isKeepGoing(),params.getConsole(),options.getPathToBuildReport(params.getBuckConfig()));
-      params.getBuckEventBus().post(BuildEvent.finished(explicitBuildTargets,exitCode));
+      params.getBuckEventBus().post(BuildEvent.finished(options.getArguments(),exitCode));
       if (exitCode != 0) {
         return exitCode;
       }
       if (options.isBuildFiltered(params.getBuckConfig())) {
-        testRules=filterTestRules(params.getBuckConfig(),options,testRules);
+        testRules=filterTestRules(params.getBuckConfig(),options,explicitBuildTargets,testRules);
       }
       ConcurrencyLimit concurrencyLimit=new ConcurrencyLimit(options.getNumTestThreads(params.getBuckConfig()),options.getLoadLimit(params.getBuckConfig()));
       try (CommandThreadManager testPool=new CommandThreadManager("Test-Run",concurrencyLimit)){
