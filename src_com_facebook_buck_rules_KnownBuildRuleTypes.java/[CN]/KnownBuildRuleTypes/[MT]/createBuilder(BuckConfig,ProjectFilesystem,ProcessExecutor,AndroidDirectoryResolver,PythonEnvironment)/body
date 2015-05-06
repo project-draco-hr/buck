@@ -5,9 +5,9 @@
     ndkVersion=androidDirectoryResolver.getNdkVersion();
   }
   AppleConfig appleConfig=new AppleConfig(config);
-  ImmutableMap.Builder<CxxPlatform,AppleSdkPaths> appleCxxPlatformsToAppleSdkPathsBuilder=ImmutableMap.builder();
-  buildAppleCxxPlatforms(appleConfig.getAppleDeveloperDirectorySupplier(processExecutor),appleConfig.getExtraToolchainPaths(),appleConfig.getExtraPlatformPaths(),platform,config,appleConfig,appleCxxPlatformsToAppleSdkPathsBuilder);
-  ImmutableMap<CxxPlatform,AppleSdkPaths> appleCxxPlatformsToAppleSdkPaths=appleCxxPlatformsToAppleSdkPathsBuilder.build();
+  ImmutableMap.Builder<Flavor,AppleCxxPlatform> platformFlavorsToAppleCxxPlatformsBuilder=ImmutableMap.builder();
+  buildAppleCxxPlatforms(appleConfig.getAppleDeveloperDirectorySupplier(processExecutor),appleConfig.getExtraToolchainPaths(),appleConfig.getExtraPlatformPaths(),platform,config,appleConfig,platformFlavorsToAppleCxxPlatformsBuilder);
+  ImmutableMap<Flavor,AppleCxxPlatform> platformFlavorsToAppleCxxPlatforms=platformFlavorsToAppleCxxPlatformsBuilder.build();
   ImmutableMap.Builder<AndroidBinary.TargetCpuType,NdkCxxPlatform> ndkCxxPlatformsBuilder=ImmutableMap.builder();
   Optional<Path> ndkRoot=androidDirectoryResolver.findAndroidNdkDir();
   if (ndkRoot.isPresent()) {
@@ -19,8 +19,8 @@
   for (  NdkCxxPlatform ndkCxxPlatform : ndkCxxPlatforms.values()) {
     cxxPlatformsBuilder.put(ndkCxxPlatform.getCxxPlatform().getFlavor(),ndkCxxPlatform.getCxxPlatform());
   }
-  for (  CxxPlatform appleCxxPlatform : appleCxxPlatformsToAppleSdkPaths.keySet()) {
-    cxxPlatformsBuilder.put(appleCxxPlatform.getFlavor(),appleCxxPlatform);
+  for (  Map.Entry<Flavor,AppleCxxPlatform> entry : platformFlavorsToAppleCxxPlatforms.entrySet()) {
+    cxxPlatformsBuilder.put(entry.getKey(),entry.getValue().getCxxPlatform());
   }
   CxxPlatform systemDefaultCxxPlatform=DefaultCxxPlatforms.build(platform,cxxBuckConfig);
   cxxPlatformsBuilder.put(systemDefaultCxxPlatform.getFlavor(),systemDefaultCxxPlatform);
@@ -48,9 +48,9 @@
   CxxSourceRuleFactory.Strategy compileStrategy=cxxBuckConfig.useCombinedPreprocessAndCompile() ? CxxSourceRuleFactory.Strategy.COMBINED_PREPROCESS_AND_COMPILE : CxxSourceRuleFactory.Strategy.SEPARATE_PREPROCESS_AND_COMPILE;
   CxxBinaryDescription cxxBinaryDescription=new CxxBinaryDescription(cxxBuckConfig,defaultCxxPlatform,cxxPlatforms,compileStrategy);
   CxxLibraryDescription cxxLibraryDescription=new CxxLibraryDescription(cxxBuckConfig,cxxPlatforms,compileStrategy);
-  AppleLibraryDescription appleLibraryDescription=new AppleLibraryDescription(cxxLibraryDescription,cxxPlatforms,appleCxxPlatformsToAppleSdkPaths);
+  AppleLibraryDescription appleLibraryDescription=new AppleLibraryDescription(cxxLibraryDescription,cxxPlatforms,platformFlavorsToAppleCxxPlatforms);
   builder.register(appleLibraryDescription);
-  AppleBinaryDescription appleBinaryDescription=new AppleBinaryDescription(cxxBinaryDescription,cxxPlatforms,appleCxxPlatformsToAppleSdkPaths);
+  AppleBinaryDescription appleBinaryDescription=new AppleBinaryDescription(cxxBinaryDescription,cxxPlatforms,platformFlavorsToAppleCxxPlatforms);
   builder.register(appleBinaryDescription);
   builder.register(new AndroidAarDescription(new AndroidManifestDescription(),new JavaBinaryDescription(defaultJavacOptions,defaultCxxPlatform)));
   builder.register(new AndroidBinaryDescription(androidBinaryOptions,proGuardConfig,ndkCxxPlatforms));
