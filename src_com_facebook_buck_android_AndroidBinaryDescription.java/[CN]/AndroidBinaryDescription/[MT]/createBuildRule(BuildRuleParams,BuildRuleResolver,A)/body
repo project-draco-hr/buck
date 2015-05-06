@@ -35,8 +35,17 @@
     Preconditions.checkState(packageStringAssets.isPresent());
     return packageStringAssets.get();
   }
-  boolean allowNonExistentRule=false;
-  ImmutableSortedSet<BuildRule> buildRulesToExcludeFromDex=BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,args.noDx.or(ImmutableSet.<BuildTarget>of()),allowNonExistentRule);
+  ImmutableSortedSet.Builder<BuildRule> builder=ImmutableSortedSet.naturalOrder();
+  for (  BuildTarget noDxTarget : args.noDx.or(ImmutableSet.<BuildTarget>of())) {
+    Optional<BuildRule> ruleOptional=resolver.getRuleOptional(noDxTarget);
+    if (ruleOptional.isPresent()) {
+      builder.add(ruleOptional.get());
+    }
+ else {
+      LOG.info("%s: no_dx target not a dependency: %s",target,noDxTarget);
+    }
+  }
+  ImmutableSortedSet<BuildRule> buildRulesToExcludeFromDex=builder.build();
   ImmutableSortedSet<JavaLibrary> rulesToExcludeFromDex=FluentIterable.from(buildRulesToExcludeFromDex).filter(JavaLibrary.class).toSortedSet(HasBuildTarget.BUILD_TARGET_COMPARATOR);
   return new AndroidBinary(params.copyWithExtraDeps(Suppliers.ofInstance(result.getFinalDeps())),new SourcePathResolver(resolver),proGuardConfig.getProguardJarOverride(),proGuardConfig.getProguardMaxHeapSize(),(Keystore)keystore,packageType,dexSplitMode,args.noDx.or(ImmutableSet.<BuildTarget>of()),androidSdkProguardConfig,args.optimizationPasses,args.proguardConfig,compressionMode,args.cpuFilters.get(),resourceFilter,exopackageModes,MACRO_HANDLER.getExpander(params.getBuildTarget(),resolver,params.getProjectFilesystem()),args.preprocessJavaClassesBash,rulesToExcludeFromDex,result,args.reorderClassesIntraDex,args.dexReorderToolFile,args.dexReorderDataDumpFile);
 }
