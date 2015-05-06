@@ -34,6 +34,9 @@
   resourceFilesBuilder.putAll(args.files.get());
   AppleResources.addResourceFilesToBuilder(resourceFilesBuilder,resourceDescriptions);
   ImmutableMap<SourcePath,AppleBundleDestination> resourceFiles=resourceFilesBuilder.build();
-  AppleBundle bundle=new AppleBundle(params.copyWithChanges(AppleBundleDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addFlavors(BUNDLE_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(params.getDeclaredDeps()).build()),Suppliers.ofInstance(params.getExtraDeps())),sourcePathResolver,args.extension,args.infoPlist,Optional.of(library),AppleBundleDescription.IOS_APP_SUBFOLDER_SPEC_MAP,resourceDirs,resourceFiles);
+  CollectedAssetCatalogs collectedAssetCatalogs=AppleDescriptions.createBuildRulesForTransitiveAssetCatalogDependencies(params,sourcePathResolver,appleCxxPlatform.getApplePlatform(),appleCxxPlatform.getActool());
+  Optional<AppleAssetCatalog> mergedAssetCatalog=collectedAssetCatalogs.getMergedAssetCatalog();
+  ImmutableSet<AppleAssetCatalog> bundledAssetCatalogs=collectedAssetCatalogs.getBundledAssetCatalogs();
+  AppleBundle bundle=new AppleBundle(params.copyWithChanges(AppleBundleDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addFlavors(BUNDLE_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(mergedAssetCatalog.asSet()).addAll(bundledAssetCatalogs).addAll(params.getDeclaredDeps()).build()),Suppliers.ofInstance(params.getExtraDeps())),sourcePathResolver,args.extension,args.infoPlist,Optional.of(library),AppleBundleDescription.IOS_APP_SUBFOLDER_SPEC_MAP,resourceDirs,resourceFiles,bundledAssetCatalogs,mergedAssetCatalog);
   return new AppleTest(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(bundle)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),sourcePathResolver,bundle,args.contacts.get(),args.labels.get(),ImmutableSet.<BuildRule>of());
 }
