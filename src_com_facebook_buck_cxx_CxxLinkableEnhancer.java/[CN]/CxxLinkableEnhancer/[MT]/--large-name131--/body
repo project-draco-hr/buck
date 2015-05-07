@@ -4,7 +4,15 @@
   Linker linker=cxxPlatform.getLd();
   NativeLinkableInput linkableInput=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,nativeLinkableDeps,depType,true);
   ImmutableList<SourcePath> allInputs=ImmutableList.<SourcePath>builder().addAll(inputs).addAll(linkableInput.getInputs()).build();
-  BuildRuleParams linkParams=params.copyWithChanges(NativeLinkable.NATIVE_LINKABLE_TYPE,target,Suppliers.ofInstance(ImmutableSortedSet.copyOf(resolver.filterBuildRuleInputs(allInputs))),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  ImmutableSortedSet.Builder<BuildRule> deps=ImmutableSortedSet.naturalOrder();
+  deps.addAll(resolver.filterBuildRuleInputs(allInputs));
+  if (bundleLoader.isPresent()) {
+    Optional<BuildRule> bundleLoaderRule=resolver.getRule(bundleLoader.get());
+    if (bundleLoaderRule.isPresent()) {
+      deps.add(bundleLoaderRule.get());
+    }
+  }
+  BuildRuleParams linkParams=params.copyWithChanges(NativeLinkable.NATIVE_LINKABLE_TYPE,target,Suppliers.ofInstance(deps.build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   ImmutableList.Builder<String> argsBuilder=ImmutableList.builder();
   argsBuilder.addAll(cxxPlatform.getCxxldflags());
   argsBuilder.addAll(extraCxxLdFlags);
