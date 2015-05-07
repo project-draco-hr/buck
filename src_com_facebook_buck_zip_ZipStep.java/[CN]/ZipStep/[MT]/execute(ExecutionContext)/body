@@ -29,6 +29,14 @@
           entry.setCompressedSize(attr.size());
           entry.setCrc(com.google.common.io.Files.hash(path.toFile(),Hashing.crc32()).padToLong());
         }
+        PosixFileAttributeView posixAttrView=Files.getFileAttributeView(path,PosixFileAttributeView.class);
+        if (posixAttrView != null) {
+          PosixFileAttributes posixAttr=posixAttrView.readAttributes();
+          long mode=MorePosixFilePermissions.toMode(posixAttr.permissions());
+          long externalAttributes=mode << 16;
+          LOG.verbose("Setting mode for entry %s path %s to 0x%08X (0x%08X)",entryName,path,mode,externalAttributes);
+          entry.setExternalAttributes(externalAttributes);
+        }
         return entry;
       }
       @Override public FileVisitResult visitFile(      Path file,      BasicFileAttributes attrs) throws IOException {
