@@ -1,15 +1,11 @@
 {
-  Path output=BuildTargets.getGenPath(getBuildTarget(),"%s");
-  Path bundleRoot=output.resolve(getBuildTarget().getShortName() + "." + extension);
-  String binaryName=getBuildTarget().getShortName();
   ImmutableMap<String,String> plistVariables=ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName);
   ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
   Path productsPath=bundleRoot.resolve(bundleSubfolders.get(AppleBundleDestination.SubfolderSpec.PRODUCTS));
   stepsBuilder.add(new MakeCleanDirectoryStep(bundleRoot),new WriteFileStep("APPLWRUN",bundleRoot.resolve("PkgInfo")),new MkdirStep(productsPath),new FindAndReplaceStep(getResolver().getPath(infoPlist.get()),productsPath.resolve("Info.plist"),InfoPlistSubstitution.createVariableExpansionFunction(plistVariables)));
   if (binary.isPresent()) {
-    Path executablesPath=bundleRoot.resolve(bundleSubfolders.get(AppleBundleDestination.SubfolderSpec.EXECUTABLES));
-    stepsBuilder.add(new MkdirStep(executablesPath));
-    stepsBuilder.add(CopyStep.forFile(binary.get().getPathToOutputFile(),executablesPath.resolve(binaryName)));
+    stepsBuilder.add(new MkdirStep(bundleRoot.resolve(executablesPath)));
+    stepsBuilder.add(CopyStep.forFile(binary.get().getPathToOutputFile(),bundleRoot.resolve(binaryPath)));
   }
   for (  Map.Entry<Path,AppleBundleDestination> dirEntry : dirs.entrySet()) {
     Path bundleDestinationPath=getBundleDestinationPath(bundleRoot,bundleSubfolders,dirEntry.getValue());
