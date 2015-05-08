@@ -5,7 +5,8 @@
   if (!nativeLibraries.isEmpty()) {
     binaryParams=params.copyWithChanges(params.getBuildRuleType(),BuildTarget.builder(params.getBuildTarget()).addFlavors(FAT_JAR_INNER_JAR_FLAVOR).build(),Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps()));
   }
-  BuildRule rule=new JavaBinary(binaryParams,pathResolver,args.mainClass.orNull(),args.manifestFile.orNull(),args.mergeManifests.or(true),args.metaInfDirectory.orNull(),args.blacklist.or(ImmutableSortedSet.<String>of()),new DefaultDirectoryTraverser());
+  ImmutableSetMultimap<JavaLibrary,Path> transitiveClasspathEntries=Classpaths.getClasspathEntries(binaryParams.getDeps());
+  BuildRule rule=new JavaBinary(binaryParams.appendExtraDeps(transitiveClasspathEntries.keys()),pathResolver,args.mainClass.orNull(),args.manifestFile.orNull(),args.mergeManifests.or(true),args.metaInfDirectory.orNull(),args.blacklist.or(ImmutableSortedSet.<String>of()),new DefaultDirectoryTraverser(),transitiveClasspathEntries);
   if (!nativeLibraries.isEmpty()) {
     BuildRule innerJarRule=rule;
     resolver.addToIndex(innerJarRule);
