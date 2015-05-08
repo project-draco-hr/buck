@@ -1,0 +1,19 @@
+{
+  final ImmutableSortedSet.Builder<SourcePath> srcs=ImmutableSortedSet.naturalOrder();
+  try {
+    final Path rootDirectory=filesystem.resolve(buildRulePath);
+    Files.walkFileTree(rootDirectory,EnumSet.of(FileVisitOption.FOLLOW_LINKS),Integer.MAX_VALUE,new SimpleFileVisitor<Path>(){
+      @Override public FileVisitResult visitFile(      Path file,      BasicFileAttributes attrs) throws IOException {
+        if (EXTENSIONS_REGEX.matcher(file.toString()).matches()) {
+          srcs.add(new PathSourcePath(filesystem,buildRulePath.resolve(rootDirectory.relativize(file))));
+        }
+        return super.visitFile(file,attrs);
+      }
+    }
+);
+  }
+ catch (  IOException e) {
+    throw new RuntimeException(e);
+  }
+  return srcs.build();
+}
