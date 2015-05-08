@@ -9,6 +9,17 @@
   Path pathToTestOutput=executionContext.getProjectFilesystem().resolve(getPathToTestOutputDirectory());
   steps.add(new MakeCleanDirectoryStep(pathToTestOutput));
   Path resolvedTestOutputPath=executionContext.getProjectFilesystem().resolve(testOutputPath);
-  steps.add(new XctoolRunTestsStep(xctoolPath.get(),arch,sdkName,simulatorName,ImmutableSet.of(resolvedTestBundleDirectory),ImmutableMap.<Path,Path>of(),resolvedTestOutputPath));
+  ImmutableSet.Builder<Path> logicTestPathsBuilder=ImmutableSet.builder();
+  ImmutableMap.Builder<Path,Path> appTestPathsToHostAppsBuilder=ImmutableMap.builder();
+  if (testHostApp.isPresent()) {
+    Path resolvedTestHostAppDirectory=executionContext.getProjectFilesystem().resolve(testHostAppDirectory);
+    steps.add(new MakeCleanDirectoryStep(resolvedTestHostAppDirectory));
+    steps.add(new UnzipStep(testHostApp.get().getPathToOutputFile(),resolvedTestHostAppDirectory));
+    appTestPathsToHostAppsBuilder.put(resolvedTestBundleDirectory,resolvedTestHostAppDirectory.resolve(testHostApp.get().getUnzippedOutputFilePathToBinary()));
+  }
+ else {
+    logicTestPathsBuilder.add(resolvedTestBundleDirectory);
+  }
+  steps.add(new XctoolRunTestsStep(xctoolPath.get(),arch,sdkName,simulatorName,logicTestPathsBuilder.build(),appTestPathsToHostAppsBuilder.build(),resolvedTestOutputPath));
   return steps.build();
 }

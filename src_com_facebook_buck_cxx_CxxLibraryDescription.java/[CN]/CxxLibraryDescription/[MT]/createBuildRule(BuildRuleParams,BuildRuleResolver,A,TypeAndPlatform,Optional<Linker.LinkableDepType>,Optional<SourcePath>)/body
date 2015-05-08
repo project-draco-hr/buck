@@ -1,0 +1,54 @@
+{
+  Optional<Map.Entry<Flavor,CxxPlatform>> platform=typeAndPlatform.getPlatform();
+  if (params.getBuildTarget().getFlavors().contains(CxxCompilationDatabase.COMPILATION_DATABASE)) {
+    return createCompilationDatabaseBuildRule(params,resolver,platform.get().getValue(),args,compileStrategy);
+  }
+  Optional<Map.Entry<Flavor,Type>> type=typeAndPlatform.getType();
+  if (type.isPresent() && platform.isPresent()) {
+    Set<Flavor> flavors=Sets.newHashSet(params.getBuildTarget().getFlavors());
+    flavors.remove(type.get().getKey());
+    BuildTarget target=BuildTarget.builder(params.getBuildTarget().getUnflavoredBuildTarget()).addAllFlavors(flavors).build();
+    BuildRuleParams typeParams=params.copyWithChanges(params.getBuildRuleType(),target,Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps()));
+    if (type.get().getValue().equals(Type.HEADERS)) {
+      return createHeaderSymlinkTreeBuildRule(typeParams,resolver,platform.get().getValue(),args);
+    }
+ else     if (type.get().getValue().equals(Type.EXPORTED_HEADERS)) {
+      return createExportedHeaderSymlinkTreeBuildRule(typeParams,resolver,platform.get().getValue(),args);
+    }
+ else     if (type.get().getValue().equals(Type.SHARED)) {
+      return createSharedLibraryBuildRule(typeParams,resolver,platform.get().getValue(),args,compileStrategy,Linker.LinkType.SHARED,linkableDepType.or(Linker.LinkableDepType.SHARED),Optional.<SourcePath>absent());
+    }
+ else     if (type.get().getValue().equals(Type.MACH_O_BUNDLE)) {
+      return createSharedLibraryBuildRule(typeParams,resolver,platform.get().getValue(),args,compileStrategy,Linker.LinkType.MACH_O_BUNDLE,linkableDepType.or(Linker.LinkableDepType.SHARED),bundleLoader);
+    }
+ else     if (type.get().getValue().equals(Type.STATIC)) {
+      return createStaticLibraryBuildRule(typeParams,resolver,platform.get().getValue(),args,compileStrategy,CxxSourceRuleFactory.PicType.PDC);
+    }
+ else {
+      return createStaticLibraryBuildRule(typeParams,resolver,platform.get().getValue(),args,compileStrategy,CxxSourceRuleFactory.PicType.PIC);
+    }
+  }
+  boolean hasObjects=false;
+  if (args.srcs.isPresent()) {
+    Either<ImmutableList<SourceWithFlags>,ImmutableMap<String,SourceWithFlags>> either=args.srcs.get();
+    if (either.isLeft()) {
+      hasObjects=!either.getLeft().isEmpty();
+    }
+ else {
+      hasObjects=!either.getRight().isEmpty();
+    }
+  }
+  hasObjects|=!args.lexSrcs.get().isEmpty() || !args.yaccSrcs.get().isEmpty();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  return new CxxLibrary(params,resolver,pathResolver,!hasObjects,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
+    @Override public ImmutableMultimap<CxxSource.Type,String> apply(    CxxPlatform input){
+      return CxxFlags.getLanguageFlags(args.exportedPreprocessorFlags,args.exportedPlatformPreprocessorFlags,args.exportedLangPreprocessorFlags,input.getFlavor());
+    }
+  }
+,new Function<CxxPlatform,ImmutableList<String>>(){
+    @Override public ImmutableList<String> apply(    CxxPlatform input){
+      return CxxFlags.getFlags(args.exportedLinkerFlags,args.exportedPlatformLinkerFlags,input.getFlavor());
+    }
+  }
+,args.frameworkSearchPaths.get(),args.forceStatic.or(false) ? CxxLibrary.Linkage.STATIC : CxxLibrary.Linkage.ANY,args.linkWhole.or(false),args.soname,args.tests.get());
+}

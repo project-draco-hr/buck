@@ -4,7 +4,8 @@
     throw new HumanReadableException("Invalid bundle extension for apple_test rule: %s (must be one of %s)",extension,AppleBundleExtensions.VALID_XCTOOL_BUNDLE_EXTENSIONS);
   }
   boolean createBundle=Sets.intersection(params.getBuildTarget().getFlavors(),NON_LIBRARY_FLAVORS).isEmpty();
-  boolean addDefaultPlatform=Sets.difference(params.getBuildTarget().getFlavors(),NON_LIBRARY_FLAVORS).isEmpty();
+  Sets.SetView<Flavor> nonLibraryFlavors=Sets.difference(params.getBuildTarget().getFlavors(),NON_LIBRARY_FLAVORS);
+  boolean addDefaultPlatform=nonLibraryFlavors.isEmpty();
   ImmutableSet.Builder<Flavor> extraFlavorsBuilder=ImmutableSet.builder();
   if (createBundle) {
     extraFlavorsBuilder.add(LIBRARY_FLAVOR,CxxDescriptionEnhancer.MACH_O_BUNDLE_FLAVOR);
@@ -12,7 +13,23 @@
   if (addDefaultPlatform) {
     extraFlavorsBuilder.add(defaultCxxPlatform.getFlavor());
   }
-  BuildRule library=appleLibraryDescription.createBuildRule(params.copyWithChanges(AppleLibraryDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addAllFlavors(extraFlavorsBuilder.build()).build(),Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps())),resolver,args,Optional.of(Linker.LinkableDepType.STATIC));
+  Optional<AppleBundle> testHostApp;
+  Optional<SourcePath> testHostAppBinarySourcePath;
+  if (args.testHostApp.isPresent()) {
+    TargetNode<?> testHostAppNode=params.getTargetGraph().get(args.testHostApp.get());
+    Preconditions.checkNotNull(testHostAppNode);
+    if (testHostAppNode.getType() != AppleBundleDescription.TYPE) {
+      throw new HumanReadableException("Apple test rule %s has unrecognized test_host_app %s type %s (should be %s)",params.getBuildTarget(),args.testHostApp.get(),testHostAppNode.getType(),AppleBundleDescription.TYPE);
+    }
+    AppleBundleDescription.Arg testHostAppDescription=(AppleBundleDescription.Arg)testHostAppNode.getConstructorArg();
+    testHostApp=Optional.of(appleBundleDescription.createBuildRule(params.copyWithChanges(AppleBundleDescription.TYPE,BuildTarget.builder(args.testHostApp.get()).addAllFlavors(nonLibraryFlavors).build(),Suppliers.ofInstance(BuildRules.toBuildRulesFor(args.testHostApp.get(),resolver,testHostAppNode.getDeclaredDeps())),Suppliers.ofInstance(BuildRules.toBuildRulesFor(args.testHostApp.get(),resolver,testHostAppNode.getExtraDeps()))),resolver,testHostAppDescription));
+    testHostAppBinarySourcePath=Optional.<SourcePath>of(new BuildTargetSourcePath(params.getProjectFilesystem(),testHostAppDescription.binary));
+  }
+ else {
+    testHostApp=Optional.absent();
+    testHostAppBinarySourcePath=Optional.absent();
+  }
+  BuildRule library=appleLibraryDescription.createBuildRule(params.copyWithChanges(AppleLibraryDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addAllFlavors(extraFlavorsBuilder.build()).build(),Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps())),resolver,args,Optional.of(Linker.LinkableDepType.STATIC),testHostAppBinarySourcePath);
   if (!createBundle) {
     return library;
   }
@@ -42,5 +59,5 @@
   Optional<AppleAssetCatalog> mergedAssetCatalog=collectedAssetCatalogs.getMergedAssetCatalog();
   ImmutableSet<AppleAssetCatalog> bundledAssetCatalogs=collectedAssetCatalogs.getBundledAssetCatalogs();
   AppleBundle bundle=new AppleBundle(params.copyWithChanges(AppleBundleDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addFlavors(BUNDLE_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(mergedAssetCatalog.asSet()).addAll(bundledAssetCatalogs).addAll(params.getDeclaredDeps()).build()),Suppliers.ofInstance(params.getExtraDeps())),sourcePathResolver,args.extension,args.infoPlist,Optional.of(library),AppleBundleDescription.IOS_APP_SUBFOLDER_SPEC_MAP,resourceDirs,resourceFiles,bundledAssetCatalogs,mergedAssetCatalog);
-  return new AppleTest(appleConfig.getXctoolPath(),"iphonesimulator","x86_64","iPhone 5s",params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(bundle)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),sourcePathResolver,bundle,extension,args.contacts.get(),args.labels.get());
+  return new AppleTest(appleConfig.getXctoolPath(),"iphonesimulator","x86_64","iPhone 5s",params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(bundle)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),sourcePathResolver,bundle,testHostApp,extension,args.contacts.get(),args.labels.get());
 }
