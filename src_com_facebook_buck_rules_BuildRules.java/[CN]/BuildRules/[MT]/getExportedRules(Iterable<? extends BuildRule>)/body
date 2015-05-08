@@ -1,7 +1,13 @@
 {
-  ImmutableSortedSet.Builder<BuildRule> exportedRules=ImmutableSortedSet.naturalOrder();
-  for (  ExportDependencies exporter : Iterables.filter(rules,ExportDependencies.class)) {
-    exportedRules.addAll(exporter.getExportedDeps());
+  final ImmutableSortedSet.Builder<BuildRule> exportedRules=ImmutableSortedSet.naturalOrder();
+  AbstractBreadthFirstTraversal<ExportDependencies> visitor=new AbstractBreadthFirstTraversal<ExportDependencies>(Iterables.filter(rules,ExportDependencies.class)){
+    @Override public ImmutableSet<ExportDependencies> visit(    ExportDependencies exporter){
+      Iterable<BuildRule> exported=exporter.getExportedDeps();
+      exportedRules.addAll(exported);
+      return FluentIterable.from(exported).filter(ExportDependencies.class).toSet();
+    }
   }
+;
+  visitor.start();
   return exportedRules.build();
 }
