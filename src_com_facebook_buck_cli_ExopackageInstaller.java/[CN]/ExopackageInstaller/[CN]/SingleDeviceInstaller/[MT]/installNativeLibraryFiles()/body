@@ -1,21 +1,9 @@
 {
-  String abi1=getProperty("ro.product.cpu.abi");
-  if (abi1.isEmpty()) {
-    throw new RuntimeException("adb returned empty result for ro.product.cpu.abi property.");
-  }
   ImmutableMultimap<String,Path> allLibraries=getAllLibraries();
-  ImmutableMap<String,Path> abi1Libraries=getRequiredLibrariesForAbi(allLibraries,abi1,ImmutableSet.<String>of());
-  installNativeLibrariesForAbi(abi1,abi1Libraries);
-  String abi2=getProperty("ro.product.cpu.abi2");
-  if (abi2.isEmpty()) {
-    return;
+  ImmutableSet.Builder<String> providedLibraries=ImmutableSet.builder();
+  for (  String abi : getDeviceAbis()) {
+    ImmutableMap<String,Path> libraries=getRequiredLibrariesForAbi(allLibraries,abi,providedLibraries.build());
+    installNativeLibrariesForAbi(abi,libraries);
+    providedLibraries.addAll(libraries.keySet());
   }
-  ImmutableSet<String> abi1LibraryNames=FluentIterable.from(abi1Libraries.values()).transform(new Function<Path,String>(){
-    @Override public String apply(    Path input){
-      return input.getFileName().toString();
-    }
-  }
-).toSet();
-  ImmutableMap<String,Path> abi2Libraries=getRequiredLibrariesForAbi(allLibraries,abi2,abi1LibraryNames);
-  installNativeLibrariesForAbi(abi2,abi2Libraries);
 }
