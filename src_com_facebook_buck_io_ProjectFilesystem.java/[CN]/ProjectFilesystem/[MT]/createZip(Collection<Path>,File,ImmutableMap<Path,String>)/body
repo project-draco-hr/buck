@@ -2,20 +2,18 @@
   Preconditions.checkState(!Iterables.isEmpty(pathsToIncludeInZip));
   try (CustomZipOutputStream zip=ZipOutputStreams.newOutputStream(out)){
     for (    Path path : pathsToIncludeInZip) {
-      Path full=getPathForRelativePath(path);
-      File file=full.toFile();
-      boolean isDirectory=isDirectory(full);
+      boolean isDirectory=isDirectory(path);
       String entryName=path.toString();
       if (isDirectory) {
         entryName+="/";
       }
       CustomZipEntry entry=new CustomZipEntry(entryName);
-      if (file.canExecute()) {
+      if (isExecutable(path)) {
         entry.setExternalAttributes(MorePosixFilePermissions.toMode(EnumSet.of(PosixFilePermission.OWNER_EXECUTE)) << 16);
       }
       zip.putNextEntry(entry);
       if (!isDirectory) {
-        try (InputStream input=Files.newInputStream(getPathForRelativePath(path))){
+        try (InputStream input=newFileInputStream(path)){
           ByteStreams.copy(input,zip);
         }
        }

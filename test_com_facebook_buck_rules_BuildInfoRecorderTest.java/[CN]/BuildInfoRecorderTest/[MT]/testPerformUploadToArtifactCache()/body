@@ -1,0 +1,35 @@
+{
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildInfoRecorder buildInfoRecorder=createBuildInfoRecorder(filesystem);
+  BuckEventBus bus=new BuckEventBus(new FakeClock(0),new BuildId("BUILD"));
+  buildInfoRecorder.writeMetadataToDisk(true);
+  final byte[] contents="contents".getBytes();
+  Path file=Paths.get("file");
+  filesystem.writeBytesToPath(contents,file);
+  buildInfoRecorder.recordArtifact(file);
+  Path dir=Paths.get("dir");
+  filesystem.mkdirs(dir);
+  filesystem.writeBytesToPath(contents,dir.resolve("file"));
+  buildInfoRecorder.recordArtifactsInDirectory(dir);
+  final AtomicBoolean stored=new AtomicBoolean(false);
+  final ArtifactCache cache=new NoopArtifactCache(){
+    @Override public boolean isStoreSupported(){
+      return true;
+    }
+    @Override public void store(    RuleKey ruleKey,    File output){
+      stored.set(true);
+      try (Zip zip=new Zip(output,false)){
+        assertEquals(ImmutableSet.of("","dir/","buck-out/","buck-out/log/","buck-out/bin/","buck-out/bin/foo/","buck-out/bin/foo/.bar/","buck-out/bin/foo/.bar/metadata/"),zip.getDirNames());
+        assertEquals(ImmutableSet.of("dir/file","file","buck-out/log/cache_artifact.txt","buck-out/bin/foo/.bar/metadata/RULE_KEY","buck-out/bin/foo/.bar/metadata/RULE_KEY_NO_DEPS"),zip.getFileNames());
+        assertArrayEquals(contents,zip.readFully("file"));
+        assertArrayEquals(contents,zip.readFully("dir/file"));
+      }
+ catch (      IOException e) {
+        throw Throwables.propagate(e);
+      }
+    }
+  }
+;
+  buildInfoRecorder.performUploadToArtifactCache(cache,bus);
+  assertTrue(stored.get());
+}

@@ -1,5 +1,25 @@
 {
-  for (  Path file : filesUnderPath(path)) {
-    fileVisitor.visitFile(file,DEFAULT_FILE_ATTRIBUTES);
+  if (!isDirectory(path)) {
+    fileVisitor.visitFile(path,DEFAULT_FILE_ATTRIBUTES);
+    return;
+  }
+  ImmutableCollection<Path> ents=getDirectoryContents(path);
+  for (  Path ent : ents) {
+    if (!isDirectory(ent)) {
+      FileVisitResult result=fileVisitor.visitFile(ent,DEFAULT_FILE_ATTRIBUTES);
+      if (result == FileVisitResult.SKIP_SIBLINGS) {
+        return;
+      }
+    }
+ else {
+      FileVisitResult result=fileVisitor.preVisitDirectory(ent,DEFAULT_DIR_ATTRIBUTES);
+      if (result == FileVisitResult.SKIP_SIBLINGS) {
+        return;
+      }
+      if (result != FileVisitResult.SKIP_SUBTREE) {
+        walkRelativeFileTree(ent,fileVisitor);
+        fileVisitor.postVisitDirectory(ent,null);
+      }
+    }
   }
 }
