@@ -1,6 +1,6 @@
 {
-  return Suppliers.memoize(new Supplier<Path>(){
-    @Override public Path get(){
+  return Suppliers.memoize(new Supplier<Optional<Path>>(){
+    @Override public Optional<Path> get(){
       ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().setCommand(ImmutableList.of("xcode-select","--print-path")).build();
       Set<ProcessExecutor.Option> options=EnumSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT);
       ProcessExecutor.Result result;
@@ -8,12 +8,13 @@
         result=processExecutor.launchAndExecute(processExecutorParams,options,Optional.<String>absent(),Optional.<Long>absent());
       }
  catch (      InterruptedException|IOException e) {
-        throw new RuntimeException(e);
+        LOG.warn("Could not execute xcode-select, continuing without developer dir.");
+        return Optional.absent();
       }
       if (result.getExitCode() != 0) {
         throw new RuntimeException("xcode-select --print-path failed: " + result.getStderr());
       }
-      return Paths.get(result.getStdout().get().trim());
+      return Optional.of(Paths.get(result.getStdout().get().trim()));
     }
   }
 );

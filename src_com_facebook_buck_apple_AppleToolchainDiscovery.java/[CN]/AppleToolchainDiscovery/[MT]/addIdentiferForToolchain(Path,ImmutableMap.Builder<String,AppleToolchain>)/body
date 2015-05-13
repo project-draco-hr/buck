@@ -1,0 +1,29 @@
+{
+  try (InputStream toolchainInfoPlist=Files.newInputStream(toolchainDir.resolve("ToolchainInfo.plist"));BufferedInputStream bufferedToolchainInfoPlist=new BufferedInputStream(toolchainInfoPlist)){
+    NSDictionary parsedToolchainInfoPlist;
+    try {
+      parsedToolchainInfoPlist=(NSDictionary)PropertyListParser.parse(bufferedToolchainInfoPlist);
+    }
+ catch (    Exception e) {
+      throw new IOException(e);
+    }
+    NSObject identifierObject=parsedToolchainInfoPlist.objectForKey("Identifier");
+    NSObject versionObject=parsedToolchainInfoPlist.objectForKey("DTSDKBuild");
+    if (identifierObject == null || versionObject == null) {
+      LOG.error("Identifier, version not found for toolchain path %s, ignoring",toolchainDir);
+      return;
+    }
+    String identifier=identifierObject.toString();
+    String version=versionObject.toString();
+    LOG.debug("Mapped SDK identifier %s to path %s",identifier,toolchainDir);
+    AppleToolchain.Builder toolchainBuilder=AppleToolchain.builder();
+    toolchainBuilder.setIdentifier(identifier);
+    toolchainBuilder.setVersion(version);
+    toolchainBuilder.setPath(toolchainDir);
+    AppleToolchain toolchain=toolchainBuilder.build();
+    identifierToToolchainBuilder.put(identifier,toolchain);
+  }
+ catch (  FileNotFoundException|NoSuchFileException e) {
+    LOG.error(e,"No ToolchainInfo.plist found under toolchain path %s, ignoring",toolchainDir);
+  }
+}

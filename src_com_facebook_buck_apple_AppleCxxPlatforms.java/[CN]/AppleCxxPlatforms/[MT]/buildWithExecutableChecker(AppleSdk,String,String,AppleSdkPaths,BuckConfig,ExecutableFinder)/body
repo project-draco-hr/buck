@@ -1,0 +1,40 @@
+{
+  ImmutableList.Builder<Path> toolSearchPathsBuilder=ImmutableList.builder();
+  toolSearchPathsBuilder.add(sdkPaths.getSdkPath().resolve(USR_BIN)).add(sdkPaths.getPlatformPath().resolve("Developer").resolve(USR_BIN));
+  for (  Path toolchainPath : sdkPaths.getToolchainPaths()) {
+    toolSearchPathsBuilder.add(toolchainPath.resolve(USR_BIN));
+  }
+  if (sdkPaths.getDeveloperPath().isPresent()) {
+    toolSearchPathsBuilder.add(sdkPaths.getDeveloperPath().get().resolve(USR_BIN));
+  }
+  ImmutableList<Path> toolSearchPaths=toolSearchPathsBuilder.build();
+  ImmutableList.Builder<String> cflagsBuilder=ImmutableList.builder();
+  cflagsBuilder.add("-isysroot",sdkPaths.getSdkPath().toString());
+  cflagsBuilder.add("-arch",targetArchitecture);
+switch (targetSdk.getApplePlatform().getName()) {
+case ApplePlatform.Name.IPHONEOS:
+    cflagsBuilder.add("-mios-version-min=" + targetVersion);
+  break;
+case ApplePlatform.Name.IPHONESIMULATOR:
+cflagsBuilder.add("-mios-simulator-version-min=" + targetVersion);
+break;
+default :
+cflagsBuilder.add("-m" + targetSdk.getApplePlatform().getName() + "-version-min="+ targetVersion);
+break;
+}
+ImmutableList<String> cflags=cflagsBuilder.build();
+ImmutableList.Builder<String> versionsBuilder=ImmutableList.builder();
+versionsBuilder.add(targetSdk.getVersion());
+for (AppleToolchain toolchain : targetSdk.getToolchains()) {
+versionsBuilder.add(toolchain.getVersion());
+}
+String version=Joiner.on(':').join(versionsBuilder.build());
+Tool clangPath=new VersionedTool(getToolPath("clang",toolSearchPaths,executableFinder),cflags,"apple-clang",version);
+Tool clangXxPath=new VersionedTool(getToolPath("clang++",toolSearchPaths,executableFinder),cflags,"apple-clang++",version);
+Tool ar=new VersionedTool(getToolPath("ar",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-ar",version);
+Tool actool=new VersionedTool(getToolPath("actool",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-actool",version);
+CxxBuckConfig config=new CxxBuckConfig(buckConfig);
+ImmutableFlavor targetFlavor=ImmutableFlavor.of(ImmutableFlavor.replaceInvalidCharacters(targetSdk.getName() + "-" + targetArchitecture));
+CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,Platform.MACOS,config,clangPath,clangPath,clangPath,clangXxPath,clangPath,clangXxPath,clangXxPath,Optional.of(CxxPlatform.LinkerType.DARWIN),clangXxPath,ar,"!<arch>\n".getBytes(Charsets.US_ASCII),getOptionalTool("lex",toolSearchPaths,executableFinder,version),getOptionalTool("yacc",toolSearchPaths,executableFinder,version));
+return AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setApplePlatform(targetSdk.getApplePlatform()).setAppleSdkPaths(sdkPaths).setActool(actool).build();
+}

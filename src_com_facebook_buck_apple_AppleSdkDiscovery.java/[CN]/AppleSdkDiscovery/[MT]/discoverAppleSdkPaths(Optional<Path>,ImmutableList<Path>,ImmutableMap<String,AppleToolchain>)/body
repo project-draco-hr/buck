@@ -1,14 +1,12 @@
 {
-  Path defaultToolchainPath=xcodeToolchainPaths.get(DEFAULT_TOOLCHAIN_ID);
-  if (defaultToolchainPath == null) {
-    LOG.debug("Could not find default toolchain %s; skipping discovery.",DEFAULT_TOOLCHAIN_ID);
-    return ImmutableMap.of();
-  }
-  LOG.debug("Searching for Xcode platforms under %s",xcodeDir);
+  Optional<AppleToolchain> defaultToolchain=Optional.fromNullable(xcodeToolchains.get(DEFAULT_TOOLCHAIN_ID));
   ImmutableMap.Builder<AppleSdk,AppleSdkPaths> appleSdkPathsBuilder=ImmutableMap.builder();
-  Path platformsDir=xcodeDir.resolve("Platforms");
-  Iterable<Path> platformPaths=Iterables.concat(ImmutableSet.of(platformsDir),extraDirs);
-  String xcodeVersion=discoverXcodeVersion(xcodeVersionPlistPath);
+  Iterable<Path> platformPaths=extraDirs;
+  if (developerDir.isPresent()) {
+    Path platformsDir=developerDir.get().resolve("Platforms");
+    LOG.debug("Searching for Xcode platforms under %s",platformsDir);
+    platformPaths=Iterables.concat(ImmutableSet.of(platformsDir),platformPaths);
+  }
   TreeMultimap<ApplePlatform,AppleSdk> orderedSdksForPlatform=TreeMultimap.create(Ordering.natural(),APPLE_SDK_VERSION_ORDERING);
   for (  Path platforms : platformPaths) {
     if (!Files.exists(platforms)) {
@@ -25,30 +23,15 @@
             if (Files.isSymbolicLink(sdkDir)) {
               continue;
             }
-            AppleSdk.Builder sdkBuilder=AppleSdk.builder().setXcodeVersion(xcodeVersion);
-            if (buildSdkFromPath(sdkDir,sdkBuilder)) {
+            AppleSdk.Builder sdkBuilder=AppleSdk.builder();
+            if (buildSdkFromPath(sdkDir,sdkBuilder,xcodeToolchains,defaultToolchain)) {
               AppleSdk sdk=sdkBuilder.build();
               LOG.debug("Found SDK %s",sdk);
-              ImmutableSet.Builder<Path> toolchainPathsBuilder=ImmutableSet.builder();
-              for (              String toolchain : sdk.getToolchains()) {
-                Path toolchainPath=xcodeToolchainPaths.get(toolchain);
-                if (toolchainPath == null) {
-                  LOG.debug("Could not find toolchain with ID %s, ignoring",toolchain);
-                }
- else {
-                  toolchainPathsBuilder.add(toolchainPath);
-                }
-              }
-              ImmutableSet<Path> toolchainPaths=toolchainPathsBuilder.build();
               AppleSdkPaths.Builder xcodePathsBuilder=AppleSdkPaths.builder();
-              if (toolchainPaths.isEmpty()) {
-                LOG.debug("No toolchains found for SDK %s, falling back to default %s",sdk,defaultToolchainPath);
-                xcodePathsBuilder.addToolchainPaths(defaultToolchainPath);
+              for (              AppleToolchain toolchain : sdk.getToolchains()) {
+                xcodePathsBuilder.addToolchainPaths(toolchain.getPath());
               }
- else {
-                xcodePathsBuilder.addAllToolchainPaths(toolchainPaths);
-              }
-              AppleSdkPaths xcodePaths=xcodePathsBuilder.setDeveloperPath(xcodeDir).setPlatformPath(platformDir).setSdkPath(sdkDir).build();
+              AppleSdkPaths xcodePaths=xcodePathsBuilder.setDeveloperPath(developerDir).setPlatformPath(platformDir).setSdkPath(sdkDir).build();
               appleSdkPathsBuilder.put(sdk,xcodePaths);
               orderedSdksForPlatform.put(sdk.getApplePlatform(),sdk);
             }
