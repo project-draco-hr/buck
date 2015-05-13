@@ -1,11 +1,25 @@
 {
   LOG.verbose("Building header symlink tree at %s with contents %s",headerSymlinkTreeRoot,contents);
-  projectFilesystem.rmdir(headerSymlinkTreeRoot);
+  ImmutableSortedMap.Builder<Path,Path> resolvedContentsBuilder=ImmutableSortedMap.naturalOrder();
   for (  Map.Entry<String,SourcePath> entry : contents.entrySet()) {
     Path link=headerSymlinkTreeRoot.resolve(entry.getKey());
     Path existing=projectFilesystem.resolve(pathResolver.apply(entry.getValue()));
-    projectFilesystem.createParentDirs(link);
-    projectFilesystem.createSymLink(link,existing,false);
+    resolvedContentsBuilder.put(link,existing);
+  }
+  ImmutableSortedMap<Path,Path> resolvedContents=resolvedContentsBuilder.build();
+  Path hashCodeFilePath=headerSymlinkTreeRoot.resolve(".contents-hash");
+  Optional<String> currentHashCode=projectFilesystem.readFileIfItExists(hashCodeFilePath);
+  String newHashCode=getHeaderSymlinkTreeHashCode(resolvedContents).toString();
+  if (!Optional.of(newHashCode).equals(currentHashCode)) {
+    projectFilesystem.rmdir(headerSymlinkTreeRoot);
+    projectFilesystem.mkdirs(headerSymlinkTreeRoot);
+    for (    Map.Entry<Path,Path> entry : resolvedContents.entrySet()) {
+      Path link=entry.getKey();
+      Path existing=entry.getValue();
+      projectFilesystem.createParentDirs(link);
+      projectFilesystem.createSymLink(link,existing,false);
+    }
+    projectFilesystem.writeContentsToPath(newHashCode,hashCodeFilePath);
   }
   headerSymlinkTrees.add(headerSymlinkTreeRoot);
 }
