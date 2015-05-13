@@ -4,6 +4,11 @@
   resultListener=null;
   System.setOut(originalOut);
   System.setErr(originalErr);
+  Logger rootLogger=LogManager.getLogManager().getLogger("");
+  flushAndRemoveLogHandler(rootLogger,julLogHandler);
+  julLogHandler=null;
+  flushAndRemoveLogHandler(rootLogger,julErrLogHandler);
+  julErrLogHandler=null;
   stdOutStream.flush();
   stdErrStream.flush();
   int numFailures=result.getFailureCount();
@@ -27,7 +32,19 @@
     failure=result.getFailures().get(0);
     type=ResultType.FAILURE;
   }
-  String stdOut=rawStdOutBytes.size() == 0 ? null : rawStdOutBytes.toString(ENCODING);
-  String stdErr=rawStdErrBytes.size() == 0 ? null : rawStdErrBytes.toString(ENCODING);
-  results.add(new TestResult(className,methodName,result.getRunTime(),type,failure == null ? null : failure.getException(),stdOut,stdErr));
+  StringBuilder stdOut=new StringBuilder();
+  stdOut.append(rawStdOutBytes.toString(ENCODING));
+  if (type == ResultType.FAILURE && julLogBytes.size() > 0) {
+    stdOut.append('\n');
+    stdOut.append(JUL_DEBUG_LOGS_HEADER);
+    stdOut.append(julLogBytes.toString(ENCODING));
+  }
+  StringBuilder stdErr=new StringBuilder();
+  stdErr.append(rawStdErrBytes.toString(ENCODING));
+  if (type == ResultType.FAILURE && julErrLogBytes.size() > 0) {
+    stdErr.append('\n');
+    stdErr.append(JUL_ERROR_LOGS_HEADER);
+    stdErr.append(julErrLogBytes.toString(ENCODING));
+  }
+  results.add(new TestResult(className,methodName,result.getRunTime(),type,failure == null ? null : failure.getException(),stdOut.length() == 0 ? null : stdOut.toString(),stdErr.length() == 0 ? null : stdErr.toString()));
 }

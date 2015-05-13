@@ -1,0 +1,26 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"test_with_logging",temp);
+  workspace.setUp();
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("test","//:logging");
+  result.assertTestFailure();
+  String testOutput=result.getStderr();
+  String[] testOutputBeforeAndAfterDebugLogs=testOutput.split(JUnitRunner.JUL_DEBUG_LOGS_HEADER);
+  assertThat(testOutputBeforeAndAfterDebugLogs,arrayWithSize(2));
+  String testOutputAfterDebugLogs=testOutputBeforeAndAfterDebugLogs[1];
+  String[] testOutputBeforeAndAfterErrorLogs=testOutputAfterDebugLogs.split(JUnitRunner.JUL_ERROR_LOGS_HEADER);
+  assertThat(testOutputBeforeAndAfterErrorLogs,arrayWithSize(2));
+  String debugLogs=testOutputBeforeAndAfterErrorLogs[0];
+  String errorLogs=testOutputBeforeAndAfterErrorLogs[1];
+  assertThat(debugLogs,containsString("This is an error in a failing test"));
+  assertThat(debugLogs,containsString("This is a warning in a failing test"));
+  assertThat(debugLogs,containsString("This is an info message in a failing test"));
+  assertThat(debugLogs,containsString("This is a debug message in a failing test"));
+  assertThat(debugLogs,not(containsString("This is a verbose message in a failing test")));
+  assertThat(errorLogs,containsString("This is an error in a failing test"));
+  assertThat(errorLogs,containsString("This is a warning in a failing test"));
+  assertThat(errorLogs,not(containsString("This is an info message in a failing test")));
+  assertThat(errorLogs,not(containsString("This is a debug message in a failing test")));
+  assertThat(errorLogs,not(containsString("This is a verbose message in a failing test")));
+  assertThat(debugLogs,not(containsString("in a passing test")));
+  assertThat(errorLogs,not(containsString("in a passing test")));
+}
