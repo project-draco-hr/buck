@@ -1,0 +1,96 @@
+{
+  DefaultStepRunner stepRunner=new DefaultStepRunner(executionContext);
+  if (isUsingOneTimeOutputDirectories()) {
+    BuckConstant.setOneTimeTestSubdirectory(UUID.randomUUID().toString());
+  }
+  ImmutableSet<JavaLibrary> rulesUnderTest;
+  if (isCodeCoverageEnabled()) {
+    rulesUnderTest=getRulesUnderTest(tests);
+    if (!rulesUnderTest.isEmpty()) {
+      try {
+        stepRunner.runStep(new MakeCleanDirectoryStep(JUnitStep.JACOCO_OUTPUT_DIR));
+      }
+ catch (      StepFailedException e) {
+        params.getConsole().printBuildFailureWithoutStacktrace(e);
+        return 1;
+      }
+    }
+  }
+ else {
+    rulesUnderTest=ImmutableSet.of();
+  }
+  ImmutableSet<String> testTargets=FluentIterable.from(tests).transform(HasBuildTarget.TO_TARGET).transform(Functions.toStringFunction()).toSet();
+  totalNumberOfTests=Iterables.size(tests);
+  params.getBuckEventBus().post(TestRunEvent.started(isRunAllTests(),getTestSelectorList(),shouldExplainTestSelectorList(),testTargets));
+  List<ListenableFuture<TestResults>> results=Lists.newArrayList();
+  Verbosity verbosity=params.getConsole().getVerbosity();
+  final boolean printTestResults=(verbosity != Verbosity.SILENT);
+  TestResultsGrouper grouper=null;
+  if (isIgnoreFailingDependencies()) {
+    grouper=new TestResultsGrouper(tests);
+  }
+  TestRuleKeyFileHelper testRuleKeyFileHelper=new TestRuleKeyFileHelper(executionContext.getProjectFilesystem(),buildEngine);
+  for (  TestRule test : tests) {
+    boolean isTestRunRequired;
+    isTestRunRequired=isTestRunRequiredForTest(test,buildEngine,executionContext,testRuleKeyFileHelper,isResultsCacheEnabled(params.getBuckConfig()),!getTestSelectorList().isEmpty());
+    List<Step> steps;
+    if (isTestRunRequired) {
+      params.getBuckEventBus().post(IndividualTestEvent.started(testTargets));
+      ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
+      Preconditions.checkState(buildEngine.isRuleBuilt(test.getBuildTarget()));
+      List<Step> testSteps=test.runTests(buildContext,executionContext,isDryRun(),isShufflingTests(),getTestSelectorList());
+      if (!testSteps.isEmpty()) {
+        stepsBuilder.addAll(testSteps);
+        stepsBuilder.add(testRuleKeyFileHelper.createRuleKeyInDirStep(test));
+      }
+      steps=stepsBuilder.build();
+    }
+ else {
+      steps=ImmutableList.of();
+    }
+    ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext,!getTestSelectorList().isEmpty(),isDryRun())),test.getBuildTarget(),service);
+    results.add(transformTestResults(params,testResults,grouper,test,testTargets,printTestResults));
+  }
+  ListenableFuture<List<TestResults>> uberFuture=Futures.allAsList(results);
+  List<TestResults> completedResults;
+  try {
+    completedResults=uberFuture.get();
+  }
+ catch (  ExecutionException e) {
+    e.printStackTrace(params.getConsole().getStdErr());
+    return 1;
+  }
+catch (  InterruptedException e) {
+    try {
+      uberFuture.cancel(true);
+    }
+ catch (    CancellationException ignored) {
+    }
+    Thread.currentThread().interrupt();
+    throw e;
+  }
+  params.getBuckEventBus().post(TestRunEvent.finished(testTargets,completedResults));
+  String path=getPathToXmlTestOutput();
+  if (path != null) {
+    try (Writer writer=Files.newWriter(new File(path),Charsets.UTF_8)){
+      writeXmlOutput(completedResults,writer);
+    }
+   }
+  if (isCodeCoverageEnabled() && !rulesUnderTest.isEmpty()) {
+    try {
+      Optional<DefaultJavaPackageFinder> defaultJavaPackageFinderOptional=getJavaPackageFinder(params.getBuckConfig());
+      stepRunner.runStep(getReportCommand(rulesUnderTest,defaultJavaPackageFinderOptional,params.getRepository().getFilesystem(),JUnitStep.JACOCO_OUTPUT_DIR,getCoverageReportFormat()));
+    }
+ catch (    StepFailedException e) {
+      params.getConsole().printBuildFailureWithoutStacktrace(e);
+      return 1;
+    }
+  }
+  boolean failures=Iterables.any(completedResults,new Predicate<TestResults>(){
+    @Override public boolean apply(    TestResults results){
+      return !results.isSuccess();
+    }
+  }
+);
+  return failures ? TEST_FAILURES_EXIT_CODE : 0;
+}

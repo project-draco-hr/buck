@@ -1,16 +1,117 @@
 {
+  Verbosity verbosity=VerbosityParser.parse(args);
+  Optional<String> color;
+  final boolean isDaemon=context.isPresent();
+  if (isDaemon && (context.get().getEnv() != null)) {
+    String colorString=context.get().getEnv().getProperty(BUCKD_COLOR_DEFAULT_ENV_VAR);
+    color=Optional.fromNullable(colorString);
+  }
+ else {
+    color=Optional.absent();
+  }
+  BuckConfig bootstrapConfig=BuckConfig.createDefaultBuckConfig(new ProjectFilesystem(projectRoot),platform,clientEnvironment);
+  final Console console=new Console(verbosity,stdOut,stdErr,bootstrapConfig.createAnsi(color));
+  BuckCommand command=new BuckCommand();
+  AdditionalOptionsCmdLineParser cmdLineParser=new AdditionalOptionsCmdLineParser(command);
+  try {
+    cmdLineParser.parseArgument(args);
+  }
+ catch (  CmdLineException e) {
+    console.getStdErr().println(e.getLocalizedMessage());
+    return 1;
+  }
+  boolean commandSemaphoreAcquired=false;
+  if (!command.isReadOnly()) {
+    commandSemaphoreAcquired=commandSemaphore.tryAcquire();
+    if (!commandSemaphoreAcquired) {
+      return BUSY_EXIT_CODE;
+    }
+  }
   int exitCode;
-  Command.ParseResult command=parseCommandIfPresent(args);
-  if (command.getCommand().isPresent()) {
-    return executeCommand(buildId,projectRoot,command,context,clientEnvironment,args);
+  ImmutableList<BuckEventListener> eventListeners=ImmutableList.of();
+  Clock clock;
+  if (BUCKD_LAUNCH_TIME_NANOS.isPresent()) {
+    long nanosEpoch=Long.parseLong(BUCKD_LAUNCH_TIME_NANOS.get(),10);
+    LOG.verbose("Using nanos epoch: %d",nanosEpoch);
+    clock=new NanosAdjustedClock(nanosEpoch);
   }
  else {
-    exitCode=new GenericBuckOptions(stdOut,stdErr).execute(args);
-    if (exitCode == GenericBuckOptions.SHOW_MAIN_HELP_SCREEN_EXIT_CODE) {
-      return usage();
+    clock=new DefaultClock();
+  }
+  ProcessExecutor processExecutor=new ProcessExecutor(console);
+  ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(processExecutor,clientEnvironment,System.getProperties());
+  Path canonicalRootPath=projectRoot.toRealPath();
+  RepositoryFactory repositoryFactory=new RepositoryFactory(clientEnvironment,platform,console,canonicalRootPath);
+  Repository rootRepository=repositoryFactory.getRootRepository();
+  DefaultFileHashCache fileHashCache=new DefaultFileHashCache(rootRepository.getFilesystem());
+  @Nullable ArtifactCacheFactory artifactCacheFactory=null;
+  Optional<WebServer> webServer=getWebServerIfDaemon(context,repositoryFactory,clock);
+  try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,executionEnvironment,webServer);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
+    artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus,fileHashCache);
+    eventListeners=addEventListeners(buildEventBus,rootRepository.getFilesystem(),rootRepository.getBuckConfig(),webServer,clock,console,consoleListener,rootRepository.getKnownBuildRuleTypes(),clientEnvironment);
+    ImmutableList<String> remainingArgs=args.length > 1 ? ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length)) : ImmutableList.<String>of();
+    CommandEvent commandEvent=CommandEvent.started(args.length > 0 ? args[0] : "",remainingArgs,isDaemon);
+    buildEventBus.post(commandEvent);
+    Parser parser=null;
+    if (isDaemon) {
+      try {
+        parser=getParserFromDaemon(context,repositoryFactory,commandEvent,buildEventBus,clock);
+      }
+ catch (      WatchmanWatcherException|IOException e) {
+        buildEventBus.post(ConsoleEvent.warning("Watchman threw an exception while parsing file changes.\n%s",e.getMessage()));
+      }
+    }
+    if (parser == null) {
+      ParserConfig parserConfig=new ParserConfig(rootRepository.getBuckConfig());
+      PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(rootRepository.getBuckConfig(),new ExecutableFinder());
+      parser=Parser.createParser(repositoryFactory,pythonBuckConfig.getPythonInterpreter(),parserConfig.getAllowEmptyGlobs(),parserConfig.getEnforceBuckPackageBoundary(),parserConfig.getTempFilePatterns(),parserConfig.getBuildFileName(),parserConfig.getDefaultIncludes(),createRuleKeyBuilderFactory(fileHashCache));
+    }
+    JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootRepository.getFilesystem());
+    Optional<ProcessManager> processManager;
+    if (platform == Platform.WINDOWS) {
+      processManager=Optional.absent();
     }
  else {
-      return exitCode;
+      processManager=Optional.<ProcessManager>of(new PkillProcessManager(processExecutor));
+    }
+    BuckConfig buckConfig=rootRepository.getBuckConfig();
+    Supplier<AndroidPlatformTarget> androidPlatformTargetSupplier=createAndroidPlatformTargetSupplier(rootRepository.getAndroidDirectoryResolver(),buckConfig,buildEventBus);
+    if (command.subcommand instanceof AbstractCommand) {
+      AbstractCommand subcommand=(AbstractCommand)command.subcommand;
+      Optional<Path> eventsOutputPath=subcommand.getEventsOutputPath();
+      if (eventsOutputPath.isPresent()) {
+        BuckEventListener listener=new FileSerializationEventBusListener(eventsOutputPath.get());
+        buildEventBus.register(listener);
+      }
+    }
+    exitCode=command.run(new CommandRunnerParams(console,rootRepository,androidPlatformTargetSupplier,artifactCacheFactory,buildEventBus,parser,platform,clientEnvironment,rootRepository.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,clock,processManager,webServer,buckConfig));
+    parser.cleanCache();
+    buildEventBus.post(CommandEvent.finished(args.length > 0 ? args[0] : "",remainingArgs,isDaemon,exitCode));
+  }
+ catch (  Throwable t) {
+    LOG.debug(t,"Failing build on exception.");
+    closeCreatedArtifactCaches(artifactCacheFactory);
+    throw t;
+  }
+ finally {
+    if (commandSemaphoreAcquired) {
+      commandSemaphore.release();
+    }
+    for (    BuckEventListener eventListener : eventListeners) {
+      try {
+        eventListener.outputTrace(buildId);
+      }
+ catch (      RuntimeException e) {
+        PrintStream stdErr=console.getStdErr();
+        stdErr.println("Skipping over non-fatal error");
+        e.printStackTrace(stdErr);
+      }
     }
   }
+  if (isDaemon && !rootRepository.getBuckConfig().getFlushEventsBeforeExit()) {
+    context.get().in.close();
+    context.get().exit(exitCode);
+  }
+  closeCreatedArtifactCaches(artifactCacheFactory);
+  return exitCode;
 }

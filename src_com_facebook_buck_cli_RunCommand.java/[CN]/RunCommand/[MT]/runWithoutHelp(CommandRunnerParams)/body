@@ -1,0 +1,33 @@
+{
+  if (!hasTargetSpecified()) {
+    params.getConsole().printBuildFailure("No target given to run");
+    params.getConsole().getStdOut().println("buck run <target> <arg1> <arg2>...");
+    return 1;
+  }
+  BuildCommand buildCommand=new BuildCommand();
+  buildCommand.setArguments(ImmutableList.of(getTarget(params.getBuckConfig())));
+  int exitCode=buildCommand.runWithoutHelp(params);
+  if (exitCode != 0) {
+    return exitCode;
+  }
+  String targetName=getTarget(params.getBuckConfig());
+  BuildTarget target=Iterables.getOnlyElement(getBuildTargets(params,ImmutableSet.of(targetName)));
+  Build build=buildCommand.getBuild();
+  BuildRule targetRule=build.getActionGraph().findBuildRuleByTarget(target);
+  BinaryBuildRule binaryBuildRule=null;
+  if (targetRule instanceof BinaryBuildRule) {
+    binaryBuildRule=(BinaryBuildRule)targetRule;
+  }
+  if (binaryBuildRule == null) {
+    params.getConsole().printBuildFailure("target " + targetName + " is not a binary rule (only binary rules can be `run`)");
+    return 1;
+  }
+  ImmutableList<String> fullCommand=new ImmutableList.Builder<String>().addAll(binaryBuildRule.getExecutableCommand(params.getRepository().getFilesystem())).addAll(getTargetArguments()).build();
+  ShellStep step=new DefaultShellStep(fullCommand){
+    @Override protected boolean shouldFlushStdOutErrAsProgressIsMade(    Verbosity verbosity){
+      return true;
+    }
+  }
+;
+  return step.execute(build.getExecutionContext());
+}

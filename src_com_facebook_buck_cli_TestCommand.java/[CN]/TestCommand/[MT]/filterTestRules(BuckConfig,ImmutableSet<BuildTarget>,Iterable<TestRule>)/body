@@ -1,0 +1,22 @@
+{
+  ImmutableSortedSet.Builder<TestRule> builder=ImmutableSortedSet.orderedBy(new Comparator<TestRule>(){
+    @Override public int compare(    TestRule o1,    TestRule o2){
+      return o1.getBuildTarget().getFullyQualifiedName().compareTo(o2.getBuildTarget().getFullyQualifiedName());
+    }
+  }
+);
+  for (  TestRule rule : testRules) {
+    boolean explicitArgument=explicitBuildTargets.contains(rule.getBuildTarget());
+    boolean matchesLabel=isMatchedByLabelOptions(buckConfig,rule.getLabels());
+    if (shouldExcludeWin() && !matchesLabel) {
+      continue;
+    }
+    if (shouldExcludeTransitiveTests() && !explicitArgument) {
+      continue;
+    }
+    if (explicitArgument || matchesLabel) {
+      builder.add(rule);
+    }
+  }
+  return builder.build();
+}

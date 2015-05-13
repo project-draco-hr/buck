@@ -1,0 +1,32 @@
+{
+  if (getIde(params.getBuckConfig()) == ProjectCommand.Ide.XCODE) {
+    checkForAndKillXcodeIfRunning(params,getIdePrompt(params.getBuckConfig()));
+  }
+  ImmutableSet<BuildTarget> passedInTargetsSet=getBuildTargets(params,getArgumentsFormattedAsBuildTargets(params.getBuckConfig()));
+  ProjectGraphParser projectGraphParser=ProjectGraphParsers.createProjectGraphParser(params.getParser(),new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
+  TargetGraph projectGraph=projectGraphParser.buildTargetGraphForTargetNodeSpecs(getTargetNodeSpecsForIde(getIde(params.getBuckConfig()),passedInTargetsSet,params.getRepository().getFilesystem().getIgnorePaths()));
+  ProjectPredicates projectPredicates=ProjectPredicates.forIde(getIde(params.getBuckConfig()));
+  ImmutableSet<BuildTarget> graphRoots;
+  if (!passedInTargetsSet.isEmpty()) {
+    ImmutableSet<BuildTarget> supplementalGraphRoots=getRootBuildTargetsForIntelliJ(getIde(params.getBuckConfig()),projectGraph,projectPredicates);
+    graphRoots=Sets.union(passedInTargetsSet,supplementalGraphRoots).immutableCopy();
+  }
+ else {
+    graphRoots=getRootsFromPredicate(projectGraph,projectPredicates.getProjectRootsPredicate());
+  }
+  TargetGraphAndTargets targetGraphAndTargets=createTargetGraph(projectGraph,graphRoots,projectGraphParser,projectPredicates.getAssociatedProjectPredicate(),isWithTests(),getIde(params.getBuckConfig()),params.getRepository().getFilesystem().getIgnorePaths());
+  if (getDryRun()) {
+    for (    TargetNode<?> targetNode : targetGraphAndTargets.getTargetGraph().getNodes()) {
+      params.getConsole().getStdOut().println(targetNode.toString());
+    }
+    return 0;
+  }
+switch (getIde(params.getBuckConfig())) {
+case INTELLIJ:
+    return runIntellijProjectGenerator(params,projectGraph,targetGraphAndTargets,passedInTargetsSet);
+case XCODE:
+  return runXcodeProjectGenerator(params,targetGraphAndTargets,passedInTargetsSet);
+default :
+throw new IllegalStateException("'ide' should always be of type 'INTELLIJ' or 'XCODE'");
+}
+}

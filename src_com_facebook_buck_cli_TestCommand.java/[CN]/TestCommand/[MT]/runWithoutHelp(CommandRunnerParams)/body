@@ -1,0 +1,61 @@
+{
+  if (params.getParser().getParseStartTime().isPresent()) {
+    params.getBuckEventBus().post(BuildEvent.started(getArguments()),params.getParser().getParseStartTime().get());
+  }
+ else {
+    params.getBuckEventBus().post(BuildEvent.started(getArguments()));
+  }
+  ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
+  TargetGraph targetGraph;
+  ImmutableSet<BuildTarget> explicitBuildTargets;
+  try {
+    if (isRunAllTests()) {
+      targetGraph=params.getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(TargetNodePredicateSpec.of(new Predicate<TargetNode<?>>(){
+        @Override public boolean apply(        TargetNode<?> input){
+          return input.getType().isTestRule();
+        }
+      }
+,BuildFileSpec.fromRecursivePath(Paths.get(""),params.getRepository().getFilesystem().getIgnorePaths()))),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling()).getSecond();
+      explicitBuildTargets=ImmutableSet.of();
+    }
+ else {
+      Pair<ImmutableSet<BuildTarget>,TargetGraph> result=params.getParser().buildTargetGraphForTargetNodeSpecs(parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getRepository().getFilesystem().getIgnorePaths(),getArguments()),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
+      targetGraph=result.getSecond();
+      explicitBuildTargets=result.getFirst();
+    }
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  ActionGraph graph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer()).apply(targetGraph);
+  Iterable<TestRule> testRules=Iterables.filter(graph.getNodes(),TestRule.class);
+  if (!isBuildFiltered(params.getBuckConfig())) {
+    testRules=filterTestRules(params.getBuckConfig(),explicitBuildTargets,testRules);
+  }
+  if (isDryRun()) {
+    printMatchingTestRules(params.getConsole(),testRules);
+  }
+  ArtifactCache artifactCache=getArtifactCache(params);
+  try (CommandThreadManager pool=new CommandThreadManager("Test",getConcurrencyLimit(params.getBuckConfig()))){
+    CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),params.getBuckConfig().getSkipLocalBuildChainDepth().or(1L));
+    try (Build build=createBuild(params.getBuckConfig(),graph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),cachingBuildEngine,artifactCache,params.getConsole(),params.getBuckEventBus(),getTargetDeviceOptional(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
+      int exitCode=build.executeAndPrintFailuresToConsole(testRules,isKeepGoing(),params.getConsole(),getPathToBuildReport(params.getBuckConfig()));
+      params.getBuckEventBus().post(BuildEvent.finished(getArguments(),exitCode));
+      if (exitCode != 0) {
+        return exitCode;
+      }
+      if (isBuildFiltered(params.getBuckConfig())) {
+        testRules=filterTestRules(params.getBuckConfig(),explicitBuildTargets,testRules);
+      }
+      ConcurrencyLimit concurrencyLimit=new ConcurrencyLimit(getNumTestThreads(params.getBuckConfig()),getLoadLimit(params.getBuckConfig()));
+      try (CommandThreadManager testPool=new CommandThreadManager("Test-Run",concurrencyLimit)){
+        return runTests(params,testRules,Preconditions.checkNotNull(build.getBuildContext()),build.getExecutionContext(),testPool.getExecutor(),cachingBuildEngine);
+      }
+ catch (      ExecutionException e) {
+        params.getConsole().printBuildFailureWithoutStacktrace(e);
+        return 1;
+      }
+    }
+   }
+ }

@@ -1,0 +1,31 @@
+{
+  if (getArguments().isEmpty()) {
+    params.getConsole().printBuildFailure("Must specify at least one build target to fetch.");
+    return 1;
+  }
+  if (params.getParser().getParseStartTime().isPresent()) {
+    params.getBuckEventBus().post(BuildEvent.started(getArguments()),params.getParser().getParseStartTime().get());
+  }
+ else {
+    params.getBuckEventBus().post(BuildEvent.started(getArguments()));
+  }
+  FetchTargetNodeToBuildRuleTransformer ruleGenerator=createFetchTransformer(params);
+  TargetGraphToActionGraph transformer=new TargetGraphToActionGraph(params.getBuckEventBus(),ruleGenerator);
+  ActionGraph actionGraph;
+  ImmutableSet<BuildTarget> buildTargets;
+  try {
+    Pair<ImmutableSet<BuildTarget>,TargetGraph> result=params.getParser().buildTargetGraphForTargetNodeSpecs(parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getRepository().getFilesystem().getIgnorePaths(),getArguments()),new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
+    actionGraph=transformer.apply(result.getSecond());
+    buildTargets=ruleGenerator.getDownloadableTargets();
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  int exitCode;
+  try (CommandThreadManager pool=new CommandThreadManager("Fetch",getConcurrencyLimit(params.getBuckConfig()));Build build=createBuild(params.getBuckConfig(),actionGraph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),new CachingBuildEngine(pool.getExecutor(),params.getBuckConfig().getSkipLocalBuildChainDepth().or(1L)),getArtifactCache(params),params.getConsole(),params.getBuckEventBus(),Optional.<TargetDevice>absent(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
+    exitCode=build.executeAndPrintFailuresToConsole(buildTargets,isKeepGoing(),params.getConsole(),getPathToBuildReport(params.getBuckConfig()));
+  }
+   params.getBuckEventBus().post(BuildEvent.finished(getArguments(),exitCode));
+  return exitCode;
+}

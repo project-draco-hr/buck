@@ -1,0 +1,36 @@
+{
+  String prefix=getContainerCommandPrefix();
+  stream.println("buck build tool");
+  stream.println("usage:");
+  stream.println("  " + prefix + " [options]");
+  stream.println("  " + prefix + " command --help");
+  stream.println("  " + prefix + " command [command-options]");
+  stream.println("available commands:");
+  SubCommands subCommands;
+  try {
+    subCommands=this.getClass().getDeclaredField(getSubcommandsFieldName()).getAnnotation(SubCommands.class);
+  }
+ catch (  NoSuchFieldException e) {
+    throw Throwables.propagate(e);
+  }
+  int lengthOfLongestCommand=0;
+  for (  SubCommand subCommand : subCommands.value()) {
+    String name=subCommand.name();
+    if (name.length() > lengthOfLongestCommand) {
+      lengthOfLongestCommand=name.length();
+    }
+  }
+  for (  SubCommand subCommand : subCommands.value()) {
+    Command command;
+    try {
+      command=(Command)subCommand.impl().newInstance();
+    }
+ catch (    IllegalAccessException|InstantiationException e) {
+      throw Throwables.propagate(e);
+    }
+    String name=subCommand.name().toLowerCase();
+    stream.printf("  %s%s  %s\n",name,Strings.repeat(" ",lengthOfLongestCommand - name.length()),command.getShortDescription());
+  }
+  stream.println("options:");
+  new AdditionalOptionsCmdLineParser(this).printUsage(stream);
+}

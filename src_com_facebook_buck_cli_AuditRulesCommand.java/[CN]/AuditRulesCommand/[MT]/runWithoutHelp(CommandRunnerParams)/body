@@ -1,0 +1,36 @@
+{
+  ProjectFilesystem projectFilesystem=params.getRepository().getFilesystem();
+  ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
+  PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(params.getBuckConfig(),new ExecutableFinder());
+  ProjectBuildFileParserFactory factory=new DefaultProjectBuildFileParserFactory(projectFilesystem.getRootPath(),pythonBuckConfig.getPythonInterpreter(),parserConfig.getAllowEmptyGlobs(),parserConfig.getBuildFileName(),parserConfig.getDefaultIncludes(),params.getRepository().getAllDescriptions());
+  try (ProjectBuildFileParser parser=factory.createParser(params.getConsole(),params.getEnvironment(),params.getBuckEventBus())){
+    PrintStream out=params.getConsole().getStdOut();
+    for (    String pathToBuildFile : getArguments()) {
+      out.printf("# %s\n\n",pathToBuildFile);
+      Path path=Paths.get(pathToBuildFile);
+      if (!path.isAbsolute()) {
+        Path root=projectFilesystem.getRootPath();
+        path=root.resolve(path);
+      }
+      List<Map<String,Object>> rawRules;
+      try {
+        rawRules=parser.getAll(path);
+      }
+ catch (      BuildFileParseException e) {
+        throw new HumanReadableException(e);
+      }
+      final ImmutableSet<String> types=getTypes();
+      Predicate<String> includeType=new Predicate<String>(){
+        @Override public boolean apply(        String type){
+          return types.isEmpty() || types.contains(type);
+        }
+      }
+;
+      printRulesToStdout(params,rawRules,includeType);
+    }
+  }
+ catch (  BuildFileParseException e) {
+    throw new HumanReadableException("Unable to create parser");
+  }
+  return 0;
+}

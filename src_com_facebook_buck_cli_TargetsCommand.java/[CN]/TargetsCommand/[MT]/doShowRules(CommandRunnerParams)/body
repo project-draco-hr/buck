@@ -1,0 +1,48 @@
+{
+  if (getArguments().isEmpty()) {
+    params.getConsole().printBuildFailure("Must specify at least one build target.");
+    return 1;
+  }
+  ImmutableSet<BuildTarget> matchingBuildTargets;
+  TargetGraph targetGraph;
+  try {
+    Pair<ImmutableSet<BuildTarget>,TargetGraph> result=params.getParser().buildTargetGraphForTargetNodeSpecs(parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getRepository().getFilesystem().getIgnorePaths(),getArguments()),new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
+    matchingBuildTargets=result.getFirst();
+    targetGraph=result.getSecond();
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  if (isShowTargetHash()) {
+    return doShowTargetHash(params,matchingBuildTargets);
+  }
+ else {
+    Optional<ActionGraph> actionGraph;
+    if (isShowRuleKey() || isShowOutput()) {
+      TargetGraphTransformer<ActionGraph> targetGraphTransformer=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer());
+      actionGraph=Optional.of(targetGraphTransformer.apply(targetGraph));
+    }
+ else {
+      actionGraph=Optional.absent();
+    }
+    for (    BuildTarget target : ImmutableSortedSet.copyOf(matchingBuildTargets)) {
+      ImmutableList.Builder<String> builder=ImmutableList.builder();
+      builder.add(target.getFullyQualifiedName());
+      if (actionGraph.isPresent()) {
+        BuildRule rule=Preconditions.checkNotNull(actionGraph.get().findBuildRuleByTarget(target));
+        if (isShowRuleKey()) {
+          builder.add(rule.getRuleKey().toString());
+        }
+        if (isShowOutput()) {
+          Path outputPath=rule.getPathToOutputFile();
+          if (outputPath != null) {
+            builder.add(outputPath.toString());
+          }
+        }
+      }
+      params.getConsole().getStdOut().println(Joiner.on(' ').join(builder.build()));
+    }
+  }
+  return 0;
+}
