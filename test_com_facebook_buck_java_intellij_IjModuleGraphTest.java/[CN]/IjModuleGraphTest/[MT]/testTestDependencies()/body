@@ -1,0 +1,19 @@
+{
+  TargetNode<?> junitTargetNode=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//third-party/junit:junit")).build();
+  TargetNode<?> guavaTargetNode=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//third-party/guava:guava")).build();
+  TargetNode<?> hamcrestTargetNode=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//third-party/hamcrest:hamcrest")).build();
+  TargetNode<?> codeTargetNode=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/foo:foo")).addSrc(Paths.get("java/com/foo/src/Foo.java")).addDep(guavaTargetNode.getBuildTarget()).build();
+  TargetNode<?> inlineTestTargetNode=JavaTestBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/foo:test")).addDep(codeTargetNode.getBuildTarget()).addDep(junitTargetNode.getBuildTarget()).addSrc(Paths.get("java/com/foo/src/TestFoo.java")).build();
+  TargetNode<?> secondInlineTestTargetNode=JavaTestBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/foo:test2")).addDep(hamcrestTargetNode.getBuildTarget()).addSrc(Paths.get("java/com/foo/test/TestFoo.java")).build();
+  TargetNode<?> testTargetNode=JavaTestBuilder.createBuilder(BuildTargetFactory.newInstance("//javatest/com/foo:foo")).addDep(codeTargetNode.getBuildTarget()).addDep(junitTargetNode.getBuildTarget()).addSrc(Paths.get("javatest/com/foo/Foo.java")).build();
+  IjModuleGraph moduleGraph=createModuleGraph(ImmutableSet.<TargetNode<?>>of(guavaTargetNode,hamcrestTargetNode,junitTargetNode,codeTargetNode,inlineTestTargetNode,secondInlineTestTargetNode,testTargetNode));
+  IjModule guavaModule=getModuleForTarget(moduleGraph,guavaTargetNode);
+  IjModule hamcrestModule=getModuleForTarget(moduleGraph,hamcrestTargetNode);
+  IjModule junitModule=getModuleForTarget(moduleGraph,junitTargetNode);
+  IjModule codeModule=getModuleForTarget(moduleGraph,codeTargetNode);
+  IjModule testModule=getModuleForTarget(moduleGraph,testTargetNode);
+  assertEquals(ImmutableMap.of(),moduleGraph.getDependentModulesFor(junitModule));
+  assertEquals(ImmutableMap.of(),moduleGraph.getDependentModulesFor(guavaModule));
+  assertEquals(ImmutableMap.of(guavaModule,IjModuleGraph.DependencyType.PROD,junitModule,IjModuleGraph.DependencyType.PROD,hamcrestModule,IjModuleGraph.DependencyType.TEST),moduleGraph.getDependentModulesFor(codeModule));
+  assertEquals(ImmutableMap.of(codeModule,IjModuleGraph.DependencyType.TEST,junitModule,IjModuleGraph.DependencyType.TEST),moduleGraph.getDependentModulesFor(testModule));
+}

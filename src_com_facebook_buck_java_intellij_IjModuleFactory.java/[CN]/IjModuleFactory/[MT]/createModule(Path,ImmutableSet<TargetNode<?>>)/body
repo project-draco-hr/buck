@@ -1,6 +1,7 @@
 {
   Preconditions.checkArgument(!targetNodes.isEmpty());
-  ModuleBuildContext context=new ModuleBuildContext(moduleBasePath);
+  ImmutableSet<BuildTarget> moduleBuildTargets=FluentIterable.from(targetNodes).transform(HasBuildTarget.TO_TARGET).toSet();
+  ModuleBuildContext context=new ModuleBuildContext(moduleBuildTargets);
   for (  TargetNode<?> targetNode : targetNodes) {
     IjModuleRule<?> rule=moduleRuleIndex.get(targetNode.getType());
     if (rule == null) {
@@ -8,11 +9,5 @@
     }
     rule.apply((TargetNode)targetNode,context);
   }
-  Optional<IjModuleAndroidFacet> androidFacetOptional=context.androidFacetBuilder.transform(new Function<IjModuleAndroidFacet.Builder,IjModuleAndroidFacet>(){
-    @Override public IjModuleAndroidFacet apply(    IjModuleAndroidFacet.Builder input){
-      return input.build();
-    }
-  }
-);
-  return IjModule.builder().setModuleBasePath(moduleBasePath).setTargets(targetNodes).addAllLibraries(libraryFactory.getLibraries(targetNodes)).addAllFolders(context.getSourceFolders()).setAndroidFacet(androidFacetOptional).build();
+  return IjModule.builder().setModuleBasePath(moduleBasePath).setTargets(targetNodes).addAllFolders(context.getSourceFolders()).putAllDependencies(context.getDependencies()).setAndroidFacet(context.getAndroidFacet()).build();
 }

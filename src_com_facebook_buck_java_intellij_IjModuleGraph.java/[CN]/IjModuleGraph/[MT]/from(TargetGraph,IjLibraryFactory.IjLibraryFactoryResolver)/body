@@ -1,35 +1,37 @@
 {
-  final MutableDirectedGraph<IjModule> moduleGraph=new MutableDirectedGraph<>();
-  final ImmutableMap<BuildTarget,IjModule> rulesToModules=createModules(targetGraph,libraryFactoryResolver);
+  final IjLibraryFactory libraryFactory=IjLibraryFactory.create(targetGraph.getNodes(),libraryFactoryResolver);
+  final ImmutableMap<BuildTarget,IjModule> rulesToModules=createModules(targetGraph);
   final ExportedDepsClosureResolver exportedDepsClosureResolver=new ExportedDepsClosureResolver(targetGraph);
-  for (  IjModule module : rulesToModules.values()) {
-    moduleGraph.addNode(module);
-  }
-  AbstractBottomUpTraversal<TargetNode<?>,IjModuleGraph> bottomUpTraversal=new AbstractBottomUpTraversal<TargetNode<?>,IjModuleGraph>(targetGraph){
-    @Override public void visit(    TargetNode<?> node){
-      IjModule module=rulesToModules.get(node.getBuildTarget());
-      if (module == null) {
-        return;
-      }
-      ImmutableSet<BuildTarget> deps=FluentIterable.from(node.getDeps()).transformAndConcat(new Function<BuildTarget,Iterable<BuildTarget>>(){
-        @Override public Iterable<BuildTarget> apply(        BuildTarget input){
-          return exportedDepsClosureResolver.getExportedDepsClosure(input);
+  ImmutableMap.Builder<IjProjectElement,ImmutableMap<IjProjectElement,DependencyType>> depsBuilder=ImmutableMap.builder();
+  final Set<IjLibrary> referencedLibraries=new HashSet<>();
+  for (  IjModule module : FluentIterable.from(rulesToModules.values()).toSet()) {
+    Map<IjProjectElement,DependencyType> moduleDeps=new HashMap<>();
+    for (    Map.Entry<BuildTarget,DependencyType> entry : module.getDependencies().entrySet()) {
+      BuildTarget depBuildTarget=entry.getKey();
+      DependencyType depType=entry.getValue();
+      ImmutableSet<IjProjectElement> depElements=FluentIterable.from(exportedDepsClosureResolver.getExportedDepsClosure(depBuildTarget)).append(depBuildTarget).transform(new Function<BuildTarget,IjProjectElement>(){
+        @Nullable @Override public IjProjectElement apply(        BuildTarget depTarget){
+          IjModule depModule=rulesToModules.get(depTarget);
+          if (depModule != null) {
+            return depModule;
+          }
+          IjLibrary library=libraryFactory.getLibrary(depTarget).orNull();
+          if (library != null) {
+            referencedLibraries.add(library);
+          }
+          return library;
         }
       }
-).append(node.getDeps()).toSet();
-      for (      BuildTarget dep : deps) {
-        IjModule depModule=rulesToModules.get(dep);
-        if (depModule == null || depModule.equals(module)) {
-          continue;
-        }
-        moduleGraph.addEdge(module,depModule);
+).filter(Predicates.notNull()).toSet();
+      for (      IjProjectElement depElement : depElements) {
+        Preconditions.checkState(!depElement.equals(module));
+        DependencyType.putWithMerge(moduleDeps,depElement,depType);
       }
     }
-    @Override public IjModuleGraph getResult(){
-      return new IjModuleGraph(moduleGraph);
-    }
+    depsBuilder.put(module,ImmutableMap.copyOf(moduleDeps));
   }
-;
-  bottomUpTraversal.traverse();
-  return bottomUpTraversal.getResult();
+  for (  IjLibrary library : referencedLibraries) {
+    depsBuilder.put(library,ImmutableMap.<IjProjectElement,DependencyType>of());
+  }
+  return new IjModuleGraph(depsBuilder.build());
 }
