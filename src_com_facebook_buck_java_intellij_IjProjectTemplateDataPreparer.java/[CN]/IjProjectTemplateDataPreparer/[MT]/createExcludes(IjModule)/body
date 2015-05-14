@@ -1,0 +1,27 @@
+{
+  final ImmutableSet.Builder<IjFolder> excludesBuilder=ImmutableSet.builder();
+  final Path moduleBasePath=module.getModuleBasePath();
+  projectFilesystem.walkRelativeFileTree(moduleBasePath,new FileVisitor<Path>(){
+    @Override public FileVisitResult preVisitDirectory(    Path dir,    BasicFileAttributes attrs) throws IOException {
+      if (filesystemTraversalBoundaryPaths.contains(dir) && !moduleBasePath.equals(dir)) {
+        return FileVisitResult.SKIP_SUBTREE;
+      }
+      if (!referencedFolderPaths.contains(dir)) {
+        excludesBuilder.add(IjFolder.builder().setPath(dir).setType(AbstractIjFolder.Type.EXCLUDE_FOLDER).setWantsPackagePrefix(false).build());
+        return FileVisitResult.SKIP_SUBTREE;
+      }
+      return FileVisitResult.CONTINUE;
+    }
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs) throws IOException {
+      return FileVisitResult.CONTINUE;
+    }
+    @Override public FileVisitResult visitFileFailed(    Path file,    IOException exc) throws IOException {
+      return FileVisitResult.CONTINUE;
+    }
+    @Override public FileVisitResult postVisitDirectory(    Path dir,    IOException exc) throws IOException {
+      return FileVisitResult.CONTINUE;
+    }
+  }
+);
+  return excludesBuilder.build();
+}

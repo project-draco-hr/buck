@@ -1,0 +1,28 @@
+{
+  StringWriter stringWriter=new StringWriter();
+  AutoIndentWriter noIndentWriter=new AutoIndentWriter(stringWriter);
+  contents.write(noIndentWriter);
+  byte[] renderedContentsBytes=noIndentWriter.toString().getBytes(StandardCharsets.UTF_8);
+  if (projectFilesystem.exists(path)) {
+    String fileSha1=projectFilesystem.computeSha1(path);
+    String contentsSha1=Hashing.sha1().hashBytes(renderedContentsBytes).toString();
+    if (fileSha1.equals(contentsSha1)) {
+      return;
+    }
+  }
+  boolean danglingTempFile=false;
+  Path tempFile=projectFilesystem.createTempFile(projectFilesystem.getPathForRelativePath(IDEA_CONFIG_DIR_PREFIX),path.getFileName().toString(),".tmp");
+  try {
+    danglingTempFile=true;
+    try (OutputStream outputStream=projectFilesystem.newFileOutputStream(tempFile)){
+      outputStream.write(contents.render().getBytes());
+    }
+     projectFilesystem.move(tempFile,path,StandardCopyOption.REPLACE_EXISTING);
+    danglingTempFile=false;
+  }
+  finally {
+    if (danglingTempFile) {
+      projectFilesystem.deleteFileAtPath(tempFile);
+    }
+  }
+}

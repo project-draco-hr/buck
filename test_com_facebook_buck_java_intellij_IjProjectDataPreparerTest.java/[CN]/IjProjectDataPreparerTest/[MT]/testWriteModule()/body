@@ -1,0 +1,22 @@
+{
+  TargetNode<?> guavaTargetNode=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//third_party/guava:guava")).addSrc(Paths.get("third_party/guava/src/Collections.java")).build();
+  TargetNode<?> baseTargetNode=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/example/base:base")).addDep(guavaTargetNode.getBuildTarget()).addSrc(Paths.get("java/com/example/base/Base.java")).build();
+  IjModuleGraph moduleGraph=IjModuleGraphTest.createModuleGraph(ImmutableSet.of(guavaTargetNode,baseTargetNode));
+  IjModule baseModule=IjModuleGraphTest.getModuleForTarget(moduleGraph,baseTargetNode);
+  IjProjectTemplateDataPreparer writer=new IjProjectTemplateDataPreparer(javaPackageFinder,moduleGraph,filesystem);
+  ContentRoot contentRoot=writer.getContentRoot(baseModule);
+  assertEquals("file://$MODULE_DIR$/../../java/com/example/base",contentRoot.getUrl());
+  IjSourceFolder baseSourceFolder=contentRoot.getFolders().first();
+  assertEquals("sourceFolder",baseSourceFolder.getType());
+  assertFalse(baseSourceFolder.getIsTestSource());
+  assertEquals("com.example.base",baseSourceFolder.getPackagePrefix());
+  assertEquals("file://$MODULE_DIR$/../../java/com/example/base",baseSourceFolder.getUrl());
+  ImmutableSet<DependencyEntry> dependencyEntries=writer.getDependencies(baseModule);
+  assertEquals(1,dependencyEntries.size());
+  DependencyEntry baseDepdendencyOnGuava=dependencyEntries.asList().get(0);
+  assertEquals("third_party_guava",baseDepdendencyOnGuava.getName());
+  assertEquals(IjDependencyListBuilder.Type.MODULE,baseDepdendencyOnGuava.getType());
+  assertTrue(baseDepdendencyOnGuava.getIsModule());
+  assertFalse(baseDepdendencyOnGuava.isExported());
+  assertEquals(IjDependencyListBuilder.Scope.COMPILE,baseDepdendencyOnGuava.getScope());
+}
