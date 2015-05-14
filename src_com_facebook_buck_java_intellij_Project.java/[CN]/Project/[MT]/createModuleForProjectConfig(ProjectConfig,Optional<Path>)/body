@@ -1,9 +1,9 @@
 {
   BuildRule projectRule=Preconditions.checkNotNull(projectConfig.getProjectRule());
   Preconditions.checkState(projectRule instanceof AndroidBinary || projectRule instanceof AndroidLibrary || projectRule instanceof AndroidResource|| projectRule instanceof JavaBinary|| projectRule instanceof JavaLibrary|| projectRule instanceof CxxLibrary|| projectRule instanceof NdkLibrary,"project_config() does not know how to process a src_target of type %s.",projectRule.getType().getName());
-  LinkedHashSet<DependentModule> dependencies=Sets.newLinkedHashSet();
+  LinkedHashSet<SerializableDependentModule> dependencies=Sets.newLinkedHashSet();
   final BuildTarget target=projectConfig.getBuildTarget();
-  Module module=new Module(projectRule,target);
+  SerializableModule module=new SerializableModule(projectRule,target);
   module.name=getIntellijNameForRule(projectRule);
   module.isIntelliJPlugin=projectConfig.getIsIntelliJPlugin();
   Path relativePath=projectConfig.getBuildTarget().getBasePath();
@@ -33,7 +33,7 @@
   if (turnOffAutoSourceGeneration && rJava.isPresent()) {
     module.moduleRJavaPath=basePath.relativize(Paths.get("")).resolve(rJava.get());
   }
-  DependentModule jdkDependency;
+  SerializableDependentModule jdkDependency;
   if (isAndroidRule) {
     if (projectRule instanceof NdkLibrary) {
       NdkLibrary ndkLibrary=(NdkLibrary)projectRule;
@@ -69,15 +69,15 @@
     module.hasAndroidFacet=true;
     module.proguardConfigPath=null;
     module.androidManifest=resolveAndroidManifestRelativePath(basePath);
-    jdkDependency=DependentModule.newInheritedJdk();
+    jdkDependency=SerializableDependentModule.newInheritedJdk();
   }
  else {
     module.hasAndroidFacet=false;
     if (module.isIntelliJPlugin()) {
-      jdkDependency=DependentModule.newIntelliJPluginJdk();
+      jdkDependency=SerializableDependentModule.newIntelliJPluginJdk();
     }
  else {
-      jdkDependency=DependentModule.newStandardJdk();
+      jdkDependency=SerializableDependentModule.newStandardJdk();
     }
   }
   module.setModuleDependencies(createDependenciesInOrder(includeSourceFolder,dependencies,jdkDependency));

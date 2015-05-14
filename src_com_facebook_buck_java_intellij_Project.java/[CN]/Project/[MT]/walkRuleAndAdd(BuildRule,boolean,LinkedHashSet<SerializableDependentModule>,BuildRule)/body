@@ -1,0 +1,70 @@
+{
+  final Path basePathForRule=rule.getBuildTarget().getBasePath();
+  new AbstractBreadthFirstTraversal<BuildRule>(rule.getDeps()){
+    private final LinkedHashSet<SerializableDependentModule> librariesToAdd=Sets.newLinkedHashSet();
+    private final LinkedHashSet<SerializableDependentModule> modulesToAdd=Sets.newLinkedHashSet();
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule dep){
+      ImmutableSet<BuildRule> depsToVisit;
+      if (rule.getProperties().is(PACKAGING) || dep instanceof AndroidResource || dep == rule) {
+        depsToVisit=dep.getDeps();
+      }
+ else       if (dep.getProperties().is(LIBRARY) && dep instanceof ExportDependencies) {
+        depsToVisit=((ExportDependencies)dep).getExportedDeps();
+      }
+ else {
+        depsToVisit=ImmutableSet.of();
+      }
+      if (isForTests && depsToVisit.isEmpty() && dep.getBuildTarget().getBasePath().equals(basePathForRule)&& !dep.equals(srcTarget)) {
+        depsToVisit=dep.getDeps();
+      }
+      SerializableDependentModule dependentModule;
+      if (androidAars.contains(dep)) {
+        AndroidPrebuiltAar aar=androidAars.getParentAar(dep);
+        dependentModule=SerializableDependentModule.newLibrary(aar.getBuildTarget(),getIntellijNameForAar(aar));
+      }
+ else       if (dep instanceof PrebuiltJar) {
+        libraryJars.add(dep);
+        String libraryName=getIntellijNameForRule(dep);
+        dependentModule=SerializableDependentModule.newLibrary(dep.getBuildTarget(),libraryName);
+      }
+ else       if (dep instanceof AndroidPrebuiltAar) {
+        androidAars.add((AndroidPrebuiltAar)dep);
+        String libraryName=getIntellijNameForAar(dep);
+        dependentModule=SerializableDependentModule.newLibrary(dep.getBuildTarget(),libraryName);
+      }
+ else       if ((dep instanceof CxxLibrary) || (dep instanceof NdkLibrary) || (dep instanceof JavaLibrary)|| (dep instanceof AndroidResource)) {
+        String moduleName=getIntellijNameForRule(dep);
+        dependentModule=SerializableDependentModule.newModule(dep.getBuildTarget(),moduleName);
+      }
+ else {
+        return depsToVisit;
+      }
+      if (librariesToAdd.contains(dependentModule) || modulesToAdd.contains(dependentModule)) {
+        return depsToVisit;
+      }
+      if (isForTests) {
+        dependentModule.scope="TEST";
+      }
+ else {
+        String currentScope=dependentModule.scope;
+        dependentModule.scope="TEST";
+        if (dependencies.contains(dependentModule)) {
+          dependencies.remove(dependentModule);
+        }
+        dependentModule.scope=currentScope;
+      }
+      if (dependentModule.isLibrary()) {
+        librariesToAdd.add(dependentModule);
+      }
+ else {
+        modulesToAdd.add(dependentModule);
+      }
+      return depsToVisit;
+    }
+    @Override protected void onComplete(){
+      dependencies.addAll(librariesToAdd);
+      dependencies.addAll(modulesToAdd);
+    }
+  }
+.start();
+}
