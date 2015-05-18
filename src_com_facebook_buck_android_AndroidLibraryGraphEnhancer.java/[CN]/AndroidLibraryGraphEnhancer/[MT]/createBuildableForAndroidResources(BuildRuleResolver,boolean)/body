@@ -14,12 +14,14 @@ throw new IllegalStateException("Invalid resource dependency mode: " + resourceD
 if (androidResourceDeps.isEmpty() && !createBuildableIfEmptyDeps) {
 return Optional.absent();
 }
+SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
 ImmutableSortedSet.Builder<BuildRule> actualDeps=ImmutableSortedSet.naturalOrder();
 for (HasAndroidResourceDeps dep : androidResourceDeps) {
 actualDeps.add(ruleResolver.getRule(dep.getBuildTarget()));
 }
+actualDeps.addAll(pathResolver.filterBuildRuleInputs(javacOptions.getInputs()));
 BuildRuleParams dummyRDotJavaParams=originalBuildRuleParams.copyWithChanges(BuildRuleType.DUMMY_R_DOT_JAVA,dummyRDotJavaBuildTarget,Suppliers.ofInstance(actualDeps.build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
-DummyRDotJava dummyRDotJava=new DummyRDotJava(dummyRDotJavaParams,new SourcePathResolver(ruleResolver),androidResourceDeps,javacOptions);
+DummyRDotJava dummyRDotJava=new DummyRDotJava(dummyRDotJavaParams,pathResolver,androidResourceDeps,javacOptions);
 ruleResolver.addToIndex(dummyRDotJava);
 return Optional.of(dummyRDotJava);
 }
