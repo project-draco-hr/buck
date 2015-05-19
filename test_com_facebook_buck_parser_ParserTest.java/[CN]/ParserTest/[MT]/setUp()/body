@@ -1,21 +1,20 @@
 {
   tempDir.newFolder("java","com","facebook");
-  defaultIncludeFile=tempDir.newFile("java/com/facebook/defaultIncludeFile").toPath();
+  defaultIncludeFile=tempDir.newFile("java/com/facebook/defaultIncludeFile").toPath().toRealPath();
   Files.write("\n",defaultIncludeFile.toFile(),Charsets.UTF_8);
-  includedByIncludeFile=tempDir.newFile("java/com/facebook/includedByIncludeFile").toPath();
+  includedByIncludeFile=tempDir.newFile("java/com/facebook/includedByIncludeFile").toPath().toRealPath();
   Files.write("\n",includedByIncludeFile.toFile(),Charsets.UTF_8);
-  includedByBuildFile=tempDir.newFile("java/com/facebook/includedByBuildFile").toPath();
+  includedByBuildFile=tempDir.newFile("java/com/facebook/includedByBuildFile").toPath().toRealPath();
   Files.write("include_defs('//java/com/facebook/includedByIncludeFile')\n",includedByBuildFile.toFile(),Charsets.UTF_8);
-  testBuildFile=tempDir.newFile("java/com/facebook/BUCK").toPath();
+  testBuildFile=tempDir.newFile("java/com/facebook/BUCK").toPath().toRealPath();
   Files.write("include_defs('//java/com/facebook/includedByBuildFile')\n" + "java_library(name = 'foo')\n" + "java_library(name = 'bar')\n"+ "genrule(name = 'baz', out = '')\n",testBuildFile.toFile(),Charsets.UTF_8);
   tempDir.newFile("bar.py");
   File root=tempDir.getRoot();
-  repositoryFactory=new FakeRepositoryFactory(root.toPath());
-  Repository repository=repositoryFactory.getRootRepository();
-  filesystem=repository.getFilesystem();
+  filesystem=new ProjectFilesystem(root.toPath().toRealPath());
+  BuckConfig config=new FakeBuckConfig();
+  repository=new TestRepositoryBuilder().setFilesystem(filesystem).setBuckConfig(config).build();
   eventBus=BuckEventBusFactory.newInstance();
   buildRuleTypes=repository.getKnownBuildRuleTypes();
-  BuckConfig config=new FakeBuckConfig();
   ParserConfig parserConfig=new ParserConfig(config);
   PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(config,new ExecutableFinder());
   DefaultProjectBuildFileParserFactory testBuildFileParserFactory=new DefaultProjectBuildFileParserFactory(filesystem.getRootPath(),pythonBuckConfig.getPythonInterpreter(),parserConfig.getAllowEmptyGlobs(),parserConfig.getBuildFileName(),parserConfig.getDefaultIncludes(),buildRuleTypes.getAllDescriptions());
