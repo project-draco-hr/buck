@@ -33,7 +33,7 @@
     enhancedDeps.add(packageStringAssets.get());
   }
   if (packageableCollection.getResourceDetails().hasResources()) {
-    collector.addClasspathEntry(aaptPackageResources,aaptPackageResources.getPathToCompiledRDotJavaFiles());
+    collector.addClasspathEntry(aaptPackageResources,new BuildTargetSourcePath(aaptPackageResources.getProjectFilesystem(),aaptPackageResources.getBuildTarget(),aaptPackageResources.getPathToCompiledRDotJavaFiles()));
   }
   ImmutableList<DexProducedFromJavaLibrary> preDexBuildConfigs;
   ImmutableList<Path> buildConfigJarFiles;
@@ -57,6 +57,7 @@
  else {
     enhancedDeps.addAll(getTargetsAsRules(packageableCollection.getJavaLibrariesToDex()));
   }
+  enhancedDeps.addAll(pathResolver.filterBuildRuleInputs(packageableCollection.getPathsToThirdPartyJars()));
   ImmutableMap.Builder<Pair<TargetCpuType,String>,SourcePath> nativeLinkableLibsBuilder=ImmutableMap.builder();
   ImmutableSet<TargetCpuType> filters=cpuFilters.isEmpty() ? nativePlatforms.keySet() : cpuFilters;
   for (  TargetCpuType targetCpuType : filters) {
@@ -87,5 +88,5 @@
     ruleResolver.addToIndex(computeExopackageDepsAbi.get());
     enhancedDeps.add(computeExopackageDepsAbi.get());
   }
-  return AndroidGraphEnhancementResult.builder().setPackageableCollection(packageableCollection).setAaptPackageResources(aaptPackageResources).setCopyNativeLibraries(copyNativeLibraries).setPackageStringAssets(packageStringAssets).setPreDexMerge(preDexMerge).setComputeExopackageDepsAbi(computeExopackageDepsAbi).setClasspathEntriesToDex(ImmutableSet.<Path>builder().addAll(packageableCollection.getClasspathEntriesToDex()).addAll(buildConfigJarFiles).build()).setFinalDeps(enhancedDeps.build()).build();
+  return AndroidGraphEnhancementResult.builder().setPackageableCollection(packageableCollection).setAaptPackageResources(aaptPackageResources).setCopyNativeLibraries(copyNativeLibraries).setPackageStringAssets(packageStringAssets).setPreDexMerge(preDexMerge).setComputeExopackageDepsAbi(computeExopackageDepsAbi).setClasspathEntriesToDex(ImmutableSet.<Path>builder().addAll(pathResolver.getAllPaths(packageableCollection.getClasspathEntriesToDex())).addAll(buildConfigJarFiles).build()).setFinalDeps(enhancedDeps.build()).build();
 }
