@@ -1,13 +1,14 @@
 {
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
   AndroidBinaryTest.createAndroidLibraryRule("//java/src/com/facebook/base:libraryOne",ruleResolver,null,null,null);
   AndroidBinaryTest.createAndroidLibraryRule("//java/src/com/facebook/base:libraryTwo",ruleResolver,null,"java/src/com/facebook/base/assets2",null);
   ResourcesFilter resourcesFilter=EasyMock.createMock(ResourcesFilter.class);
   EasyMock.replay(resourcesFilter);
   AndroidResource resourceOne=(AndroidResource)ruleResolver.getRule(BuildTargetFactory.newInstance("//java/src/com/facebook/base:libraryTwo_resources"));
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTarget.builder("//java/src/com/facebook/base","apk").addFlavors(ImmutableFlavor.of("aapt_package")).build()).build();
-  AaptPackageResources aaptPackageResources=new AaptPackageResources(params,new SourcePathResolver(ruleResolver),new TestSourcePath("java/src/com/facebook/base/AndroidManifest.xml"),resourcesFilter,ImmutableList.<HasAndroidResourceDeps>of(),ImmutableSet.<Path>of(),PackageType.DEBUG,DEFAULT_JAVAC_OPTIONS,false,false,false,false);
-  Set<Path> assetsDirectories=ImmutableSet.of(resourceOne.getAssets());
+  AaptPackageResources aaptPackageResources=new AaptPackageResources(params,new SourcePathResolver(ruleResolver),new TestSourcePath("java/src/com/facebook/base/AndroidManifest.xml"),resourcesFilter,ImmutableList.<HasAndroidResourceDeps>of(),ImmutableSet.<SourcePath>of(),PackageType.DEBUG,DEFAULT_JAVAC_OPTIONS,false,false,false,false);
+  Set<SourcePath> assetsDirectories=ImmutableSet.of(resourceOne.getAssets());
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   filesystem.touch(Paths.get("java/src/com/facebook/base/assets2/fonts/Theinhardt-Medium.otf"));
@@ -20,7 +21,7 @@
   filesystem.touch(Paths.get("facebook/base/assets2/fonts/thumbs.db"));
   filesystem.touch(Paths.get("facebook/base/assets2/fonts/picasa.ini"));
   filesystem.touch(Paths.get("facebook/base/assets2/fonts/something~"));
-  Optional<Path> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(assetsDirectories,commands,filesystem);
+  Optional<Path> allAssetsDirectory=aaptPackageResources.createAllAssetsDirectory(ImmutableSet.copyOf(pathResolver.getAllPaths(assetsDirectories)),commands,filesystem);
   EasyMock.verify(resourcesFilter);
   assertTrue(allAssetsDirectory.isPresent());
   assertEquals("Even though there is only one assets directory, the one in " + SCRATCH_DIR + " should be used.",aaptPackageResources.getPathToAllAssetsDirectory(),allAssetsDirectory.get());
