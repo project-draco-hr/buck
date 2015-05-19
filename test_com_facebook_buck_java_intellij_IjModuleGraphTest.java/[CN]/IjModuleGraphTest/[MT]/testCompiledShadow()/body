@@ -1,0 +1,10 @@
+{
+  TargetNode<?> productGenruleTarget=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//java/src/com/facebook/product:genrule")).build();
+  TargetNode<?> libraryJavaTarget=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/src/com/facebook/library:library")).build();
+  TargetNode<?> productTarget=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/src/com/facebook/product:product")).addSrc(Paths.get("java/src/com/facebook/File.java")).addSrcTarget(productGenruleTarget.getBuildTarget()).addDep(libraryJavaTarget.getBuildTarget()).build();
+  IjModuleGraph moduleGraph=createModuleGraph(ImmutableSet.of(productGenruleTarget,libraryJavaTarget,productTarget),ImmutableMap.<TargetNode<?>,Path>of(productTarget,Paths.get("buck-out/product.jar")));
+  IjModule libraryModule=getModuleForTarget(moduleGraph,libraryJavaTarget);
+  IjModule productModule=getModuleForTarget(moduleGraph,productTarget);
+  IjLibrary productLibrary=getLibraryForTarget(moduleGraph,productTarget);
+  assertEquals(ImmutableMap.of(libraryModule,IjModuleGraph.DependencyType.PROD,productLibrary,IjModuleGraph.DependencyType.COMPILED_SHADOW),moduleGraph.getDepsFor(productModule));
+}

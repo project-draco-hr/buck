@@ -1,11 +1,25 @@
 {
-  IjLibraryFactory.IjLibraryFactoryResolver libraryFactoryResolver=new IjLibraryFactory.IjLibraryFactoryResolver(){
+  IjLibraryFactory libraryFactory=new DefaultIjLibraryFactory(new DefaultIjLibraryFactory.IjLibraryFactoryResolver(){
     @Override public Path getPath(    SourcePath path){
-      return resolver.getPath(path);
+      Optional<BuildRule> rule=sourcePathResolver.getRule(path);
+      if (rule.isPresent()) {
+        requiredBuildTargets.add(rule.get().getBuildTarget());
+      }
+      return sourcePathResolver.getPath(path);
+    }
+    @Override public Optional<Path> getPathIfJavaLibrary(    TargetNode<?> targetNode){
+      BuildRule rule=buildRuleResolver.getRule(targetNode.getBuildTarget());
+      if (!(rule instanceof JavaLibrary)) {
+        return Optional.absent();
+      }
+      requiredBuildTargets.add(rule.getBuildTarget());
+      return Optional.fromNullable(rule.getPathToOutputFile());
     }
   }
-;
-  IjModuleGraph moduleGraph=IjModuleGraph.from(targetGraphAndTargets.getTargetGraph(),libraryFactoryResolver);
+);
+  IjModuleFactory moduleFactory=new IjModuleFactory();
+  IjModuleGraph moduleGraph=IjModuleGraph.from(targetGraphAndTargets.getTargetGraph(),libraryFactory,moduleFactory);
   IjProjectWriter writer=new IjProjectWriter(javaPackageFinder,moduleGraph,projectFilesystem);
   writer.write();
+  return ImmutableSet.copyOf(requiredBuildTargets);
 }

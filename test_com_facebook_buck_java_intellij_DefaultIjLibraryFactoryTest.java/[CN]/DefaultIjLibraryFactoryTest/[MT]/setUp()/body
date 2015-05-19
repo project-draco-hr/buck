@@ -1,0 +1,25 @@
+{
+  sourcePathResolver=new SourcePathResolver(new BuildRuleResolver());
+  guavaJarPath=Paths.get("third_party/java/guava.jar");
+  guava=PrebuiltJarBuilder.createBuilder(BuildTargetFactory.newInstance("//third_party/java/guava:guava")).setBinaryJar(guavaJarPath).build();
+  androidSupportBinaryPath=Paths.get("third_party/java/support/support.aar");
+  androidSupport=AndroidPrebuiltAarBuilder.createBuilder(BuildTargetFactory.newInstance("//third_party/java/support:support")).setBinaryAar(androidSupportBinaryPath).build();
+  base=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/example/base:base")).addDep(guava.getBuildTarget()).build();
+  baseOutputPath=Paths.get("buck-out/base.jar");
+  libraryFactoryResolver=new DefaultIjLibraryFactory.IjLibraryFactoryResolver(){
+    @Override public Path getPath(    SourcePath path){
+      return sourcePathResolver.getPath(path);
+    }
+    @Override public Optional<Path> getPathIfJavaLibrary(    TargetNode<?> targetNode){
+      if (targetNode.equals(base)) {
+        return Optional.of(baseOutputPath);
+      }
+      return Optional.absent();
+    }
+  }
+;
+  factory=new DefaultIjLibraryFactory(libraryFactoryResolver);
+  guavaLibrary=factory.getLibrary(guava).get();
+  androidSupportLibrary=factory.getLibrary(androidSupport).get();
+  baseLibrary=factory.getLibrary(base).get();
+}
