@@ -1,4 +1,13 @@
 {
+  Optional<BuildRule> previouslyCreated=ruleResolver.getRuleOptional(dummyRDotJavaBuildTarget);
+  if (previouslyCreated.isPresent()) {
+    return previouslyCreated.transform(new Function<BuildRule,DummyRDotJava>(){
+      @Override public DummyRDotJava apply(      BuildRule input){
+        return (DummyRDotJava)input;
+      }
+    }
+);
+  }
   ImmutableSortedSet<BuildRule> originalDeps=originalBuildRuleParams.getDeps();
   ImmutableSet<HasAndroidResourceDeps> androidResourceDeps;
 switch (resourceDependencyMode) {
@@ -17,7 +26,7 @@ return Optional.absent();
 SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
 ImmutableSortedSet.Builder<BuildRule> actualDeps=ImmutableSortedSet.naturalOrder();
 for (HasAndroidResourceDeps dep : androidResourceDeps) {
-actualDeps.add(ruleResolver.getRule(dep.getBuildTarget()));
+actualDeps.add(Preconditions.checkNotNull(ruleResolver.getRule(dep.getBuildTarget())));
 }
 actualDeps.addAll(pathResolver.filterBuildRuleInputs(javacOptions.getInputs()));
 BuildRuleParams dummyRDotJavaParams=originalBuildRuleParams.copyWithChanges(BuildRuleType.DUMMY_R_DOT_JAVA,dummyRDotJavaBuildTarget,Suppliers.ofInstance(actualDeps.build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));

@@ -1,0 +1,18 @@
+{
+  final Path rDotJavaClassPath=Paths.get("buck-out/product/rdotjava_classpath");
+  final TargetNode<?> productTarget=AndroidLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/src/com/facebook/product:product")).addSrc(Paths.get("java/src/com/facebook/File.java")).build();
+  IjModuleGraph moduleGraph=createModuleGraph(ImmutableSet.<TargetNode<?>>of(productTarget),ImmutableMap.<TargetNode<?>,Path>of(productTarget,Paths.get("buck-out/product.jar")),new Function<TargetNode<?>,Optional<Path>>(){
+    @Override public Optional<Path> apply(    TargetNode<?> input){
+      if (input == productTarget) {
+        return Optional.of(rDotJavaClassPath);
+      }
+      return Optional.absent();
+    }
+  }
+);
+  IjModule productModule=getModuleForTarget(moduleGraph,productTarget);
+  IjLibrary rDotJavaLibrary=FluentIterable.from(moduleGraph.getNodes()).filter(IjLibrary.class).first().get();
+  assertEquals(ImmutableSet.of(rDotJavaClassPath),productModule.getExtraClassPathDependencies());
+  assertEquals(ImmutableSet.of(rDotJavaClassPath),rDotJavaLibrary.getClassPaths());
+  assertEquals(moduleGraph.getDependentLibrariesFor(productModule),ImmutableMap.of(rDotJavaLibrary,IjModuleGraph.DependencyType.PROD));
+}

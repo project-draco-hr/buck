@@ -1,4 +1,5 @@
 {
+  final ImmutableSet.Builder<BuildTarget> requiredBuildTargets=ImmutableSet.builder();
   IjLibraryFactory libraryFactory=new DefaultIjLibraryFactory(new DefaultIjLibraryFactory.IjLibraryFactoryResolver(){
     @Override public Path getPath(    SourcePath path){
       Optional<BuildRule> rule=sourcePathResolver.getRule(path);
@@ -17,9 +18,20 @@
     }
   }
 );
-  IjModuleFactory moduleFactory=new IjModuleFactory();
+  IjModuleFactory moduleFactory=new IjModuleFactory(new Function<TargetNode<?>,Optional<Path>>(){
+    @Override public Optional<Path> apply(    TargetNode<?> targetNode){
+      BuildTarget dummyRDotJavaTarget=AndroidLibraryGraphEnhancer.getDummyRDotJavaTarget(targetNode.getBuildTarget());
+      Optional<BuildRule> dummyRDotJavaRule=buildRuleResolver.getRuleOptional(dummyRDotJavaTarget);
+      if (dummyRDotJavaRule.isPresent()) {
+        requiredBuildTargets.add(dummyRDotJavaTarget);
+        return Optional.of(DummyRDotJava.getRDotJavaBinFolder(dummyRDotJavaTarget));
+      }
+      return Optional.absent();
+    }
+  }
+);
   IjModuleGraph moduleGraph=IjModuleGraph.from(targetGraphAndTargets.getTargetGraph(),libraryFactory,moduleFactory);
   IjProjectWriter writer=new IjProjectWriter(javaPackageFinder,moduleGraph,projectFilesystem);
   writer.write();
-  return ImmutableSet.copyOf(requiredBuildTargets);
+  return requiredBuildTargets.build();
 }
