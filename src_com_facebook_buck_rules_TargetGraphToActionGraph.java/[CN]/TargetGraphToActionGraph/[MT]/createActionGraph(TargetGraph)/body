@@ -1,12 +1,14 @@
 {
   eventBus.post(ActionGraphEvent.started());
   final BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
   final MutableDirectedGraph<BuildRule> actionGraph=new MutableDirectedGraph<>();
+  final RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,pathResolver);
   AbstractBottomUpTraversal<TargetNode<?>,ActionGraph> bottomUpTraversal=new AbstractBottomUpTraversal<TargetNode<?>,ActionGraph>(targetGraph){
     @Override public void visit(    TargetNode<?> node){
       BuildRule rule;
       try {
-        rule=buildRuleGenerator.transform(targetGraph,ruleResolver,node);
+        rule=buildRuleGenerator.transform(targetGraph,ruleResolver,node,ruleKeyBuilderFactory);
       }
  catch (      NoSuchBuildTargetException e) {
         throw new HumanReadableException(e);

@@ -1,25 +1,25 @@
 {
   SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
   BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
-  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(FakeFileHashCache.createFromStrings(ImmutableMap.of("blah/something.thrift",Strings.repeat("e",40),"different",Strings.repeat("c",40),"something.thrift",Strings.repeat("d",40),"thrift",Strings.repeat("a",40),"test.thrift",Strings.repeat("b",40))));
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(FakeFileHashCache.createFromStrings(ImmutableMap.of("blah/something.thrift",Strings.repeat("e",40),"different",Strings.repeat("c",40),"something.thrift",Strings.repeat("d",40),"thrift",Strings.repeat("a",40),"test.thrift",Strings.repeat("b",40))),resolver);
   BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(target);
-  RuleKeyPair defaultRuleKey=generateRuleKey(ruleKeyBuilderFactory,resolver,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
-  RuleKeyPair compilerChange=generateRuleKey(ruleKeyBuilderFactory,resolver,new ThriftCompiler(params,resolver,new TestSourcePath("different"),DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
+  RuleKeyPair defaultRuleKey=generateRuleKey(ruleKeyBuilderFactory,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
+  RuleKeyPair compilerChange=generateRuleKey(ruleKeyBuilderFactory,new ThriftCompiler(params,resolver,new TestSourcePath("different"),DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
   assertNotEquals(defaultRuleKey.getTotalRuleKey(),compilerChange.getTotalRuleKey());
-  RuleKeyPair flagsChange=generateRuleKey(ruleKeyBuilderFactory,resolver,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,ImmutableList.of("--different"),DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
+  RuleKeyPair flagsChange=generateRuleKey(ruleKeyBuilderFactory,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,ImmutableList.of("--different"),DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
   assertNotEquals(defaultRuleKey.getTotalRuleKey(),flagsChange.getTotalRuleKey());
-  RuleKeyPair outputDirChange=generateRuleKey(ruleKeyBuilderFactory,resolver,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,Paths.get("different-dir"),DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
+  RuleKeyPair outputDirChange=generateRuleKey(ruleKeyBuilderFactory,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,Paths.get("different-dir"),DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
   assertNotEquals(defaultRuleKey.getTotalRuleKey(),outputDirChange.getTotalRuleKey());
-  RuleKeyPair inputChange=generateRuleKey(ruleKeyBuilderFactory,resolver,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,new TestSourcePath("different"),DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
+  RuleKeyPair inputChange=generateRuleKey(ruleKeyBuilderFactory,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,new TestSourcePath("different"),DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
   assertNotEquals(defaultRuleKey.getTotalRuleKey(),inputChange.getTotalRuleKey());
-  RuleKeyPair languageChange=generateRuleKey(ruleKeyBuilderFactory,resolver,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,"different",DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
+  RuleKeyPair languageChange=generateRuleKey(ruleKeyBuilderFactory,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,"different",DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
   assertNotEquals(defaultRuleKey.getTotalRuleKey(),languageChange.getTotalRuleKey());
-  RuleKeyPair optionsChange=generateRuleKey(ruleKeyBuilderFactory,resolver,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,ImmutableSet.of("different"),DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
+  RuleKeyPair optionsChange=generateRuleKey(ruleKeyBuilderFactory,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,ImmutableSet.of("different"),DEFAULT_INCLUDE_ROOTS,DEFAULT_INCLUDES));
   assertNotEquals(defaultRuleKey.getTotalRuleKey(),optionsChange.getTotalRuleKey());
-  RuleKeyPair includeRootsChange=generateRuleKey(ruleKeyBuilderFactory,resolver,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,ImmutableList.of(Paths.get("different")),DEFAULT_INCLUDES));
+  RuleKeyPair includeRootsChange=generateRuleKey(ruleKeyBuilderFactory,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,ImmutableList.of(Paths.get("different")),DEFAULT_INCLUDES));
   assertEquals(defaultRuleKey.getTotalRuleKey(),includeRootsChange.getTotalRuleKey());
-  RuleKeyPair includesKeyChange=generateRuleKey(ruleKeyBuilderFactory,resolver,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,ImmutableMap.<Path,SourcePath>of(DEFAULT_INCLUDES.entrySet().iterator().next().getKey(),new TestSourcePath("different"))));
+  RuleKeyPair includesKeyChange=generateRuleKey(ruleKeyBuilderFactory,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,ImmutableMap.<Path,SourcePath>of(DEFAULT_INCLUDES.entrySet().iterator().next().getKey(),new TestSourcePath("different"))));
   assertNotEquals(defaultRuleKey.getTotalRuleKey(),includesKeyChange.getTotalRuleKey());
-  RuleKeyPair includesValueChange=generateRuleKey(ruleKeyBuilderFactory,resolver,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,ImmutableMap.of(Paths.get("different"),DEFAULT_INCLUDES.entrySet().iterator().next().getValue())));
+  RuleKeyPair includesValueChange=generateRuleKey(ruleKeyBuilderFactory,new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,ImmutableMap.of(Paths.get("different"),DEFAULT_INCLUDES.entrySet().iterator().next().getValue())));
   assertNotEquals(defaultRuleKey.getTotalRuleKey(),includesValueChange.getTotalRuleKey());
 }

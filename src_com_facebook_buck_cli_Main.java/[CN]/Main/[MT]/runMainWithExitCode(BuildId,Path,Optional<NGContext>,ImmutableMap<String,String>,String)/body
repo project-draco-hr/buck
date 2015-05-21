@@ -47,7 +47,13 @@
     clock=new DefaultClock();
   }
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(processExecutor,clientEnvironment,System.getProperties());
-  DefaultFileHashCache fileHashCache=new DefaultFileHashCache(rootRepository.getFilesystem());
+  DefaultFileHashCache fileHashCache;
+  if (isDaemon) {
+    fileHashCache=getFileHashCacheFromDaemon(rootRepository,clock);
+  }
+ else {
+    fileHashCache=new DefaultFileHashCache(rootRepository.getFilesystem());
+  }
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,clock);
   try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,executionEnvironment,webServer);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
@@ -68,7 +74,7 @@
     if (parser == null) {
       ParserConfig parserConfig=new ParserConfig(rootRepository.getBuckConfig());
       PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(rootRepository.getBuckConfig(),new ExecutableFinder());
-      parser=Parser.createParser(rootRepository,pythonBuckConfig.getPythonInterpreter(),parserConfig.getAllowEmptyGlobs(),parserConfig.getEnforceBuckPackageBoundary(),parserConfig.getTempFilePatterns(),parserConfig.getBuildFileName(),parserConfig.getDefaultIncludes(),createRuleKeyBuilderFactory(fileHashCache));
+      parser=Parser.createParser(rootRepository,pythonBuckConfig.getPythonInterpreter(),parserConfig.getAllowEmptyGlobs(),parserConfig.getEnforceBuckPackageBoundary(),parserConfig.getTempFilePatterns(),parserConfig.getBuildFileName(),parserConfig.getDefaultIncludes());
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootRepository.getFilesystem());
     Optional<ProcessManager> processManager;
@@ -87,7 +93,7 @@
         buildEventBus.register(listener);
       }
     }
-    exitCode=command.run(new CommandRunnerParams(console,rootRepository,androidPlatformTargetSupplier,artifactCacheFactory,buildEventBus,parser,platform,clientEnvironment,rootRepository.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,clock,processManager,webServer,buckConfig));
+    exitCode=command.run(new CommandRunnerParams(console,rootRepository,androidPlatformTargetSupplier,artifactCacheFactory,buildEventBus,parser,platform,clientEnvironment,rootRepository.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,clock,processManager,webServer,buckConfig,fileHashCache));
     parser.cleanCache();
     buildEventBus.post(CommandEvent.finished(args.length > 0 ? args[0] : "",remainingArgs,isDaemon,exitCode));
   }

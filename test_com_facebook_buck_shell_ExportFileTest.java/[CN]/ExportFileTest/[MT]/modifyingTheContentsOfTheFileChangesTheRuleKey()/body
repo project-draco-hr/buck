@@ -4,15 +4,17 @@
   Path temp=Files.createTempFile(root,"example","file");
   temp.toFile().deleteOnExit();
   FileHashCache hashCache=new DefaultFileHashCache(filesystem);
-  RuleKeyBuilderFactory ruleKeyFactory=new DefaultRuleKeyBuilderFactory(hashCache);
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
+  RuleKeyBuilderFactory ruleKeyFactory=new DefaultRuleKeyBuilderFactory(hashCache,resolver);
   Files.write(temp,"I like cheese".getBytes(UTF_8));
   ExportFileBuilder builder=ExportFileBuilder.newExportFileBuilder(BuildTargetFactory.newInstance("//some:file")).setSrc(new TestSourcePath(MorePaths.relativize(root,temp).toString()));
   ExportFile rule=(ExportFile)builder.build(new BuildRuleResolver(),filesystem);
-  RuleKey original=ruleKeyFactory.newInstance(rule,new SourcePathResolver(new BuildRuleResolver())).build().getTotalRuleKey();
+  RuleKey original=ruleKeyFactory.newInstance(rule).build().getTotalRuleKey();
   Files.write(temp,"I really like cheese".getBytes(UTF_8));
   rule=(ExportFile)builder.build(new BuildRuleResolver(),filesystem);
   hashCache=new DefaultFileHashCache(filesystem);
-  ruleKeyFactory=new DefaultRuleKeyBuilderFactory(hashCache);
-  RuleKey refreshed=ruleKeyFactory.newInstance(rule,new SourcePathResolver(new BuildRuleResolver())).build().getTotalRuleKey();
+  resolver=new SourcePathResolver(new BuildRuleResolver());
+  ruleKeyFactory=new DefaultRuleKeyBuilderFactory(hashCache,resolver);
+  RuleKey refreshed=ruleKeyFactory.newInstance(rule).build().getTotalRuleKey();
   assertNotEquals(original,refreshed);
 }
