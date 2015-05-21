@@ -3,21 +3,23 @@
   BuildTarget depTarget=BuildTargetFactory.newInstance("//cheese:more-peas");
   SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
   BuildRule rule=new EmptyRule(target);
-  DefaultRuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(new NullFileHashCache(),pathResolver);
+  FileHashCache fileHashCache=new NullFileHashCache();
+  DefaultRuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(fileHashCache,pathResolver);
 class AppendableRule extends EmptyRule implements RuleKeyAppendable {
     public AppendableRule(    BuildTarget target){
       super(target);
     }
-    @Override public RuleKey.Builder appendToRuleKey(    RuleKey.Builder builder,    String key){
-      return builder.setReflectively(key + ".cheese","brie");
+    @Override public RuleKey.Builder appendToRuleKey(    RuleKey.Builder builder){
+      return builder.setReflectively("cheese","brie");
     }
     @Override public RuleKey getRuleKey(){
       return new RuleKey("abcd");
     }
   }
   AppendableRule appendableRule=new AppendableRule(depTarget);
+  RuleKey subKey=EmptyRuleKeyBuilder.newInstance(pathResolver,fileHashCache).setReflectively("cheese","brie").build().getRuleKeyWithoutDeps();
   RuleKey.Builder builder=factory.newInstance(rule);
-  builder.setReflectively("field.cheese","brie");
+  builder.setReflectively("field.appendableSubKey",subKey);
   builder.setReflectively("field",appendableRule.getRuleKey());
   RuleKeyPair expected=builder.build();
 class RuleContainingAppendableRule extends EmptyRule {
