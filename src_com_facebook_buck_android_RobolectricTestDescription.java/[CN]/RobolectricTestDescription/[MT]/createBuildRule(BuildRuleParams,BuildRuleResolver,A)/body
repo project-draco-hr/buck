@@ -1,10 +1,11 @@
 {
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   ImmutableList<String> vmArgs=args.vmArgs.get();
-  JavacOptions.Builder javacOptions=JavaLibraryDescription.getJavacOptions(resolver,args,templateOptions);
+  JavacOptions.Builder javacOptionsBuilder=JavaLibraryDescription.getJavacOptions(resolver,args,templateOptions);
   AnnotationProcessingParams annotationParams=args.buildAnnotationProcessingParams(params.getBuildTarget(),params.getProjectFilesystem(),resolver);
-  javacOptions.setAnnotationProcessingParams(annotationParams);
-  AndroidLibraryGraphEnhancer graphEnhancer=new AndroidLibraryGraphEnhancer(params.getBuildTarget(),params.copyWithExtraDeps(Suppliers.ofInstance(resolver.getAllRules(args.exportedDeps.get()))),javacOptions.build(),ResourceDependencyMode.TRANSITIVE);
+  javacOptionsBuilder.setAnnotationProcessingParams(annotationParams);
+  JavacOptions javacOptions=javacOptionsBuilder.build();
+  AndroidLibraryGraphEnhancer graphEnhancer=new AndroidLibraryGraphEnhancer(params.getBuildTarget(),params.copyWithExtraDeps(Suppliers.ofInstance(resolver.getAllRules(args.exportedDeps.get()))),javacOptions,ResourceDependencyMode.TRANSITIVE);
   Optional<DummyRDotJava> dummyRDotJava=graphEnhancer.getBuildableForAndroidResources(resolver,true);
   ImmutableSet<Path> additionalClasspathEntries=ImmutableSet.of();
   if (dummyRDotJava.isPresent()) {
@@ -12,5 +13,5 @@
     ImmutableSortedSet<BuildRule> newExtraDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getExtraDeps()).add(dummyRDotJava.get()).build();
     params=params.copyWithExtraDeps(Suppliers.ofInstance(newExtraDeps));
   }
-  return new RobolectricTest(params,pathResolver,args.srcs.get(),JavaLibraryDescription.validateResources(pathResolver,args,params.getProjectFilesystem()),args.labels.get(),args.contacts.get(),args.proguardConfig.transform(SourcePaths.toSourcePath(params.getProjectFilesystem())),additionalClasspathEntries,javacOptions.build(),vmArgs,JavaTestDescription.validateAndGetSourcesUnderTest(args.sourceUnderTest.get(),params.getBuildTarget(),resolver),args.resourcesRoot,dummyRDotJava,testRuleTimeoutMs,args.getRunTestSeparately());
+  return new RobolectricTest(params.appendExtraDeps(Iterables.concat(BuildRules.getExportedRules(Iterables.concat(params.getDeclaredDeps(),resolver.getAllRules(args.providedDeps.get()))),pathResolver.filterBuildRuleInputs(javacOptions.getInputs()))),pathResolver,args.srcs.get(),JavaLibraryDescription.validateResources(pathResolver,args,params.getProjectFilesystem()),args.labels.get(),args.contacts.get(),args.proguardConfig.transform(SourcePaths.toSourcePath(params.getProjectFilesystem())),additionalClasspathEntries,javacOptions,vmArgs,JavaTestDescription.validateAndGetSourcesUnderTest(args.sourceUnderTest.get(),params.getBuildTarget(),resolver),args.resourcesRoot,dummyRDotJava,testRuleTimeoutMs,args.getRunTestSeparately());
 }
