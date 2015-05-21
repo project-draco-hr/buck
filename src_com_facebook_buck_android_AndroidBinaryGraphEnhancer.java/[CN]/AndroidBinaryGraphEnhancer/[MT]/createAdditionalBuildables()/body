@@ -62,14 +62,16 @@
   ImmutableSet<TargetCpuType> filters=cpuFilters.isEmpty() ? nativePlatforms.keySet() : cpuFilters;
   for (  TargetCpuType targetCpuType : filters) {
     NdkCxxPlatform platform=Preconditions.checkNotNull(nativePlatforms.get(targetCpuType));
+    boolean hasNativeLibs=false;
     for (    JavaNativeLinkable nativeLinkable : packageableCollection.getNativeLinkables()) {
       ImmutableMap<String,SourcePath> solibs=nativeLinkable.getSharedLibraries(platform.getCxxPlatform());
       for (      Map.Entry<String,SourcePath> entry : solibs.entrySet()) {
         nativeLinkableLibsBuilder.put(new Pair<>(targetCpuType,entry.getKey()),entry.getValue());
+        hasNativeLibs=true;
       }
     }
     NdkCxxPlatforms.CxxRuntime cxxRuntime=platform.getCxxRuntime();
-    if (!packageableCollection.getNativeLinkables().isEmpty() && !cxxRuntime.equals(NdkCxxPlatforms.CxxRuntime.SYSTEM)) {
+    if (hasNativeLibs && !cxxRuntime.equals(NdkCxxPlatforms.CxxRuntime.SYSTEM)) {
       nativeLinkableLibsBuilder.put(new Pair<>(targetCpuType,cxxRuntime.getSoname()),new PathSourcePath(buildRuleParams.getProjectFilesystem(),platform.getCxxSharedRuntimePath()));
     }
   }
