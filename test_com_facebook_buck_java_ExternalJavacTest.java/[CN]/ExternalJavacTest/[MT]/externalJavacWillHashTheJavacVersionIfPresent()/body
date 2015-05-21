@@ -5,13 +5,15 @@
   Map<Path,HashCode> hashCodes=ImmutableMap.of(javac,Hashing.sha1().hashInt(42));
   FakeFileHashCache fileHashCache=new FakeFileHashCache(hashCodes);
   SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
+  AppendableRuleKeyCache appendableRuleKeyCache=new AppendableRuleKeyCache(pathResolver,fileHashCache);
   BuildRuleParams params=new FakeBuildRuleParamsBuilder("//example:target").build();
   BuildRule buildRule=new NoopBuildRule(params,pathResolver);
-  RuleKey javacKey=EmptyRuleKeyBuilder.newInstance(pathResolver,fileHashCache).setReflectively("javac.version",javacVersion.toString()).build().getRuleKeyWithoutDeps();
-  RuleKey.Builder builder=RuleKey.builder(buildRule,pathResolver,fileHashCache);
+  FakeRuleKeyBuilderFactory fakeRuleKeyBuilderFactory=new FakeRuleKeyBuilderFactory(fileHashCache,pathResolver);
+  RuleKey javacKey=EmptyRuleKeyBuilder.newInstance(pathResolver,fileHashCache,appendableRuleKeyCache).setReflectively("javac.version",javacVersion.toString()).build().getRuleKeyWithoutDeps();
+  RuleKey.Builder builder=fakeRuleKeyBuilderFactory.newInstance(buildRule);
   builder.setReflectively("key.appendableSubKey",javacKey);
   RuleKeyPair expected=builder.build();
-  builder=RuleKey.builder(buildRule,pathResolver,fileHashCache);
+  builder=fakeRuleKeyBuilderFactory.newInstance(buildRule);
   ExternalJavac compiler=new ExternalJavac(javac,Optional.of(javacVersion));
   builder.setReflectively("key",compiler);
   RuleKeyPair seen=builder.build();
