@@ -1,0 +1,21 @@
+{
+  ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
+  PBXTarget rootTarget=new PBXNativeTarget("rootRule");
+  rootTarget.setGlobalID("rootGID");
+  rootTarget.setProductName("Foo");
+  String runnablePath="buck-out/gen/Foo/Foo.app";
+  Path pbxprojectPath=Paths.get("foo/Foo.xcodeproj/project.pbxproj");
+  targetToProjectPathMapBuilder.put(rootTarget,pbxprojectPath);
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,Optional.of(rootTarget),ImmutableSet.of(rootTarget),ImmutableSet.<PBXTarget>of(),ImmutableSet.<PBXTarget>of(),"TestScheme",Paths.get("_gen/Foo.xcworkspace/scshareddata/xcshemes"),true,Optional.of(runnablePath),Optional.<String>absent(),SchemeActionType.DEFAULT_CONFIG_NAMES,targetToProjectPathMapBuilder.build());
+  Path schemePath=schemeGenerator.writeScheme();
+  DocumentBuilderFactory dbFactory=DocumentBuilderFactory.newInstance();
+  DocumentBuilder dBuilder=dbFactory.newDocumentBuilder();
+  Document scheme=dBuilder.parse(projectFilesystem.newFileInputStream(schemePath));
+  XPathFactory xpathFactory=XPathFactory.newInstance();
+  XPath runnableLaunchActionXPath=xpathFactory.newXPath();
+  XPathExpression runnableLaunchActionExpr=runnableLaunchActionXPath.compile("//LaunchAction/PathRunnable");
+  NodeList runnables=(NodeList)runnableLaunchActionExpr.evaluate(scheme,XPathConstants.NODESET);
+  assertThat(runnables.getLength(),equalTo(1));
+  Node runnable=runnables.item(0);
+  assertThat(runnable.getAttributes().getNamedItem("FilePath").getNodeValue(),equalTo(runnablePath));
+}

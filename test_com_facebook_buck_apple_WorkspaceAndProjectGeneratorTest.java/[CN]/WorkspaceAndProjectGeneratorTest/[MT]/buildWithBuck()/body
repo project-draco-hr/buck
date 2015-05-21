@@ -1,0 +1,28 @@
+{
+  WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(projectFilesystem,targetGraph,workspaceNode.getConstructorArg(),workspaceNode.getBuildTarget(),ImmutableSet.of(ProjectGenerator.Option.INCLUDE_TESTS),false,true,"BUCK",getOutputPathOfNodeFunction(targetGraph));
+  Map<Path,ProjectGenerator> projectGenerators=new HashMap<>();
+  generator.generateWorkspaceAndDependentProjects(projectGenerators);
+  ProjectGenerator fooProjectGenerator=projectGenerators.get(Paths.get("foo"));
+  assertThat(fooProjectGenerator,is(notNullValue()));
+  PBXTarget buildWithBuckTarget=null;
+  for (  PBXTarget target : fooProjectGenerator.getGeneratedProject().getTargets()) {
+    if (target.getProductName() != null && target.getProductName().endsWith("-Buck")) {
+      buildWithBuckTarget=target;
+      break;
+    }
+  }
+  assertThat(buildWithBuckTarget,is(notNullValue()));
+  assertThat(buildWithBuckTarget,is(instanceOf(PBXAggregateTarget.class)));
+  String gid=buildWithBuckTarget.getGlobalID();
+  Optional<XCScheme> scheme=Iterables.getOnlyElement(generator.getSchemeGenerators().values()).getOutputScheme();
+  assertThat(scheme.isPresent(),is(true));
+  XCScheme.BuildableReference buildWithBuckBuildableReference=null;
+  for (  XCScheme.BuildActionEntry buildActionEntry : scheme.get().getBuildAction().get().getBuildActionEntries()) {
+    XCScheme.BuildableReference buildableReference=buildActionEntry.getBuildableReference();
+    if (buildableReference.getBlueprintIdentifier().equals(gid)) {
+      buildWithBuckBuildableReference=buildableReference;
+    }
+  }
+  assertThat(buildWithBuckBuildableReference,is(notNullValue()));
+  assertThat(buildWithBuckBuildableReference.getBuildableName(),equalTo("//foo:bin-Buck"));
+}

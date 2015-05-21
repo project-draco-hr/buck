@@ -5,12 +5,12 @@
     if (blueprintName == null) {
       blueprintName=target.getName();
     }
-    XCScheme.BuildableReference buildableReference=new XCScheme.BuildableReference(outputDirectory.getParent().relativize(targetToProjectPathMap.get(target)).toString(),target.getGlobalID(),Preconditions.checkNotNull(target.getProductReference()).getName(),blueprintName);
+    XCScheme.BuildableReference buildableReference=new XCScheme.BuildableReference(outputDirectory.getParent().relativize(targetToProjectPathMap.get(target)).toString(),target.getGlobalID(),target.getProductReference() != null ? target.getProductReference().getName() : target.getProductName(),blueprintName);
     buildTargetToBuildableReferenceMap.put(target,buildableReference);
   }
   XCScheme.BuildAction buildAction=new XCScheme.BuildAction();
   for (  PBXTarget target : orderedBuildTargets) {
-    addBuildActionForBuildTarget(buildTargetToBuildableReferenceMap.get(target),XCScheme.BuildActionEntry.BuildFor.DEFAULT,buildAction);
+    addBuildActionForBuildTarget(buildTargetToBuildableReferenceMap.get(target),!primaryTargetIsBuildWithBuck || !primaryTarget.isPresent() || target.equals(primaryTarget.get()) ? XCScheme.BuildActionEntry.BuildFor.DEFAULT : XCScheme.BuildActionEntry.BuildFor.INDEXING,buildAction);
   }
   for (  PBXTarget target : orderedBuildTestTargets) {
     addBuildActionForBuildTarget(buildTargetToBuildableReferenceMap.get(target),XCScheme.BuildActionEntry.BuildFor.TEST_ONLY,buildAction);
@@ -26,7 +26,7 @@
   if (primaryTarget.isPresent()) {
     XCScheme.BuildableReference primaryBuildableReference=buildTargetToBuildableReferenceMap.get(primaryTarget.get());
     if (primaryBuildableReference != null) {
-      launchAction=Optional.of(new XCScheme.LaunchAction(primaryBuildableReference,actionConfigNames.get(SchemeActionType.LAUNCH),remoteRunnablePath));
+      launchAction=Optional.of(new XCScheme.LaunchAction(primaryBuildableReference,actionConfigNames.get(SchemeActionType.LAUNCH),runnablePath,remoteRunnablePath));
       profileAction=Optional.of(new XCScheme.ProfileAction(primaryBuildableReference,actionConfigNames.get(SchemeActionType.PROFILE)));
     }
   }

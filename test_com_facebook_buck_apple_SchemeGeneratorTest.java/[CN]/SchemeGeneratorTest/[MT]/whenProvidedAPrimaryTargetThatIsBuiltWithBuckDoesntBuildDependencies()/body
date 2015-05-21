@@ -1,0 +1,37 @@
+{
+  ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
+  PBXTarget libraryTarget=new PBXNativeTarget("library");
+  libraryTarget.setGlobalID("libraryGID");
+  libraryTarget.setProductReference(new PBXFileReference("lib.a","lib.a",PBXReference.SourceTree.BUILT_PRODUCTS_DIR));
+  libraryTarget.setProductType(ProductType.STATIC_LIBRARY);
+  PBXTarget rootTarget=new PBXNativeTarget("rootRule");
+  rootTarget.setGlobalID("rootGID");
+  rootTarget.setProductName("Foo");
+  String runnablePath="buck-out/gen/Foo/Foo.app";
+  Path pbxprojectPath=Paths.get("foo/Foo.xcodeproj/project.pbxproj");
+  targetToProjectPathMapBuilder.put(libraryTarget,pbxprojectPath);
+  targetToProjectPathMapBuilder.put(rootTarget,pbxprojectPath);
+  SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,Optional.of(rootTarget),ImmutableSet.of(libraryTarget,rootTarget),ImmutableSet.<PBXTarget>of(),ImmutableSet.<PBXTarget>of(),"TestScheme",Paths.get("_gen/Foo.xcworkspace/scshareddata/xcshemes"),true,Optional.of(runnablePath),Optional.<String>absent(),SchemeActionType.DEFAULT_CONFIG_NAMES,targetToProjectPathMapBuilder.build());
+  Path schemePath=schemeGenerator.writeScheme();
+  DocumentBuilderFactory dbFactory=DocumentBuilderFactory.newInstance();
+  DocumentBuilder dBuilder=dbFactory.newDocumentBuilder();
+  Document scheme=dBuilder.parse(projectFilesystem.newFileInputStream(schemePath));
+  XPathFactory xpathFactory=XPathFactory.newInstance();
+  XPath buildActionXpath=xpathFactory.newXPath();
+  XPathExpression buildActionExpr=buildActionXpath.compile("//BuildAction//BuildActionEntry");
+  NodeList buildActionNodes=(NodeList)buildActionExpr.evaluate(scheme,XPathConstants.NODESET);
+  Node libraryNode=null;
+  for (int i=0; i < buildActionNodes.getLength(); i++) {
+    Node node=buildActionNodes.item(i);
+    if (node.getChildNodes().getLength() != 1) {
+      continue;
+    }
+    Node buildableReference=node.getChildNodes().item(0);
+    if (buildableReference.getAttributes().getNamedItem("BlueprintIdentifier").getNodeValue().equals("libraryGID")) {
+      libraryNode=node;
+      break;
+    }
+  }
+  assertThat(libraryNode,is(notNullValue()));
+  assertThat(libraryNode.getAttributes().getNamedItem("buildForRunning").getNodeValue(),equalTo("NO"));
+}

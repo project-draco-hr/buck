@@ -1,0 +1,18 @@
+{
+  final BuildTarget buildTarget=targetNode.getBuildTarget();
+  ImmutableMap<String,ImmutableMap<String,String>> configs=getAppleNativeNode(targetGraph,targetNode).get().getConstructorArg().configs.get();
+  String productName=getXcodeTargetName(buildTarget) + "-Buck";
+  PBXShellScriptBuildPhase shellScriptBuildPhase=new PBXShellScriptBuildPhase();
+  shellScriptBuildPhase.setShellScript("buck build " + buildTarget.getFullyQualifiedName());
+  XCConfigurationList configurationList=new XCConfigurationList();
+  PBXGroup group=project.getMainGroup().getOrCreateDescendantGroupByPath(FluentIterable.from(buildTarget.getBasePath()).transform(Functions.toStringFunction()).toList()).getOrCreateChildGroupByName(getXcodeTargetName(buildTarget));
+  for (  String configurationName : configs.keySet()) {
+    configurationList.getBuildConfigurationsByName().getUnchecked(configurationName).setBaseConfigurationReference(getConfigurationFileReference(group,getConfigurationNameToXcconfigPath(buildTarget).apply(configurationName)));
+  }
+  PBXAggregateTarget aggregateTarget=new PBXAggregateTarget(productName);
+  aggregateTarget.setProductName(productName);
+  aggregateTarget.getBuildPhases().add(shellScriptBuildPhase);
+  aggregateTarget.setBuildConfigurationList(configurationList);
+  project.getTargets().add(aggregateTarget);
+  targetNodeToGeneratedProjectTargetBuilder.put(targetNode,aggregateTarget);
+}

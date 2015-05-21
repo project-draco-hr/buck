@@ -18,11 +18,7 @@
   ImmutableSet<SourcePath> headers=ImmutableSet.copyOf(getHeaderSourcePaths(arg.headers));
   mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setGid(targetGid).setShouldGenerateCopyHeadersPhase(!targetNode.getConstructorArg().getUseBuckHeaderMaps()).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setExtraXcodeSources(ImmutableSet.copyOf(arg.extraXcodeSources.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setResources(resources);
   if (options.contains(Option.CREATE_DIRECTORY_STRUCTURE)) {
-    ImmutableList.Builder<String> targetGroupPathBuilder=ImmutableList.builder();
-    for (    Path pathPart : buildTarget.getBasePath()) {
-      targetGroupPathBuilder.add(pathPart.toString());
-    }
-    mutator.setTargetGroupPath(targetGroupPathBuilder.build());
+    mutator.setTargetGroupPath(FluentIterable.from(buildTarget.getBasePath()).transform(Functions.toStringFunction()).toList());
   }
   if (!assetCatalogs.isEmpty()) {
     mutator.setAssetCatalogs(getAndMarkAssetCatalogBuildScript(),assetCatalogs);
@@ -91,12 +87,7 @@
   }
   ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
   appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterators.concat(collectRecursiveHeaderSearchPaths(targetNode).iterator(),collectRecursiveHeaderSymlinkTrees(targetNode).iterator()))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(ImmutableSet.of(targetNode)))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(ImmutableList.of(targetNode)))).put("OTHER_CFLAGS",Joiner.on(' ').join(Iterables.concat(targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get(),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode))))).put("OTHER_LDFLAGS",Joiner.on(' ').join(MoreIterables.zipAndConcat(Iterables.cycle("-Xlinker"),Iterables.concat(targetNode.getConstructorArg().linkerFlags.get(),collectRecursiveExportedLinkerFlags(ImmutableList.of(targetNode))))));
-  setTargetBuildConfigurations(new Function<String,Path>(){
-    @Override public Path apply(    String input){
-      return BuildTargets.getGenPath(buildTarget,"%s-" + input + ".xcconfig");
-    }
-  }
-,target,targetGroup,targetNode.getConstructorArg().configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
+  setTargetBuildConfigurations(getConfigurationNameToXcconfigPath(buildTarget),target,targetGroup,targetNode.getConstructorArg().configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
   if (targetNode.getConstructorArg().getUseBuckHeaderMaps()) {
     Path headerPathPrefix=AppleDescriptions.getHeaderPathPrefix(arg,targetNode.getBuildTarget());
     createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPublicCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PUBLIC).get());

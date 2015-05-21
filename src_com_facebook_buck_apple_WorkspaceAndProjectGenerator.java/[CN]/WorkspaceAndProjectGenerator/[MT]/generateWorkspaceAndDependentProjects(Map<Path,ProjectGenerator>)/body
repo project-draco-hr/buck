@@ -23,11 +23,12 @@
   ImmutableSetMultimap<String,TargetNode<AppleTestDescription.Arg>> ungroupedTests=ungroupedTestsBuilder.build();
   Iterable<PBXTarget> synthesizedCombinedTestTargets=ImmutableList.of();
   ImmutableSet<BuildTarget> targetsInRequiredProjects=FluentIterable.from(Optional.presentInstances(schemeNameToSrcTargetNode.values())).append(buildForTestNodes.values()).transform(HasBuildTarget.TO_TARGET).toSet();
-  ImmutableMap.Builder<BuildTarget,PBXTarget> buildTargetToPbxTargetMapBuilder=ImmutableMap.builder();
+  ImmutableMultimap.Builder<BuildTarget,PBXTarget> buildTargetToPbxTargetMapBuilder=ImmutableMultimap.builder();
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
+  Optional<BuildTarget> targetToBuildWithBuck=getTargetToBuildWithBuck();
   if (combinedProject) {
     LOG.debug("Generating a combined project");
-    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,outputDirectory,workspaceName,buildFileName,projectGeneratorOptions,outputPathOfNode).setAdditionalCombinedTestTargets(groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
+    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,outputDirectory,workspaceName,buildFileName,projectGeneratorOptions,targetToBuildWithBuck,outputPathOfNode).setAdditionalCombinedTestTargets(groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
     combinedProjectGenerator=Optional.of(generator);
     generator.createXcodeProjects();
     workspaceGenerator.addFilePath(generator.getProjectPath(),Optional.<Path>absent());
@@ -49,7 +50,7 @@
     }
     ImmutableMultimap<Path,BuildTarget> projectDirectoryToBuildTargets=projectDirectoryToBuildTargetsBuilder.build();
     for (    Path projectDirectory : projectDirectoryToBuildTargets.keySet()) {
-      ImmutableSet<BuildTarget> rules=filterRulesForProjectDirectory(projectGraph,ImmutableSet.copyOf(projectDirectoryToBuildTargets.get(projectDirectory)));
+      final ImmutableSet<BuildTarget> rules=filterRulesForProjectDirectory(projectGraph,ImmutableSet.copyOf(projectDirectoryToBuildTargets.get(projectDirectory)));
       if (Sets.intersection(targetsInRequiredProjects,rules).isEmpty()) {
         continue;
       }
@@ -63,7 +64,12 @@
  else {
           projectName=projectDirectory.getFileName().toString();
         }
-        generator=new ProjectGenerator(projectGraph,rules,projectFilesystem,projectDirectory,projectName,buildFileName,projectGeneratorOptions,outputPathOfNode).setTestsToGenerateAsStaticLibraries(groupableTests);
+        generator=new ProjectGenerator(projectGraph,rules,projectFilesystem,projectDirectory,projectName,buildFileName,projectGeneratorOptions,Optionals.bind(targetToBuildWithBuck,new Function<BuildTarget,Optional<BuildTarget>>(){
+          @Override public Optional<BuildTarget> apply(          BuildTarget input){
+            return rules.contains(input) ? Optional.of(input) : Optional.<BuildTarget>absent();
+          }
+        }
+),outputPathOfNode).setTestsToGenerateAsStaticLibraries(groupableTests);
         generator.createXcodeProjects();
         requiredBuildTargetsBuilder.addAll(generator.getRequiredBuildTargets());
         projectGenerators.put(projectDirectory,generator);
@@ -78,7 +84,7 @@
       }
     }
     if (!groupedTests.isEmpty()) {
-      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,BuildTargets.getGenPath(workspaceBuildTarget,"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions,outputPathOfNode);
+      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,BuildTargets.getGenPath(workspaceBuildTarget,"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions,Optional.<BuildTarget>absent(),outputPathOfNode);
       combinedTestsProjectGenerator.setAdditionalCombinedTestTargets(groupedTests).createXcodeProjects();
       workspaceGenerator.addFilePath(combinedTestsProjectGenerator.getProjectPath());
       requiredBuildTargetsBuilder.addAll(combinedTestsProjectGenerator.getRequiredBuildTargets());
@@ -93,13 +99,36 @@
     }
   }
   Path workspacePath=workspaceGenerator.writeWorkspace();
-  final Map<BuildTarget,PBXTarget> buildTargetToTarget=buildTargetToPbxTargetMapBuilder.build();
-  Function<TargetNode<?>,PBXTarget> targetNodeToPBXTargetTransformer=new Function<TargetNode<?>,PBXTarget>(){
-    @Override public PBXTarget apply(    TargetNode<?> input){
-      return Preconditions.checkNotNull(buildTargetToTarget.get(input.getBuildTarget()));
+  final Multimap<BuildTarget,PBXTarget> buildTargetToTarget=buildTargetToPbxTargetMapBuilder.build();
+  final Function<BuildTarget,PBXTarget> targetNodeToPBXTargetTransformer=new Function<BuildTarget,PBXTarget>(){
+    @Override public PBXTarget apply(    BuildTarget input){
+      ImmutableList<PBXTarget> targets=ImmutableList.copyOf(buildTargetToTarget.get(input));
+      if (targets.size() == 1) {
+        return targets.get(0);
+      }
+      Preconditions.checkState(targets.size() == 2);
+      PBXTarget first=targets.get(0);
+      PBXTarget second=targets.get(1);
+      Preconditions.checkState(first instanceof PBXAggregateTarget ^ second instanceof PBXAggregateTarget);
+      PBXTarget buildWithBuckTarget;
+      PBXTarget buildWithXcodeTarget;
+      if (first instanceof PBXAggregateTarget) {
+        buildWithBuckTarget=first;
+        buildWithXcodeTarget=second;
+      }
+ else {
+        buildWithXcodeTarget=first;
+        buildWithBuckTarget=second;
+      }
+      return buildWithBuck ? buildWithBuckTarget : buildWithXcodeTarget;
     }
   }
 ;
-  writeWorkspaceSchemes(workspaceName,outputDirectory,schemeConfigs,schemeNameToSrcTargetNode,buildForTestNodes,ungroupedTests,targetToProjectPathMapBuilder.build(),synthesizedCombinedTestTargets,targetNodeToPBXTargetTransformer,Functions.forMap(buildTargetToTarget));
+  writeWorkspaceSchemes(workspaceName,outputDirectory,schemeConfigs,schemeNameToSrcTargetNode,buildForTestNodes,ungroupedTests,targetToProjectPathMapBuilder.build(),synthesizedCombinedTestTargets,new Function<TargetNode<?>,Collection<PBXTarget>>(){
+    @Override public Collection<PBXTarget> apply(    TargetNode<?> input){
+      return buildTargetToTarget.get(input.getBuildTarget());
+    }
+  }
+,targetNodeToPBXTargetTransformer);
   return workspacePath;
 }

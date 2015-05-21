@@ -1,0 +1,34 @@
+{
+  for (  Map.Entry<String,XcodeWorkspaceConfigDescription.Arg> schemeConfigEntry : schemeConfigs.entrySet()) {
+    String schemeName=schemeConfigEntry.getKey();
+    boolean isMainScheme=schemeName.equals(workspaceName);
+    XcodeWorkspaceConfigDescription.Arg schemeConfigArg=schemeConfigEntry.getValue();
+    Iterable<PBXTarget> orderedBuildTargets=FluentIterable.from(ImmutableSet.copyOf(Optional.presentInstances(schemeNameToSrcTargetNode.get(schemeName)))).transformAndConcat(targetNodeToPBXTargetTransformer).toSet();
+    FluentIterable<PBXTarget> orderedBuildTestTargets=FluentIterable.from(buildForTestNodes.get(schemeName)).transformAndConcat(targetNodeToPBXTargetTransformer);
+    if (isMainScheme) {
+      orderedBuildTestTargets=orderedBuildTestTargets.append(synthesizedCombinedTestTargets);
+    }
+    FluentIterable<PBXTarget> orderedRunTestTargets=FluentIterable.from(ungroupedTests.get(schemeName)).transformAndConcat(targetNodeToPBXTargetTransformer);
+    if (isMainScheme) {
+      orderedRunTestTargets=orderedRunTestTargets.append(synthesizedCombinedTestTargets);
+    }
+    Optional<String> runnablePath;
+    Optional<BuildTarget> targetToBuildWithBuck=getTargetToBuildWithBuck();
+    if (buildWithBuck && targetToBuildWithBuck.isPresent()) {
+      runnablePath=Optional.of(projectFilesystem.resolve(AppleBundle.getBundleRoot(targetToBuildWithBuck.get(),"app")).toString());
+    }
+ else {
+      runnablePath=Optional.absent();
+    }
+    Optional<String> remoteRunnablePath;
+    if (schemeConfigArg.isRemoteRunnable.or(false)) {
+      remoteRunnablePath=Optional.of("/" + workspaceName);
+    }
+ else {
+      remoteRunnablePath=Optional.absent();
+    }
+    SchemeGenerator schemeGenerator=new SchemeGenerator(projectFilesystem,schemeConfigArg.srcTarget.transform(buildTargetToPBXTargetTransformer),orderedBuildTargets,orderedBuildTestTargets,orderedRunTestTargets,schemeName,outputDirectory.resolve(workspaceName + ".xcworkspace"),buildWithBuck,runnablePath,remoteRunnablePath,XcodeWorkspaceConfigDescription.getActionConfigNamesFromArg(workspaceArguments),targetToProjectPathMap);
+    schemeGenerator.writeScheme();
+    schemeGenerators.put(schemeName,schemeGenerator);
+  }
+}
