@@ -2,7 +2,8 @@
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   steps.add(new RmStep(getPathToDex(),true));
   steps.add(new MkdirStep(getPathToDex().getParent()));
-  final boolean hasClassesToDx=!javaLibrary.getClassNamesToHashes().isEmpty();
+  final ImmutableSortedMap<String,HashCode> classNamesToHashes=javaLibrary.getClassNamesToHashes();
+  final boolean hasClassesToDx=!classNamesToHashes.isEmpty();
   final Supplier<Integer> linearAllocEstimate;
   if (hasClassesToDx) {
     Path pathToOutputFile=javaLibrary.getPathToOutputFile();
@@ -17,11 +18,12 @@
   }
   String stepName=hasClassesToDx ? "record_dx_success" : "record_empty_dx";
   AbstractExecutionStep recordArtifactAndMetadataStep=new AbstractExecutionStep(stepName){
-    @Override public int execute(    ExecutionContext context){
+    @Override public int execute(    ExecutionContext context) throws IOException {
       if (hasClassesToDx) {
         buildableContext.recordArtifact(getPathToDex());
       }
       buildableContext.addMetadata(LINEAR_ALLOC_KEY_ON_DISK_METADATA,String.valueOf(linearAllocEstimate.get()));
+      buildableContext.addMetadata(CLASSNAMES_TO_HASHES,context.getObjectMapper().writeValueAsString(Maps.transformValues(classNamesToHashes,Functions.toStringFunction())));
       return 0;
     }
   }
