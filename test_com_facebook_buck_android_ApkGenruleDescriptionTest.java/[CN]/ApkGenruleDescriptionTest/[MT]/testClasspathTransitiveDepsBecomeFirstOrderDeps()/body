@@ -1,0 +1,9 @@
+{
+  BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
+  InstallableApk installableApk=ruleResolver.addToIndex(new FakeInstallable(BuildTargetFactory.newInstance("//:installable"),pathResolver));
+  BuildRule transitiveDep=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//exciting:dep")).addSrc(Paths.get("Dep.java")).build(ruleResolver);
+  BuildRule dep=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//exciting:target")).addSrc(Paths.get("Other.java")).addDep(transitiveDep.getBuildTarget()).build(ruleResolver);
+  Genrule genrule=(Genrule)ApkGenruleBuilder.create(BuildTargetFactory.newInstance("//:rule")).setOut("out").setCmd("$(classpath //exciting:target)").setApk(installableApk.getBuildTarget()).build(ruleResolver);
+  assertThat(genrule.getDeps(),Matchers.hasItems(dep,transitiveDep));
+}
