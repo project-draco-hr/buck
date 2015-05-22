@@ -1,0 +1,24 @@
+{
+  Matcher variableMatcher=PLIST_VARIABLE_PATTERN.matcher(input);
+  StringBuffer result=new StringBuffer();
+  while (variableMatcher.find()) {
+    String openParen=variableMatcher.group(OPEN_PAREN_GROUP_NAME);
+    String closeParen=variableMatcher.group(CLOSE_PAREN_GROUP_NAME);
+    if (!MATCHING_PARENS.get(openParen).equals(closeParen)) {
+      variableMatcher.appendReplacement(result,Matcher.quoteReplacement(variableMatcher.group(0)));
+      continue;
+    }
+    String variableName=variableMatcher.group(VARIABLE_GROUP_NAME);
+    if (maskedVariables.contains(variableName)) {
+      throw new HumanReadableException("Recursive plist variable: %s -> %s",Joiner.on(" -> ").join(maskedVariables),variableName);
+    }
+    String expansion=variablesToExpand.get(variableName);
+    if (expansion == null) {
+      throw new HumanReadableException("Unrecognized plist variable: %s",variableMatcher.group(0));
+    }
+    expansion=replaceVariablesInString(expansion,variablesToExpand,new ImmutableList.Builder<String>().addAll(maskedVariables).add(variableName).build());
+    variableMatcher.appendReplacement(result,Matcher.quoteReplacement(expansion));
+  }
+  variableMatcher.appendTail(result);
+  return result.toString();
+}
