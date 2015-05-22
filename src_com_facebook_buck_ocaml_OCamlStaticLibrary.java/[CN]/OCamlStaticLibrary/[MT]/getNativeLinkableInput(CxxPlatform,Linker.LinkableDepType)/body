@@ -1,11 +1,11 @@
 {
   Preconditions.checkArgument(type == Linker.LinkableDepType.STATIC,"Only supporting static linking in OCaml");
+  NativeLinkableInput.Builder inputBuilder=NativeLinkableInput.builder();
+  inputBuilder.addAllArgs(linkerFlags);
   final Path staticLibraryPath=OCamlBuildContext.getOutputPath(staticLibraryTarget,true);
-  ImmutableList.Builder<String> linkerArgsBuilder=ImmutableList.builder();
-  linkerArgsBuilder.addAll(linkerFlags);
-  FluentIterable<String> cObjs=srcPaths.filter(OCamlUtil.ext(OCamlCompilables.OCAML_C)).transform(ocamlContext.toCOutput()).transform(Functions.toStringFunction());
-  linkerArgsBuilder.add(staticLibraryPath.toString());
-  linkerArgsBuilder.addAll(cObjs);
-  final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
-  return NativeLinkableInput.of(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(ocamlLibraryBuild.getProjectFilesystem(),ocamlLibraryBuild.getBuildTarget())),linkerArgs);
+  inputBuilder.addInputs(new BuildTargetSourcePath(ocamlLibraryBuild.getProjectFilesystem(),ocamlLibraryBuild.getBuildTarget()));
+  inputBuilder.addArgs(staticLibraryPath.toString());
+  inputBuilder.addAllInputs(objFiles);
+  inputBuilder.addAllArgs(Iterables.transform(getResolver().getAllPaths(objFiles),Functions.toStringFunction()));
+  return inputBuilder.build();
 }

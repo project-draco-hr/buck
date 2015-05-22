@@ -6,22 +6,23 @@
   if (sourceToRule.containsKey(mlSource)) {
     return;
   }
-  ImmutableList.Builder<BuildRule> deps=ImmutableList.builder();
+  ImmutableSortedSet.Builder<BuildRule> depsBuilder=ImmutableSortedSet.naturalOrder();
   if (sources.containsKey(mlSource)) {
     for (    Path dep : checkNotNull(sources.get(mlSource))) {
       generateSingleMLBytecodeCompilation(sourceToRule,cmoFiles,dep,sources,newCycleDetector);
-      deps.add(checkNotNull(sourceToRule.get(dep)));
+      depsBuilder.addAll(checkNotNull(sourceToRule.get(dep)));
     }
   }
+  ImmutableSortedSet<BuildRule> deps=depsBuilder.build();
   String name=mlSource.toFile().getName();
   BuildTarget buildTarget=createMLBytecodeCompileBuildTarget(params.getBuildTarget(),name);
-  BuildRuleParams compileParams=params.copyWithChanges(OCAML_ML_BYTECODE_COMPILE_TYPE,buildTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).addAll(deps.build()).build()),Suppliers.ofInstance(params.getExtraDeps()));
+  BuildRuleParams compileParams=params.copyWithChanges(OCAML_ML_BYTECODE_COMPILE_TYPE,buildTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).addAll(deps).addAll(ocamlContext.getBytecodeCompileDeps()).build()),Suppliers.ofInstance(params.getExtraDeps()));
   String outputFileName=getMLBytecodeOutputName(name);
   Path outputPath=ocamlContext.getCompileBytecodeOutputDir().resolve(outputFileName);
   final ImmutableList<String> compileFlags=getCompileFlags(true,false);
   BuildRule compileBytecode=new OCamlMLCompile(compileParams,pathResolver,new OCamlMLCompileStep.Args(cCompiler.getCommandPrefix(pathResolver),ocamlContext.getOcamlBytecodeCompiler().get(),outputPath,mlSource,compileFlags));
   resolver.addToIndex(compileBytecode);
-  sourceToRule.put(mlSource,compileBytecode);
+  sourceToRule.put(mlSource,ImmutableSortedSet.<BuildRule>naturalOrder().add(compileBytecode).addAll(deps).build());
   if (!outputFileName.endsWith(OCamlCompilables.OCAML_CMI)) {
     cmoFiles.add(new BuildTargetSourcePath(compileBytecode.getProjectFilesystem(),compileBytecode.getBuildTarget()));
   }

@@ -6,22 +6,23 @@
   if (sourceToRule.containsKey(mlSource)) {
     return;
   }
-  ImmutableList.Builder<BuildRule> deps=ImmutableList.builder();
+  ImmutableSortedSet.Builder<BuildRule> depsBuilder=ImmutableSortedSet.naturalOrder();
   if (sources.containsKey(mlSource)) {
     for (    Path dep : checkNotNull(sources.get(mlSource))) {
       generateSingleMLCompilation(sourceToRule,cmxFiles,dep,sources,newCycleDetector);
-      deps.add(checkNotNull(sourceToRule.get(dep)));
+      depsBuilder.addAll(checkNotNull(sourceToRule.get(dep)));
     }
   }
+  ImmutableSortedSet<BuildRule> deps=depsBuilder.build();
   String name=mlSource.toFile().getName();
   BuildTarget buildTarget=createMLCompileBuildTarget(params.getBuildTarget(),name);
-  BuildRuleParams compileParams=params.copyWithChanges(OCAML_ML_COMPILE_TYPE,buildTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).addAll(deps.build()).build()),Suppliers.ofInstance(params.getExtraDeps()));
+  BuildRuleParams compileParams=params.copyWithChanges(OCAML_ML_COMPILE_TYPE,buildTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).addAll(deps).addAll(ocamlContext.getCompileDeps()).build()),Suppliers.ofInstance(params.getExtraDeps()));
   String outputFileName=getMLOutputName(name);
   Path outputPath=ocamlContext.getCompileOutputDir().resolve(outputFileName);
   final ImmutableList<String> compileFlags=getCompileFlags(false,false);
   OCamlMLCompile compile=new OCamlMLCompile(compileParams,pathResolver,new OCamlMLCompileStep.Args(cCompiler.getCommandPrefix(pathResolver),ocamlContext.getOcamlCompiler().get(),outputPath,mlSource,compileFlags));
   resolver.addToIndex(compile);
-  sourceToRule.put(mlSource,compile);
+  sourceToRule.put(mlSource,ImmutableSortedSet.<BuildRule>naturalOrder().add(compile).addAll(deps).build());
   if (!outputFileName.endsWith(OCamlCompilables.OCAML_CMI)) {
     cmxFiles.add(new BuildTargetSourcePath(compile.getProjectFilesystem(),compile.getBuildTarget()));
   }
