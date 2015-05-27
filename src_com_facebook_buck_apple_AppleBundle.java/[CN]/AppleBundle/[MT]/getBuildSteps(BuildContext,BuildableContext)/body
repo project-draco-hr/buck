@@ -1,20 +1,20 @@
 {
   ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
-  Path productsPath=bundleRoot.resolve(bundleSubfolders.get(AppleBundleDestination.SubfolderSpec.PRODUCTS));
-  stepsBuilder.add(new MakeCleanDirectoryStep(bundleRoot),new WriteFileStep("APPLWRUN",bundleRoot.resolve("PkgInfo")),new MkdirStep(productsPath),new FindAndReplaceStep(getResolver().getPath(infoPlist.get()),productsPath.resolve("Info.plist"),InfoPlistSubstitution.createVariableExpansionFunction(withDefaults(infoPlistSubstitutions,ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName)))));
+  Path metadataPath=bundleRoot.resolve(this.destinations.getMetadataPath());
+  stepsBuilder.add(new MakeCleanDirectoryStep(bundleRoot),new MkdirStep(metadataPath),new WriteFileStep("APPLWRUN",metadataPath.resolve("PkgInfo")),new FindAndReplaceStep(getResolver().getPath(infoPlist.get()),metadataPath.resolve("Info.plist"),InfoPlistSubstitution.createVariableExpansionFunction(withDefaults(infoPlistSubstitutions,ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName)))));
   if (binary.isPresent()) {
-    stepsBuilder.add(new MkdirStep(bundleRoot.resolve(executablesPath)));
+    stepsBuilder.add(new MkdirStep(bundleRoot.resolve(this.destinations.getExecutablesPath())));
     stepsBuilder.add(CopyStep.forFile(binary.get().getPathToOutputFile(),bundleRoot.resolve(binaryPath)));
   }
-  for (  Map.Entry<Path,AppleBundleDestination> dirEntry : dirs.entrySet()) {
-    Path bundleDestinationPath=getBundleDestinationPath(bundleRoot,bundleSubfolders,dirEntry.getValue());
+  for (  Path dir : resourceDirs) {
+    Path bundleDestinationPath=bundleRoot.resolve(this.destinations.getResourcesPath());
     stepsBuilder.add(new MkdirStep(bundleDestinationPath));
-    stepsBuilder.add(CopyStep.forDirectory(dirEntry.getKey(),bundleDestinationPath,CopyStep.DirectoryMode.DIRECTORY_AND_CONTENTS));
+    stepsBuilder.add(CopyStep.forDirectory(dir,bundleDestinationPath,CopyStep.DirectoryMode.DIRECTORY_AND_CONTENTS));
   }
-  for (  Map.Entry<SourcePath,AppleBundleDestination> fileEntry : files.entrySet()) {
-    Path bundleDestinationPath=getBundleDestinationPath(bundleRoot,bundleSubfolders,fileEntry.getValue());
+  for (  SourcePath file : resourceFiles) {
+    Path bundleDestinationPath=bundleRoot.resolve(this.destinations.getResourcesPath());
     stepsBuilder.add(new MkdirStep(bundleDestinationPath));
-    Path resolvedFilePath=getResolver().getPath(fileEntry.getKey());
+    Path resolvedFilePath=getResolver().getPath(file);
     Path destinationPath=bundleDestinationPath.resolve(resolvedFilePath.getFileName());
     addResourceProcessingSteps(resolvedFilePath,destinationPath,stepsBuilder);
   }

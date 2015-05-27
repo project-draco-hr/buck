@@ -44,20 +44,19 @@
   if (appleCxxPlatform == null) {
     throw new HumanReadableException("%s: Apple test requires an Apple platform, found '%s'",params.getBuildTarget(),cxxPlatform.getFlavor().getName());
   }
+  AppleBundleDestinations destinations=AppleBundleDestinations.platformDestinations(appleCxxPlatform.getApplePlatform());
   SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
   ImmutableSet<AppleResourceDescription.Arg> resourceDescriptions=AppleResources.collectRecursiveResources(params.getTargetGraph(),ImmutableSet.of(params.getTargetGraph().get(params.getBuildTarget())));
   LOG.debug("Got resource nodes %s",resourceDescriptions);
-  ImmutableMap.Builder<Path,AppleBundleDestination> resourceDirsBuilder=ImmutableMap.builder();
-  resourceDirsBuilder.putAll(args.dirs.get());
+  ImmutableSet.Builder<Path> resourceDirsBuilder=ImmutableSet.builder();
   AppleResources.addResourceDirsToBuilder(resourceDirsBuilder,resourceDescriptions);
-  ImmutableMap<Path,AppleBundleDestination> resourceDirs=resourceDirsBuilder.build();
-  ImmutableMap.Builder<SourcePath,AppleBundleDestination> resourceFilesBuilder=ImmutableMap.builder();
-  resourceFilesBuilder.putAll(args.files.get());
+  ImmutableSet<Path> resourceDirs=resourceDirsBuilder.build();
+  ImmutableSet.Builder<SourcePath> resourceFilesBuilder=ImmutableSet.builder();
   AppleResources.addResourceFilesToBuilder(resourceFilesBuilder,resourceDescriptions);
-  ImmutableMap<SourcePath,AppleBundleDestination> resourceFiles=resourceFilesBuilder.build();
+  ImmutableSet<SourcePath> resourceFiles=resourceFilesBuilder.build();
   CollectedAssetCatalogs collectedAssetCatalogs=AppleDescriptions.createBuildRulesForTransitiveAssetCatalogDependencies(params,sourcePathResolver,appleCxxPlatform.getApplePlatform(),appleCxxPlatform.getActool());
   Optional<AppleAssetCatalog> mergedAssetCatalog=collectedAssetCatalogs.getMergedAssetCatalog();
   ImmutableSet<AppleAssetCatalog> bundledAssetCatalogs=collectedAssetCatalogs.getBundledAssetCatalogs();
-  AppleBundle bundle=new AppleBundle(params.copyWithChanges(AppleBundleDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addFlavors(BUNDLE_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(mergedAssetCatalog.asSet()).addAll(bundledAssetCatalogs).addAll(params.getDeclaredDeps()).build()),Suppliers.ofInstance(params.getExtraDeps())),sourcePathResolver,args.extension,args.infoPlist,args.infoPlistSubstitutions.get(),Optional.of(library),AppleBundleDescription.IOS_APP_SUBFOLDER_SPEC_MAP,resourceDirs,resourceFiles,appleCxxPlatform.getIbtool(),bundledAssetCatalogs,mergedAssetCatalog,ImmutableSortedSet.<BuildTarget>of());
+  AppleBundle bundle=new AppleBundle(params.copyWithChanges(AppleBundleDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addFlavors(BUNDLE_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(mergedAssetCatalog.asSet()).addAll(bundledAssetCatalogs).addAll(params.getDeclaredDeps()).build()),Suppliers.ofInstance(params.getExtraDeps())),sourcePathResolver,args.extension,args.infoPlist,args.infoPlistSubstitutions.get(),Optional.of(library),destinations,resourceDirs,resourceFiles,appleCxxPlatform.getIbtool(),bundledAssetCatalogs,mergedAssetCatalog,ImmutableSortedSet.<BuildTarget>of());
   return new AppleTest(appleConfig.getXctoolPath(),"iphonesimulator",Optional.<String>absent(),params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(bundle)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),sourcePathResolver,bundle,testHostApp,extension,args.contacts.get(),args.labels.get());
 }

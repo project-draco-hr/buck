@@ -10,16 +10,19 @@
   if (appleCxxPlatform == null) {
     throw new HumanReadableException("%s: Apple bundle requires an Apple platform, found '%s'",params.getBuildTarget(),cxxPlatform.getFlavor().getName());
   }
-  ImmutableMap.Builder<Path,AppleBundleDestination> bundleDirsBuilder=ImmutableMap.builder();
-  ImmutableMap.Builder<SourcePath,AppleBundleDestination> bundleFilesBuilder=ImmutableMap.builder();
-  collectBundleDirsAndFiles(params,args,bundleDirsBuilder,bundleFilesBuilder);
-  ImmutableMap<Path,AppleBundleDestination> bundleDirs=bundleDirsBuilder.build();
-  ImmutableMap<SourcePath,AppleBundleDestination> bundleFiles=bundleFilesBuilder.build();
+  AppleBundleDestinations destinations=AppleBundleDestinations.platformDestinations(appleCxxPlatform.getApplePlatform());
+  ImmutableSet.Builder<Path> bundleDirsBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> bundleFilesBuilder=ImmutableSet.builder();
+  ImmutableSet<AppleResourceDescription.Arg> resourceDescriptions=AppleResources.collectRecursiveResources(params.getTargetGraph(),ImmutableSet.of(params.getTargetGraph().get(params.getBuildTarget())));
+  AppleResources.addResourceDirsToBuilder(bundleDirsBuilder,resourceDescriptions);
+  AppleResources.addResourceFilesToBuilder(bundleFilesBuilder,resourceDescriptions);
+  ImmutableSet<Path> bundleDirs=bundleDirsBuilder.build();
+  ImmutableSet<SourcePath> bundleFiles=bundleFilesBuilder.build();
   SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
   CollectedAssetCatalogs collectedAssetCatalogs=AppleDescriptions.createBuildRulesForTransitiveAssetCatalogDependencies(params,sourcePathResolver,appleCxxPlatform.getApplePlatform(),appleCxxPlatform.getActool());
   Optional<AppleAssetCatalog> mergedAssetCatalog=collectedAssetCatalogs.getMergedAssetCatalog();
   ImmutableSet<AppleAssetCatalog> bundledAssetCatalogs=collectedAssetCatalogs.getBundledAssetCatalogs();
   BuildRule flavoredBinaryRule=getFlavoredBinaryRule(params,resolver,args);
   BuildRuleParams bundleParamsWithFlavoredBinaryDep=getBundleParamsWithUpdatedDeps(params,args.binary,ImmutableSet.<BuildRule>builder().add(flavoredBinaryRule).addAll(mergedAssetCatalog.asSet()).addAll(bundledAssetCatalogs).build());
-  return new AppleBundle(bundleParamsWithFlavoredBinaryDep,sourcePathResolver,args.extension,args.infoPlist,args.infoPlistSubstitutions.get(),Optional.of(flavoredBinaryRule),IOS_APP_SUBFOLDER_SPEC_MAP,bundleDirs,bundleFiles,appleCxxPlatform.getIbtool(),bundledAssetCatalogs,mergedAssetCatalog,args.getTests());
+  return new AppleBundle(bundleParamsWithFlavoredBinaryDep,sourcePathResolver,args.extension,args.infoPlist,args.infoPlistSubstitutions.get(),Optional.of(flavoredBinaryRule),destinations,bundleDirs,bundleFiles,appleCxxPlatform.getIbtool(),bundledAssetCatalogs,mergedAssetCatalog,args.getTests());
 }
