@@ -1,12 +1,17 @@
 {
-  Path destinationDir=Paths.get("");
+  final Path destinationDir=Paths.get("");
   Path rDotJavaSrcDir=Paths.get("");
   ExecutionContext context=createMock(ExecutionContext.class);
   FakeProjectFileSystem fileSystem=new FakeProjectFileSystem();
   expect(context.getProjectFilesystem()).andStubReturn(fileSystem);
-  ImmutableSet<Path> filteredStringFiles=ImmutableSet.of(firstFile,secondFile,thirdFile,fourthFile);
+  ImmutableList<Path> stringFiles=ImmutableList.of(firstFile,secondFile,thirdFile,fourthFile);
   replayAll();
-  CompileStringsStep step=new CompileStringsStep(filteredStringFiles,rDotJavaSrcDir,destinationDir);
+  CompileStringsStep step=new CompileStringsStep(stringFiles,rDotJavaSrcDir,new Function<String,Path>(){
+    @Override public Path apply(    String input){
+      return destinationDir.resolve(input + PackageStringAssets.STRING_ASSET_FILE_EXTENSION);
+    }
+  }
+);
   assertEquals(0,step.execute(context));
   Map<String,byte[]> fileContentsMap=fileSystem.getFileContents();
   assertEquals("Incorrect number of string files written.",3,fileContentsMap.size());

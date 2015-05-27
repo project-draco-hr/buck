@@ -8,12 +8,21 @@
   steps.add(new MakeCleanDirectoryStep(pathToBaseDir));
   Path pathToDirContainingAssetsDir=pathToBaseDir.resolve("string_assets");
   steps.add(new MakeCleanDirectoryStep(pathToDirContainingAssetsDir));
-  Path pathToStrings=pathToDirContainingAssetsDir.resolve("assets").resolve("strings");
+  final Path pathToStrings=pathToDirContainingAssetsDir.resolve("assets").resolve("strings");
+  Function<String,Path> assetPathBuilder=new Function<String,Path>(){
+    @Override public Path apply(    String locale){
+      return pathToStrings.resolve(locale + STRING_ASSET_FILE_EXTENSION);
+    }
+  }
+;
   Path pathToStringAssetsZip=getPathToStringAssetsZip();
+  Path pathToAllLocalesStringAssetsZip=getPathToAllLocalesStringAssetsZip();
   steps.add(new MakeCleanDirectoryStep(pathToStrings));
-  steps.add(new CompileStringsStep(ImmutableSet.copyOf(getResolver().getAllPaths(filteredResourcesProvider.getNonEnglishStringFiles())),aaptPackageResources.getPathToRDotTxtDir(),pathToStrings));
-  steps.add(new ZipStep(pathToStringAssetsZip,ImmutableSet.<Path>of(),false,ZipStep.MAX_COMPRESSION_LEVEL,pathToDirContainingAssetsDir));
+  steps.add(new CompileStringsStep(getResolver().getAllPaths(filteredResourcesProvider.getStringFiles()),aaptPackageResources.getPathToRDotTxtDir(),assetPathBuilder));
+  steps.add(new ZipStep(pathToAllLocalesStringAssetsZip,ImmutableSet.<Path>of(),false,ZipStep.MAX_COMPRESSION_LEVEL,pathToDirContainingAssetsDir));
+  steps.add(new ZipStep(pathToStringAssetsZip,FluentIterable.from(locales).transform(assetPathBuilder).toSet(),false,ZipStep.MAX_COMPRESSION_LEVEL,pathToDirContainingAssetsDir));
   steps.add(new RecordFileSha1Step(pathToStringAssetsZip,STRING_ASSETS_ZIP_HASH,buildableContext));
+  buildableContext.recordArtifact(pathToAllLocalesStringAssetsZip);
   buildableContext.recordArtifact(pathToStringAssetsZip);
   return steps.build();
 }

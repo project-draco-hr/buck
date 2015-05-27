@@ -1,22 +1,23 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   final ImmutableList.Builder<Path> filteredResDirectoriesBuilder=ImmutableList.builder();
-  final FilterResourcesStep filterResourcesStep=createFilterResourcesStep(getResolver().getAllPaths(resDirectories),ImmutableSet.copyOf(getResolver().getAllPaths(whitelistedStringDirs)),locales,filteredResDirectoriesBuilder);
+  ImmutableSet<Path> whitelistedStringPaths=ImmutableSet.copyOf(getResolver().getAllPaths(whitelistedStringDirs));
+  ImmutableList<Path> resPaths=getResolver().getAllPaths(resDirectories);
+  final FilterResourcesStep filterResourcesStep=createFilterResourcesStep(resPaths,whitelistedStringPaths,locales,filteredResDirectoriesBuilder);
   steps.add(filterResourcesStep);
-  final ImmutableList<Path> filteredResDirectories=filteredResDirectoriesBuilder.build();
-  final Supplier<ImmutableSet<Path>> nonEnglishStringFiles=Suppliers.memoize(new Supplier<ImmutableSet<Path>>(){
-    @Override public ImmutableSet<Path> get(){
-      return filterResourcesStep.getNonEnglishStringFiles();
-    }
+  final ImmutableList.Builder<Path> stringFilesBuilder=ImmutableList.builder();
+  if (resourceCompressionMode.isStoreStringsAsAssets()) {
+    GetStringsFilesStep getStringsFilesStep=new GetStringsFilesStep(resPaths,stringFilesBuilder,whitelistedStringPaths);
+    steps.add(getStringsFilesStep);
   }
-);
+  final ImmutableList<Path> filteredResDirectories=filteredResDirectoriesBuilder.build();
   for (  Path outputResourceDir : filteredResDirectories) {
     buildableContext.recordArtifactsInDirectory(outputResourceDir);
   }
   steps.add(new AbstractExecutionStep("record_build_output"){
     @Override public int execute(    ExecutionContext context){
       buildableContext.addMetadata(RES_DIRECTORIES_KEY,Iterables.transform(filteredResDirectories,Functions.toStringFunction()));
-      buildableContext.addMetadata(NON_ENGLISH_STRING_FILES_KEY,Iterables.transform(nonEnglishStringFiles.get(),Functions.toStringFunction()));
+      buildableContext.addMetadata(STRING_FILES_KEY,Iterables.transform(stringFilesBuilder.build(),Functions.toStringFunction()));
       return 0;
     }
   }
