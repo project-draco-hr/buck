@@ -1,0 +1,13 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_application_bundle",tmp);
+  workspace.setUp();
+  workspace.runBuckCommand("build","//:DemoApp#iphonesimulator-x86_64").assertSuccess();
+  workspace.verify();
+  Path dwarfPath=tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoApp#iphonesimulator-x86_64/DemoApp.app").resolve("DemoApp.dSYM/Contents/Resources/DWARF/DemoApp");
+  assertTrue(Files.exists(dwarfPath));
+  String dwarfdumpMainStdout=workspace.runCommand("dwarfdump","-n","main",dwarfPath.toString()).getStdout().or("");
+  assertTrue(dwarfdumpMainStdout.contains("AT_name"));
+  assertTrue(dwarfdumpMainStdout.contains("AT_decl_file"));
+  assertTrue(dwarfdumpMainStdout.contains("AT_decl_line"));
+}

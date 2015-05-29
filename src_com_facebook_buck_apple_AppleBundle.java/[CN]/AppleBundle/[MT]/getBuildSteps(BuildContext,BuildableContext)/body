@@ -4,7 +4,9 @@
   stepsBuilder.add(new MakeCleanDirectoryStep(bundleRoot),new MkdirStep(metadataPath),new WriteFileStep("APPLWRUN",metadataPath.resolve("PkgInfo")),new FindAndReplaceStep(getResolver().getPath(infoPlist.get()),metadataPath.resolve("Info.plist"),InfoPlistSubstitution.createVariableExpansionFunction(withDefaults(infoPlistSubstitutions,ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName)))));
   if (binary.isPresent()) {
     stepsBuilder.add(new MkdirStep(bundleRoot.resolve(this.destinations.getExecutablesPath())));
-    stepsBuilder.add(CopyStep.forFile(binary.get().getPathToOutputFile(),bundleRoot.resolve(binaryPath)));
+    Path bundleBinaryPath=bundleRoot.resolve(binaryPath);
+    stepsBuilder.add(CopyStep.forFile(binary.get().getPathToOutputFile(),bundleBinaryPath));
+    stepsBuilder.add(new DsymStep(dsymutil.getCommandPrefix(getResolver()),bundleBinaryPath,bundleBinaryPath.resolveSibling(bundleBinaryPath.getFileName().toString() + ".dSYM")));
   }
   for (  Path dir : resourceDirs) {
     Path bundleDestinationPath=bundleRoot.resolve(this.destinations.getResourcesPath());
