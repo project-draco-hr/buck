@@ -1,7 +1,4 @@
 {
-  if (!xctoolPath.isPresent()) {
-    throw new HumanReadableException("Set xctool_path = /path/to/xctool in the [apple] section of .buckconfig " + "to run this test");
-  }
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   Path resolvedTestBundleDirectory=executionContext.getProjectFilesystem().resolve(testBundleDirectory);
   steps.add(new MakeCleanDirectoryStep(resolvedTestBundleDirectory));
@@ -9,17 +6,29 @@
   Path pathToTestOutput=executionContext.getProjectFilesystem().resolve(getPathToTestOutputDirectory());
   steps.add(new MakeCleanDirectoryStep(pathToTestOutput));
   Path resolvedTestOutputPath=executionContext.getProjectFilesystem().resolve(testOutputPath);
-  ImmutableSet.Builder<Path> logicTestPathsBuilder=ImmutableSet.builder();
-  ImmutableMap.Builder<Path,Path> appTestPathsToHostAppsBuilder=ImmutableMap.builder();
+  Optional<Path> testHostAppPath=Optional.absent();
   if (testHostApp.isPresent()) {
     Path resolvedTestHostAppDirectory=executionContext.getProjectFilesystem().resolve(testHostAppDirectory);
     steps.add(new MakeCleanDirectoryStep(resolvedTestHostAppDirectory));
     steps.add(new UnzipStep(testHostApp.get().getPathToOutputFile(),resolvedTestHostAppDirectory));
-    appTestPathsToHostAppsBuilder.put(resolvedTestBundleDirectory,resolvedTestHostAppDirectory.resolve(testHostApp.get().getUnzippedOutputFilePathToBinary()));
+    testHostAppPath=Optional.of(resolvedTestHostAppDirectory.resolve(testHostApp.get().getUnzippedOutputFilePathToBinary()));
+  }
+  if (!useXctest) {
+    if (!xctoolPath.isPresent()) {
+      throw new HumanReadableException("Set xctool_path = /path/to/xctool in the [apple] section of .buckconfig " + "to run this test");
+    }
+    ImmutableSet.Builder<Path> logicTestPathsBuilder=ImmutableSet.builder();
+    ImmutableMap.Builder<Path,Path> appTestPathsToHostAppsBuilder=ImmutableMap.builder();
+    if (testHostAppPath.isPresent()) {
+      appTestPathsToHostAppsBuilder.put(resolvedTestBundleDirectory,testHostAppPath.get());
+    }
+ else {
+      logicTestPathsBuilder.add(resolvedTestBundleDirectory);
+    }
+    steps.add(new XctoolRunTestsStep(xctoolPath.get(),platformName,simulatorName,logicTestPathsBuilder.build(),appTestPathsToHostAppsBuilder.build(),resolvedTestOutputPath));
   }
  else {
-    logicTestPathsBuilder.add(resolvedTestBundleDirectory);
+    steps.add(new XctestRunTestsStep((testBundleExtension == "xctest" ? xctest : otest).getCommandPrefix(getResolver()),(testBundleExtension == "xctest" ? "-XCTest" : "-SenTest"),resolvedTestBundleDirectory,resolvedTestOutputPath));
   }
-  steps.add(new XctoolRunTestsStep(xctoolPath.get(),sdkName,simulatorName,logicTestPathsBuilder.build(),appTestPathsToHostAppsBuilder.build(),resolvedTestOutputPath));
   return steps.build();
 }

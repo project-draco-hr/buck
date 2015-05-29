@@ -1,0 +1,14 @@
+{
+  Path outputPath=TestDataHelper.getTestDataDirectory(this).resolve("xctest-output/mixed-pass-and-fail.txt");
+  try (Reader outputReader=Files.newBufferedReader(outputPath,StandardCharsets.UTF_8)){
+    List<TestCaseSummary> summaries=XctestOutputParsing.parseOutputFromReader(outputReader);
+    assertThat(summaries,hasSize(2));
+    Matcher<TestResultSummary> isOtherTestsTestSomethingSuccess=allOf(hasProperty("testCaseName",equalTo("OtherTests")),hasProperty("testName",equalTo("testSomething")),hasProperty("type",equalTo(ResultType.SUCCESS)),hasProperty("time",equalTo(3L)),hasProperty("message",nullValue(String.class)),hasProperty("stacktrace",nullValue(String.class)),hasProperty("stdOut",nullValue(String.class)),hasProperty("stdErr",nullValue(String.class)));
+    List<TestResultSummary> otherTestsResults=summaries.get(0).getTestResults();
+    assertThat(otherTestsResults,contains(isOtherTestsTestSomethingSuccess));
+    Matcher<TestResultSummary> isSomeTestsTestWillFail=allOf(hasProperty("testCaseName",equalTo("SomeTests")),hasProperty("testName",equalTo("testWillFail")),hasProperty("type",equalTo(ResultType.FAILURE)),hasProperty("time",equalTo(0L)),hasProperty("message",nullValue(String.class)),hasProperty("stacktrace",nullValue(String.class)),hasProperty("stdOut",nullValue(String.class)),hasProperty("stdErr",nullValue(String.class)));
+    Matcher<TestResultSummary> isSomeTestsTestWillPass=allOf(hasProperty("testCaseName",equalTo("SomeTests")),hasProperty("testName",equalTo("testWillPass")),hasProperty("type",equalTo(ResultType.SUCCESS)),hasProperty("time",equalTo(0L)),hasProperty("message",nullValue(String.class)),hasProperty("stacktrace",nullValue(String.class)),hasProperty("stdOut",nullValue(String.class)),hasProperty("stdErr",nullValue(String.class)));
+    List<TestResultSummary> someTestsResults=summaries.get(1).getTestResults();
+    assertThat(someTestsResults,contains(isSomeTestsTestWillFail,isSomeTestsTestWillPass));
+  }
+ }

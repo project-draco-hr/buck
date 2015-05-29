@@ -1,11 +1,12 @@
 {
   ImmutableList.Builder<Path> toolSearchPathsBuilder=ImmutableList.builder();
-  toolSearchPathsBuilder.add(sdkPaths.getSdkPath().resolve(USR_BIN)).add(sdkPaths.getPlatformPath().resolve("Developer").resolve(USR_BIN));
+  toolSearchPathsBuilder.add(sdkPaths.getSdkPath().resolve(USR_BIN)).add(sdkPaths.getSdkPath().resolve("Developer").resolve(USR_BIN)).add(sdkPaths.getPlatformPath().resolve("Developer").resolve(USR_BIN));
   for (  Path toolchainPath : sdkPaths.getToolchainPaths()) {
     toolSearchPathsBuilder.add(toolchainPath.resolve(USR_BIN));
   }
   if (sdkPaths.getDeveloperPath().isPresent()) {
     toolSearchPathsBuilder.add(sdkPaths.getDeveloperPath().get().resolve(USR_BIN));
+    toolSearchPathsBuilder.add(sdkPaths.getDeveloperPath().get().resolve("Tools"));
   }
   ImmutableList<Path> toolSearchPaths=toolSearchPathsBuilder.build();
   ImmutableList.Builder<String> cflagsBuilder=ImmutableList.builder();
@@ -34,6 +35,8 @@ Tool clangXxPath=new VersionedTool(getToolPath("clang++",toolSearchPaths,executa
 Tool ar=new VersionedTool(getToolPath("ar",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-ar",version);
 Tool actool=new VersionedTool(getToolPath("actool",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-actool",version);
 Tool ibtool=new VersionedTool(getToolPath("ibtool",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-ibtool",version);
+Tool xctest=new VersionedTool(getToolPath("xctest",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-xctest",version);
+Tool otest=new VersionedTool(getToolPath("otest",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-otest",version);
 CxxBuckConfig config=new CxxBuckConfig(buckConfig);
 ImmutableFlavor targetFlavor=ImmutableFlavor.of(ImmutableFlavor.replaceInvalidCharacters(targetSdk.getName() + "-" + targetArchitecture));
 ImmutableBiMap.Builder<Path,Path> sanitizerPaths=ImmutableBiMap.builder();
@@ -44,5 +47,5 @@ sanitizerPaths.put(sdkPaths.getDeveloperPath().get(),Paths.get("APPLE_DEVELOPER_
 }
 DebugPathSanitizer debugPathSanitizer=new DebugPathSanitizer(250,File.separatorChar,Paths.get("."),sanitizerPaths.build());
 CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,Platform.MACOS,config,clangPath,clangPath,clangPath,clangXxPath,clangPath,clangXxPath,clangXxPath,Optional.of(CxxPlatform.LinkerType.DARWIN),clangXxPath,ar,"!<arch>\n".getBytes(Charsets.US_ASCII),getOptionalTool("lex",toolSearchPaths,executableFinder,version),getOptionalTool("yacc",toolSearchPaths,executableFinder,version),Optional.of(debugPathSanitizer));
-return AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setApplePlatform(targetSdk.getApplePlatform()).setAppleSdkPaths(sdkPaths).setActool(actool).setIbtool(ibtool).build();
+return AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setApplePlatform(targetSdk.getApplePlatform()).setAppleSdkPaths(sdkPaths).setActool(actool).setIbtool(ibtool).setXctest(xctest).setOtest(otest).build();
 }

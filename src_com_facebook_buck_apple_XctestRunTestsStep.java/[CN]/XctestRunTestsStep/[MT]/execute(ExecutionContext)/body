@@ -1,0 +1,27 @@
+{
+  ProjectFilesystem filesystem=context.getProjectFilesystem();
+  ImmutableList.Builder<String> args=ImmutableList.builder();
+  args.addAll(xctest);
+  args.add(testArgument);
+  args.add("All");
+  args.add(logicTestBundlePath.toString());
+  ImmutableMap.Builder<String,String> environment=ImmutableMap.builder();
+  environment.putAll(context.getEnvironment());
+  ProcessExecutorParams.Builder builder=ProcessExecutorParams.builder();
+  builder.setCommand(args.build());
+  builder.setEnvironment(environment.build());
+  builder.setRedirectError(ProcessBuilder.Redirect.to(filesystem.resolve(outputPath).toFile()));
+  int exitCode;
+  try {
+    ProcessExecutor executor=context.getProcessExecutor();
+    ProcessExecutor.Result result=executor.launchAndExecute(builder.build(),ImmutableSet.<ProcessExecutor.Option>of(),Optional.<String>absent(),Optional.<Long>absent());
+    LOG.debug("xctest exit code: %d",result.getExitCode());
+    exitCode=0;
+  }
+ catch (  IOException e) {
+    LOG.error(e,"Error while running %s",args.build());
+    e.printStackTrace(context.getStdErr());
+    exitCode=1;
+  }
+  return exitCode;
+}
