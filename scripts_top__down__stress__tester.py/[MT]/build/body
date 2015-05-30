@@ -1,0 +1,30 @@
+def build(buck, targets):
+    '\n    Verify that each of the actions the run when building the given targets\n    run correctly using a top-down build.\n    '
+    logging.info('Running a build to populate the cache')
+    run_buck(buck, 'build', *targets)
+    out = run_buck(buck, 'audit', 'dependencies', '--transitive', *targets)
+    ui_targets = set(out.splitlines())
+    ui_targets.update(targets)
+    cache_inventory = get_cache_inventory()
+    dependencies = {n.target: n.deps for n in cache_inventory.itervalues()}
+    processed = set()
+
+    def handle(current, chain):
+        logging.info('Processing {} ({}/{})'.format(current, len(processed), len(dependencies.keys())))
+        processed.add(current)
+        logging.info('Removing output from previous build')
+        clear_output()
+        entry = cache_inventory[current]
+        os.remove(entry.path)
+        logging.info('  removed {} => {}'.format(current, entry.path))
+        logging.info(('Running the build to check ' + current))
+        for node in itertools.chain([current], reversed(chain)):
+            if (node in ui_targets):
+                run_buck(buck, 'build', '--just-build', current, node)
+                break
+        else:
+            assert False, ("couldn't find target in UI: " + node)
+        logging.info('Verifying cache...')
+        missing = get_missing_cache_entries(cache_inventory)
+        assert (len(missing) == 0), '\n'.join(sorted(missing.keys()))
+    preorder_traversal(targets, dependencies, handle)

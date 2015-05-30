@@ -1,6 +1,8 @@
 {
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
   BuildTarget depTarget=BuildTargetFactory.newInstance("//src/com/facebook/orca:lib");
-  BuildRule dep=createMock(BuildRule.class);
+  FakeBuildRule dep=new FakeBuildRule(depTarget,resolver);
+  dep.setRuleKey(new RuleKey("19d2558a6bd3a34fb3f95412de9da27ed32fe208"));
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   FakeBuckEventListener listener=new FakeBuckEventListener();
   buckEventBus.register(listener);
@@ -9,7 +11,7 @@
   replayAll();
   String pathToOutputFile="buck-out/gen/src/com/facebook/orca/some_file";
   List<Step> buildSteps=Lists.newArrayList();
-  BuildRule ruleToTest=createRule(new SourcePathResolver(new BuildRuleResolver()),ImmutableSet.of(dep),buildSteps,ImmutableList.<Step>of(),pathToOutputFile);
+  BuildRule ruleToTest=createRule(resolver,ImmutableSet.<BuildRule>of(dep),buildSteps,ImmutableList.<Step>of(),pathToOutputFile);
   verifyAll();
   resetAll();
   BuildContext context=createMock(BuildContext.class);
@@ -17,15 +19,13 @@
   expect(context.getProjectRoot()).andReturn(createMock(Path.class));
   OnDiskBuildInfo onDiskBuildInfo=new FakeOnDiskBuildInfo();
   expect(context.createOnDiskBuildInfoFor(buildTarget)).andReturn(onDiskBuildInfo);
-  BuildInfoRecorder buildInfoRecorder=createMock(BuildInfoRecorder.class);
+  BuildInfoRecorder buildInfoRecorder=createNiceMock(BuildInfoRecorder.class);
   Capture<RuleKey> ruleKeyForRecorder=newCapture();
   expect(context.createBuildInfoRecorder(eq(buildTarget),capture(ruleKeyForRecorder),anyObject(RuleKey.class))).andReturn(buildInfoRecorder);
   expect(buildInfoRecorder.fetchArtifactForBuildable(anyObject(File.class),eq(artifactCache))).andReturn(CacheResult.miss());
   expect(context.getEventBus()).andReturn(buckEventBus).anyTimes();
   expect(context.getStepRunner()).andReturn(createStepRunner(buckEventBus)).anyTimes();
-  expect(dep.getBuildTarget()).andStubReturn(depTarget);
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService());
-  expect(dep.getRuleKey()).andReturn(new RuleKey("19d2558a6bd3a34fb3f95412de9da27ed32fe208"));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW);
   Step buildStep=createMock(Step.class);
   expect(buildStep.getDescription(anyObject(ExecutionContext.class))).andReturn("Some Description").anyTimes();
   expect(buildStep.getShortName()).andReturn("Some Short Name").anyTimes();
@@ -41,6 +41,10 @@
   buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
   verifyAll();
   List<BuckEvent> events=listener.getEvents();
-  assertEquals(configureTestEvent(BuildRuleEvent.started(ruleToTest),buckEventBus),events.get(0));
+  assertThat(events,Matchers.hasSize(11));
+  Iterator<BuckEvent> eventIter=events.iterator();
+  assertEquals(configureTestEvent(BuildRuleEvent.started(dep),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.suspended(dep),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.started(ruleToTest),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.finished(ruleToTest,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)),buckEventBus),events.get(events.size() - 2));
 }

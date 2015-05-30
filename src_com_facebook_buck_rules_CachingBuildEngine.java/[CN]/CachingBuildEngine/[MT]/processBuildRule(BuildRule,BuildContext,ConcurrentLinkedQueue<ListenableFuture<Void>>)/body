@@ -1,0 +1,74 @@
+{
+  context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule));
+  final OnDiskBuildInfo onDiskBuildInfo=context.createOnDiskBuildInfoFor(rule.getBuildTarget());
+  final BuildInfoRecorder buildInfoRecorder=context.createBuildInfoRecorder(rule.getBuildTarget(),rule.getRuleKey(),rule.getRuleKeyWithoutDeps());
+  final BuildableContext buildableContext=new DefaultBuildableContext(buildInfoRecorder);
+  ListenableFuture<BuildResult> buildResult=processBuildRule(rule,context,onDiskBuildInfo,buildInfoRecorder,buildableContext,asyncCallbacks);
+  if (buildMode == BuildMode.DEEP) {
+    buildResult=MoreFutures.chainExceptions(getDepResults(rule,context,asyncCallbacks),buildResult);
+  }
+  AsyncFunction<BuildResult,BuildResult> callback=new AsyncFunction<BuildResult,BuildResult>(){
+    @Override public ListenableFuture<BuildResult> apply(    @Nonnull BuildResult input) throws Exception {
+      Preconditions.checkState(input.getStatus() != BuildRuleStatus.FAIL);
+      if (rule instanceof HasPostBuildSteps) {
+        executePostBuildSteps(rule,((HasPostBuildSteps)rule).getPostBuildSteps(context,buildableContext),context);
+      }
+      BuildRuleSuccessType success=input.getSuccess();
+      buildInfoRecorder.addMetadata(BuildInfo.METADATA_KEY_FOR_TARGET,rule.getBuildTarget().toString());
+      buildInfoRecorder.addMetadata(BuildInfo.METADATA_KEY_FOR_DEPS,FluentIterable.from(rule.getDeps()).transform(HasBuildTarget.TO_TARGET).transform(Functions.toStringFunction()));
+      if (success != null && success.shouldWriteRecordedMetadataToDiskAfterBuilding()) {
+        try {
+          boolean clearExistingMetadata=success.shouldClearAndOverwriteMetadataOnDisk();
+          buildInfoRecorder.writeMetadataToDisk(clearExistingMetadata);
+        }
+ catch (        IOException e) {
+          throw new IOException(String.format("Failed to write metadata to disk for %s.",rule),e);
+        }
+      }
+      try {
+        if (rule instanceof InitializableFromDisk) {
+          doInitializeFromDisk((InitializableFromDisk<?>)rule,onDiskBuildInfo);
+        }
+      }
+ catch (      IOException e) {
+        throw new IOException(String.format("Error initializing %s from disk.",rule),e);
+      }
+      return Futures.immediateFuture(input);
+    }
+  }
+;
+  buildResult=Futures.transform(buildResult,callback);
+  final SettableFuture<BuildResult> result=SettableFuture.create();
+  asyncCallbacks.add(MoreFutures.addListenableCallback(buildResult,new FutureCallback<BuildResult>(){
+    @Override public void onSuccess(    BuildResult input){
+      Preconditions.checkNotNull(input.getSuccess());
+      result.set(input);
+      BuildRuleSuccessType success=input.getSuccess();
+      if (success != null && success.shouldUploadResultingArtifact()) {
+        try {
+          buildInfoRecorder.performUploadToArtifactCache(context.getArtifactCache(),context.getEventBus());
+        }
+ catch (        Throwable t) {
+          onFailure(t);
+          return;
+        }
+      }
+      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,BuildRuleStatus.SUCCESS,input.getCacheResult(),Optional.of(input.getSuccess())));
+    }
+    @Override public void onFailure(    @Nonnull Throwable thrown){
+      try {
+        onDiskBuildInfo.deleteExistingMetadata();
+      }
+ catch (      Throwable t) {
+        context.getEventBus().post(ThrowableConsoleEvent.create(t,"Error when deleting metadata for %s.",rule));
+      }
+      result.setException(thrown);
+      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,BuildRuleStatus.FAIL,CacheResult.miss(),Optional.<BuildRuleSuccessType>absent()));
+      if (thrown instanceof InterruptedException) {
+        Thread.currentThread().interrupt();
+      }
+    }
+  }
+));
+  return result;
+}

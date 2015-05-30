@@ -1,0 +1,35 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ArtifactCache cache=new NoopArtifactCache();
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
+  FakeBuckEventListener listener=new FakeBuckEventListener();
+  buckEventBus.register(listener);
+  BuildTarget depTarget=BuildTargetFactory.newInstance("//src/com/facebook/orca:lib");
+  FakeBuildRule dep=new FakeBuildRule(depTarget,pathResolver);
+  dep.setRuleKey(new RuleKey("aaaa"));
+  FakeBuildRule ruleToTest=new FakeBuildRule(buildTarget,pathResolver,dep);
+  ruleToTest.setRuleKey(new RuleKey("bbbb"));
+  BuildContext context=createMock(BuildContext.class);
+  expect(context.getArtifactCache()).andReturn(cache).anyTimes();
+  expect(context.getEventBus()).andReturn(buckEventBus).anyTimes();
+  expect(context.getStepRunner()).andReturn(createStepRunner(buckEventBus)).anyTimes();
+  expect(context.createOnDiskBuildInfoFor(buildTarget)).andReturn(new FakeOnDiskBuildInfo().setRuleKey(ruleToTest.getRuleKey()));
+  BuildInfoRecorder buildInfoRecorder=createNiceMock(BuildInfoRecorder.class);
+  Capture<RuleKey> ruleKeyForRecorder=newCapture();
+  expect(context.createBuildInfoRecorder(eq(buildTarget),capture(ruleKeyForRecorder),anyObject(RuleKey.class))).andReturn(buildInfoRecorder);
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW);
+  replayAll();
+  BuildResult result=cachingBuildEngine.build(context,ruleToTest).get();
+  assertEquals(BuildRuleSuccessType.MATCHING_RULE_KEY,result.getSuccess());
+  verifyAll();
+  List<BuckEvent> events=listener.getEvents();
+  assertThat(events,Matchers.hasSize(6));
+  Iterator<BuckEvent> eventIter=events.iterator();
+  assertEquals(configureTestEvent(BuildRuleEvent.started(dep),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.suspended(dep),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.started(ruleToTest),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.suspended(ruleToTest),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.resumed(ruleToTest),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.finished(ruleToTest,BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY)),buckEventBus),eventIter.next());
+}

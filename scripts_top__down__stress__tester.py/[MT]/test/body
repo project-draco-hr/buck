@@ -1,0 +1,14 @@
+def test(buck, targets):
+    '\n    Test that we can run tests when pulling from the cache.\n    '
+    test_targets = set()
+    out = run_buck(buck, 'targets', '--json', *targets)
+    for info in json.loads(out):
+        if info['buck.type'].endswith('_test'):
+            test_targets.add(((('//' + info['buck.base_path']) + ':') + info['name']))
+    if (not test_targets):
+        raise Exception('no test targets')
+    logging.info('Running a build to populate the cache')
+    run_buck(buck, 'build', *test_targets)
+    logging.info('Removing output from build')
+    clear_output()
+    run_buck(buck, 'test', *test_targets)

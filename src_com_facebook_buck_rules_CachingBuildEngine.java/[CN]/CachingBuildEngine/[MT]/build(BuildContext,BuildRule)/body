@@ -1,9 +1,9 @@
 {
-  List<ListenableFuture<Void>> asyncJobs=Lists.newArrayListWithCapacity(rule.getDeps().size());
-  final ListenableFuture<BuildResult> result=buildInternal(context,rule,asyncJobs);
-  return Futures.transform(Futures.allAsList(asyncJobs),new AsyncFunction<List<Void>,BuildResult>(){
-    @Override public ListenableFuture<BuildResult> apply(    @Nonnull List<Void> input) throws Exception {
-      return result;
+  final ConcurrentLinkedQueue<ListenableFuture<Void>> asyncCallbacks=new ConcurrentLinkedQueue<>();
+  final ListenableFuture<BuildResult> resultFuture=getBuildRuleResultWithRuntimeDeps(rule,context,asyncCallbacks);
+  return Futures.transform(resultFuture,new AsyncFunction<BuildResult,BuildResult>(){
+    @Override public ListenableFuture<BuildResult> apply(    @Nonnull BuildResult result) throws Exception {
+      return Futures.transform(Futures.allAsList(asyncCallbacks),Functions.constant(result));
     }
   }
 );

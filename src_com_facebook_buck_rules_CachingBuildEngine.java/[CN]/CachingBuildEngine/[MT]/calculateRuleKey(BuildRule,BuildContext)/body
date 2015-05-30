@@ -1,0 +1,23 @@
+{
+  ListenableFuture<RuleKey> ruleKey=ruleKeys.get(rule.getBuildTarget());
+  if (ruleKey == null) {
+    List<ListenableFuture<RuleKey>> depKeys=Lists.newArrayListWithExpectedSize(rule.getDeps().size());
+    for (    BuildRule dep : rule.getDeps()) {
+      depKeys.add(calculateRuleKey(dep,context));
+    }
+    ruleKey=Futures.transform(Futures.allAsList(depKeys),new Function<List<RuleKey>,RuleKey>(){
+      @Override public RuleKey apply(      List<RuleKey> input){
+        context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.started(rule));
+        try {
+          return rule.getRuleKey();
+        }
+  finally {
+          context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.suspended(rule));
+        }
+      }
+    }
+,service);
+    ruleKeys.put(rule.getBuildTarget(),ruleKey);
+  }
+  return ruleKey;
+}

@@ -1,0 +1,19 @@
+def main(argv):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--buck', default='buck')
+    parser.add_argument('command', choices=('build', 'test'))
+    parser.add_argument('targets', metavar='target', nargs='+')
+    args = parser.parse_args(argv[1:])
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+    out = run_buck(args.buck, 'targets', *args.targets)
+    targets = set(out.splitlines())
+    logging.info('Clearing output and cache')
+    run_buck(args.buck, 'clean')
+    clear_output()
+    clear_cache()
+    if (args.command == 'build'):
+        build(args.buck, targets)
+    elif (args.command == 'test'):
+        test(args.buck, targets)
+    else:
+        raise Exception(('unknown command: ' + args.command))

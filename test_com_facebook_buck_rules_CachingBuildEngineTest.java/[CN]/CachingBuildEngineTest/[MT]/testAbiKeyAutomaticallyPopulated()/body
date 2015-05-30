@@ -9,7 +9,7 @@
   NoopArtifactCache artifactCache=new NoopArtifactCache();
   expect(buildContext.getArtifactCache()).andStubReturn(artifactCache);
   expect(buildContext.getStepRunner()).andStubReturn(null);
-  BuildInfoRecorder buildInfoRecorder=createMock(BuildInfoRecorder.class);
+  BuildInfoRecorder buildInfoRecorder=createNiceMock(BuildInfoRecorder.class);
   expect(buildContext.createBuildInfoRecorder(eq(buildTarget),anyObject(RuleKey.class),anyObject(RuleKey.class))).andReturn(buildInfoRecorder);
   expect(buildInfoRecorder.fetchArtifactForBuildable(anyObject(File.class),eq(artifactCache))).andReturn(CacheResult.miss());
   OnDiskBuildInfo onDiskBuildInfo=new FakeOnDiskBuildInfo();
@@ -20,13 +20,19 @@
   expect(buildContext.getStepRunner()).andReturn(createStepRunner());
   expect(buildContext.getEventBus()).andReturn(buckEventBus).anyTimes();
   replayAll();
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService());
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW);
   ListenableFuture<BuildResult> buildResult=cachingBuildEngine.build(buildContext,buildRule);
   buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
   BuildResult result=buildResult.get();
   assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
   List<BuckEvent> events=listener.getEvents();
-  assertEquals(events.get(0),configureTestEvent(BuildRuleEvent.started(buildRule),buckEventBus));
-  assertEquals(events.get(1),configureTestEvent(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)),buckEventBus));
+  assertThat(events,Matchers.hasSize(7));
+  Iterator<BuckEvent> eventIter=events.iterator();
+  assertEquals(configureTestEvent(BuildRuleEvent.started(buildRule),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.suspended(buildRule),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.resumed(buildRule),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.suspended(buildRule),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.resumed(buildRule),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)),buckEventBus),eventIter.next());
   verifyAll();
 }

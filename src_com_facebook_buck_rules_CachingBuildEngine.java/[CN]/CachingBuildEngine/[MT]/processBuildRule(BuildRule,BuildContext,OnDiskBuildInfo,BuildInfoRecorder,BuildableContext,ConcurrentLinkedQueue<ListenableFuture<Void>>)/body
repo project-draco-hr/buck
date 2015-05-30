@@ -1,0 +1,31 @@
+{
+  Optional<RuleKey> cachedRuleKey=onDiskBuildInfo.getRuleKey();
+  if (cachedRuleKey.isPresent() && rule.getRuleKey().equals(cachedRuleKey.get())) {
+    return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.MATCHING_RULE_KEY,CacheResult.localKeyUnchangedHit()));
+  }
+  CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,buildInfoRecorder,context.getArtifactCache(),context.getProjectRoot(),context);
+  if (cacheResult.getType().isSuccess()) {
+    return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult));
+  }
+  context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.suspended(rule));
+  return Futures.transform(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,BuildResult>(){
+    @Override public ListenableFuture<BuildResult> apply(    @Nonnull List<BuildResult> depResults) throws Exception {
+      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule));
+      AbiRule abiRule=checkIfRuleOrBuildableIsAbiRule(rule);
+      if (abiRule != null) {
+        RuleKey ruleKeyNoDeps=rule.getRuleKeyWithoutDeps();
+        Optional<RuleKey> cachedRuleKeyNoDeps=onDiskBuildInfo.getRuleKeyWithoutDeps();
+        if (ruleKeyNoDeps.equals(cachedRuleKeyNoDeps.orNull())) {
+          Sha1HashCode abiKeyForDeps=abiRule.getAbiKeyForDeps();
+          Optional<Sha1HashCode> cachedAbiKeyForDeps=onDiskBuildInfo.getHash(ABI_KEY_FOR_DEPS_ON_DISK_METADATA);
+          if (abiKeyForDeps.equals(cachedAbiKeyForDeps.orNull())) {
+            return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,AbstractCacheResult.localKeyUnchangedHit()));
+          }
+        }
+      }
+      executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
+      return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.BUILT_LOCALLY,CacheResult.miss()));
+    }
+  }
+,service);
+}
