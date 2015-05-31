@@ -48,16 +48,16 @@
   SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
   ImmutableSet<AppleResourceDescription.Arg> resourceDescriptions=AppleResources.collectRecursiveResources(params.getTargetGraph(),ImmutableSet.of(params.getTargetGraph().get(params.getBuildTarget())));
   LOG.debug("Got resource nodes %s",resourceDescriptions);
-  ImmutableSet.Builder<Path> resourceDirsBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> resourceDirsBuilder=ImmutableSet.builder();
   AppleResources.addResourceDirsToBuilder(resourceDirsBuilder,resourceDescriptions);
-  ImmutableSet<Path> resourceDirs=resourceDirsBuilder.build();
+  ImmutableSet<SourcePath> resourceDirs=resourceDirsBuilder.build();
   ImmutableSet.Builder<SourcePath> resourceFilesBuilder=ImmutableSet.builder();
   AppleResources.addResourceFilesToBuilder(resourceFilesBuilder,resourceDescriptions);
   ImmutableSet<SourcePath> resourceFiles=resourceFilesBuilder.build();
   CollectedAssetCatalogs collectedAssetCatalogs=AppleDescriptions.createBuildRulesForTransitiveAssetCatalogDependencies(params,sourcePathResolver,appleCxxPlatform.getAppleSdk().getApplePlatform(),appleCxxPlatform.getActool());
   Optional<AppleAssetCatalog> mergedAssetCatalog=collectedAssetCatalogs.getMergedAssetCatalog();
   ImmutableSet<AppleAssetCatalog> bundledAssetCatalogs=collectedAssetCatalogs.getBundledAssetCatalogs();
-  AppleBundle bundle=new AppleBundle(params.copyWithChanges(AppleBundleDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addFlavors(BUNDLE_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(mergedAssetCatalog.asSet()).addAll(bundledAssetCatalogs).addAll(params.getDeclaredDeps()).build()),Suppliers.ofInstance(params.getExtraDeps())),sourcePathResolver,args.extension,args.infoPlist,args.infoPlistSubstitutions.get(),Optional.of(library),destinations,resourceDirs,resourceFiles,appleCxxPlatform.getIbtool(),appleCxxPlatform.getDsymutil(),bundledAssetCatalogs,mergedAssetCatalog,ImmutableSortedSet.<BuildTarget>of());
+  AppleBundle bundle=new AppleBundle(params.copyWithChanges(AppleBundleDescription.TYPE,BuildTarget.builder(params.getBuildTarget()).addFlavors(BUNDLE_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(mergedAssetCatalog.asSet()).addAll(bundledAssetCatalogs).addAll(params.getDeclaredDeps()).addAll(BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,SourcePaths.filterBuildTargetSourcePaths(Iterables.concat(resourceFiles,resourceDirs)))).build()),Suppliers.ofInstance(params.getExtraDeps())),sourcePathResolver,args.extension,args.infoPlist,args.infoPlistSubstitutions.get(),Optional.of(library),destinations,resourceDirs,resourceFiles,appleCxxPlatform.getIbtool(),appleCxxPlatform.getDsymutil(),bundledAssetCatalogs,mergedAssetCatalog,ImmutableSortedSet.<BuildTarget>of());
   Optional<SourcePath> xctoolZipPath;
   if (appleConfig.getXctoolZipTarget().isPresent()) {
     xctoolZipPath=Optional.<SourcePath>of(new BuildTargetSourcePath(params.getProjectFilesystem(),appleConfig.getXctoolZipTarget().get()));
