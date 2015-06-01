@@ -9,6 +9,7 @@
   bootclasspathEntries.addFirst(androidJar);
   Path buildToolsDir=androidSdkDir.resolve("build-tools");
   String buildToolsPath;
+  String buildToolsBinPath;
   if (buildToolsDir.toFile().isDirectory()) {
     File[] directories=buildToolsDir.toFile().listFiles(new FileFilter(){
       @Override public boolean accept(      File pathname){
@@ -22,18 +23,25 @@
  else {
       File newestBuildToolsDir=pickNewestBuildToolsDir(ImmutableSet.copyOf(directories));
       buildToolsPath="build-tools/" + newestBuildToolsDir.getName();
+      if (androidSdkDir.resolve(buildToolsPath).resolve("bin").toFile().exists()) {
+        buildToolsBinPath=buildToolsPath + "/bin";
+      }
+ else {
+        buildToolsBinPath=buildToolsPath;
+      }
     }
   }
  else {
     buildToolsPath="platform-tools";
+    buildToolsBinPath=buildToolsPath;
   }
   Path zipAlignExecutable=androidSdkDir.resolve("tools/zipalign").toAbsolutePath();
   if (!zipAlignExecutable.toFile().exists()) {
-    zipAlignExecutable=androidSdkDir.resolve(buildToolsPath).resolve("zipalign").toAbsolutePath();
+    zipAlignExecutable=androidSdkDir.resolve(buildToolsBinPath).resolve("zipalign").toAbsolutePath();
   }
   Path androidFrameworkIdlFile=platformDirectory.resolve("framework.aidl");
   Path proguardJar=androidSdkDir.resolve("tools/proguard/lib/proguard.jar");
   Path proguardConfig=androidSdkDir.resolve("tools/proguard/proguard-android.txt");
   Path optimizedProguardConfig=androidSdkDir.resolve("tools/proguard/proguard-android-optimize.txt");
-  return new AndroidPlatformTarget(name,androidJar.toAbsolutePath(),bootclasspathEntries,aaptOverride.or(androidSdkDir.resolve(buildToolsPath).resolve("aapt").toAbsolutePath()),androidSdkDir.resolve("platform-tools/adb").toAbsolutePath(),androidSdkDir.resolve(buildToolsPath).resolve("aidl").toAbsolutePath(),zipAlignExecutable,androidSdkDir.resolve(buildToolsPath).resolve(Platform.detect() == Platform.WINDOWS ? "dx.bat" : "dx").toAbsolutePath(),androidFrameworkIdlFile,proguardJar,proguardConfig,optimizedProguardConfig,androidDirectoryResolver);
+  return new AndroidPlatformTarget(name,androidJar.toAbsolutePath(),bootclasspathEntries,aaptOverride.or(androidSdkDir.resolve(buildToolsBinPath).resolve("aapt").toAbsolutePath()),androidSdkDir.resolve("platform-tools/adb").toAbsolutePath(),androidSdkDir.resolve(buildToolsBinPath).resolve("aidl").toAbsolutePath(),zipAlignExecutable,androidSdkDir.resolve(buildToolsPath).resolve(Platform.detect() == Platform.WINDOWS ? "dx.bat" : "dx").toAbsolutePath(),androidFrameworkIdlFile,proguardJar,proguardConfig,optimizedProguardConfig,androidDirectoryResolver);
 }
