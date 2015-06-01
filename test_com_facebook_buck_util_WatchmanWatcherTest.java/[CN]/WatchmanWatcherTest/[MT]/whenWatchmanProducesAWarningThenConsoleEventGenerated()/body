@@ -2,15 +2,15 @@
   String message="Find me!";
   String watchmanOutput=Joiner.on('\n').join("{\"files\": [","{","\"warning\": \"" + message + "\"","}","]}");
   Capture<ConsoleEvent> eventCapture=newCapture();
-  EventBus eventBus=createStrictMock(EventBus.class);
-  eventBus.post(capture(eventCapture));
-  eventBus.post(capture(newCapture(CaptureType.NONE)));
+  EventBus eventBus=new EventBus("watchman test");
+  BuckEventBus buckEventBus=createStrictMock(BuckEventBus.class);
+  buckEventBus.post(capture(eventCapture));
   Process process=createProcessMock(watchmanOutput);
   expect(process.waitFor()).andReturn(0);
   expectLastCall();
-  replay(eventBus,process);
+  replay(buckEventBus,process);
   WatchmanWatcher watcher=createWatcher(eventBus,process,new IncrementingFakeClock(),new ObjectMapper(),10000,10000);
-  watcher.postEvents();
-  verify(eventBus,process);
+  watcher.postEvents(buckEventBus);
+  verify(buckEventBus,process);
   assertThat(eventCapture.getValue().getMessage(),Matchers.containsString(message));
 }
