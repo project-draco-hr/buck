@@ -20,7 +20,7 @@
     filteredResourcesProvider=new IdentityResourcesProvider(resourceDetails.getResourceDirectories());
   }
   BuildTarget buildTargetForAapt=createBuildTargetWithFlavor(AAPT_PACKAGE_FLAVOR);
-  BuildRuleParams paramsForAaptPackageResources=buildRuleParams.copyWithChanges(buildTargetForAapt,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(getTargetsAsRules(resourceDetails.getResourcesWithNonEmptyResDir())).addAll(getAdditionalAaptDeps(pathResolver,resourceRules,packageableCollection)).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  BuildRuleParams paramsForAaptPackageResources=buildRuleParams.copyWithChanges(buildTargetForAapt,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(getTargetsAsRules(resourceDetails.getResourcesWithNonEmptyResDir())).addAll(pathResolver.filterBuildRuleInputs(resourceDetails.getResourceDirectories())).addAll(getAdditionalAaptDeps(pathResolver,resourceRules,packageableCollection)).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   AaptPackageResources aaptPackageResources=new AaptPackageResources(paramsForAaptPackageResources,pathResolver,manifest,filteredResourcesProvider,getTargetsAsResourceDeps(resourceDetails.getResourcesWithNonEmptyResDir()),packageableCollection.getAssetsDirectories(),packageType,javacOptions,shouldPreDex,shouldBuildStringSourceMap,locales.isEmpty(),skipCrunchPngs);
   ruleResolver.addToIndex(aaptPackageResources);
   enhancedDeps.add(aaptPackageResources);
@@ -78,7 +78,7 @@
   ImmutableMap<Pair<TargetCpuType,String>,SourcePath> nativeLinkableLibs=nativeLinkableLibsBuilder.build();
   Optional<CopyNativeLibraries> copyNativeLibraries=Optional.absent();
   if (!packageableCollection.getNativeLibsDirectories().isEmpty() || !nativeLinkableLibs.isEmpty()) {
-    BuildRuleParams paramsForCopyNativeLibraries=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(COPY_NATIVE_LIBS_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(getTargetsAsRules(packageableCollection.getNativeLibsTargets())).addAll(pathResolver.filterBuildRuleInputs(nativeLinkableLibs.values())).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+    BuildRuleParams paramsForCopyNativeLibraries=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(COPY_NATIVE_LIBS_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(getTargetsAsRules(packageableCollection.getNativeLibsTargets())).addAll(pathResolver.filterBuildRuleInputs(packageableCollection.getNativeLibsDirectories())).addAll(pathResolver.filterBuildRuleInputs(nativeLinkableLibs.values())).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
     copyNativeLibraries=Optional.of(new CopyNativeLibraries(paramsForCopyNativeLibraries,pathResolver,packageableCollection.getNativeLibsDirectories(),cpuFilters,nativePlatforms,nativeLinkableLibs));
     ruleResolver.addToIndex(copyNativeLibraries.get());
     enhancedDeps.add(copyNativeLibraries.get());
