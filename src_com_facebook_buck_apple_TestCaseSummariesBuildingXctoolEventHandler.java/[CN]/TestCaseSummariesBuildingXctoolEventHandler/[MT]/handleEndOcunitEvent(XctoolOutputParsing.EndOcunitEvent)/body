@@ -1,0 +1,12 @@
+{
+  boolean testsDidEndChangedToTrue=testsDidEnd.compareAndSet(false,true);
+  Preconditions.checkState(testsDidEndChangedToTrue,"handleEndOcunitEvent() should not be called twice");
+  Optional<TestResultSummary> internalError=XctoolOutputParsing.internalErrorForEndOcunitEvent(event);
+  if (internalError.isPresent()) {
+    testResultSummariesBuilder.put("Internal error from test runner",internalError.get());
+  }
+  for (  Map.Entry<String,Collection<TestResultSummary>> testCaseSummary : testResultSummariesBuilder.build().asMap().entrySet()) {
+    testCaseSummariesBuilder.add(new TestCaseSummary(testCaseSummary.getKey(),ImmutableList.copyOf(testCaseSummary.getValue())));
+  }
+  testReportingCallback.testsDidEnd(testCaseSummariesBuilder.build());
+}

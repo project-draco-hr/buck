@@ -35,7 +35,7 @@
   final AtomicInteger lastReportedTestSequenceNumber=new AtomicInteger();
   final List<TestRun> separateTestRuns=Lists.newArrayList();
   List<TestRun> parallelTestRuns=Lists.newArrayList();
-  for (  TestRule test : tests) {
+  for (  final TestRule test : tests) {
     boolean isTestRunRequired;
     isTestRunRequired=isTestRunRequiredForTest(test,buildEngine,executionContext,testRuleKeyFileHelper,options.isResultsCacheEnabled(),!options.getTestSelectorList().isEmpty());
     List<Step> steps;
@@ -43,7 +43,28 @@
       params.getBuckEventBus().post(IndividualTestEvent.started(testTargets));
       ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
       Preconditions.checkState(buildEngine.isRuleBuilt(test.getBuildTarget()));
-      List<Step> testSteps=test.runTests(buildContext,executionContext,options.isDryRun(),options.isShufflingTests(),options.getTestSelectorList());
+      final Map<String,UUID> testUUIDMap=new HashMap<>();
+      List<Step> testSteps=test.runTests(buildContext,executionContext,options.isDryRun(),options.isShufflingTests(),options.getTestSelectorList(),new TestRule.TestReportingCallback(){
+        @Override public void testsDidBegin(){
+          LOG.debug("Tests for rule %s began",test.getBuildTarget());
+        }
+        @Override public void testDidBegin(        String testCaseName,        String testName){
+          LOG.debug("Test rule %s test case %s test name %s began",test.getBuildTarget(),testCaseName,testName);
+          UUID testUUID=UUID.randomUUID();
+          testUUIDMap.put(testCaseName + ":" + testName,testUUID);
+          params.getBuckEventBus().post(TestSummaryEvent.started(testUUID,testCaseName,testName));
+        }
+        @Override public void testDidEnd(        TestResultSummary testResultSummary){
+          LOG.debug("Test rule %s test did end: %s",test.getBuildTarget(),testResultSummary);
+          UUID testUUID=testUUIDMap.get(testResultSummary.getTestCaseName() + ":" + testResultSummary.getTestName());
+          Preconditions.checkNotNull(testUUID);
+          params.getBuckEventBus().post(TestSummaryEvent.finished(testUUID,testResultSummary));
+        }
+        @Override public void testsDidEnd(        List<TestCaseSummary> testCaseSummaries){
+          LOG.debug("Test rule %s tests did end: %s",test.getBuildTarget(),testCaseSummaries);
+        }
+      }
+);
       if (!testSteps.isEmpty()) {
         stepsBuilder.addAll(testSteps);
         stepsBuilder.add(testRuleKeyFileHelper.createRuleKeyInDirStep(test));

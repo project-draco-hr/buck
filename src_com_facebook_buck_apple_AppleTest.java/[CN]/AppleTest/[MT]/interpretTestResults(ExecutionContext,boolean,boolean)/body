@@ -1,11 +1,25 @@
 {
   return new Callable<TestResults>(){
     @Override public TestResults call() throws Exception {
-      Path resolvedOutputPath=executionContext.getProjectFilesystem().resolve(testOutputPath);
-      try (BufferedReader reader=Files.newBufferedReader(resolvedOutputPath,StandardCharsets.UTF_8)){
-        return new TestResults(getBuildTarget(),useXctest ? XctestOutputParsing.parseOutputFromReader(reader) : XctoolOutputParsing.parseOutputFromReader(reader),contacts,FluentIterable.from(labels).transform(Functions.toStringFunction()).toSet());
+      List<TestCaseSummary> testCaseSummaries;
+      if (xctoolStdoutReader.isPresent()) {
+        testCaseSummaries=xctoolStdoutReader.get().getTestCaseSummaries();
       }
-     }
+ else {
+        Path resolvedOutputPath=executionContext.getProjectFilesystem().resolve(testOutputPath);
+        try (BufferedReader reader=Files.newBufferedReader(resolvedOutputPath,StandardCharsets.UTF_8)){
+          if (useXctest) {
+            testCaseSummaries=XctestOutputParsing.parseOutputFromReader(reader);
+          }
+ else {
+            TestCaseSummariesBuildingXctoolEventHandler xctoolEventHandler=new TestCaseSummariesBuildingXctoolEventHandler(NOOP_REPORTING_CALLBACK);
+            XctoolOutputParsing.streamOutputFromReader(reader,xctoolEventHandler);
+            testCaseSummaries=xctoolEventHandler.getTestCaseSummaries();
+          }
+        }
+       }
+      return new TestResults(getBuildTarget(),testCaseSummaries,contacts,FluentIterable.from(labels).transform(Functions.toStringFunction()).toSet());
+    }
   }
 ;
 }
