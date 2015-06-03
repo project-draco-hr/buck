@@ -15,9 +15,6 @@
   if (givenRepoName.isPresent() && givenRepoName.get().isEmpty()) {
     throw new BuildTargetParseException("Repo name must not be empty.");
   }
-  if (!localToCanonicalRepoNamesMap.containsKey(givenRepoName)) {
-    throw new HumanReadableException(String.format("In build target '%s', repo '%s' is not defined.",buildTargetName,givenRepoName));
-  }
   List<String> parts=BUILD_RULE_SEPARATOR_SPLITTER.splitToList(targetAfterRepo);
   if (parts.size() != 2) {
     throw new BuildTargetParseException(String.format("%s must contain exactly one colon (found %d)",buildTargetName,parts.size() - 1));
@@ -34,10 +31,7 @@
   baseName=baseName.replace("\\","/");
   checkBaseName(baseName,buildTargetName);
   UnflavoredBuildTarget.Builder unflavoredBuilder=UnflavoredBuildTarget.builder(baseName,shortName);
-  Optional<String> canonicalRepoName=Preconditions.checkNotNull(localToCanonicalRepoNamesMap.get(givenRepoName));
-  if (canonicalRepoName.isPresent()) {
-    unflavoredBuilder.setRepository(canonicalRepoName.get());
-  }
+  unflavoredBuilder.setRepository(givenRepoName);
   BuildTarget.Builder builder=BuildTarget.builder(unflavoredBuilder.build());
   for (  String flavor : flavorNames) {
     builder.addFlavors(ImmutableFlavor.of(flavor));
