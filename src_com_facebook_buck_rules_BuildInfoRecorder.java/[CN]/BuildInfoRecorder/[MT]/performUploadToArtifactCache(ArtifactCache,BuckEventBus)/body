@@ -2,21 +2,22 @@
   if (!artifactCache.isStoreSupported()) {
     return;
   }
-  ImmutableSet.Builder<Path> pathsToIncludeInZipBuilder=ImmutableSet.<Path>builder().addAll(Iterables.transform(metadataToWrite.keySet(),new Function<String,Path>(){
+  ImmutableSet<Path> pathsToIncludeInZip=FluentIterable.from(metadataToWrite.keySet()).transform(new Function<String,Path>(){
     @Override public Path apply(    String key){
       return pathToMetadataDirectory.resolve(key);
     }
   }
-)).addAll(pathsToOutputFiles);
-  try {
-    for (    Path outputDirectory : pathsToOutputDirectories) {
-      pathsToIncludeInZipBuilder.addAll(getEntries(outputDirectory));
+).append(pathsToOutputs).transformAndConcat(new Function<Path,Iterable<Path>>(){
+    @Override public Iterable<Path> apply(    Path input){
+      try {
+        return getEntries(input);
+      }
+ catch (      IOException e) {
+        throw new RuntimeException(e);
+      }
     }
   }
- catch (  IOException e) {
-    throw new RuntimeException(e);
-  }
-  ImmutableSet<Path> pathsToIncludeInZip=pathsToIncludeInZipBuilder.build();
+).toSet();
   eventBus.post(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.COMPRESS,ruleKey));
   File zip;
   try {
