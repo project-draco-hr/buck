@@ -1,0 +1,25 @@
+{
+  ProjectFilesystem filesystem=context.getProjectFilesystem();
+  try (InputStream stream=filesystem.newFileInputStream(input);BufferedInputStream bufferedStream=new BufferedInputStream(stream)){
+    NSDictionary infoPlist;
+    try {
+      infoPlist=(NSDictionary)PropertyListParser.parse(bufferedStream);
+    }
+ catch (    Exception e) {
+      throw new IOException(e);
+    }
+    for (    ImmutableMap.Entry<String,NSObject> entry : additionalKeys.entrySet()) {
+      if (!infoPlist.containsKey(entry.getKey())) {
+        infoPlist.put(entry.getKey(),entry.getValue());
+      }
+    }
+    infoPlist.putAll(overrideKeys);
+    String serializedInfoPlist=infoPlist.toXMLPropertyList();
+    filesystem.writeContentsToPath(serializedInfoPlist,output);
+  }
+ catch (  IOException e) {
+    context.logError(e,"error parsing plist %s",input);
+    return 1;
+  }
+  return 0;
+}
