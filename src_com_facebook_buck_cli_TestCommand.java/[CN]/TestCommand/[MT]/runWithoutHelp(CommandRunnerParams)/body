@@ -1,4 +1,5 @@
 {
+  LOG.debug("Running with arguments %s",getArguments());
   if (params.getParser().getParseStartTime().isPresent()) {
     params.getBuckEventBus().post(BuildEvent.started(getArguments()),params.getParser().getParseStartTime().get());
   }
@@ -19,9 +20,25 @@
       explicitBuildTargets=ImmutableSet.of();
     }
  else {
+      LOG.debug("Parsing graph for arguments %s",getArguments());
       Pair<ImmutableSet<BuildTarget>,TargetGraph> result=params.getParser().buildTargetGraphForTargetNodeSpecs(parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getRepository().getFilesystem().getIgnorePaths(),getArguments()),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
       targetGraph=result.getSecond();
       explicitBuildTargets=result.getFirst();
+      LOG.debug("Got explicit build targets %s",explicitBuildTargets);
+      ImmutableSet.Builder<BuildTarget> testTargetsBuilder=ImmutableSet.builder();
+      for (      TargetNode<?> node : targetGraph.getAll(explicitBuildTargets)) {
+        ImmutableSortedSet<BuildTarget> nodeTests=TargetNodes.getTestTargetsForNode(node);
+        if (!nodeTests.isEmpty()) {
+          LOG.debug("Got tests for target %s: %s",node.getBuildTarget(),nodeTests);
+          testTargetsBuilder.addAll(nodeTests);
+        }
+      }
+      ImmutableSet<BuildTarget> testTargets=testTargetsBuilder.build();
+      if (!testTargets.isEmpty()) {
+        LOG.debug("Got related test targets %s, building new target graph...",testTargets);
+        targetGraph=params.getParser().buildTargetGraphForBuildTargets(Iterables.concat(explicitBuildTargets,testTargets),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
+        LOG.debug("Finished building new target graph with tests.");
+      }
     }
   }
  catch (  BuildTargetException|BuildFileParseException e) {
