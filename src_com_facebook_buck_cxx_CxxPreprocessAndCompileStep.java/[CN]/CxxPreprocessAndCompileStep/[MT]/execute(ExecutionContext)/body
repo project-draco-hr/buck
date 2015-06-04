@@ -1,17 +1,21 @@
 {
-  LOG.debug("%s %s -> %s",operation.toString().toLowerCase(),input,output);
-  ProcessBuilder builder=new ProcessBuilder();
-  builder.command(command);
-  builder.directory(context.getProjectDirectoryRoot().toAbsolutePath().toFile());
-  builder.redirectError(ProcessBuilder.Redirect.PIPE);
-  if (operation == Operation.PREPROCESS) {
-    builder.redirectOutput(ProcessBuilder.Redirect.PIPE);
-  }
-  if (operation == Operation.COMPILE) {
-    builder.environment().put("PWD",sanitizer.getExpandedPath(context.getProjectDirectoryRoot().toAbsolutePath()));
-  }
   try {
-    LOG.debug("Running command (pwd=%s): %s",builder.directory(),Joiner.on(' ').join(Iterables.transform(builder.command(),Escaper.SHELL_ESCAPER)));
+    LOG.debug("%s %s -> %s",operation.toString().toLowerCase(),input,output);
+    if (operation == Operation.PIPED_PREPROCESS_AND_COMPILE) {
+      return executePiped(context);
+    }
+    ProcessBuilder builder=makeSubprocessBuilder(context);
+    if (operation == Operation.PREPROCESS) {
+      builder.command(makePreprocessCommand());
+      builder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+    }
+ else {
+      builder.command(makeCompileCommand(input.toString(),inputType.getLanguage()));
+      if (operation == Operation.COMPILE_MUNGE_DEBUGINFO) {
+        builder.environment().put("PWD",sanitizer.getExpandedPath(context.getProjectDirectoryRoot().toAbsolutePath()));
+      }
+    }
+    LOG.debug("Running command (pwd=%s): %s",builder.directory(),getDescription(context));
     Process process=builder.start();
     ByteArrayOutputStream error=new ByteArrayOutputStream();
     int exitCode;
@@ -34,7 +38,7 @@
     if (!err.isEmpty()) {
       context.getConsole().printErrorText(err);
     }
-    if (exitCode == 0 && operation == Operation.COMPILE) {
+    if (exitCode == 0 && operation == Operation.COMPILE_MUNGE_DEBUGINFO) {
       try {
         sanitizer.restoreCompilationDirectory(context.getProjectDirectoryRoot().toAbsolutePath().resolve(output),context.getProjectDirectoryRoot().toAbsolutePath());
       }

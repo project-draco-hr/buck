@@ -1,0 +1,62 @@
+{
+  ByteArrayOutputStream preprocessError=new ByteArrayOutputStream();
+  ProcessBuilder preprocessBuilder=makeSubprocessBuilder(context);
+  preprocessBuilder.command(makePreprocessCommand());
+  preprocessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+  ByteArrayOutputStream compileError=new ByteArrayOutputStream();
+  ProcessBuilder compileBuilder=makeSubprocessBuilder(context);
+  compileBuilder.command(makeCompileCommand("-",inputType.getPreprocessedLanguage()));
+  compileBuilder.redirectInput(ProcessBuilder.Redirect.PIPE);
+  Process preprocess=null;
+  Process compile=null;
+  FunctionLineProcessorThread errorProcessorPreprocess=null;
+  FunctionLineProcessorThread errorProcessorCompile=null;
+  FunctionLineProcessorThread lineDirectiveMunger=null;
+  try {
+    LOG.debug("Running command (pwd=%s): %s",preprocessBuilder.directory(),getDescription(context));
+    preprocess=preprocessBuilder.start();
+    compile=compileBuilder.start();
+    errorProcessorPreprocess=new FunctionLineProcessorThread(preprocess.getErrorStream(),preprocessError,createErrorLineProcessor(context.getProjectDirectoryRoot()));
+    errorProcessorPreprocess.start();
+    errorProcessorCompile=new FunctionLineProcessorThread(compile.getErrorStream(),compileError,createErrorLineProcessor(context.getProjectDirectoryRoot()));
+    errorProcessorCompile.start();
+    lineDirectiveMunger=new FunctionLineProcessorThread(preprocess.getInputStream(),compile.getOutputStream(),createPreprocessOutputLineProcessor(context.getProjectDirectoryRoot()));
+    lineDirectiveMunger.start();
+    int compileStatus=compile.waitFor();
+    int preprocessStatus=preprocess.waitFor();
+    String preprocessErr=new String(preprocessError.toByteArray());
+    if (!preprocessErr.isEmpty()) {
+      context.getConsole().printErrorText(preprocessErr);
+    }
+    String compileErr=new String(compileError.toByteArray());
+    if (!compileErr.isEmpty()) {
+      context.getConsole().printErrorText(compileErr);
+    }
+    if (preprocessStatus != 0) {
+      LOG.warn("error %d %s(preprocess) %s: %s",preprocessStatus,operation.toString().toLowerCase(),input,preprocessErr);
+    }
+    if (compileStatus != 0) {
+      LOG.warn("error %d %s(compile) %s: %s",compileStatus,operation.toString().toLowerCase(),input,compileErr);
+    }
+    if (preprocessStatus != 0) {
+      return preprocessStatus;
+    }
+    if (compileStatus != 0) {
+      return compileStatus;
+    }
+    return 0;
+  }
+  finally {
+    if (preprocess != null) {
+      preprocess.destroy();
+      preprocess.waitFor();
+    }
+    if (compile != null) {
+      compile.destroy();
+      compile.waitFor();
+    }
+    safeCloseProcessor(errorProcessorPreprocess);
+    safeCloseProcessor(errorProcessorCompile);
+    safeCloseProcessor(lineDirectiveMunger);
+  }
+}

@@ -1,0 +1,55 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple",tmp);
+  workspace.setUp();
+  workspace.writeContentsToPath(String.format("[cxx]\npreprocess_mode = %s\n",preprocessMode),".buckconfig");
+  CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(new CxxBuckConfig(new FakeBuckConfig()));
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:simple");
+  CxxSourceRuleFactory cxxSourceRuleFactory=CxxSourceRuleFactoryHelper.of(target,cxxPlatform);
+  BuildTarget binaryTarget=CxxDescriptionEnhancer.createCxxLinkTarget(target);
+  String sourceName="simple.cpp";
+  String sourceFull="foo/" + sourceName;
+  BuildTarget preprocessTarget=cxxSourceRuleFactory.createPreprocessBuildTarget(sourceName,CxxSource.Type.CXX,CxxSourceRuleFactory.PicType.PDC);
+  BuildTarget compileTarget=cxxSourceRuleFactory.createCompileBuildTarget(sourceName,CxxSourceRuleFactory.PicType.PDC);
+  BuildTarget headerSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.getFlavor(),HeaderVisibility.PRIVATE);
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  ImmutableSet<BuildTarget> expectedTargets=ImmutableSet.<BuildTarget>builder().addAll(ImmutableSet.of(headerSymlinkTreeTarget,compileTarget,binaryTarget,target)).addAll((expectPreprocessorOutput ? ImmutableSet.of(preprocessTarget) : ImmutableSet.<BuildTarget>of())).build();
+  assertEquals(expectedTargets,buildLog.getAllTargets());
+  buildLog.assertTargetBuiltLocally(headerSymlinkTreeTarget.toString());
+  if (expectPreprocessorOutput) {
+    buildLog.assertTargetBuiltLocally(preprocessTarget.toString());
+  }
+  buildLog.assertTargetBuiltLocally(compileTarget.toString());
+  buildLog.assertTargetBuiltLocally(binaryTarget.toString());
+  buildLog.assertTargetBuiltLocally(target.toString());
+  workspace.resetBuildLogFile();
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  assertEquals(ImmutableSet.of(target,binaryTarget),buildLog.getAllTargets());
+  buildLog.assertTargetHadMatchingRuleKey(binaryTarget.toString());
+  buildLog.assertTargetHadMatchingRuleKey(target.toString());
+  workspace.resetBuildLogFile();
+  workspace.replaceFileContents(sourceFull,"{}","{ return 0; }");
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  assertEquals(expectedTargets,buildLog.getAllTargets());
+  buildLog.assertTargetHadMatchingRuleKey(headerSymlinkTreeTarget.toString());
+  if (expectPreprocessorOutput) {
+    buildLog.assertTargetBuiltLocally(preprocessTarget.toString());
+  }
+  buildLog.assertTargetBuiltLocally(compileTarget.toString());
+  buildLog.assertTargetBuiltLocally(binaryTarget.toString());
+  buildLog.assertTargetBuiltLocally(target.toString());
+  workspace.resetBuildLogFile();
+  workspace.replaceFileContents(sourceFull,"{ return 0; }","won't compile");
+  workspace.runBuckCommand("build",target.toString()).assertFailure();
+  buildLog=workspace.getBuildLog();
+  assertEquals(expectedTargets,buildLog.getAllTargets());
+  buildLog.assertTargetHadMatchingRuleKey(headerSymlinkTreeTarget.toString());
+  if (expectPreprocessorOutput) {
+    buildLog.assertTargetBuiltLocally(preprocessTarget.toString());
+  }
+  buildLog.assertTargetFailed(compileTarget.toString());
+  buildLog.assertTargetFailed(binaryTarget.toString());
+  buildLog.assertTargetFailed(target.toString());
+}

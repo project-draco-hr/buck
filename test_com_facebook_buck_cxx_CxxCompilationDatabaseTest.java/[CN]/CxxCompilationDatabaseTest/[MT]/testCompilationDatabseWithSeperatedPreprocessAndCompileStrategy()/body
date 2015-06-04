@@ -5,11 +5,11 @@
   SourcePathResolver testSourcePathResolver=new SourcePathResolver(testBuildRuleResolver);
   BuildTarget preprocessTarget=BuildTarget.builder(testBuildRuleParams.getBuildTarget().getUnflavoredBuildTarget()).addFlavors(ImmutableFlavor.of("preprocess-test.cpp")).build();
   BuildRuleParams preprocessBuildRuleParams=new FakeBuildRuleParamsBuilder(preprocessTarget).build();
-  CxxPreprocessAndCompile testPreprocessRule=new CxxPreprocessAndCompile(preprocessBuildRuleParams,testSourcePathResolver,new HashedFileTool(Paths.get("compiler")),CxxPreprocessAndCompileStep.Operation.PREPROCESS,ImmutableList.<String>of(),Paths.get("test.ii"),new TestSourcePath("test.cpp"),ImmutableList.of(Paths.get("foo/bar"),Paths.get("test")),ImmutableList.<Path>of(),ImmutableList.<Path>of(),CxxHeaders.builder().build(),CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER);
+  CxxPreprocessAndCompile testPreprocessRule=new CxxPreprocessAndCompile(preprocessBuildRuleParams,testSourcePathResolver,new HashedFileTool(Paths.get("compiler")),CxxPreprocessAndCompileStep.Operation.PREPROCESS,ImmutableList.<String>of(),Paths.get("test.ii"),new TestSourcePath("test.cpp"),CxxSource.Type.CXX_CPP_OUTPUT,ImmutableList.of(Paths.get("foo/bar"),Paths.get("test")),ImmutableList.<Path>of(),ImmutableList.<Path>of(),CxxHeaders.builder().build(),CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER);
   BuildTarget compileTarget=BuildTarget.builder(testBuildRuleParams.getBuildTarget().getUnflavoredBuildTarget()).addFlavors(ImmutableFlavor.of("compile-test.cpp")).build();
   BuildRuleParams compileBuildRuleParams=new FakeBuildRuleParamsBuilder(compileTarget).setDeps(ImmutableSortedSet.<BuildRule>of(testPreprocessRule)).build();
-  CxxPreprocessAndCompile testCompileRule=new CxxPreprocessAndCompile(compileBuildRuleParams,testSourcePathResolver,new HashedFileTool(Paths.get("compiler")),CxxPreprocessAndCompileStep.Operation.COMPILE,ImmutableList.<String>of(),Paths.get("test.o"),new TestSourcePath("test.ii"),ImmutableList.<Path>of(),ImmutableList.<Path>of(),ImmutableList.<Path>of(),CxxHeaders.builder().build(),CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER);
-  CxxCompilationDatabase compilationDatabase=CxxCompilationDatabase.createCompilationDatabase(testBuildRuleParams,testSourcePathResolver,CxxSourceRuleFactory.Strategy.SEPARATE_PREPROCESS_AND_COMPILE,ImmutableSortedSet.of(testPreprocessRule,testCompileRule));
+  CxxPreprocessAndCompile testCompileRule=new CxxPreprocessAndCompile(compileBuildRuleParams,testSourcePathResolver,new HashedFileTool(Paths.get("compiler")),CxxPreprocessAndCompileStep.Operation.COMPILE,ImmutableList.<String>of(),Paths.get("test.o"),new TestSourcePath("test.ii"),CxxSource.Type.CXX_CPP_OUTPUT,ImmutableList.<Path>of(),ImmutableList.<Path>of(),ImmutableList.<Path>of(),CxxHeaders.builder().build(),CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER);
+  CxxCompilationDatabase compilationDatabase=CxxCompilationDatabase.createCompilationDatabase(testBuildRuleParams,testSourcePathResolver,CxxPreprocessMode.SEPARATE,ImmutableSortedSet.of(testPreprocessRule,testCompileRule));
   assertEquals("getPathToOutput() should be a function of the build target.",Paths.get("buck-out/gen/foo/__baz#compilation-database.json"),compilationDatabase.getPathToOutput());
   BuildContext buildContext=FakeBuildContext.NOOP_CONTEXT;
   BuildableContext buildableContext=new FakeBuildableContext();
@@ -28,6 +28,6 @@
   ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
   CxxCompilationDatabase.GenerateCompilationCommandsJson step=(CxxCompilationDatabase.GenerateCompilationCommandsJson)buildSteps.get(1);
   Iterable<CxxCompilationDatabaseEntry> observedEntries=step.createEntries(context);
-  Iterable<CxxCompilationDatabaseEntry> expectedEntries=ImmutableList.of(new CxxCompilationDatabaseEntry(root + "/foo",root + "/test.cpp",ImmutableList.of("compiler","-c","-I","foo/bar","-I","test","-o","test.o","test.cpp")));
+  Iterable<CxxCompilationDatabaseEntry> expectedEntries=ImmutableList.of(new CxxCompilationDatabaseEntry(root + "/foo",root + "/test.cpp",ImmutableList.of("compiler","-x","c++-cpp-output","-c","-I","foo/bar","-I","test","-o","test.o","test.cpp")));
   MoreAsserts.assertIterablesEquals(expectedEntries,observedEntries);
 }
