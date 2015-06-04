@@ -1,0 +1,17 @@
+{
+  LOG.debug("Running xcrun simctl list to get list of simulators");
+  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().setCommand(ImmutableList.of("xcrun","simctl","list")).build();
+  ProcessExecutor.LaunchedProcess simctlListProcess=processExecutor.launchProcess(processExecutorParams);
+  ImmutableSet.Builder<AppleSimulator> simulatorsBuilder=ImmutableSet.builder();
+  try (InputStreamReader stdoutReader=new InputStreamReader(simctlListProcess.getInputStream(),StandardCharsets.UTF_8)){
+    LOG.debug("Parsing output of xcrun simctl list...");
+    SimctlListOutputParsing.parseOutputFromReader(stdoutReader,simulatorsBuilder);
+  }
+   int processExitCode=processExecutor.waitForLaunchedProcess(simctlListProcess);
+  if (processExitCode != 0) {
+    throw new IOException(String.format("simctl list failed with error %d",processExitCode));
+  }
+  ImmutableSet<AppleSimulator> simulators=simulatorsBuilder.build();
+  LOG.debug("Discovered simulators: %s",simulators);
+  return simulators;
+}
