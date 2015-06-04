@@ -1,0 +1,37 @@
+{
+  NSDictionary profile;
+  try (BufferedInputStream bufferedInputStream=new BufferedInputStream(inputStream)){
+    try {
+      profile=(NSDictionary)PropertyListParser.parse(bufferedInputStream);
+    }
+ catch (    Exception e) {
+      throw new IOException(e);
+    }
+  }
+   NSObject supportedProductFamilyIDsObject=profile.objectForKey("supportedProductFamilyIDs");
+  if (!(supportedProductFamilyIDsObject instanceof NSArray)) {
+    LOG.warn("Invalid simulator profile.plist (supportedProductFamilyIDs missing or not an array)");
+    return Optional.absent();
+  }
+  NSArray supportedProductFamilyIDs=(NSArray)supportedProductFamilyIDsObject;
+  AppleSimulatorProfile.Builder profileBuilder=AppleSimulatorProfile.builder();
+  for (  NSObject supportedProductFamilyID : supportedProductFamilyIDs.getArray()) {
+    if (supportedProductFamilyID instanceof NSNumber) {
+      profileBuilder.addSupportedProductFamilyIDs(((NSNumber)supportedProductFamilyID).intValue());
+    }
+ else {
+      LOG.warn("Invalid simulator profile.plist (supportedProductFamilyIDs contains non-number %s)",supportedProductFamilyID);
+      return Optional.absent();
+    }
+  }
+  NSObject supportedArchsObject=profile.objectForKey("supportedArchs");
+  if (!(supportedArchsObject instanceof NSArray)) {
+    LOG.warn("Invalid simulator profile.plist (supportedArchs missing or not an array)");
+    return Optional.absent();
+  }
+  NSArray supportedArchs=(NSArray)supportedArchsObject;
+  for (  NSObject supportedArch : supportedArchs.getArray()) {
+    profileBuilder.addSupportedArchitectures(supportedArch.toString());
+  }
+  return Optional.of(profileBuilder.build());
+}
