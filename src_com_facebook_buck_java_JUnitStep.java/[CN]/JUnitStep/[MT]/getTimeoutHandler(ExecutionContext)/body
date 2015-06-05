@@ -1,0 +1,62 @@
+{
+  return Optional.<Function<Process,Void>>of(new Function<Process,Void>(){
+    @Override public Void apply(    Process process){
+      Optional<Long> pid=Optional.absent();
+      try {
+switch (context.getPlatform()) {
+case LINUX:
+case MACOS:
+{
+            Field field=process.getClass().getDeclaredField("pid");
+            field.setAccessible(true);
+            try {
+              pid=Optional.of((long)field.getInt(process));
+            }
+ catch (            IllegalAccessException e) {
+              LOG.error(e,"Failed to access `pid`.");
+            }
+            break;
+          }
+case WINDOWS:
+{
+          Field field=process.getClass().getDeclaredField("handle");
+          field.setAccessible(true);
+          try {
+            pid=Optional.of(field.getLong(process));
+          }
+ catch (          IllegalAccessException e) {
+            LOG.error(e,"Failed to access `handle`.");
+          }
+          break;
+        }
+case UNKNOWN:
+      LOG.info("Unknown platform; unable to obtain the process id!");
+    break;
+}
+}
+ catch (NoSuchFieldException e) {
+LOG.error(e);
+}
+Optional<Path> jstack=new ExecutableFinder(context.getPlatform()).getOptionalExecutable(Paths.get("jstack"),context.getEnvironment());
+if (!pid.isPresent() || !jstack.isPresent()) {
+LOG.info("Unable to print a stack trace for timed out test!");
+return null;
+}
+context.getStdErr().print("Test has timed out!  Here is a trace of what it is currently doing:%n");
+try {
+context.getProcessExecutor().launchAndExecute(ProcessExecutorParams.builder().addCommand(jstack.get().toString(),"-F","-l",pid.get().toString()).setEnvironment(context.getEnvironment()).build(),ImmutableSet.<ProcessExecutor.Option>builder().add(ProcessExecutor.Option.PRINT_STD_OUT).add(ProcessExecutor.Option.PRINT_STD_ERR).build(),Optional.<String>absent(),Optional.of(TimeUnit.SECONDS.toMillis(30)),Optional.<Function<Process,Void>>of(new Function<Process,Void>(){
+  @Override public Void apply(  Process input){
+    context.getStdErr().print("Printing the stack took longer than 30 seconds. No longer trying.");
+    return null;
+  }
+}
+));
+}
+ catch (Exception e) {
+LOG.error(e);
+}
+return null;
+}
+}
+);
+}
