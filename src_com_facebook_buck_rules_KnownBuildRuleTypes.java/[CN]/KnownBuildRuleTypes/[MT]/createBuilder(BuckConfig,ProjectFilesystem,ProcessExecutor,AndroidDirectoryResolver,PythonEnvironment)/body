@@ -9,10 +9,13 @@
   ImmutableMap.Builder<Flavor,AppleCxxPlatform> platformFlavorsToAppleCxxPlatformsBuilder=ImmutableMap.builder();
   buildAppleCxxPlatforms(appleConfig.getAppleDeveloperDirectorySupplier(processExecutor),appleConfig.getExtraToolchainPaths(),appleConfig.getExtraPlatformPaths(),config,appleConfig,platformFlavorsToAppleCxxPlatformsBuilder);
   ImmutableMap<Flavor,AppleCxxPlatform> platformFlavorsToAppleCxxPlatforms=platformFlavorsToAppleCxxPlatformsBuilder.build();
-  ImmutableMap.Builder<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> ndkCxxPlatformsBuilder=ImmutableMap.builder();
   Optional<Path> ndkRoot=androidDirectoryResolver.findAndroidNdkDir();
+  ImmutableMap.Builder<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> ndkCxxPlatformsBuilder=ImmutableMap.builder();
   if (ndkRoot.isPresent()) {
-    ndkCxxPlatformsBuilder.putAll(NdkCxxPlatforms.getPlatforms(ndkRoot.get(),androidConfig.getNdkAppPlatform().or("android-9"),platform));
+    NdkCxxPlatforms.Compiler.Type compilerType=androidConfig.getNdkCompiler().or(NdkCxxPlatforms.DEFAULT_COMPILER_TYPE);
+    String gccVersion=androidConfig.getNdkGccVersion().or(NdkCxxPlatforms.DEFAULT_GCC_VERSION);
+    NdkCxxPlatforms.Compiler compiler=ImmutableNdkCxxPlatforms.Compiler.builder().setType(compilerType).setVersion(compilerType == NdkCxxPlatforms.Compiler.Type.GCC ? gccVersion : androidConfig.getNdkClangVersion().or(NdkCxxPlatforms.DEFAULT_CLANG_VERSION)).setGccVersion(gccVersion).build();
+    ndkCxxPlatformsBuilder.putAll(NdkCxxPlatforms.getPlatforms(new ProjectFilesystem(ndkRoot.get()),compiler,androidConfig.getNdkCxxRuntime().or(NdkCxxPlatforms.DEFAULT_CXX_RUNTIME),androidConfig.getNdkAppPlatform().or(NdkCxxPlatforms.DEFAULT_TARGET_APP_PLATFORM),platform));
   }
   ImmutableMap<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> ndkCxxPlatforms=ndkCxxPlatformsBuilder.build();
   CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(config);

@@ -1,3 +1,12 @@
 {
-  return new VersionedTool(getToolPath(ndkRoot,targetConfiguration,host,tool,executableFinder),ImmutableList.of("-B" + getToolchainBinPath(ndkRoot,targetConfiguration,host),"-B" + getLibexecGccToolPath(ndkRoot,targetConfiguration,host),"-B" + getNdkToolRoot(ndkRoot,targetConfiguration,host).resolve("lib").resolve("gcc").resolve(targetConfiguration.toolchainPrefix.toString()).resolve(targetConfiguration.compilerVersion),"-B" + ndkRoot.resolve("platforms").resolve(targetConfiguration.targetAppPlatform).resolve("arch-" + targetConfiguration.targetArch).resolve("usr").resolve("lib").toString(),"-L" + getCxxRuntimeDirectory(ndkRoot,targetConfiguration).toString()),tool,String.format("%s %s %s %s",targetConfiguration.toolchain,targetConfiguration.targetAppPlatform,version,cxxRuntime));
+  ImmutableList.Builder<String> flags=ImmutableList.builder();
+  if (targetConfiguration.getCompiler().getType() == Compiler.Type.CLANG) {
+    flags.add("-gcc-toolchain",getNdkGccToolRoot(ndkRoot,targetConfiguration,host).toString());
+  }
+  flags.add("--sysroot=" + getSysroot(ndkRoot,targetConfiguration));
+  if (targetConfiguration.getCompiler().getType() == Compiler.Type.GCC) {
+    flags.add("-B" + getLibexecGccToolPath(ndkRoot,targetConfiguration,host),"-B" + getNdkToolRoot(ndkRoot,targetConfiguration,host).resolve("lib").resolve(targetConfiguration.getCompiler().getType().getName()).resolve(targetConfiguration.getCompiler().getType() == Compiler.Type.GCC ? targetConfiguration.getToolchainTarget().toString() : "").resolve(targetConfiguration.getCompiler().getVersion()));
+  }
+  flags.add("-L" + getCxxRuntimeLibsDirectory(ndkRoot,targetConfiguration,cxxRuntime).toString());
+  return new VersionedTool(getToolPath(ndkRoot,targetConfiguration,host,tool,executableFinder),flags.build(),tool,version);
 }
