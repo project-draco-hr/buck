@@ -4,17 +4,20 @@
   }
   ImmutableSet<BuildTarget> passedInTargetsSet=getBuildTargets(params,getArgumentsFormattedAsBuildTargets(params.getBuckConfig()));
   ProjectGraphParser projectGraphParser=ProjectGraphParsers.createProjectGraphParser(params.getParser(),new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
-  TargetGraph projectGraph=projectGraphParser.buildTargetGraphForTargetNodeSpecs(getTargetNodeSpecsForIde(getIde(params.getBuckConfig()),passedInTargetsSet,params.getRepository().getFilesystem().getIgnorePaths()));
+  TargetGraph projectGraph=projectGraphParser.buildTargetGraphForTargetNodeSpecs(getTargetNodeSpecsForIde(getIde(params.getBuckConfig()),passedInTargetsSet,params.getRepository().getFilesystem().getIgnorePaths(),isExperimentalIntelliJProjectGenerationEnabled()));
   ProjectPredicates projectPredicates=ProjectPredicates.forIde(getIde(params.getBuckConfig()));
   ImmutableSet<BuildTarget> graphRoots;
   if (!passedInTargetsSet.isEmpty()) {
-    ImmutableSet<BuildTarget> supplementalGraphRoots=getRootBuildTargetsForIntelliJ(getIde(params.getBuckConfig()),projectGraph,projectPredicates);
+    ImmutableSet<BuildTarget> supplementalGraphRoots=ImmutableSet.of();
+    if (getIde(params.getBuckConfig()) == Ide.INTELLIJ && !isExperimentalIntelliJProjectGenerationEnabled()) {
+      supplementalGraphRoots=getRootBuildTargetsForIntelliJ(getIde(params.getBuckConfig()),projectGraph,projectPredicates);
+    }
     graphRoots=Sets.union(passedInTargetsSet,supplementalGraphRoots).immutableCopy();
   }
  else {
     graphRoots=getRootsFromPredicate(projectGraph,projectPredicates.getProjectRootsPredicate());
   }
-  TargetGraphAndTargets targetGraphAndTargets=createTargetGraph(projectGraph,graphRoots,projectGraphParser,projectPredicates.getAssociatedProjectPredicate(),isWithTests(),getIde(params.getBuckConfig()),params.getRepository().getFilesystem().getIgnorePaths());
+  TargetGraphAndTargets targetGraphAndTargets=createTargetGraph(projectGraph,graphRoots,projectGraphParser,projectPredicates.getAssociatedProjectPredicate(),isWithTests(),getIde(params.getBuckConfig()),params.getRepository().getFilesystem().getIgnorePaths(),isExperimentalIntelliJProjectGenerationEnabled());
   if (getDryRun()) {
     for (    TargetNode<?> targetNode : targetGraphAndTargets.getTargetGraph().getNodes()) {
       params.getConsole().getStdOut().println(targetNode.toString());
