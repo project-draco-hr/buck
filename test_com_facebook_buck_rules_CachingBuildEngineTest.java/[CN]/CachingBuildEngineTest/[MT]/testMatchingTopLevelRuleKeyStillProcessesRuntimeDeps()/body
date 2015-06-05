@@ -18,7 +18,9 @@
   expect(context.createOnDiskBuildInfoFor(buildTarget)).andReturn(new FakeOnDiskBuildInfo().setRuleKey(ruleToTest.getRuleKey())).anyTimes();
   expect(context.createOnDiskBuildInfoFor(runtimeDep.getBuildTarget())).andReturn(new FakeOnDiskBuildInfo().setRuleKey(runtimeDep.getRuleKey())).anyTimes();
   expect(context.createOnDiskBuildInfoFor(transitiveRuntimeDep.getBuildTarget())).andReturn(new FakeOnDiskBuildInfo().setRuleKey(transitiveRuntimeDep.getRuleKey())).anyTimes();
-  expect(context.createBuildInfoRecorder(anyObject(BuildTarget.class),anyObject(RuleKey.class),anyObject(RuleKey.class))).andReturn(createNiceMock(BuildInfoRecorder.class)).anyTimes();
+  BuildInfoRecorder buildInfoRecorder=createNiceMock(BuildInfoRecorder.class);
+  expect(buildInfoRecorder.getOutputSizeAndHash(anyObject(HashFunction.class))).andReturn(new Pair<>(0L,HashCode.fromInt(0))).anyTimes();
+  expect(context.createBuildInfoRecorder(anyObject(BuildTarget.class),anyObject(RuleKey.class),anyObject(RuleKey.class))).andReturn(buildInfoRecorder).anyTimes();
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW);
   replayAll();
   BuildResult result=cachingBuildEngine.build(context,ruleToTest).get();
@@ -30,13 +32,13 @@
   assertEquals(configureTestEvent(BuildRuleEvent.started(ruleToTest),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.suspended(ruleToTest),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.resumed(ruleToTest),buckEventBus),eventIter.next());
-  assertEquals(configureTestEvent(BuildRuleEvent.finished(ruleToTest,BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY)),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.finished(ruleToTest,BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY),Optional.<HashCode>absent(),Optional.<Long>absent()),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.started(runtimeDep),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.suspended(runtimeDep),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.resumed(runtimeDep),buckEventBus),eventIter.next());
-  assertEquals(configureTestEvent(BuildRuleEvent.finished(runtimeDep,BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY)),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.finished(runtimeDep,BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY),Optional.<HashCode>absent(),Optional.<Long>absent()),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.started(transitiveRuntimeDep),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.suspended(transitiveRuntimeDep),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.resumed(transitiveRuntimeDep),buckEventBus),eventIter.next());
-  assertEquals(configureTestEvent(BuildRuleEvent.finished(transitiveRuntimeDep,BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY)),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.finished(transitiveRuntimeDep,BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY),Optional.<HashCode>absent(),Optional.<Long>absent()),buckEventBus),eventIter.next());
 }

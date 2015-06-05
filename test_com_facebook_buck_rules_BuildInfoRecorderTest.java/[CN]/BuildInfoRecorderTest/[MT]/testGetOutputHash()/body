@@ -1,0 +1,33 @@
+{
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildInfoRecorder buildInfoRecorder=createBuildInfoRecorder(filesystem);
+  byte[] contents="contents".getBytes();
+  Path file=Paths.get("file");
+  filesystem.writeBytesToPath(contents,file);
+  buildInfoRecorder.recordArtifact(file);
+  Path dir=Paths.get("dir");
+  filesystem.mkdirs(dir);
+  filesystem.writeBytesToPath(contents,dir.resolve("file1"));
+  filesystem.writeBytesToPath(contents,dir.resolve("file2"));
+  buildInfoRecorder.recordArtifact(dir);
+  HashCode current=buildInfoRecorder.getOutputSizeAndHash(Hashing.sha512()).getSecond();
+  assertEquals(current,buildInfoRecorder.getOutputSizeAndHash(Hashing.sha512()).getSecond());
+  filesystem.writeContentsToPath("something else",file);
+  HashCode updated=buildInfoRecorder.getOutputSizeAndHash(Hashing.sha512()).getSecond();
+  assertNotEquals(current,updated);
+  filesystem.writeContentsToPath("something else",dir.resolve("file1"));
+  current=updated;
+  updated=buildInfoRecorder.getOutputSizeAndHash(Hashing.sha512()).getSecond();
+  assertNotEquals(current,updated);
+  Path added=Paths.get("added");
+  filesystem.writeBytesToPath(contents,added);
+  buildInfoRecorder.recordArtifact(added);
+  current=updated;
+  updated=buildInfoRecorder.getOutputSizeAndHash(Hashing.sha512()).getSecond();
+  assertNotEquals(current,updated);
+  Path addedUnderDir=dir.resolve("added");
+  filesystem.writeBytesToPath(contents,addedUnderDir);
+  current=updated;
+  updated=buildInfoRecorder.getOutputSizeAndHash(Hashing.sha512()).getSecond();
+  assertNotEquals(current,updated);
+}

@@ -53,7 +53,15 @@
           return;
         }
       }
-      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,BuildRuleStatus.SUCCESS,input.getCacheResult(),Optional.of(input.getSuccess())));
+      Pair<Long,HashCode> outputHashAndSize;
+      try {
+        outputHashAndSize=buildInfoRecorder.getOutputSizeAndHash(Hashing.md5());
+      }
+ catch (      IOException e) {
+        onFailure(e);
+        return;
+      }
+      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,BuildRuleStatus.SUCCESS,input.getCacheResult(),Optional.of(input.getSuccess()),Optional.of(outputHashAndSize.getSecond()),Optional.of(outputHashAndSize.getFirst())));
     }
     @Override public void onFailure(    @Nonnull Throwable thrown){
       try {
@@ -63,7 +71,7 @@
         context.getEventBus().post(ThrowableConsoleEvent.create(t,"Error when deleting metadata for %s.",rule));
       }
       result.setException(thrown);
-      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,BuildRuleStatus.FAIL,CacheResult.miss(),Optional.<BuildRuleSuccessType>absent()));
+      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,BuildRuleStatus.FAIL,CacheResult.miss(),Optional.<BuildRuleSuccessType>absent(),Optional.<HashCode>absent(),Optional.<Long>absent()));
       if (thrown instanceof InterruptedException) {
         Thread.currentThread().interrupt();
       }

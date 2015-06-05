@@ -7,6 +7,7 @@
   BuildContext buildContext=createMock(BuildContext.class);
   BuildInfoRecorder buildInfoRecorder=createNiceMock(BuildInfoRecorder.class);
   expect(buildContext.createBuildInfoRecorder(eq(buildTarget),anyObject(RuleKey.class),anyObject(RuleKey.class))).andReturn(buildInfoRecorder);
+  expect(buildInfoRecorder.getOutputSizeAndHash(anyObject(HashFunction.class))).andReturn(new Pair<>(0L,HashCode.fromInt(0))).anyTimes();
   OnDiskBuildInfo onDiskBuildInfo=new FakeOnDiskBuildInfo().setRuleKey(reverse(buildRule.getRuleKey())).setRuleKeyWithoutDeps(new RuleKey(TestAbstractCachingBuildRule.RULE_KEY_WITHOUT_DEPS_HASH)).putMetadata(CachingBuildEngine.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,TestAbstractCachingBuildRule.ABI_KEY_FOR_DEPS_HASH).putMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,"At some point, this method call should go away.");
   buildInfoRecorder.writeMetadataToDisk(false);
   expect(buildInfoRecorder.fetchArtifactForBuildable(anyObject(File.class),anyObject(ArtifactCache.class))).andReturn(CacheResult.miss());
@@ -29,6 +30,6 @@
   assertEquals(configureTestEvent(BuildRuleEvent.resumed(buildRule),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.suspended(buildRule),buckEventBus),eventIter.next());
   assertEquals(configureTestEvent(BuildRuleEvent.resumed(buildRule),buckEventBus),eventIter.next());
-  assertEquals(configureTestEvent(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS)),buckEventBus),eventIter.next());
+  assertEquals(configureTestEvent(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS),Optional.<HashCode>absent(),Optional.<Long>absent()),buckEventBus),eventIter.next());
   verifyAll();
 }

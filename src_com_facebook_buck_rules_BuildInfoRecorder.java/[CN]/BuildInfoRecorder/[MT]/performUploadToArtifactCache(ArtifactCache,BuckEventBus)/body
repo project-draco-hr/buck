@@ -2,28 +2,13 @@
   if (!artifactCache.isStoreSupported()) {
     return;
   }
-  ImmutableSet<Path> pathsToIncludeInZip=FluentIterable.from(metadataToWrite.keySet()).transform(new Function<String,Path>(){
-    @Override public Path apply(    String key){
-      return pathToMetadataDirectory.resolve(key);
-    }
-  }
-).append(pathsToOutputs).transformAndConcat(new Function<Path,Iterable<Path>>(){
-    @Override public Iterable<Path> apply(    Path input){
-      try {
-        return getEntries(input);
-      }
- catch (      IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-  }
-).toSet();
   eventBus.post(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.COMPRESS,ruleKey));
+  String additionalArtifactInfo=formatAdditionalArtifactInfo(ImmutableMap.<String,String>builder().put("build_id",buildId.toString()).put("timestamp",String.valueOf(TimeUnit.MILLISECONDS.toSeconds(clock.currentTimeMillis()))).putAll(artifactExtraData).build());
   File zip;
+  ImmutableSet<Path> pathsToIncludeInZip=ImmutableSet.of();
   try {
+    pathsToIncludeInZip=getRecordedPaths();
     zip=File.createTempFile("buck_artifact_" + MoreFiles.sanitize(buildTarget.getShortName()),".zip");
-    long time=TimeUnit.MILLISECONDS.toSeconds(clock.currentTimeMillis());
-    String additionalArtifactInfo=String.format("build_id=%s\ntimestamp=%d\n%s\n",buildId,time,artifactExtraData);
     projectFilesystem.createZip(pathsToIncludeInZip,zip,ImmutableMap.of(PATH_TO_ARTIFACT_INFO,additionalArtifactInfo));
   }
  catch (  IOException e) {
