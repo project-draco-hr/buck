@@ -1,11 +1,12 @@
 {
   File cacheDir=tmpDir.newFolder();
   File fileX=tmpDir.newFile("x");
+  fileHashCache=new FakeFileHashCache(ImmutableMap.of(fileX.toPath(),HashCode.fromInt(0)));
   dirArtifactCache=new DirArtifactCache("dir",cacheDir,true,Optional.of(0L));
   Files.write("x",fileX,Charsets.UTF_8);
   BuildRule inputRuleX=new BuildRuleForTest(fileX);
   SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(ImmutableSet.of(inputRuleX)));
-  RuleKey ruleKeyX=new FakeRuleKeyBuilderFactory(fileHashCache,resolver).newInstance(inputRuleX).build().getTotalRuleKey();
+  RuleKey ruleKeyX=new DefaultRuleKeyBuilderFactory(fileHashCache,resolver).newInstance(inputRuleX).build().getTotalRuleKey();
   dirArtifactCache.store(ruleKeyX,fileX);
   dirArtifactCache.store(ruleKeyX,fileX);
   assertEquals(CacheResult.Type.HIT,dirArtifactCache.fetch(ruleKeyX,fileX).getType());
