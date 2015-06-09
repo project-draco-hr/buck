@@ -1,0 +1,26 @@
+{
+  ImmutableList<String> launchctlListCommand=ImmutableList.of("launchctl","list");
+  LOG.debug("Getting list of services with %s",launchctlListCommand);
+  ProcessExecutorParams launchctlListParams=ProcessExecutorParams.builder().setCommand(launchctlListCommand).build();
+  ProcessExecutor.LaunchedProcess launchctlListProcess=processExecutor.launchProcess(launchctlListParams);
+  ImmutableSet.Builder<String> resultBuilder=ImmutableSet.builder();
+  try (InputStreamReader stdoutReader=new InputStreamReader(launchctlListProcess.getInputStream(),StandardCharsets.UTF_8);BufferedReader bufferedStdoutReader=new BufferedReader(stdoutReader)){
+    String line;
+    while ((line=bufferedStdoutReader.readLine()) != null) {
+      Matcher launchctlListOutputMatcher=LAUNCHCTL_LIST_OUTPUT_PATTERN.matcher(line);
+      if (launchctlListOutputMatcher.matches()) {
+        String serviceName=launchctlListOutputMatcher.group(3);
+        Matcher serviceNameMatcher=serviceNamePattern.matcher(serviceName);
+        if (serviceNameMatcher.find()) {
+          LOG.debug("Found matching service name: %s",serviceName);
+          resultBuilder.add(serviceName);
+        }
+      }
+    }
+  }
+  finally {
+    processExecutor.destroyLaunchedProcess(launchctlListProcess);
+    processExecutor.waitForLaunchedProcess(launchctlListProcess);
+  }
+  return resultBuilder.build();
+}

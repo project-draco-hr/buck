@@ -1,0 +1,30 @@
+{
+  ImmutableSet<String> coreSimulatorServiceNames=getMatchingServiceNames(CORE_SIMULATOR_SERVICE_PATTERN);
+  if (coreSimulatorServiceNames.size() != 1) {
+    LOG.debug("Could not get core simulator service name (got %s)",coreSimulatorServiceNames);
+    return Optional.absent();
+  }
+  String coreSimulatorServiceName=Iterables.getOnlyElement(coreSimulatorServiceNames);
+  ImmutableList<String> launchctlPrintCommand=ImmutableList.of("launchctl","print",String.format("user/%d/%s",userIdFetcher.getUserId(),coreSimulatorServiceName));
+  LOG.debug("Getting status of service %s with %s",coreSimulatorServiceName,launchctlPrintCommand);
+  ProcessExecutorParams launchctlPrintParams=ProcessExecutorParams.builder().setCommand(launchctlPrintCommand).build();
+  ProcessExecutor.LaunchedProcess launchctlPrintProcess=processExecutor.launchProcess(launchctlPrintParams);
+  Optional<Path> result=Optional.absent();
+  try (InputStreamReader stdoutReader=new InputStreamReader(launchctlPrintProcess.getInputStream(),StandardCharsets.UTF_8);BufferedReader bufferedStdoutReader=new BufferedReader(stdoutReader)){
+    String line;
+    while ((line=bufferedStdoutReader.readLine()) != null) {
+      Matcher matcher=LAUNCHCTL_PRINT_PATH_PATTERN.matcher(line);
+      if (matcher.matches()) {
+        String path=matcher.group(1);
+        LOG.debug("Found path of service %s: %s",coreSimulatorServiceName,path);
+        result=Optional.of(Paths.get(path));
+        break;
+      }
+    }
+  }
+  finally {
+    processExecutor.destroyLaunchedProcess(launchctlPrintProcess);
+    processExecutor.waitForLaunchedProcess(launchctlPrintProcess);
+  }
+  return result;
+}
