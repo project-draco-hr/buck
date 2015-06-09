@@ -45,7 +45,6 @@
  catch (  NoSuchBuildTargetException e) {
     throw new HumanReadableException(e);
   }
-  PBXNativeTarget target=targetBuilderResult.target;
   PBXGroup targetGroup=targetBuilderResult.targetGroup;
   SourceTreePath buckFilePath=new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputPathToBuildTargetPath(buildTarget).resolve(buildFileName));
   PBXFileReference buckReference=targetGroup.getOrCreateFileReferenceBySourceTreePath(buckFilePath);
@@ -87,6 +86,25 @@
   }
   ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
   appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterators.concat(collectRecursiveHeaderSearchPaths(targetNode).iterator(),collectRecursiveHeaderSymlinkTrees(targetNode).iterator()))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(ImmutableSet.of(targetNode)))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(ImmutableList.of(targetNode)))).put("OTHER_CFLAGS",Joiner.on(' ').join(Iterables.concat(targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get(),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode))))).put("OTHER_LDFLAGS",Joiner.on(' ').join(MoreIterables.zipAndConcat(Iterables.cycle("-Xlinker"),Iterables.concat(targetNode.getConstructorArg().linkerFlags.get(),collectRecursiveExportedLinkerFlags(ImmutableList.of(targetNode))))));
+  ImmutableMap<CxxSource.Type,ImmutableList<String>> langPreprocessorFlags=targetNode.getConstructorArg().langPreprocessorFlags.get();
+  Sets.SetView<CxxSource.Type> unsupportedLangPreprocessorFlags=Sets.difference(langPreprocessorFlags.keySet(),SUPPORTED_LANG_PREPROCESSOR_FLAG_TYPES);
+  if (!unsupportedLangPreprocessorFlags.isEmpty()) {
+    throw new HumanReadableException("%s: Xcode project generation does not support specified lang_preprocessor_flags keys: " + "%s",buildTarget,unsupportedLangPreprocessorFlags);
+  }
+  ImmutableSet.Builder<String> allCxxFlagsBuilder=ImmutableSet.builder();
+  ImmutableList<String> cxxFlags=langPreprocessorFlags.get(CxxSource.Type.CXX);
+  if (cxxFlags != null) {
+    allCxxFlagsBuilder.addAll(cxxFlags);
+  }
+  ImmutableList<String> objcxxFlags=langPreprocessorFlags.get(CxxSource.Type.OBJCXX);
+  if (objcxxFlags != null) {
+    allCxxFlagsBuilder.addAll(objcxxFlags);
+  }
+  ImmutableSet<String> allCxxFlags=allCxxFlagsBuilder.build();
+  if (!allCxxFlags.isEmpty()) {
+    appendConfigsBuilder.put("OTHER_CPLUSPLUSFLAGS",Joiner.on(' ').join(allCxxFlags));
+  }
+  PBXNativeTarget target=targetBuilderResult.target;
   setTargetBuildConfigurations(getConfigurationNameToXcconfigPath(buildTarget),target,targetGroup,targetNode.getConstructorArg().configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
   if (targetNode.getConstructorArg().getUseBuckHeaderMaps()) {
     Path headerPathPrefix=AppleDescriptions.getHeaderPathPrefix(arg,targetNode.getBuildTarget());
