@@ -1,6 +1,6 @@
 {
   if (getArguments().size() != 1) {
-    params.getConsole().getStdErr().println("Must specify exactly one android_binary() or apk_genrule() rule.");
+    params.getConsole().getStdErr().println("Must specify exactly one rule.");
     return 1;
   }
   int exitCode=super.runWithoutHelp(params);
@@ -10,32 +10,15 @@
   Build build=super.getBuild();
   ActionGraph graph=build.getActionGraph();
   BuildRule buildRule=Preconditions.checkNotNull(graph.findBuildRuleByTarget(getBuildTargets().get(0)));
-  if (!(buildRule instanceof InstallableApk)) {
-    params.getConsole().printBuildFailure(String.format("Specified rule %s must be of type android_binary() or apk_genrule() but was %s().\n",buildRule.getFullyQualifiedName(),buildRule.getType()));
-    return 1;
+  if (buildRule instanceof InstallableApk) {
+    return installApk(params,(InstallableApk)buildRule,build.getExecutionContext());
   }
-  InstallableApk installableApk=(InstallableApk)buildRule;
-  final AdbHelper adbHelper=new AdbHelper(adbOptions(),targetDeviceOptions(),build.getExecutionContext(),params.getConsole(),params.getBuckEventBus(),params.getBuckConfig());
-  if (shouldUninstallFirst()) {
-    String packageName=AdbHelper.tryToExtractPackageNameFromManifest(installableApk,build.getExecutionContext());
-    adbHelper.uninstallApp(packageName,uninstallOptions());
-  }
-  boolean installSuccess;
-  Optional<ExopackageInfo> exopackageInfo=installableApk.getExopackageInfo();
-  if (exopackageInfo.isPresent()) {
-    installSuccess=new ExopackageInstaller(build.getExecutionContext(),adbHelper,installableApk).install();
+ else   if (buildRule instanceof AppleBundle) {
+    AppleBundle appleBundle=(AppleBundle)buildRule;
+    return installAppleBundle(params,appleBundle,build.getExecutionContext().getProjectFilesystem(),build.getExecutionContext().getProcessExecutor());
   }
  else {
-    installSuccess=adbHelper.installApk(installableApk,this);
-  }
-  if (!installSuccess) {
+    params.getConsole().printBuildFailure(String.format("Specified rule %s must be of type android_binary() or apk_genrule() or " + "apple_bundle() but was %s().\n",buildRule.getFullyQualifiedName(),buildRule.getType()));
     return 1;
   }
-  if (shouldStartActivity()) {
-    exitCode=adbHelper.startActivity(installableApk,getActivityToStart());
-    if (exitCode != 0) {
-      return exitCode;
-    }
-  }
-  return exitCode;
 }

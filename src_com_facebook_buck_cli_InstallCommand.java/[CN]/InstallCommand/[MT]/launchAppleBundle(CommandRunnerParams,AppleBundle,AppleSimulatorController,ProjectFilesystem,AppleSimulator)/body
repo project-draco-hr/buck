@@ -1,0 +1,18 @@
+{
+  LOG.debug("Launching Apple bundle %s in simulator %s",appleBundle,appleSimulator);
+  Optional<String> appleBundleId;
+  try (InputStream bundlePlistStream=projectFilesystem.getInputStreamForRelativePath(appleBundle.getInfoPlistPath())){
+    appleBundleId=AppleInfoPlistParsing.getBundleIdFromPlistStream(bundlePlistStream);
+  }
+   if (!appleBundleId.isPresent()) {
+    params.getConsole().printBuildFailure(String.format("Cannot install %s (could not get bundle ID from %s)",appleBundle.getFullyQualifiedName(),appleBundle.getInfoPlistPath()));
+    return 1;
+  }
+  Optional<Long> launchedPid=appleSimulatorController.launchInstalledBundleInSimulator(appleSimulator.getUdid(),appleBundleId.get(),waitForDebugger ? AppleSimulatorController.LaunchBehavior.WAIT_FOR_DEBUGGER : AppleSimulatorController.LaunchBehavior.DO_NOT_WAIT_FOR_DEBUGGER);
+  if (!launchedPid.isPresent()) {
+    params.getConsole().printBuildFailure(String.format("Cannot launch %s (failed to launch bundle ID %s)",appleBundle.getFullyQualifiedName(),appleBundleId.get()));
+    return 1;
+  }
+  params.getConsole().printSuccess(String.format("Successfully launched %s%s. To debug, run: lldb -p %d",getArguments().get(0),waitForDebugger ? " (waiting for debugger)" : "",launchedPid.get()));
+  return 0;
+}
