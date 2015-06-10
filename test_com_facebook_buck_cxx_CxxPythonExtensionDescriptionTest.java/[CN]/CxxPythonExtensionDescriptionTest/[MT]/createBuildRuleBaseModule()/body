@@ -1,16 +1,20 @@
 {
-  BuildTarget target=BuildTargetFactory.newInstance("//:target");
+  BuildRuleResolver resolver=new BuildRuleResolver();
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
   CxxPlatform cxxPlatform=CxxPythonExtensionBuilder.createDefaultPlatform();
+  GenruleBuilder pyDepBuilder=GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).setOut("out");
+  pyDepBuilder.build(resolver);
+  BuildTarget target=BuildTargetFactory.newInstance("//:target");
   CxxPythonExtensionBuilder normalBuilder=getBuilder(target);
   CxxPythonExtensionDescription desc=(CxxPythonExtensionDescription)normalBuilder.build().getDescription();
-  CxxPythonExtension normal=(CxxPythonExtension)normalBuilder.build(new BuildRuleResolver(),filesystem,TargetGraphFactory.newInstance(normalBuilder.build(),GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).build()));
+  CxxPythonExtension normal=(CxxPythonExtension)normalBuilder.build(resolver,filesystem,TargetGraphFactory.newInstance(normalBuilder.build(),pyDepBuilder.build()));
   PythonPackageComponents normalComps=normal.getPythonPackageComponents(cxxPlatform);
   assertEquals(ImmutableSet.of(target.getBasePath().resolve(desc.getExtensionName(target))),normalComps.getModules().keySet());
+  BuildTarget target2=BuildTargetFactory.newInstance("//:target2");
   String name="blah";
-  CxxPythonExtensionBuilder baseModuleBuilder=getBuilder(target).setBaseModule(name);
+  CxxPythonExtensionBuilder baseModuleBuilder=getBuilder(target2).setBaseModule(name);
   desc=(CxxPythonExtensionDescription)baseModuleBuilder.build().getDescription();
-  CxxPythonExtension baseModule=(CxxPythonExtension)baseModuleBuilder.build(new BuildRuleResolver(),filesystem,TargetGraphFactory.newInstance(baseModuleBuilder.build(),GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).build()));
+  CxxPythonExtension baseModule=(CxxPythonExtension)baseModuleBuilder.build(resolver,filesystem,TargetGraphFactory.newInstance(baseModuleBuilder.build(),GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).build()));
   PythonPackageComponents baseModuleComps=baseModule.getPythonPackageComponents(cxxPlatform);
-  assertEquals(ImmutableSet.of(Paths.get(name).resolve(desc.getExtensionName(target))),baseModuleComps.getModules().keySet());
+  assertEquals(ImmutableSet.of(Paths.get(name).resolve(desc.getExtensionName(target2))),baseModuleComps.getModules().keySet());
 }
