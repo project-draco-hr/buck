@@ -1,0 +1,24 @@
+{
+  if (!artifactCache.isStoreSupported()) {
+    return;
+  }
+  eventBus.post(ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.COMPRESS,ruleKeys));
+  String additionalArtifactInfo=formatAdditionalArtifactInfo(ImmutableMap.<String,String>builder().put("build_id",buildId.toString()).put("timestamp",String.valueOf(TimeUnit.MILLISECONDS.toSeconds(clock.currentTimeMillis()))).putAll(artifactExtraData).build());
+  File zip;
+  ImmutableSet<Path> pathsToIncludeInZip=ImmutableSet.of();
+  try {
+    pathsToIncludeInZip=getRecordedPaths();
+    zip=File.createTempFile("buck_artifact_" + MoreFiles.sanitize(buildTarget.getShortName()),".zip");
+    projectFilesystem.createZip(pathsToIncludeInZip,zip,ImmutableMap.of(PATH_TO_ARTIFACT_INFO,additionalArtifactInfo));
+  }
+ catch (  IOException e) {
+    eventBus.post(ConsoleEvent.info("Failed to create zip for %s containing:\n%s",buildTarget,Joiner.on('\n').join(ImmutableSortedSet.copyOf(pathsToIncludeInZip))));
+    e.printStackTrace();
+    return;
+  }
+ finally {
+    eventBus.post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.COMPRESS,ruleKeys));
+  }
+  artifactCache.store(ruleKeys,zip);
+  zip.delete();
+}

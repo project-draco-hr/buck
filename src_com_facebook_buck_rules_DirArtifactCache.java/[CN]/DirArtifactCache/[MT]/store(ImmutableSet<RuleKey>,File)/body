@@ -1,0 +1,25 @@
+{
+  if (!doStore) {
+    return;
+  }
+  for (  RuleKey ruleKey : ruleKeys) {
+    File cacheEntry=new File(cacheDir,ruleKey.toString());
+    Path tmpCacheEntry=null;
+    try {
+      tmpCacheEntry=File.createTempFile(ruleKey.toString(),".tmp",cacheDir).toPath();
+      Files.copy(output.toPath(),tmpCacheEntry,REPLACE_EXISTING);
+      Files.move(tmpCacheEntry,cacheEntry.toPath(),REPLACE_EXISTING);
+    }
+ catch (    IOException e) {
+      LOG.warn(e,"Artifact store(%s, %s) error",ruleKey,output.getPath());
+      if (tmpCacheEntry != null) {
+        try {
+          Files.deleteIfExists(tmpCacheEntry);
+        }
+ catch (        IOException ignored) {
+          LOG.debug(ignored,"Unable to delete temp cache file");
+        }
+      }
+    }
+  }
+}

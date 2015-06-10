@@ -1,21 +1,24 @@
 {
-  final RuleKey ruleKey=new RuleKey("00000000000000000000000000000000");
+  final RuleKey ruleKey1=new RuleKey("00000000000000000000000000000000");
+  final RuleKey ruleKey2=new RuleKey("11111111111111111111111111111111");
   final String data="data";
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   File output=new File("output/file");
   filesystem.writeContentsToPath(data,output.toPath());
-  final AtomicBoolean hasCalled=new AtomicBoolean(false);
+  final Set<RuleKey> stored=Sets.newHashSet();
   HttpArtifactCache cache=new HttpArtifactCache("http",null,null,new URL("http://localhost:8080"),true,filesystem,BUCK_EVENT_BUS,HASH_FUNCTION){
     @Override protected Response storeCall(    Request request) throws IOException {
-      hasCalled.set(true);
       Buffer buf=new Buffer();
       request.body().writeTo(buf);
+      List<String> parts=Splitter.on('/').splitToList(request.uri().toASCIIString());
+      RuleKey ruleKey=new RuleKey(parts.get(parts.size() - 1));
+      stored.add(ruleKey);
       assertArrayEquals(createArtifact(ruleKey.toString(),data),buf.readByteArray());
       return new Response.Builder().code(HttpURLConnection.HTTP_ACCEPTED).protocol(Protocol.HTTP_1_1).request(request).build();
     }
   }
 ;
-  cache.store(ImmutableSet.of(ruleKey),output);
-  assertTrue(hasCalled.get());
+  cache.store(ImmutableSet.of(ruleKey1,ruleKey2),output);
+  assertThat(stored,Matchers.containsInAnyOrder(ruleKey1,ruleKey2));
   cache.close();
 }
