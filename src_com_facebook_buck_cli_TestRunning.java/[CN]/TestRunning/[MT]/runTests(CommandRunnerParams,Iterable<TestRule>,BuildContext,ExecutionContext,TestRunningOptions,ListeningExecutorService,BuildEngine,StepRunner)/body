@@ -84,8 +84,21 @@
       parallelTestRuns.add(testRun);
     }
   }
+  final StepRunner.StepRunningCallback testStepRunningCallback=new StepRunner.StepRunningCallback(){
+    @Override public void stepsWillRun(    Optional<BuildTarget> buildTarget){
+      Preconditions.checkState(buildTarget.isPresent());
+      LOG.debug("Test steps will run for %s",buildTarget);
+      params.getBuckEventBus().post(TestRuleEvent.started(buildTarget.get()));
+    }
+    @Override public void stepsDidRun(    Optional<BuildTarget> buildTarget){
+      Preconditions.checkState(buildTarget.isPresent());
+      LOG.debug("Test steps did run for %s",buildTarget);
+      params.getBuckEventBus().post(TestRuleEvent.finished(buildTarget.get()));
+    }
+  }
+;
   for (  TestRun testRun : parallelTestRuns) {
-    ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(testRun.getSteps(),testRun.getTestResultsCallable(),Optional.of(testRun.getTest().getBuildTarget()),service);
+    ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(testRun.getSteps(),testRun.getTestResultsCallable(),Optional.of(testRun.getTest().getBuildTarget()),service,testStepRunningCallback);
     results.add(transformTestResults(params,testResults,grouper,testRun.getTest(),testTargets,printTestResults,lastReportedTestSequenceNumber,totalNumberOfTests));
   }
   ListenableFuture<List<TestResults>> parallelTestStepsFuture=Futures.allAsList(results);
@@ -97,7 +110,7 @@
       completedResults.addAll(parallelTestResults);
       List<ListenableFuture<TestResults>> separateResultsList=Lists.newArrayList();
       for (      TestRun testRun : separateTestRuns) {
-        separateResultsList.add(transformTestResults(params,stepRunner.runStepsAndYieldResult(testRun.getSteps(),testRun.getTestResultsCallable(),Optional.of(testRun.getTest().getBuildTarget()),directExecutorService),grouper,testRun.getTest(),testTargets,printTestResults,lastReportedTestSequenceNumber,totalNumberOfTests));
+        separateResultsList.add(transformTestResults(params,stepRunner.runStepsAndYieldResult(testRun.getSteps(),testRun.getTestResultsCallable(),Optional.of(testRun.getTest().getBuildTarget()),directExecutorService,testStepRunningCallback),grouper,testRun.getTest(),testTargets,printTestResults,lastReportedTestSequenceNumber,totalNumberOfTests));
       }
       ListenableFuture<List<TestResults>> serialResults=Futures.allAsList(separateResultsList);
       try {
