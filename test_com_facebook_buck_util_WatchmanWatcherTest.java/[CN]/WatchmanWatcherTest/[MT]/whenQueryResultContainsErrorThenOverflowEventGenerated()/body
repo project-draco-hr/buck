@@ -1,0 +1,15 @@
+{
+  String watchmanOutput=Joiner.on('\n').join("{","\"version\": \"2.9.2\",","\"error\": \"Watch does not exist.\"","}");
+  Capture<WatchEvent<Path>> eventCapture=newCapture();
+  EventBus eventBus=createStrictMock(EventBus.class);
+  eventBus.post(capture(eventCapture));
+  Process process=createWaitForProcessMock(watchmanOutput);
+  replay(eventBus,process);
+  WatchmanWatcher watcher=createWatcher(eventBus,process,new IncrementingFakeClock(),new ObjectMapper());
+  try {
+    watcher.postEvents(new BuckEventBus(new FakeClock(0),new BuildId()));
+  }
+  finally {
+    assertEquals("Should be overflow event.",StandardWatchEventKinds.OVERFLOW,eventCapture.getValue().kind());
+  }
+}
