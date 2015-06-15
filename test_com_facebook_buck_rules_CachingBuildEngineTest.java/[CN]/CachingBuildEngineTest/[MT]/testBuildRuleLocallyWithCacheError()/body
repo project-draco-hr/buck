@@ -1,0 +1,16 @@
+{
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  ArtifactCache cache=new NoopArtifactCache(){
+    @Override public CacheResult fetch(    RuleKey ruleKey,    File output){
+      return CacheResult.error("cache","error");
+    }
+  }
+;
+  BuildContext buildContext=FakeBuildContext.newBuilder(filesystem).setArtifactCache(cache).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(new MutableDirectedGraph<BuildRule>())).build();
+  BuildRule rule=new NoopBuildRule(BuildRuleParamsFactory.createTrivialBuildRuleParams(BuildTargetFactory.newInstance("//:rule")),resolver);
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW);
+  BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
+  assertThat(result.getSuccess(),Matchers.equalTo(BuildRuleSuccessType.BUILT_LOCALLY));
+  assertThat(result.getCacheResult().getType(),Matchers.equalTo(CacheResult.Type.ERROR));
+}
