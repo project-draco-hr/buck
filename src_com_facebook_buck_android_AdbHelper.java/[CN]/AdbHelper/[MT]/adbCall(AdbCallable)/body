@@ -1,0 +1,65 @@
+{
+  List<IDevice> devices;
+  try (TraceEventLogger ignored=TraceEventLogger.start(buckEventBus,"set_up_adb_call")){
+    AndroidDebugBridge adb=createAdb(context);
+    if (adb == null) {
+      console.printBuildFailure("Failed to create adb connection.");
+      return false;
+    }
+    devices=filterDevices(adb.getDevices());
+    if (devices == null) {
+      if (restartAdbOnFailure) {
+        console.printErrorText("No devices found with adb, restarting adb-server.");
+        adb.restart();
+        devices=filterDevices(adb.getDevices());
+      }
+      if (devices == null) {
+        return false;
+      }
+    }
+  }
+   int adbThreadCount=options.getAdbThreadCount();
+  if (adbThreadCount <= 0) {
+    adbThreadCount=devices.size();
+  }
+  List<ListenableFuture<Boolean>> futures=Lists.newArrayList();
+  ListeningExecutorService executorService=listeningDecorator(newMultiThreadExecutor(new CommandThreadFactory(getClass().getSimpleName()),adbThreadCount));
+  for (  final IDevice device : devices) {
+    futures.add(executorService.submit(adbCallable.forDevice(device)));
+  }
+  List<Boolean> results=null;
+  try {
+    results=Futures.allAsList(futures).get();
+  }
+ catch (  ExecutionException ex) {
+    console.printBuildFailure("Failed: " + adbCallable);
+    ex.printStackTrace(console.getStdErr());
+    return false;
+  }
+catch (  InterruptedException e) {
+    try {
+      Futures.allAsList(futures).cancel(true);
+    }
+ catch (    CancellationException ignored) {
+    }
+    Thread.currentThread().interrupt();
+    throw e;
+  }
+ finally {
+    MoreExecutors.shutdownOrThrow(executorService,10,TimeUnit.MINUTES,new InterruptionFailedException("Failed to shutdown ExecutorService."));
+  }
+  int successCount=0;
+  for (  Boolean result : results) {
+    if (result) {
+      successCount++;
+    }
+  }
+  int failureCount=results.size() - successCount;
+  if (successCount > 0) {
+    console.printSuccess(String.format("Successfully ran %s on %d device(s)",adbCallable,successCount));
+  }
+  if (failureCount > 0) {
+    console.printBuildFailure(String.format("Failed to %s on %d device(s).",adbCallable,failureCount));
+  }
+  return failureCount == 0;
+}

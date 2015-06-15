@@ -1,8 +1,8 @@
 {
-  final AdbHelper adbHelper=new AdbHelper(adbOptions(),targetDeviceOptions(),executionContext,params.getConsole(),params.getBuckEventBus(),params.getBuckConfig());
+  final AdbHelper adbHelper=new AdbHelper(adbOptions(),targetDeviceOptions(),executionContext,params.getConsole(),params.getBuckEventBus(),params.getBuckConfig().getRestartAdbOnFailure());
   if (shouldUninstallFirst()) {
     String packageName=AdbHelper.tryToExtractPackageNameFromManifest(installableApk,executionContext);
-    adbHelper.uninstallApp(packageName,uninstallOptions());
+    adbHelper.uninstallApp(packageName,uninstallOptions().shouldKeepUserData());
   }
   boolean installSuccess;
   Optional<ExopackageInfo> exopackageInfo=installableApk.getExopackageInfo();
@@ -10,7 +10,7 @@
     installSuccess=new ExopackageInstaller(executionContext,adbHelper,installableApk).install();
   }
  else {
-    installSuccess=adbHelper.installApk(installableApk,this);
+    installSuccess=adbHelper.installApk(installableApk,shouldInstallViaSd());
   }
   if (!installSuccess) {
     return 1;
