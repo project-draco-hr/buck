@@ -15,10 +15,13 @@
     params.getBuckEventBus().post(BuildEvent.started(getArguments()));
   }
   ActionGraph actionGraph;
+  BuildRuleResolver resolver;
   try {
     Pair<ImmutableSet<BuildTarget>,TargetGraph> result=params.getParser().buildTargetGraphForTargetNodeSpecs(parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getRepository().getFilesystem().getIgnorePaths(),getArguments()),new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
     buildTargets=result.getFirst();
-    actionGraph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer(),params.getFileHashCache()).apply(result.getSecond());
+    TargetGraphToActionGraph targetGraphToActionGraph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer(),params.getFileHashCache());
+    actionGraph=targetGraphToActionGraph.apply(result.getSecond());
+    resolver=targetGraphToActionGraph.getRuleResolver();
   }
  catch (  BuildTargetException|BuildFileParseException e) {
     params.getConsole().printBuildFailureWithoutStacktrace(e);
@@ -35,7 +38,7 @@
     }
     buildTargets=ImmutableSet.of(explicitTarget);
   }
-  try (CommandThreadManager pool=new CommandThreadManager("Build",getConcurrencyLimit(params.getBuckConfig()));Build build=createBuild(params.getBuckConfig(),actionGraph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),new CachingBuildEngine(pool.getExecutor(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode())),artifactCache,params.getConsole(),params.getBuckEventBus(),Optional.<TargetDevice>absent(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
+  try (CommandThreadManager pool=new CommandThreadManager("Build",getConcurrencyLimit(params.getBuckConfig()));Build build=createBuild(params.getBuckConfig(),actionGraph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),new CachingBuildEngine(pool.getExecutor(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),new InputBasedRuleKeyBuilderFactory(params.getFileHashCache(),new SourcePathResolver(resolver))),artifactCache,params.getConsole(),params.getBuckEventBus(),Optional.<TargetDevice>absent(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
     lastBuild=build;
     int exitCode=build.executeAndPrintFailuresToConsole(buildTargets,isKeepGoing(),params.getConsole(),getPathToBuildReport(params.getBuckConfig()));
     params.getBuckEventBus().post(BuildEvent.finished(getArguments(),exitCode));

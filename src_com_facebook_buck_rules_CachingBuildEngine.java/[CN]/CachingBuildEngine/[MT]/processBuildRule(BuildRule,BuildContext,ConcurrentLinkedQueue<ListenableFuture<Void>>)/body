@@ -9,11 +9,10 @@
   }
   AsyncFunction<BuildResult,BuildResult> callback=new AsyncFunction<BuildResult,BuildResult>(){
     @Override public ListenableFuture<BuildResult> apply(    @Nonnull BuildResult input) throws Exception {
-      Preconditions.checkState(input.getStatus() != BuildRuleStatus.FAIL);
-      if (rule instanceof HasPostBuildSteps && (input.getSuccess() == BuildRuleSuccessType.BUILT_LOCALLY || input.getSuccess() == BuildRuleSuccessType.FETCHED_FROM_CACHE)) {
+      BuildRuleSuccessType success=Preconditions.checkNotNull(input.getSuccess());
+      if (rule instanceof HasPostBuildSteps && (success == BuildRuleSuccessType.BUILT_LOCALLY || success == BuildRuleSuccessType.FETCHED_FROM_CACHE || success == BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED)) {
         executePostBuildSteps(rule,((HasPostBuildSteps)rule).getPostBuildSteps(context,buildableContext),context);
       }
-      BuildRuleSuccessType success=input.getSuccess();
       buildInfoRecorder.addMetadata(BuildInfo.METADATA_KEY_FOR_TARGET,rule.getBuildTarget().toString());
       buildInfoRecorder.addMetadata(BuildInfo.METADATA_KEY_FOR_DEPS,FluentIterable.from(rule.getDeps()).transform(HasBuildTarget.TO_TARGET).transform(Functions.toStringFunction()));
       if (success != null && success.shouldWriteRecordedMetadataToDiskAfterBuilding()) {
@@ -41,12 +40,18 @@
   final SettableFuture<BuildResult> result=SettableFuture.create();
   asyncCallbacks.add(MoreFutures.addListenableCallback(buildResult,new FutureCallback<BuildResult>(){
     @Override public void onSuccess(    BuildResult input){
-      Preconditions.checkNotNull(input.getSuccess());
+      BuildRuleSuccessType success=Preconditions.checkNotNull(input.getSuccess());
       result.set(input);
-      BuildRuleSuccessType success=input.getSuccess();
-      if (success != null && success.shouldUploadResultingArtifact()) {
+      Set<RuleKey> ruleKeys=Sets.newHashSet();
+      if (success.shouldUploadResultingArtifact()) {
+        ruleKeys.add(rule.getRuleKey());
+      }
+      if (rule instanceof SupportsInputBasedRuleKey && success.shouldUploadResultingArtifactInputBased()) {
+        ruleKeys.add(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY).get());
+      }
+      if (!ruleKeys.isEmpty()) {
         try {
-          buildInfoRecorder.performUploadToArtifactCache(ImmutableSet.of(rule.getRuleKey()),context.getArtifactCache(),context.getEventBus());
+          buildInfoRecorder.performUploadToArtifactCache(ImmutableSet.copyOf(ruleKeys),context.getArtifactCache(),context.getEventBus());
         }
  catch (        Throwable t) {
           onFailure(t);

@@ -1,0 +1,34 @@
+{
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  InMemoryArtifactCache cache=new InMemoryArtifactCache();
+  BuildContext buildContext=FakeBuildContext.newBuilder(filesystem).setArtifactCache(cache).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
+  BuildTarget target=BuildTargetFactory.newInstance("//:rule");
+  RuleKey inputRuleKey=new RuleKey("aaaa");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setProjectFilesystem(filesystem).build();
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  final Path output=Paths.get("output");
+  BuildRule rule=new InputRuleKeyBuildRule(params,pathResolver){
+    @Override public ImmutableList<Step> getBuildSteps(    BuildContext context,    BuildableContext buildableContext){
+      return ImmutableList.<Step>of(new AbstractExecutionStep("false"){
+        @Override public int execute(        ExecutionContext context){
+          return 1;
+        }
+      }
+);
+    }
+    @Override public Path getPathToOutput(){
+      return output;
+    }
+  }
+;
+  File temp=File.createTempFile("artifact",".zip");
+  writeEntriesToZip(temp,ImmutableMap.of(BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY).toString(),new RuleKey("bbbb").toString(),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY).toString(),inputRuleKey.toString(),output.toString(),""));
+  cache.putArtifact(inputRuleKey,Files.readAllBytes(temp.toPath()));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW,new FixedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),inputRuleKey)));
+  BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
+  assertEquals(BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,result.getSuccess());
+  OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(target);
+  assertThat(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_RULE_KEY),Matchers.equalTo(Optional.of(rule.getRuleKey())));
+  assertThat(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY),Matchers.equalTo(Optional.of(inputRuleKey)));
+}

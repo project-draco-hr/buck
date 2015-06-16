@@ -45,7 +45,8 @@
     params.getConsole().printBuildFailureWithoutStacktrace(e);
     return 1;
   }
-  ActionGraph graph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer(),params.getFileHashCache()).apply(targetGraph);
+  TargetGraphToActionGraph targetGraphToActionGraph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer(),params.getFileHashCache());
+  ActionGraph graph=targetGraphToActionGraph.apply(targetGraph);
   Iterable<TestRule> testRules=Iterables.filter(graph.getNodes(),TestRule.class);
   if (!isBuildFiltered(params.getBuckConfig())) {
     testRules=filterTestRules(params.getBuckConfig(),explicitBuildTargets,testRules);
@@ -54,7 +55,7 @@
     printMatchingTestRules(params.getConsole(),testRules);
   }
   try (CommandThreadManager pool=new CommandThreadManager("Test",getConcurrencyLimit(params.getBuckConfig()))){
-    CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()));
+    CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),new InputBasedRuleKeyBuilderFactory(params.getFileHashCache(),new SourcePathResolver(targetGraphToActionGraph.getRuleResolver())));
     try (Build build=createBuild(params.getBuckConfig(),graph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),cachingBuildEngine,getArtifactCache(params),params.getConsole(),params.getBuckEventBus(),getTargetDeviceOptional(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
       int exitCode=build.executeAndPrintFailuresToConsole(testRules,isKeepGoing(),params.getConsole(),getPathToBuildReport(params.getBuckConfig()));
       params.getBuckEventBus().post(BuildEvent.finished(getArguments(),exitCode));

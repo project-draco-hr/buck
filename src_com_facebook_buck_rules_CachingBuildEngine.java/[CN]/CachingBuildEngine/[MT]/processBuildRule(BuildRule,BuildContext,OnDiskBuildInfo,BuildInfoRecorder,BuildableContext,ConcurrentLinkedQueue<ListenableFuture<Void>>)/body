@@ -3,7 +3,7 @@
   if (cachedRuleKey.isPresent() && rule.getRuleKey().equals(cachedRuleKey.get())) {
     return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.MATCHING_RULE_KEY,CacheResult.localKeyUnchangedHit()));
   }
-  final CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,buildInfoRecorder,context.getArtifactCache(),context.getProjectFilesystem(),context);
+  final CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,rule.getRuleKey(),buildInfoRecorder,context.getArtifactCache(),context.getProjectFilesystem(),context);
   if (cacheResult.getType().isSuccess()) {
     return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult));
   }
@@ -11,6 +11,18 @@
   return Futures.transform(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,BuildResult>(){
     @Override public ListenableFuture<BuildResult> apply(    @Nonnull List<BuildResult> depResults) throws Exception {
       context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule));
+      if (rule instanceof SupportsInputBasedRuleKey) {
+        RuleKey inputRuleKey=inputBasedRuleKeyBuilderFactory.newInstance(rule).build();
+        buildInfoRecorder.addMetadata(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY,inputRuleKey.toString());
+        Optional<RuleKey> lastInputRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY);
+        if (lastInputRuleKey.isPresent() && lastInputRuleKey.get().equals(inputRuleKey)) {
+          return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY,CacheResult.localKeyUnchangedHit()));
+        }
+        CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,inputRuleKey,buildInfoRecorder,context.getArtifactCache(),context.getProjectFilesystem(),context);
+        if (cacheResult.getType().isSuccess()) {
+          return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,cacheResult));
+        }
+      }
       AbiRule abiRule=checkIfRuleOrBuildableIsAbiRule(rule);
       if (abiRule != null) {
         RuleKey ruleKeyNoDeps=rule.getRuleKeyWithoutDeps();

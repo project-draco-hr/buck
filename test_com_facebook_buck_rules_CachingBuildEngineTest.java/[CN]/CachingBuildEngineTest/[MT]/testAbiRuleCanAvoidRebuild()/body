@@ -11,12 +11,12 @@
   expect(buildInfoRecorder.getOutputSizeAndHash(anyObject(HashFunction.class))).andReturn(new Pair<>(0L,HashCode.fromInt(0))).anyTimes();
   OnDiskBuildInfo onDiskBuildInfo=new FakeOnDiskBuildInfo().setRuleKey(reverse(buildRule.getRuleKey())).setRuleKeyWithoutDeps(new RuleKey(TestAbstractCachingBuildRule.RULE_KEY_WITHOUT_DEPS_HASH)).putMetadata(CachingBuildEngine.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,TestAbstractCachingBuildRule.ABI_KEY_FOR_DEPS_HASH).putMetadata(AbiRule.ABI_KEY_ON_DISK_METADATA,"At some point, this method call should go away.");
   buildInfoRecorder.writeMetadataToDisk(false);
-  expect(buildInfoRecorder.fetchArtifactForBuildable(anyObject(File.class),anyObject(ArtifactCache.class))).andReturn(CacheResult.miss());
+  expect(buildInfoRecorder.fetchArtifactForBuildable(anyObject(RuleKey.class),anyObject(File.class),anyObject(ArtifactCache.class))).andReturn(CacheResult.miss());
   expect(buildContext.createOnDiskBuildInfoFor(buildTarget)).andReturn(onDiskBuildInfo);
   expect(buildContext.getArtifactCache()).andStubReturn(new NoopArtifactCache());
   expect(buildContext.getEventBus()).andReturn(buckEventBus).anyTimes();
   replayAll();
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW);
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW,NOOP_RULE_KEY_FACTORY);
   ListenableFuture<BuildResult> buildResult=cachingBuildEngine.build(buildContext,buildRule);
   buckEventBus.post(CommandEvent.finished("build",ImmutableList.<String>of(),false,0));
   BuildResult result=buildResult.get();
