@@ -17,11 +17,11 @@
   ImmutableMap.Builder<String,SourceWithFlags> srcsBuilder=ImmutableMap.builder();
   srcsBuilder.putAll(spec.getSources());
   if (args.cppSrcs.isPresent()) {
-    if (args.cppSrcs.get().isRight()) {
-      srcsBuilder.putAll(args.cppSrcs.get().getRight());
+    if (args.cppSrcs.get().getNamedSources().isPresent()) {
+      srcsBuilder.putAll(args.cppSrcs.get().getNamedSources().get());
     }
  else {
-      for (      SourceWithFlags sourceWithFlags : args.cppSrcs.get().getLeft()) {
+      for (      SourceWithFlags sourceWithFlags : args.cppSrcs.get().getUnnamedSources().get()) {
         srcsBuilder.put(pathResolver.getSourcePathName(params.getBuildTarget(),sourceWithFlags.getSourcePath()),sourceWithFlags);
       }
     }
@@ -29,7 +29,7 @@
   ImmutableMap<String,SourceWithFlags> srcs=srcsBuilder.build();
   CxxLibraryDescription.Arg langArgs=CxxLibraryDescription.createEmptyConstructorArg();
   langArgs.headerNamespace=args.cppHeaderNamespace;
-  langArgs.srcs=Optional.of(Either.<ImmutableList<SourceWithFlags>,ImmutableMap<String,SourceWithFlags>>ofRight(srcs));
+  langArgs.srcs=Optional.of(SourceWithFlagsList.ofNamedSources(srcs));
   langArgs.exportedHeaders=Optional.of(Either.<ImmutableList<SourcePath>,ImmutableMap<String,SourcePath>>ofRight(headers));
   return cxxLibraryDescription.createBuildRule(langParams,resolver,langArgs);
 }

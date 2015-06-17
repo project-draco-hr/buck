@@ -30,25 +30,29 @@
   }
   boolean hasObjects=false;
   if (args.srcs.isPresent()) {
-    Either<ImmutableList<SourceWithFlags>,ImmutableMap<String,SourceWithFlags>> either=args.srcs.get();
-    if (either.isLeft()) {
-      hasObjects=!either.getLeft().isEmpty();
-    }
- else {
-      hasObjects=!either.getRight().isEmpty();
-    }
-  }
-  hasObjects|=!args.lexSrcs.get().isEmpty() || !args.yaccSrcs.get().isEmpty();
-  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  return new CxxLibrary(params,resolver,pathResolver,!hasObjects,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
-    @Override public ImmutableMultimap<CxxSource.Type,String> apply(    CxxPlatform input){
-      return CxxFlags.getLanguageFlags(args.exportedPreprocessorFlags,args.exportedPlatformPreprocessorFlags,args.exportedLangPreprocessorFlags,input.getFlavor());
-    }
-  }
+    SourceWithFlagsList sourceWithFlagsList=args.srcs.get();
+switch (sourceWithFlagsList.getType()) {
+case UNNAMED:
+      hasObjects=!sourceWithFlagsList.getUnnamedSources().get().isEmpty();
+    break;
+case NAMED:
+  hasObjects=!sourceWithFlagsList.getNamedSources().get().isEmpty();
+break;
+default :
+throw new RuntimeException(String.format("Unsupported type: %s",sourceWithFlagsList.getType()));
+}
+}
+hasObjects|=!args.lexSrcs.get().isEmpty() || !args.yaccSrcs.get().isEmpty();
+SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+return new CxxLibrary(params,resolver,pathResolver,!hasObjects,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
+@Override public ImmutableMultimap<CxxSource.Type,String> apply(CxxPlatform input){
+return CxxFlags.getLanguageFlags(args.exportedPreprocessorFlags,args.exportedPlatformPreprocessorFlags,args.exportedLangPreprocessorFlags,input.getFlavor());
+}
+}
 ,new Function<CxxPlatform,ImmutableList<String>>(){
-    @Override public ImmutableList<String> apply(    CxxPlatform input){
-      return CxxFlags.getFlags(args.exportedLinkerFlags,args.exportedPlatformLinkerFlags,input.getFlavor());
-    }
-  }
+@Override public ImmutableList<String> apply(CxxPlatform input){
+return CxxFlags.getFlags(args.exportedLinkerFlags,args.exportedPlatformLinkerFlags,input.getFlavor());
+}
+}
 ,args.supportedPlatformsRegex,args.frameworkSearchPaths.get(),args.forceStatic.or(false) ? CxxLibrary.Linkage.STATIC : CxxLibrary.Linkage.ANY,args.linkWhole.or(false),args.soname,args.tests.get());
 }
