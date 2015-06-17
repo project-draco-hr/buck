@@ -4,69 +4,8 @@
   ImmutableMap<String,Artifact> knownDeps=getRunTimeTransitiveDeps(repoSys,session,mavenCoords);
   MutableDirectedGraph<Artifact> graph=buildDependencyGraph(repoSys,session,knownDeps);
   Map<Path,SortedSet<Prebuilt>> buckFiles=new HashMap<>();
-  for (  Artifact root : graph.getNodes()) {
-    int index=root.getGroupId().lastIndexOf('.');
-    String projectName=root.getGroupId();
-    if (index != -1) {
-      projectName=projectName.substring(index + 1);
-    }
-    Path project=buckRepoRoot.resolve(buckThirdPartyRelativePath).resolve(projectName);
-    Files.createDirectories(project);
-    SortedSet<Prebuilt> libs=buckFiles.get(project);
-    if (libs == null) {
-      libs=new TreeSet<>();
-      buckFiles.put(project,libs);
-    }
-    Artifact jar=new DefaultArtifact(root.getGroupId(),root.getArtifactId(),"jar",root.getVersion());
-    Artifact srcs=new SubArtifact(jar,"sources","jar");
-    ArtifactResult result=repoSys.resolveArtifact(session,new ArtifactRequest(jar,repos,null));
-    Path relativePath=copy(result,project);
-    Prebuilt library=new Prebuilt(jar.getArtifactId(),relativePath);
-    libs.add(library);
-    try {
-      result=repoSys.resolveArtifact(session,new ArtifactRequest(srcs,repos,null));
-      relativePath=copy(result,project);
-      library.setSourceJar(relativePath);
-    }
- catch (    ArtifactResolutionException e) {
-      System.err.println("Skipping sources for: " + srcs);
-    }
-    Iterable<Artifact> incoming=graph.getIncomingNodesFor(root);
-    for (    Artifact artifact : incoming) {
-      index=artifact.getGroupId().lastIndexOf('.');
-      String groupName=artifact.getGroupId();
-      if (index != -1) {
-        groupName=groupName.substring(index + 1);
-      }
-      if (projectName.equals(groupName)) {
-        library.addDep(String.format(":%s",artifact.getArtifactId()));
-      }
- else {
-        library.addDep(String.format("//%s/%s:%s",buckThirdPartyRelativePath,groupName,artifact.getArtifactId()));
-      }
-    }
-    Iterable<Artifact> outgoing=graph.getOutgoingNodesFor(root);
-    for (    Artifact artifact : outgoing) {
-      index=artifact.getGroupId().lastIndexOf('.');
-      String groupName=artifact.getGroupId();
-      if (index != -1) {
-        groupName=groupName.substring(index + 1);
-      }
-      if (!groupName.equals(projectName)) {
-        library.addVisibility(String.format("//%s/%s:%s",buckThirdPartyRelativePath,groupName,artifact.getArtifactId()));
-      }
-    }
+  for (  Artifact artifact : graph.getNodes()) {
+    downloadArtifact(artifact,repoSys,session,buckFiles,graph);
   }
-  URL templateUrl=Resources.getResource(TEMPLATE);
-  String template=Resources.toString(templateUrl,UTF_8);
-  STGroupString groups=new STGroupString("prebuilt-template",template);
-  for (  Map.Entry<Path,SortedSet<Prebuilt>> entry : buckFiles.entrySet()) {
-    Path buckFile=entry.getKey().resolve("BUCK");
-    if (Files.exists(buckFile)) {
-      Files.delete(buckFile);
-    }
-    ST st=Preconditions.checkNotNull(groups.getInstanceOf("/prebuilts"));
-    st.add("data",entry.getValue());
-    Files.write(buckFile,st.render().getBytes(UTF_8));
-  }
+  createBuckFiles(buckFiles);
 }
