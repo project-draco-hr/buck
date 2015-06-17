@@ -1,8 +1,11 @@
 {
   ShellStep command=createCommand(false,false);
-  ExecutionContext context=TestExecutionContext.newBuilder().setEnvironment(ImmutableMap.of("CONTEXT_ENVIRONMENT_VARIABLE","CONTEXT_VALUE")).build();
+  ExecutionContext context=TestExecutionContext.newBuilder().setEnvironment(ImmutableMap.of("CONTEXT_ENVIRONMENT_VARIABLE","CONTEXT_VALUE","PWD","/wrong-pwd")).build();
   Map<String,String> subProcessEnvironment=Maps.newHashMap();
   subProcessEnvironment.put("PROCESS_ENVIRONMENT_VARIABLE","PROCESS_VALUE");
-  command.setProcessEnvironment(context,subProcessEnvironment);
-  assertEquals("Sub-process environment should be union of client and step environments.",subProcessEnvironment,ImmutableMap.<String,String>builder().putAll(context.getEnvironment()).putAll(ENV).build());
+  command.setProcessEnvironment(context,subProcessEnvironment,new File("/right-pwd"));
+  Map<String,String> actualProcessEnvironment=Maps.newHashMap();
+  actualProcessEnvironment.putAll(context.getEnvironment());
+  actualProcessEnvironment.remove("PWD");
+  assertEquals("Sub-process environment should be union of client and step environments.",subProcessEnvironment,ImmutableMap.<String,String>builder().putAll(actualProcessEnvironment).put("PWD",new File("/right-pwd").getPath()).putAll(ENV).build());
 }
