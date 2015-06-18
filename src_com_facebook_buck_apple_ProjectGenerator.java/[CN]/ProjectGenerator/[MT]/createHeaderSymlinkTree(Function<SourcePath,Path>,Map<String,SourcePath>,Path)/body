@@ -7,6 +7,7 @@
     resolvedContentsBuilder.put(link,existing);
   }
   ImmutableSortedMap<Path,Path> resolvedContents=resolvedContentsBuilder.build();
+  Path headerMapLocation=getHeaderMapLocationFromSymlinkTreeRoot(headerSymlinkTreeRoot);
   Path hashCodeFilePath=headerSymlinkTreeRoot.resolve(".contents-hash");
   Optional<String> currentHashCode=projectFilesystem.readFileIfItExists(hashCodeFilePath);
   String newHashCode=getHeaderSymlinkTreeHashCode(resolvedContents).toString();
@@ -24,6 +25,11 @@
       projectFilesystem.createSymLink(link,existing,false);
     }
     projectFilesystem.writeContentsToPath(newHashCode,hashCodeFilePath);
+    HeaderMap.Builder headerMapBuilder=new HeaderMap.Builder();
+    for (    Map.Entry<String,SourcePath> entry : contents.entrySet()) {
+      headerMapBuilder.add(entry.getKey(),projectFilesystem.resolve(headerSymlinkTreeRoot).resolve(entry.getKey()));
+    }
+    projectFilesystem.writeBytesToPath(headerMapBuilder.build().getBytes(),headerMapLocation);
   }
   headerSymlinkTrees.add(headerSymlinkTreeRoot);
 }
