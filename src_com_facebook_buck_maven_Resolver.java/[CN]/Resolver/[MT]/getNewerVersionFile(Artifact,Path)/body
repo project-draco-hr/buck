@@ -1,0 +1,34 @@
+{
+  final Version artifactToDownloadVersion;
+  try {
+    artifactToDownloadVersion=versionScheme.parseVersion(artifactToDownload.getVersion());
+  }
+ catch (  InvalidVersionSpecificationException e) {
+    throw Throwables.propagate(e);
+  }
+  final Pattern versionExtractor=Pattern.compile(String.format(ARTIFACT_FILE_NAME_REGEX_FORMAT,artifactToDownload.getArtifactId(),VERSION_REGEX_GROUP,artifactToDownload.getExtension()));
+  Iterable<Version> versionsPresent=FluentIterable.from(Files.newDirectoryStream(project)).transform(new Function<Path,Version>(){
+    @Nullable @Override public Version apply(    Path input){
+      Matcher matcher=versionExtractor.matcher(input.getFileName().toString());
+      if (matcher.matches()) {
+        try {
+          return versionScheme.parseVersion(matcher.group(1));
+        }
+ catch (        InvalidVersionSpecificationException e) {
+          throw Throwables.propagate(e);
+        }
+      }
+ else {
+        return null;
+      }
+    }
+  }
+).filter(Predicates.notNull());
+  List<Version> newestPresent=Ordering.natural().greatestOf(versionsPresent,1);
+  if (newestPresent.isEmpty() || newestPresent.get(0).compareTo(artifactToDownloadVersion) <= 0) {
+    return Optional.absent();
+  }
+ else {
+    return Optional.of(project.resolve(String.format(ARTIFACT_FILE_NAME_FORMAT,artifactToDownload.getArtifactId(),newestPresent.get(0).toString(),artifactToDownload.getExtension())));
+  }
+}
