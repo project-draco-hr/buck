@@ -1,0 +1,19 @@
+{
+  ImmutableSortedSet.Builder<SourcePath> builder=ImmutableSortedSet.<SourcePath>naturalOrder().addAll(getAnnotationProcessingParams().getInputs());
+  Optional<SourcePath> javacJarPath=getJavacJarPath();
+  if (javacJarPath.isPresent()) {
+    SourcePath sourcePath=javacJarPath.get();
+    builder.add(sourcePath);
+    Optional<BuildRule> possibleRule=resolver.getRule(sourcePath);
+    if (possibleRule.isPresent()) {
+      BuildRule rule=possibleRule.get();
+      if (rule instanceof JavaLibrary) {
+        builder.addAll(FluentIterable.from(((JavaLibrary)rule).getDepsForTransitiveClasspathEntries()).transform(SourcePaths.getToBuildTargetSourcePath()).toList());
+      }
+ else {
+        builder.add(sourcePath);
+      }
+    }
+  }
+  return builder.build();
+}
