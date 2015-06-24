@@ -10,15 +10,17 @@
     @Override protected Response storeCall(    Request request) throws IOException {
       Buffer buf=new Buffer();
       request.body().writeTo(buf);
-      List<String> parts=Splitter.on('/').splitToList(request.uri().toASCIIString());
-      RuleKey ruleKey=new RuleKey(parts.get(parts.size() - 1));
-      stored.add(ruleKey);
-      assertArrayEquals(createArtifact(ruleKey.toString(),data),buf.readByteArray());
-      return new Response.Builder().code(HttpURLConnection.HTTP_ACCEPTED).protocol(Protocol.HTTP_1_1).request(request).build();
+      try (DataInputStream in=new DataInputStream(new ByteArrayInputStream(buf.readByteArray()))){
+        int keys=in.readInt();
+        for (int i=0; i < keys; i++) {
+          stored.add(new RuleKey(in.readUTF()));
+        }
+      }
+       return new Response.Builder().code(HttpURLConnection.HTTP_ACCEPTED).protocol(Protocol.HTTP_1_1).request(request).build();
     }
   }
 ;
-  cache.store(ImmutableSet.of(ruleKey1,ruleKey2),ImmutableMap.<String,String>of(),output);
+  cache.storeImpl(ImmutableSet.of(ruleKey1,ruleKey2),ImmutableMap.<String,String>of(),output);
   assertThat(stored,Matchers.containsInAnyOrder(ruleKey1,ruleKey2));
   cache.close();
 }

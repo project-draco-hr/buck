@@ -1,5 +1,5 @@
 {
-  Request request=createRequestBuilder(ruleKey.toString()).get().build();
+  Request request=new Request.Builder().url(new URL(url,"artifacts/key/" + ruleKey.toString())).get().build();
   Response response=fetchCall(request);
   if (response.code() == HttpURLConnection.HTTP_NOT_FOUND) {
     readTillEnd(response);
@@ -12,32 +12,50 @@
     reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
     return CacheResult.error(name,msg);
   }
-  HashCode expectedHashCode, actualHashCode;
+  Hasher hasher=hashFunction.newHasher();
+  ImmutableMap<String,String> metadata;
+  HashCode expectedHashCode;
   Path path=file.toPath();
   projectFilesystem.createParentDirs(path);
   Path temp=projectFilesystem.createTempFile(path.getParent(),path.getFileName().toString(),".tmp");
-  try (InputStream raw=response.body().byteStream();HashingInputStream hasher=new HashingInputStream(hashFunction,raw);DataInputStream input=new DataInputStream(hasher)){
-    String key=input.readUTF();
-    if (!key.equals(ruleKey.toString())) {
-      String msg="incorrect key name";
-      reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
-      return CacheResult.error(name,msg);
+  try (DataInputStream input=new DataInputStream(response.body().byteStream())){
+    int metadataSize=input.readInt();
+    byte[] rawMetadata=new byte[metadataSize];
+    ByteStreams.readFully(input,rawMetadata);
+    try (InputStream rawMetadataIn=new ByteArrayInputStream(rawMetadata)){
+      try (DataInputStream metadataIn=new DataInputStream(new HasherInputStream(hasher,rawMetadataIn))){
+        Set<RuleKey> ruleKeys=Sets.newHashSet();
+        int size=metadataIn.readInt();
+        for (int i=0; i < size; i++) {
+          ruleKeys.add(new RuleKey(metadataIn.readUTF()));
+        }
+        if (!ruleKeys.contains(ruleKey)) {
+          readTillEnd(response);
+          String msg="incorrect key name";
+          reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
+          return CacheResult.error(name,msg);
+        }
+        ImmutableMap.Builder<String,String> metadataBuilder=ImmutableMap.builder();
+        size=metadataIn.readInt();
+        for (int i=0; i < size; i++) {
+          String key=metadataIn.readUTF();
+          int valSize=metadataIn.readInt();
+          byte[] val=new byte[valSize];
+          ByteStreams.readFully(metadataIn,val);
+          metadataBuilder.put(key,new String(val,Charsets.UTF_8));
+        }
+        metadata=metadataBuilder.build();
+      }
+       byte[] hashCodeBytes=new byte[hashFunction.bits() / Byte.SIZE];
+      ByteStreams.readFully(rawMetadataIn,hashCodeBytes);
+      expectedHashCode=HashCode.fromBytes(hashCodeBytes);
     }
-    long length=input.readLong();
-    try (BoundedInputStream boundedInput=new BoundedInputStream(input,length);OutputStream output=projectFilesystem.newFileOutputStream(temp)){
-      ByteStreams.copy(boundedInput,output);
+     try (InputStream payload=new HasherInputStream(hasher,response.body().byteStream());OutputStream output=projectFilesystem.newFileOutputStream(temp)){
+      ByteStreams.copy(payload,output);
     }
-     actualHashCode=hasher.hash();
-    byte[] hashCodeBytes=new byte[hashFunction.bits() / Byte.SIZE];
-    ByteStreams.readFully(raw,hashCodeBytes);
-    expectedHashCode=HashCode.fromBytes(hashCodeBytes);
-    if (readTillEnd(input) != 0) {
-      String msg="unexpected end of input";
-      reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
-      return CacheResult.error(name,msg);
-    }
-  }
-   if (!expectedHashCode.equals(actualHashCode)) {
+   }
+   HashCode actualHashCode=hasher.hash();
+  if (!expectedHashCode.equals(actualHashCode)) {
     String msg="artifact had invalid checksum";
     reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
     projectFilesystem.deleteFileAtPath(temp);
@@ -45,5 +63,5 @@
   }
   projectFilesystem.move(temp,path,StandardCopyOption.REPLACE_EXISTING);
   LOGGER.info("fetch(%s, %s): cache hit",url,ruleKey);
-  return CacheResult.hit(name);
+  return CacheResult.hit(name,metadata);
 }

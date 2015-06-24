@@ -1,0 +1,20 @@
+{
+  ByteArrayOutputStream rawOut=new ByteArrayOutputStream();
+  Hasher hasher=hashFunction.newHasher();
+  try (DataOutputStream out=new DataOutputStream(new HasherOutputStream(hasher,rawOut))){
+    out.writeInt(ruleKeys.size());
+    for (    RuleKey ruleKey : ruleKeys) {
+      out.writeUTF(ruleKey.toString());
+    }
+    out.writeInt(metadata.size());
+    for (    Map.Entry<String,String> ent : metadata.entrySet()) {
+      out.writeUTF(ent.getKey());
+      byte[] val=ent.getValue().getBytes(Charsets.UTF_8);
+      out.writeInt(val.length);
+      out.write(val);
+    }
+  }
+   data.copyTo(new HasherOutputStream(hasher,ByteStreams.nullOutputStream()));
+  rawOut.write(hasher.hash().asBytes());
+  return rawOut.toByteArray();
+}
