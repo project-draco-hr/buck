@@ -1,0 +1,30 @@
+{
+  return new ArchiveScrubber(){
+    /** 
+ * Efficiently modifies the archive backed by the given buffer to remove any non-deterministic
+ * meta-data such as timestamps, UIDs, and GIDs.
+ * @param archive a {@link ByteBuffer} wrapping the contents of the archive.
+ */
+    @SuppressWarnings("PMD.AvoidUsingOctalValues") @Override public void scrubArchive(    ByteBuffer archive) throws ScrubException {
+      try {
+        byte[] globalHeader=getBytes(archive,expectedGlobalHeader.length);
+        checkArchive(Arrays.equals(expectedGlobalHeader,globalHeader),"invalid global header");
+        while (archive.hasRemaining()) {
+          getBytes(archive,16);
+          putIntAsDecimalString(archive,12,0);
+          putIntAsDecimalString(archive,6,0);
+          putIntAsDecimalString(archive,6,0);
+          putIntAsOctalString(archive,8,0100644);
+          int fileSize=getDecimalStringAsInt(archive,10);
+          byte[] fileMagic=getBytes(archive,2);
+          checkArchive(Arrays.equals(END_OF_FILE_HEADER_MARKER,fileMagic),"invalid file magic");
+          archive.position(archive.position() + fileSize + fileSize % 2);
+        }
+      }
+ catch (      BufferUnderflowException|ReadOnlyBufferException e) {
+        throw new ScrubException(e.getMessage());
+      }
+    }
+  }
+;
+}

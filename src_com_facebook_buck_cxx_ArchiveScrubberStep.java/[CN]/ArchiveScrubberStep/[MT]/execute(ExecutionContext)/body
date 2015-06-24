@@ -1,12 +1,14 @@
 {
   Path archivePath=context.getProjectFilesystem().resolve(archive);
   try {
-    try (FileChannel channel=readWriteChannel(archivePath)){
-      MappedByteBuffer map=channel.map(FileChannel.MapMode.READ_WRITE,0,channel.size());
-      scrubArchive(map);
-    }
-   }
- catch (  IOException|ArchiveException e) {
+    for (    ArchiveScrubber scrubber : scrubbers) {
+      try (FileChannel channel=readWriteChannel(archivePath)){
+        MappedByteBuffer map=channel.map(FileChannel.MapMode.READ_WRITE,0,channel.size());
+        scrubber.scrubArchive(map);
+      }
+     }
+  }
+ catch (  IOException|ArchiveScrubber.ScrubException e) {
     context.logError(e,"Error scrubbing non-deterministic metadata from %s",archivePath);
     return 1;
   }
