@@ -24,6 +24,12 @@
   eventBus.post(ArtifactCacheEvent.finished(ArtifactCacheEvent.Operation.FETCH,ImmutableSet.of(ruleKey),CacheResult.hit("http")));
   eventBus.post(BuildRuleEvent.started(rule));
   eventBus.post(StepEvent.started(stepShortName,stepDescription,stepUuid));
+  String annotationProcessorName="com.facebook.FakeProcessor";
+  AnnotationProcessingEvent.Operation operation=AnnotationProcessingEvent.Operation.PROCESS;
+  int annotationRound=1;
+  boolean isLastRound=false;
+  eventBus.post(AnnotationProcessingEvent.started(target,annotationProcessorName,operation,annotationRound,isLastRound));
+  eventBus.post(AnnotationProcessingEvent.finished(target,annotationProcessorName,operation,annotationRound,isLastRound));
   eventBus.post(StepEvent.finished(stepShortName,stepDescription,stepUuid,0));
   eventBus.post(BuildRuleEvent.finished(rule,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()));
   try (TraceEventLogger ignored=TraceEventLogger.start(eventBus,"planning",ImmutableMap.of("nefarious","true"))){
@@ -49,6 +55,8 @@
   assertNextResult(resultListCopy,"artifact_fetch",ChromeTraceEvent.Phase.END,ImmutableMap.of("rule_key","abc123","success","true","cache_result","HTTP_HIT"));
   assertNextResult(resultListCopy,"//fake:rule",ChromeTraceEvent.Phase.BEGIN,ImmutableMap.of("rule_key","abc123"));
   assertNextResult(resultListCopy,"fakeStep",ChromeTraceEvent.Phase.BEGIN,emptyArgs);
+  assertNextResult(resultListCopy,"com.facebook.FakeProcessor.process",ChromeTraceEvent.Phase.BEGIN,emptyArgs);
+  assertNextResult(resultListCopy,"com.facebook.FakeProcessor.process",ChromeTraceEvent.Phase.END,emptyArgs);
   assertNextResult(resultListCopy,"fakeStep",ChromeTraceEvent.Phase.END,ImmutableMap.of("description","I'm a Fake Step!","exit_code","0"));
   assertNextResult(resultListCopy,"//fake:rule",ChromeTraceEvent.Phase.END,ImmutableMap.of("cache_result","miss","success_type","BUILT_LOCALLY"));
   assertNextResult(resultListCopy,"planning",ChromeTraceEvent.Phase.BEGIN,ImmutableMap.of("nefarious","true"));
