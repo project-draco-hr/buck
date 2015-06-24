@@ -2,24 +2,35 @@
   if (!doStore) {
     return;
   }
-  for (  RuleKey ruleKey : ruleKeys) {
-    File cacheEntry=new File(cacheDir,ruleKey.toString());
-    Path tmpCacheEntry=null;
-    try {
-      tmpCacheEntry=File.createTempFile(ruleKey.toString(),".tmp",cacheDir).toPath();
-      Files.copy(output.toPath(),tmpCacheEntry,REPLACE_EXISTING);
-      Files.move(tmpCacheEntry,cacheEntry.toPath(),REPLACE_EXISTING);
-    }
- catch (    IOException e) {
-      LOG.warn(e,"Artifact store(%s, %s) error",ruleKey,output.getPath());
-      if (tmpCacheEntry != null) {
-        try {
-          Files.deleteIfExists(tmpCacheEntry);
+  try {
+    for (    RuleKey ruleKey : ruleKeys) {
+      Path tmp=filesystem.createTempFile(filesystem.resolve(cacheDir),"artifact",".tmp");
+      try {
+        filesystem.copyFile(output.toPath(),tmp);
+        filesystem.move(tmp,cacheDir.resolve(ruleKey.toString()));
+      }
+  finally {
+        filesystem.deleteFileAtPathIfExists(tmp);
+      }
+      tmp=filesystem.createTempFile(filesystem.resolve(cacheDir),"metadata",".tmp");
+      try {
+        try (DataOutputStream out=new DataOutputStream(filesystem.newFileOutputStream(tmp))){
+          out.writeInt(metadata.size());
+          for (          Map.Entry<String,String> ent : metadata.entrySet()) {
+            out.writeUTF(ent.getKey());
+            byte[] val=ent.getValue().getBytes(Charsets.UTF_8);
+            out.writeInt(val.length);
+            out.write(val);
+          }
         }
- catch (        IOException ignored) {
-          LOG.debug(ignored,"Unable to delete temp cache file");
-        }
+         filesystem.move(tmp,cacheDir.resolve(ruleKey.toString() + ".metadata"));
+      }
+  finally {
+        filesystem.deleteFileAtPathIfExists(tmp);
       }
     }
+  }
+ catch (  IOException e) {
+    LOG.warn(e,"Artifact store(%s, %s) error",ruleKeys,output.getPath());
   }
 }

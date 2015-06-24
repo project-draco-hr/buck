@@ -1,16 +1,27 @@
 {
-  CacheResult success=CacheResult.miss();
-  File cacheEntry=new File(cacheDir,ruleKey.toString());
-  if (cacheEntry.exists()) {
-    try {
-      Files.createDirectories(output.toPath().getParent());
-      Files.copy(cacheEntry.toPath(),output.toPath(),REPLACE_EXISTING);
-      success=CacheResult.hit(name);
+  CacheResult result;
+  try {
+    ImmutableMap.Builder<String,String> metadata=ImmutableMap.builder();
+    try (DataInputStream in=new DataInputStream(filesystem.newFileInputStream(cacheDir.resolve(ruleKey.toString() + ".metadata")))){
+      int sz=in.readInt();
+      for (int i=0; i < sz; i++) {
+        String key=in.readUTF();
+        int valSize=in.readInt();
+        byte[] val=new byte[valSize];
+        ByteStreams.readFully(in,val);
+        metadata.put(key,new String(val,Charsets.UTF_8));
+      }
     }
- catch (    IOException e) {
-      LOG.warn(e,"Artifact fetch(%s, %s) error",ruleKey,output.getPath());
-    }
+     filesystem.copyFile(cacheDir.resolve(ruleKey.toString()),output.toPath());
+    result=CacheResult.hit(name,metadata.build());
   }
-  LOG.debug("Artifact fetch(%s, %s) cache %s",ruleKey,output.getPath(),(success.getType().isSuccess() ? "hit" : "miss"));
-  return success;
+ catch (  NoSuchFileException e) {
+    result=CacheResult.miss();
+  }
+catch (  IOException e) {
+    LOG.warn(e,"Artifact fetch(%s, %s) error",ruleKey,output.getPath());
+    result=CacheResult.error(name,String.format("%s: %s",e.getClass(),e.getMessage()));
+  }
+  LOG.debug("Artifact fetch(%s, %s) cache %s",ruleKey,output.getPath(),(result.getType().isSuccess() ? "hit" : "miss"));
+  return result;
 }
