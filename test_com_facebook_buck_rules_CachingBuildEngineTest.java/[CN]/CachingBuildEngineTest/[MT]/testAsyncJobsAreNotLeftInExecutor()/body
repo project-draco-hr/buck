@@ -1,34 +1,22 @@
 {
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
   BuildRuleParams buildRuleParams=new FakeBuildRuleParamsBuilder(buildTarget).build();
   TestAbstractCachingBuildRule buildRule=new LocallyBuiltTestAbstractCachingBuildRule(buildRuleParams,new SourcePathResolver(new BuildRuleResolver()));
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   FakeBuckEventListener listener=new FakeBuckEventListener();
   buckEventBus.register(listener);
-  BuildContext buildContext=createMock(BuildContext.class);
-  expect(buildContext.getProjectFilesystem()).andReturn(new FakeProjectFilesystem());
-  NoopArtifactCache artifactCache=new NoopArtifactCache();
-  expect(buildContext.getArtifactCache()).andStubReturn(artifactCache);
-  expect(buildContext.getStepRunner()).andStubReturn(null);
-  BuildInfoRecorder buildInfoRecorder=createNiceMock(BuildInfoRecorder.class);
-  expect(buildContext.createBuildInfoRecorder(eq(buildTarget),anyObject(RuleKey.class),anyObject(RuleKey.class))).andReturn(buildInfoRecorder);
-  expect(buildInfoRecorder.fetchArtifactForBuildable(anyObject(RuleKey.class),anyObject(File.class),eq(artifactCache))).andReturn(CacheResult.miss());
-  expect(buildInfoRecorder.getOutputSizeAndHash(anyObject(HashFunction.class))).andReturn(new Pair<>(0L,HashCode.fromInt(0))).anyTimes();
-  OnDiskBuildInfo onDiskBuildInfo=new FakeOnDiskBuildInfo();
-  buildInfoRecorder.addMetadata(CachingBuildEngine.ABI_KEY_FOR_DEPS_ON_DISK_METADATA,TestAbstractCachingBuildRule.ABI_KEY_FOR_DEPS_HASH);
-  buildInfoRecorder.writeMetadataToDisk(true);
-  buildInfoRecorder.performUploadToArtifactCache(ImmutableSet.of(buildRule.getRuleKey()),artifactCache,buckEventBus);
-  expectLastCall().andAnswer(new IAnswer<Object>(){
-    @Override public Object answer() throws Throwable {
-      Thread.sleep(500);
-      return null;
+  BuildContext buildContext=FakeBuildContext.newBuilder(filesystem).setArtifactCache(new NoopArtifactCache(){
+    @Override public void store(    ImmutableSet<RuleKey> ruleKeys,    ImmutableMap<String,String> metadata,    File output){
+      try {
+        Thread.sleep(500);
+      }
+ catch (      InterruptedException e) {
+        throw Throwables.propagate(e);
+      }
     }
   }
-);
+).setEventBus(buckEventBus).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
   ListeningExecutorService service=listeningDecorator(Executors.newFixedThreadPool(2));
-  expect(buildContext.createOnDiskBuildInfoFor(buildTarget)).andReturn(onDiskBuildInfo);
-  expect(buildContext.getStepRunner()).andReturn(createStepRunner(null));
-  expect(buildContext.getEventBus()).andReturn(buckEventBus).anyTimes();
-  replayAll();
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(service,CachingBuildEngine.BuildMode.SHALLOW,NOOP_RULE_KEY_FACTORY);
   ListenableFuture<BuildResult> buildResult=cachingBuildEngine.build(buildContext,buildRule);
   BuildResult result=buildResult.get();
@@ -43,5 +31,4 @@
   assertEquals(configureTestEvent(BuildRuleEvent.suspended(buildRule),buckEventBus).getEventName(),eventIter.next().getEventName());
   assertEquals(configureTestEvent(BuildRuleEvent.resumed(buildRule),buckEventBus).getEventName(),eventIter.next().getEventName());
   assertEquals(configureTestEvent(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()),buckEventBus).getEventName(),eventIter.next().getEventName());
-  verifyAll();
 }

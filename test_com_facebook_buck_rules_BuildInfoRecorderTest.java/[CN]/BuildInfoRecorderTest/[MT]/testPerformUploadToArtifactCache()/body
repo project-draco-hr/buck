@@ -2,7 +2,6 @@
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   BuildInfoRecorder buildInfoRecorder=createBuildInfoRecorder(filesystem);
   BuckEventBus bus=new BuckEventBus(new FakeClock(0),new BuildId("BUILD"));
-  buildInfoRecorder.writeMetadataToDisk(true);
   final byte[] contents="contents".getBytes();
   Path file=Paths.get("file");
   filesystem.writeBytesToPath(contents,file);
@@ -11,6 +10,9 @@
   filesystem.mkdirs(dir);
   filesystem.writeBytesToPath(contents,dir.resolve("file"));
   buildInfoRecorder.recordArtifact(dir);
+  buildInfoRecorder.addMetadata("metadata","metadata");
+  buildInfoRecorder.addBuildMetadata("build-metadata","build-metadata");
+  buildInfoRecorder.writeMetadataToDisk(true);
   final AtomicBoolean stored=new AtomicBoolean(false);
   final ArtifactCache cache=new NoopArtifactCache(){
     @Override public boolean isStoreSupported(){
@@ -18,9 +20,10 @@
     }
     @Override public void store(    ImmutableSet<RuleKey> ruleKeys,    ImmutableMap<String,String> metadata,    File output){
       stored.set(true);
+      assertThat(metadata.get("build-metadata"),Matchers.equalTo("build-metadata"));
       try (Zip zip=new Zip(output,false)){
-        assertEquals(ImmutableSet.of("","dir/","buck-out/","buck-out/log/","buck-out/bin/","buck-out/bin/foo/","buck-out/bin/foo/.bar/","buck-out/bin/foo/.bar/metadata/"),zip.getDirNames());
-        assertEquals(ImmutableSet.of("dir/file","file","buck-out/log/cache_artifact.txt","buck-out/bin/foo/.bar/metadata/RULE_KEY","buck-out/bin/foo/.bar/metadata/RULE_KEY_NO_DEPS"),zip.getFileNames());
+        assertEquals(ImmutableSet.of("","dir/","buck-out/","buck-out/bin/","buck-out/bin/foo/","buck-out/bin/foo/.bar/","buck-out/bin/foo/.bar/metadata/"),zip.getDirNames());
+        assertEquals(ImmutableSet.of("dir/file","file","buck-out/bin/foo/.bar/metadata/metadata"),zip.getFileNames());
         assertArrayEquals(contents,zip.readFully("file"));
         assertArrayEquals(contents,zip.readFully("dir/file"));
       }

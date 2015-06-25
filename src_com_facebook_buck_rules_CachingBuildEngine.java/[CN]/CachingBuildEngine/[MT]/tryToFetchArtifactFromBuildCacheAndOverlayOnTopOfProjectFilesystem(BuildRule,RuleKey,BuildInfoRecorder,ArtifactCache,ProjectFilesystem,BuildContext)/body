@@ -20,6 +20,14 @@
   try {
     Unzip.extractZipFile(zipFile.toPath().toAbsolutePath(),filesystem,Unzip.ExistingFileMode.OVERWRITE_AND_CLEAN_DIRECTORIES);
     Files.delete(zipFile.toPath());
+    if (cacheResult.getType() == CacheResult.Type.HIT) {
+      Path metadataDir=BuildInfo.getPathToMetadataDirectory(rule.getBuildTarget());
+      for (      Map.Entry<String,String> ent : cacheResult.getMetadata().entrySet()) {
+        Path dest=metadataDir.resolve(ent.getKey());
+        filesystem.createParentDirs(dest);
+        filesystem.writeContentsToPath(ent.getValue(),dest);
+      }
+    }
   }
  catch (  IOException e) {
     buildContext.getEventBus().post(ConsoleEvent.warning("Failed to unzip the artifact for %s at %s.\n" + "The rule will be built locally, " + "but here is the stacktrace of the failed unzip call:\n"+ rule.getBuildTarget(),zipFile.getAbsolutePath(),Throwables.getStackTraceAsString(e)));
