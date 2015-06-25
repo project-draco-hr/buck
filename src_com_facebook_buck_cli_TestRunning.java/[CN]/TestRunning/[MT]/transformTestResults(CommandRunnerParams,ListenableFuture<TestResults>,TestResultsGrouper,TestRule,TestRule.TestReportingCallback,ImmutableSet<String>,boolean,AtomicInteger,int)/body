@@ -4,6 +4,18 @@
     private void postTestResults(    TestResults testResults){
       testResults.setSequenceNumber(lastReportedTestSequenceNumber.incrementAndGet());
       testResults.setTotalNumberOfTests(totalNumberOfTests);
+      if (!testRule.supportsStreamingTests()) {
+        LOG.debug("Simulating streaming test events for rule %s",testRule);
+        testReportingCallback.testsDidBegin();
+        for (        TestCaseSummary testCaseSummary : testResults.getTestCases()) {
+          for (          TestResultSummary testResultSummary : testCaseSummary.getTestResults()) {
+            testReportingCallback.testDidBegin(testResultSummary.getTestCaseName(),testResultSummary.getTestName());
+            testReportingCallback.testDidEnd(testResultSummary);
+          }
+        }
+        testReportingCallback.testsDidEnd(testResults.getTestCases());
+        LOG.debug("Done simulating streaming test events for rule %s",testRule);
+      }
       params.getBuckEventBus().post(IndividualTestEvent.finished(testTargets,testResults));
     }
     private String getStackTrace(    Throwable throwable){

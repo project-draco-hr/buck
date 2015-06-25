@@ -38,33 +38,34 @@
   for (  final TestRule test : tests) {
     boolean isTestRunRequired;
     isTestRunRequired=isTestRunRequiredForTest(test,buildEngine,executionContext,testRuleKeyFileHelper,options.isResultsCacheEnabled(),!options.getTestSelectorList().isEmpty());
+    final Map<String,UUID> testUUIDMap=new HashMap<>();
+    TestRule.TestReportingCallback testReportingCallback=new TestRule.TestReportingCallback(){
+      @Override public void testsDidBegin(){
+        LOG.debug("Tests for rule %s began",test.getBuildTarget());
+      }
+      @Override public void testDidBegin(      String testCaseName,      String testName){
+        LOG.debug("Test rule %s test case %s test name %s began",test.getBuildTarget(),testCaseName,testName);
+        UUID testUUID=UUID.randomUUID();
+        testUUIDMap.put(testCaseName + ":" + testName,testUUID);
+        params.getBuckEventBus().post(TestSummaryEvent.started(testUUID,testCaseName,testName));
+      }
+      @Override public void testDidEnd(      TestResultSummary testResultSummary){
+        LOG.debug("Test rule %s test did end: %s",test.getBuildTarget(),testResultSummary);
+        UUID testUUID=testUUIDMap.get(testResultSummary.getTestCaseName() + ":" + testResultSummary.getTestName());
+        Preconditions.checkNotNull(testUUID);
+        params.getBuckEventBus().post(TestSummaryEvent.finished(testUUID,testResultSummary));
+      }
+      @Override public void testsDidEnd(      List<TestCaseSummary> testCaseSummaries){
+        LOG.debug("Test rule %s tests did end: %s",test.getBuildTarget(),testCaseSummaries);
+      }
+    }
+;
     List<Step> steps;
     if (isTestRunRequired) {
       params.getBuckEventBus().post(IndividualTestEvent.started(testTargets));
       ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
       Preconditions.checkState(buildEngine.isRuleBuilt(test.getBuildTarget()));
-      final Map<String,UUID> testUUIDMap=new HashMap<>();
-      List<Step> testSteps=test.runTests(buildContext,executionContext,options.isDryRun(),options.isShufflingTests(),options.getTestSelectorList(),new TestRule.TestReportingCallback(){
-        @Override public void testsDidBegin(){
-          LOG.debug("Tests for rule %s began",test.getBuildTarget());
-        }
-        @Override public void testDidBegin(        String testCaseName,        String testName){
-          LOG.debug("Test rule %s test case %s test name %s began",test.getBuildTarget(),testCaseName,testName);
-          UUID testUUID=UUID.randomUUID();
-          testUUIDMap.put(testCaseName + ":" + testName,testUUID);
-          params.getBuckEventBus().post(TestSummaryEvent.started(testUUID,testCaseName,testName));
-        }
-        @Override public void testDidEnd(        TestResultSummary testResultSummary){
-          LOG.debug("Test rule %s test did end: %s",test.getBuildTarget(),testResultSummary);
-          UUID testUUID=testUUIDMap.get(testResultSummary.getTestCaseName() + ":" + testResultSummary.getTestName());
-          Preconditions.checkNotNull(testUUID);
-          params.getBuckEventBus().post(TestSummaryEvent.finished(testUUID,testResultSummary));
-        }
-        @Override public void testsDidEnd(        List<TestCaseSummary> testCaseSummaries){
-          LOG.debug("Test rule %s tests did end: %s",test.getBuildTarget(),testCaseSummaries);
-        }
-      }
-);
+      List<Step> testSteps=test.runTests(buildContext,executionContext,options.isDryRun(),options.isShufflingTests(),options.getTestSelectorList(),testReportingCallback);
       if (!testSteps.isEmpty()) {
         stepsBuilder.addAll(testSteps);
         stepsBuilder.add(testRuleKeyFileHelper.createRuleKeyInDirStep(test));
@@ -74,7 +75,7 @@
  else {
       steps=ImmutableList.of();
     }
-    TestRun testRun=TestRun.of(test,steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext,!options.getTestSelectorList().isEmpty(),options.isDryRun())));
+    TestRun testRun=TestRun.of(test,steps,getCachingStatusTransformingCallable(isTestRunRequired,test.interpretTestResults(executionContext,!options.getTestSelectorList().isEmpty(),options.isDryRun())),testReportingCallback);
     if (test.runTestSeparately()) {
       LOG.debug("Running test %s in serial",test);
       separateTestRuns.add(testRun);
@@ -99,7 +100,7 @@
 ;
   for (  TestRun testRun : parallelTestRuns) {
     ListenableFuture<TestResults> testResults=stepRunner.runStepsAndYieldResult(testRun.getSteps(),testRun.getTestResultsCallable(),Optional.of(testRun.getTest().getBuildTarget()),service,testStepRunningCallback);
-    results.add(transformTestResults(params,testResults,grouper,testRun.getTest(),testTargets,printTestResults,lastReportedTestSequenceNumber,totalNumberOfTests));
+    results.add(transformTestResults(params,testResults,grouper,testRun.getTest(),testRun.getTestReportingCallback(),testTargets,printTestResults,lastReportedTestSequenceNumber,totalNumberOfTests));
   }
   ListenableFuture<List<TestResults>> parallelTestStepsFuture=Futures.allAsList(results);
   final List<TestResults> completedResults=Lists.newArrayList();
@@ -110,7 +111,7 @@
       completedResults.addAll(parallelTestResults);
       List<ListenableFuture<TestResults>> separateResultsList=Lists.newArrayList();
       for (      TestRun testRun : separateTestRuns) {
-        separateResultsList.add(transformTestResults(params,stepRunner.runStepsAndYieldResult(testRun.getSteps(),testRun.getTestResultsCallable(),Optional.of(testRun.getTest().getBuildTarget()),directExecutorService,testStepRunningCallback),grouper,testRun.getTest(),testTargets,printTestResults,lastReportedTestSequenceNumber,totalNumberOfTests));
+        separateResultsList.add(transformTestResults(params,stepRunner.runStepsAndYieldResult(testRun.getSteps(),testRun.getTestResultsCallable(),Optional.of(testRun.getTest().getBuildTarget()),directExecutorService,testStepRunningCallback),grouper,testRun.getTest(),testRun.getTestReportingCallback(),testTargets,printTestResults,lastReportedTestSequenceNumber,totalNumberOfTests));
       }
       ListenableFuture<List<TestResults>> serialResults=Futures.allAsList(separateResultsList);
       try {
