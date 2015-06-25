@@ -10,11 +10,12 @@
     builder.addAllExtraArguments(args.extraArguments.get());
   }
   if (args.compiler.isPresent()) {
-    Either<BuiltInJavac,Either<BuildTarget,Path>> left=args.compiler.get();
+    Either<BuiltInJavac,SourcePath> left=args.compiler.get();
     if (left.isRight()) {
-      Either<BuildTarget,Path> right=left.getRight();
-      if (right.isLeft()) {
-        BuildRule rule=ruleResolver.getRule(right.getLeft());
+      SourcePath right=left.getRight();
+      Optional<BuildRule> possibleRule=resolver.getRule(right);
+      if (possibleRule.isPresent()) {
+        BuildRule rule=possibleRule.get();
         if (rule instanceof PrebuiltJar) {
           builder.setJavacJarPath(new BuildTargetSourcePath(rule.getProjectFilesystem(),rule.getBuildTarget()));
         }
@@ -23,7 +24,7 @@
         }
       }
  else {
-        builder.setJavacPath(right.getRight());
+        builder.setJavacPath(resolver.getPath(right));
       }
     }
   }
