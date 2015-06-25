@@ -35,7 +35,17 @@
     steps.add(new XctoolRunTestsStep(xctoolBinaryPath,platformName,simulatorName,logicTestPathsBuilder.build(),appTestPathsToHostAppsBuilder.build(),resolvedTestOutputPath,xctoolStdoutReader));
   }
  else {
-    steps.add(new XctestRunTestsStep((testBundleExtension == "xctest" ? xctest : otest).getCommandPrefix(getResolver()),(testBundleExtension == "xctest" ? "-XCTest" : "-SenTest"),resolvedTestBundleDirectory,resolvedTestOutputPath));
+    Tool testRunningTool;
+    if (testBundleExtension == "xctest") {
+      testRunningTool=xctest;
+    }
+ else     if (otest.isPresent()) {
+      testRunningTool=otest.get();
+    }
+ else {
+      throw new HumanReadableException("Cannot run non-xctest bundle type %s (otest not present)",testBundleExtension);
+    }
+    steps.add(new XctestRunTestsStep(testRunningTool.getCommandPrefix(getResolver()),(testBundleExtension == "xctest" ? "-XCTest" : "-SenTest"),resolvedTestBundleDirectory,resolvedTestOutputPath));
   }
   return steps.build();
 }
