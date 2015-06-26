@@ -1,23 +1,17 @@
 {
+  final Map<String,Pair<JarEntry,Optional<File>>> entries=Maps.newTreeMap();
   new DirectoryTraversal(directory){
     @Override public void visit(    File file,    String relativePath){
       JarEntry entry=new JarEntry(relativePath.replace('\\','/'));
       String entryName=entry.getName();
       entry.setTime(0);
-      try {
-        if (!isDuplicateAllowed(entryName) && !alreadyAddedEntries.add(entryName)) {
-          if (!entryName.endsWith("/")) {
-            eventBus.post(ConsoleEvent.create(determineSeverity(entry),"Duplicate found when adding directory to jar: %s",relativePath));
-          }
-          return;
+      if (!isDuplicateAllowed(entryName) && !alreadyAddedEntries.add(entryName)) {
+        if (!entryName.endsWith("/")) {
+          eventBus.post(ConsoleEvent.create(determineSeverity(entry),"Duplicate found when adding directory to jar: %s",relativePath));
         }
-        jar.putNextEntry(entry);
-        Files.copy(file,jar);
-        jar.closeEntry();
+        return;
       }
- catch (      IOException e) {
-        Throwables.propagate(e);
-      }
+      entries.put(entry.getName(),new Pair<>(entry,Optional.of(file)));
     }
     @Override public void visitDirectory(    File directory,    String relativePath) throws IOException {
       if (relativePath.isEmpty()) {
@@ -29,9 +23,15 @@
       }
       JarEntry entry=new JarEntry(entryName);
       entry.setTime(0);
-      jar.putNextEntry(entry);
-      jar.closeEntry();
+      entries.put(entry.getName(),new Pair<>(entry,Optional.<File>absent()));
     }
   }
 .traverse();
+  for (  Pair<JarEntry,Optional<File>> entry : entries.values()) {
+    jar.putNextEntry(entry.getFirst());
+    if (entry.getSecond().isPresent()) {
+      Files.copy(entry.getSecond().get(),jar);
+    }
+    jar.closeEntry();
+  }
 }
