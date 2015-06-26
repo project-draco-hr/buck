@@ -1,16 +1,9 @@
 {
   NewNativeTargetProjectMutator mutator=mutatorWithCommonDefaults();
   BuildTarget depBuildTarget=BuildTarget.builder("//foo","dep").build();
-  ReactNativeBuckConfig buckConfig=new ReactNativeBuckConfig(new FakeBuckConfig(ImmutableMap.of("react-native",ImmutableMap.of("packager","react-native/packager.sh")),new AllExistingProjectFilesystem()));
-  TargetNode<?> reactNativeNode=new AbstractNodeBuilder<ReactNativeLibraryArgs>(new IosReactNativeLibraryDescription(buckConfig),depBuildTarget){
-    @Override public TargetNode<ReactNativeLibraryArgs> build(){
-      ProjectFilesystem filesystem=new FakeProjectFilesystem();
-      arg.bundleName="Apps/Foo/FooBundle.js";
-      arg.entryPath=new PathSourcePath(filesystem,Paths.get("js/FooApp.js"));
-      return super.build();
-    }
-  }
-.build();
+  ProjectFilesystem filesystem=new AllExistingProjectFilesystem();
+  ReactNativeBuckConfig buckConfig=new ReactNativeBuckConfig(new FakeBuckConfig(ImmutableMap.of("react-native",ImmutableMap.of("packager","react-native/packager.sh")),filesystem));
+  TargetNode<?> reactNativeNode=IosReactNativeLibraryBuilder.builder(depBuildTarget,buckConfig).setBundleName("Apps/Foo/FooBundle.js").setEntryPath(new PathSourcePath(filesystem,Paths.get("js/FooApp.js"))).build();
   mutator.setPostBuildRunScriptPhases(ImmutableList.<TargetNode<?>>of(reactNativeNode));
   NewNativeTargetProjectMutator.Result result=mutator.buildTargetAndAddToProject(generatedProject);
   PBXShellScriptBuildPhase phase=getSingletonPhaseByType(result.target,PBXShellScriptBuildPhase.class);
