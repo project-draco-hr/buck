@@ -1,0 +1,11 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  Genrule dep=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:dep")).setOut("out").build(resolver);
+  symlinkTreeBuildRule=new SymlinkTree(new FakeBuildRuleParamsBuilder(buildTarget).setDeps(ImmutableSortedSet.<BuildRule>of(dep)).build(),pathResolver,outputPath,ImmutableMap.<Path,SourcePath>of(Paths.get("link"),new BuildTargetSourcePath(projectFilesystem,dep.getBuildTarget())));
+  RuleKeyBuilderFactory inputBasedRuleKeyBuilderFactory=new InputBasedRuleKeyBuilderFactory(FakeFileHashCache.createFromStrings(ImmutableMap.of("out","aaaa")),pathResolver);
+  RuleKey ruleKey1=inputBasedRuleKeyBuilderFactory.newInstance(symlinkTreeBuildRule).build();
+  inputBasedRuleKeyBuilderFactory=new InputBasedRuleKeyBuilderFactory(FakeFileHashCache.createFromStrings(ImmutableMap.of("out","bbbb")),pathResolver);
+  RuleKey ruleKey2=inputBasedRuleKeyBuilderFactory.newInstance(symlinkTreeBuildRule).build();
+  assertEquals(ruleKey1,ruleKey2);
+}
