@@ -1,0 +1,15 @@
+{
+  assumeNotUsingSeparateOrPipedModesWithClang();
+  TemporaryFolder folder=new TemporaryFolder();
+  folder.create();
+  Path symlinkedRoot=folder.getRoot().toPath().resolve("symlinked-root");
+  java.nio.file.Files.createSymbolicLink(symlinkedRoot,tmp.getRootPath());
+  Map<String,String> envCopy=Maps.newHashMap(System.getenv());
+  envCopy.put("PWD",symlinkedRoot.toString());
+  workspace.runBuckCommandWithEnvironmentAndContext(tmp.getRootPath(),Optional.<NGContext>absent(),Optional.<BuckEventListener>absent(),Optional.of(ImmutableMap.copyOf(envCopy)),"build","//:simple#default,static").assertSuccess();
+  Path lib=workspace.getPath("buck-out/gen/simple#default,static/libsimple.a");
+  String contents=Files.asByteSource(lib.toFile()).asCharSource(Charsets.ISO_8859_1).read();
+  assertFalse(lib.toString(),contents.contains(tmp.getRootPath().toString()));
+  assertFalse(lib.toString(),contents.contains(symlinkedRoot.toString()));
+  folder.delete();
+}

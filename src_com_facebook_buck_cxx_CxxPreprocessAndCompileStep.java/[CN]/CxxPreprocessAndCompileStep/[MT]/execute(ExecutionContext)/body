@@ -1,40 +1,12 @@
 {
   try {
     LOG.debug("%s %s -> %s",operation.toString().toLowerCase(),input,output);
+    int exitCode;
     if (operation == Operation.PIPED_PREPROCESS_AND_COMPILE) {
-      return executePiped(context);
-    }
-    ProcessBuilder builder=makeSubprocessBuilder(context);
-    if (operation == Operation.PREPROCESS) {
-      builder.command(makePreprocessCommand());
-      builder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+      exitCode=executePiped(context);
     }
  else {
-      builder.command(makeCompileCommand(input.toString(),inputType.getLanguage()));
-    }
-    builder.environment().put("PWD",sanitizer.getExpandedPath(context.getProjectDirectoryRoot().toAbsolutePath()));
-    LOG.debug("Running command (pwd=%s): %s",builder.directory(),getDescription(context));
-    Process process=builder.start();
-    ByteArrayOutputStream error=new ByteArrayOutputStream();
-    int exitCode;
-    try {
-      try (FunctionLineProcessorThread errorProcessor=new FunctionLineProcessorThread(process.getErrorStream(),error,createErrorLineProcessor(context.getProjectDirectoryRoot()))){
-        errorProcessor.start();
-        if (operation == Operation.PREPROCESS) {
-          try (OutputStream output=context.getProjectFilesystem().newFileOutputStream(this.output);FunctionLineProcessorThread outputProcessor=new FunctionLineProcessorThread(process.getInputStream(),output,createPreprocessOutputLineProcessor(context.getProjectDirectoryRoot()))){
-            outputProcessor.start();
-          }
-         }
-      }
-       exitCode=process.waitFor();
-    }
-  finally {
-      process.destroy();
-      process.waitFor();
-    }
-    String err=new String(error.toByteArray());
-    if (!err.isEmpty()) {
-      context.getConsole().printErrorText(err);
+      exitCode=executeOther(context);
     }
     if (exitCode == 0 && operation == Operation.COMPILE_MUNGE_DEBUGINFO) {
       try {
@@ -46,7 +18,7 @@
       }
     }
     if (exitCode != 0) {
-      LOG.warn("error %d %s %s: %s",exitCode,operation.toString().toLowerCase(),input,err);
+      LOG.warn("error %d %s %s",exitCode,operation.toString().toLowerCase(),input);
     }
     return exitCode;
   }

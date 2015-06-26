@@ -1,0 +1,34 @@
+{
+  ProcessBuilder builder=makeSubprocessBuilder(context);
+  if (operation == Operation.PREPROCESS) {
+    builder.command(makePreprocessCommand());
+    builder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+  }
+ else {
+    builder.command(makeCompileCommand(input.toString(),inputType.getLanguage()));
+  }
+  LOG.debug("Running command (pwd=%s): %s",builder.directory(),getDescription(context));
+  Process process=builder.start();
+  ByteArrayOutputStream error=new ByteArrayOutputStream();
+  int exitCode;
+  try {
+    try (FunctionLineProcessorThread errorProcessor=new FunctionLineProcessorThread(process.getErrorStream(),error,createErrorLineProcessor(context.getProjectDirectoryRoot()))){
+      errorProcessor.start();
+      if (operation == Operation.PREPROCESS) {
+        try (OutputStream output=context.getProjectFilesystem().newFileOutputStream(this.output);FunctionLineProcessorThread outputProcessor=new FunctionLineProcessorThread(process.getInputStream(),output,createPreprocessOutputLineProcessor(context.getProjectDirectoryRoot()))){
+          outputProcessor.start();
+        }
+       }
+    }
+     exitCode=process.waitFor();
+  }
+  finally {
+    process.destroy();
+    process.waitFor();
+  }
+  String err=new String(error.toByteArray());
+  if (!err.isEmpty()) {
+    context.getConsole().printErrorText(err);
+  }
+  return exitCode;
+}
