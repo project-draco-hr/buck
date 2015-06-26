@@ -3,7 +3,7 @@
   final ExportedDepsClosureResolver exportedDepsClosureResolver=new ExportedDepsClosureResolver(targetGraph);
   ImmutableMap.Builder<IjProjectElement,ImmutableMap<IjProjectElement,DependencyType>> depsBuilder=ImmutableMap.builder();
   final Set<IjLibrary> referencedLibraries=new HashSet<>();
-  for (  IjModule module : FluentIterable.from(rulesToModules.values()).toSet()) {
+  for (  final IjModule module : FluentIterable.from(rulesToModules.values()).toSet()) {
     Map<IjProjectElement,DependencyType> moduleDeps=new HashMap<>();
     for (    Map.Entry<BuildTarget,DependencyType> entry : module.getDependencies().entrySet()) {
       BuildTarget depBuildTarget=entry.getKey();
@@ -20,7 +20,13 @@
         }
       }
  else {
-        depElements=FluentIterable.from(exportedDepsClosureResolver.getExportedDepsClosure(depBuildTarget)).append(depBuildTarget).transform(new Function<BuildTarget,IjProjectElement>(){
+        depElements=FluentIterable.from(exportedDepsClosureResolver.getExportedDepsClosure(depBuildTarget)).append(depBuildTarget).filter(new Predicate<BuildTarget>(){
+          @Override public boolean apply(          BuildTarget input){
+            TargetNode<?> targetNode=targetGraph.get(input);
+            return !module.getTargets().contains(targetNode);
+          }
+        }
+).transform(new Function<BuildTarget,IjProjectElement>(){
           @Nullable @Override public IjProjectElement apply(          BuildTarget depTarget){
             IjModule depModule=rulesToModules.get(depTarget);
             if (depModule != null) {
