@@ -1,0 +1,17 @@
+{
+  assumeTrue("only tests \"separate\" preprocess mode",mode == CxxPreprocessMode.SEPARATE);
+  CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(new CxxBuckConfig(new FakeBuckConfig()));
+  BuildTarget target=BuildTargetFactory.newInstance("//:binary_with_unused_header");
+  CxxSourceRuleFactory cxxSourceRuleFactory=CxxSourceRuleFactoryHelper.of(target,cxxPlatform);
+  String unusedHeaderName="unused_header.h";
+  String sourceName="source.cpp";
+  BuildTarget compileTarget=cxxSourceRuleFactory.createCompileBuildTarget(sourceName,CxxSourceRuleFactory.PicType.PDC);
+  workspace.runBuckBuild(target.toString());
+  BuckBuildLog.BuildLogEntry firstRunEntry=workspace.getBuildLog().getLogEntry(compileTarget);
+  assertThat(firstRunEntry.getSuccessType(),Matchers.equalTo(Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)));
+  workspace.writeContentsToPath("static inline int newFunction() { return 20; }",unusedHeaderName);
+  workspace.runBuckBuild(target.toString());
+  BuckBuildLog.BuildLogEntry secondRunEntry=workspace.getBuildLog().getLogEntry(compileTarget);
+  assertThat(secondRunEntry.getSuccessType(),Matchers.equalTo(Optional.of(BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY)));
+  assertThat(secondRunEntry.getRuleKey(),Matchers.not(Matchers.equalTo(firstRunEntry.getRuleKey())));
+}

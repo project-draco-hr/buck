@@ -1,0 +1,22 @@
+{
+  CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(new CxxBuckConfig(new FakeBuckConfig()));
+  BuildTarget target=BuildTargetFactory.newInstance("//:binary_using_generated_source");
+  String unusedGenruleInput="unused.dat";
+  BuildTarget genrule=BuildTargetFactory.newInstance("//:gensource");
+  String sourceName="bar.cpp";
+  CxxSourceRuleFactory cxxSourceRuleFactory=CxxSourceRuleFactoryHelper.of(target,cxxPlatform);
+  BuildTarget preprocessTarget=cxxSourceRuleFactory.createPreprocessBuildTarget(sourceName,AbstractCxxSource.Type.CXX,CxxSourceRuleFactory.PicType.PDC);
+  BuildTarget compileTarget=cxxSourceRuleFactory.createCompileBuildTarget(sourceName,CxxSourceRuleFactory.PicType.PDC);
+  workspace.runBuckBuild(target.toString()).assertSuccess();
+  if (mode == CxxPreprocessMode.SEPARATE) {
+    assertThat(workspace.getBuildLog().getLogEntry(preprocessTarget).getSuccessType(),Matchers.equalTo(Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)));
+  }
+  assertThat(workspace.getBuildLog().getLogEntry(compileTarget).getSuccessType(),Matchers.equalTo(Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)));
+  workspace.writeContentsToPath("SOMETHING ELSE",unusedGenruleInput);
+  workspace.runBuckBuild(target.toString()).assertSuccess();
+  assertThat(workspace.getBuildLog().getLogEntry(genrule).getSuccessType(),Matchers.equalTo(Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)));
+  if (mode == CxxPreprocessMode.SEPARATE) {
+    assertThat(workspace.getBuildLog().getLogEntry(preprocessTarget).getSuccessType(),Matchers.equalTo(Optional.of(BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY)));
+  }
+  assertThat(workspace.getBuildLog().getLogEntry(compileTarget).getSuccessType(),Matchers.equalTo(Optional.of(BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY)));
+}
