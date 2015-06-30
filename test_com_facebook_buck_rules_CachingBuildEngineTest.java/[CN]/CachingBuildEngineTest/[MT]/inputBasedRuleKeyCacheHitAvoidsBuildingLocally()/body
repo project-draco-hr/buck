@@ -22,13 +22,17 @@
     }
   }
 ;
-  File temp=File.createTempFile("artifact",".zip");
-  writeEntriesToZip(temp,ImmutableMap.of(BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY).toString(),new RuleKey("bbbb").toString(),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY).toString(),inputRuleKey.toString(),output.toString(),""));
-  cache.store(ImmutableSet.of(inputRuleKey),ImmutableMap.<String,String>of(),temp);
+  File artifact=tmp.newFile("artifact.zip");
+  writeEntriesToZip(artifact,ImmutableMap.of(output.toString(),"stuff"));
+  cache.store(ImmutableSet.of(inputRuleKey),ImmutableMap.of(BuildInfo.METADATA_KEY_FOR_RULE_KEY,new RuleKey("bbbb").toString(),BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY,inputRuleKey.toString()),artifact);
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW,new FixedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),inputRuleKey)));
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertEquals(BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,result.getSuccess());
   OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(target);
   assertThat(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_RULE_KEY),Matchers.equalTo(Optional.of(rule.getRuleKey())));
   assertThat(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY),Matchers.equalTo(Optional.of(inputRuleKey)));
+  File fetchedArtifact=tmp.newFile("fetched_artifact.zip");
+  assertThat(cache.fetch(rule.getRuleKey(),fetchedArtifact).getType(),Matchers.equalTo(CacheResult.Type.HIT));
+  assertEquals(new ZipInspector(artifact).getZipFileEntries(),new ZipInspector(fetchedArtifact).getZipFileEntries());
+  assertTrue(Files.equal(artifact,fetchedArtifact));
 }
