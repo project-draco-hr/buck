@@ -1,0 +1,19 @@
+{
+  BuildTarget libTarget=BuildTarget.builder("//foo","lib").addFlavors(CxxDescriptionEnhancer.SHARED_FLAVOR).build();
+  TargetNode<?> libNode=AppleLibraryBuilder.createBuilder(libTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).setHeaderPathPrefix(Optional.of("MyHeaderPathPrefix")).setUseBuckHeaderMaps(Optional.of(false)).build();
+  BuildTarget frameworkTarget=BuildTarget.builder("//foo","bundle").build();
+  TargetNode<?> frameworkNode=AppleBundleBuilder.createBuilder(frameworkTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK)).setBinary(libTarget).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(libNode,frameworkNode),ImmutableSet.<ProjectGenerator.Option>of());
+  projectGenerator.createXcodeProjects();
+  PBXTarget frameworkPbxTarget=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:bundle");
+  assertEquals(frameworkPbxTarget.getProductType(),ProductType.FRAMEWORK);
+  assertThat(frameworkPbxTarget.isa(),equalTo("PBXNativeTarget"));
+  PBXFileReference frameworkProductReference=frameworkPbxTarget.getProductReference();
+  assertEquals("bundle.framework",frameworkProductReference.getName());
+  assertEquals(Optional.of("wrapper.framework"),frameworkProductReference.getExplicitFileType());
+  ImmutableMap<String,String> settings=getBuildSettings(frameworkTarget,frameworkPbxTarget,"Debug");
+  assertEquals("framework",settings.get("WRAPPER_EXTENSION"));
+  assertEquals("$SYMROOT/$CONFIGURATION$EFFECTIVE_PLATFORM_NAME",settings.get("BUILT_PRODUCTS_DIR"));
+  assertEquals("$BUILT_PRODUCTS_DIR",settings.get("CONFIGURATION_BUILD_DIR"));
+  assertEquals("F4XWM33PHJRHK3TENRSQ/Headers/MyHeaderPathPrefix",settings.get("PUBLIC_HEADERS_FOLDER_PATH"));
+}
