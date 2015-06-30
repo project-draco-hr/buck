@@ -1,15 +1,15 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver();
   ProjectFilesystem filesystem=new AllExistingProjectFilesystem();
-  PrebuiltCxxLibraryBuilder libBuilder=new PrebuiltCxxLibraryBuilder(TARGET).setHeaderOnly(true);
+  PrebuiltCxxLibraryBuilder libBuilder=new PrebuiltCxxLibraryBuilder(TARGET).setExportedPlatformHeaders(CXX_PLATFORM,SourceList.ofUnnamedSources(ImmutableSortedSet.<SourcePath>of()));
   PrebuiltCxxLibrary lib=(PrebuiltCxxLibrary)libBuilder.build(resolver,filesystem,TargetGraphFactory.newInstance(libBuilder.build()));
   PrebuiltCxxLibraryDescription.Arg arg=libBuilder.build().getConstructorArg();
   CxxPreprocessorInput expectedCxxPreprocessorInput=CxxPreprocessorInput.builder().addAllSystemIncludeRoots(getIncludeRoots(lib)).addAllSystemIncludeRoots(getIncludeDirs(arg)).setRules(getInputRules(lib)).build();
   assertThat(lib.getCxxPreprocessorInput(CXX_PLATFORM,HeaderVisibility.PUBLIC),Matchers.equalTo(expectedCxxPreprocessorInput));
-  NativeLinkableInput expectedStaticLinkableInput=NativeLinkableInput.of(ImmutableList.<SourcePath>of(),ImmutableList.<String>of());
+  NativeLinkableInput expectedStaticLinkableInput=NativeLinkableInput.of(ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,getStaticLibraryPath(arg))),ImmutableList.of(getStaticLibraryPath(arg).toString()));
   assertEquals(expectedStaticLinkableInput,lib.getNativeLinkableInput(CXX_PLATFORM,Linker.LinkableDepType.STATIC));
-  NativeLinkableInput expectedSharedLinkableInput=NativeLinkableInput.of(ImmutableList.<SourcePath>of(),ImmutableList.<String>of());
+  NativeLinkableInput expectedSharedLinkableInput=NativeLinkableInput.of(ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,getSharedLibraryPath(arg))),ImmutableList.of(getSharedLibraryPath(arg).toString()));
   assertEquals(expectedSharedLinkableInput,lib.getNativeLinkableInput(CXX_PLATFORM,Linker.LinkableDepType.SHARED));
-  PythonPackageComponents expectedComponents=PythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),Optional.<Boolean>absent());
+  PythonPackageComponents expectedComponents=PythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(getSharedLibrarySoname(arg)),new PathSourcePath(filesystem,getSharedLibraryPath(arg))),ImmutableSet.<SourcePath>of(),Optional.<Boolean>absent());
   assertEquals(expectedComponents,lib.getPythonPackageComponents(CXX_PLATFORM));
 }

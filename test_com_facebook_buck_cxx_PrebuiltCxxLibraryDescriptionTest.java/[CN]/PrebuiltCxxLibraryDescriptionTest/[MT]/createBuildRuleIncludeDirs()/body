@@ -2,10 +2,10 @@
   BuildRuleResolver resolver=new BuildRuleResolver();
   ProjectFilesystem filesystem=new AllExistingProjectFilesystem();
   PrebuiltCxxLibraryBuilder libBuilder=new PrebuiltCxxLibraryBuilder(TARGET).setIncludeDirs(ImmutableList.of("test"));
-  PrebuiltCxxLibrary lib=(PrebuiltCxxLibrary)libBuilder.build(resolver,filesystem);
+  PrebuiltCxxLibrary lib=(PrebuiltCxxLibrary)libBuilder.build(resolver,filesystem,TargetGraphFactory.newInstance(libBuilder.build()));
   PrebuiltCxxLibraryDescription.Arg arg=libBuilder.build().getConstructorArg();
-  CxxPreprocessorInput expectedCxxPreprocessorInput=CxxPreprocessorInput.builder().addAllSystemIncludeRoots(getIncludeDirs(arg)).build();
-  assertEquals(expectedCxxPreprocessorInput,lib.getCxxPreprocessorInput(CXX_PLATFORM,HeaderVisibility.PUBLIC));
+  CxxPreprocessorInput expectedCxxPreprocessorInput=CxxPreprocessorInput.builder().addAllSystemIncludeRoots(getIncludeRoots(lib)).addAllSystemIncludeRoots(getIncludeDirs(arg)).setRules(getInputRules(lib)).build();
+  assertThat(lib.getCxxPreprocessorInput(CXX_PLATFORM,HeaderVisibility.PUBLIC),Matchers.equalTo(expectedCxxPreprocessorInput));
   NativeLinkableInput expectedStaticLinkableInput=NativeLinkableInput.of(ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,getStaticLibraryPath(arg))),ImmutableList.of(getStaticLibraryPath(arg).toString()));
   assertEquals(expectedStaticLinkableInput,lib.getNativeLinkableInput(CXX_PLATFORM,Linker.LinkableDepType.STATIC));
   NativeLinkableInput expectedSharedLinkableInput=NativeLinkableInput.of(ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,getSharedLibraryPath(arg))),ImmutableList.of(getSharedLibraryPath(arg).toString()));
