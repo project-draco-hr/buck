@@ -1,0 +1,36 @@
+{
+  Path zipPath=context.getProjectFilesystem().resolve(zip);
+  try (FileChannel channel=FileChannel.open(zipPath,StandardOpenOption.READ,StandardOpenOption.WRITE)){
+    MappedByteBuffer map=channel.map(FileChannel.MapMode.READ_WRITE,0,channel.size());
+    map.order(ByteOrder.LITTLE_ENDIAN);
+    map.position((int)channel.size() - ZipEntry.ENDCOM);
+    while (map.getInt() != ZipEntry.ENDSIG) {
+      map.position(map.position() - Integer.SIZE / Byte.SIZE - 1);
+    }
+    map.getShort();
+    map.getShort();
+    map.getShort();
+    int cdEntries=map.getShort();
+    map.getInt();
+    int cdOffset=map.getInt();
+    map.position(cdOffset);
+    for (int idx=0; idx < cdEntries; idx++) {
+      ByteBuffer entry=map.slice();
+      entry.order(ByteOrder.LITTLE_ENDIAN);
+      check(entry.getInt() == ZipEntry.CENSIG,"expected central directory header signature");
+      entry.putInt(ZipEntry.CENTIM,ZipConstants.DOS_EPOCH_START);
+      int locOff=entry.getInt(ZipEntry.CENOFF);
+      check(map.getInt(locOff) == ZipEntry.LOCSIG,"expected local header signature");
+      map.putInt(locOff + ZipEntry.LOCTIM,ZipConstants.DOS_EPOCH_START);
+      map.position(map.position() + 46);
+      map.position(map.position() + entry.getShort(ZipEntry.CENNAM));
+      map.position(map.position() + entry.getShort(ZipEntry.CENEXT));
+      map.position(map.position() + entry.getShort(ZipEntry.CENCOM));
+    }
+  }
+ catch (  IOException e) {
+    context.logError(e,"Error scrubbing non-deterministic metadata from %s",zipPath);
+    return 1;
+  }
+  return 0;
+}

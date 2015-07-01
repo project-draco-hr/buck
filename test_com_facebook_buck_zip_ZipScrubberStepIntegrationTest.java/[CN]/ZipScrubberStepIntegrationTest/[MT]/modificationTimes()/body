@@ -1,0 +1,26 @@
+{
+  Path zip=tmp.newFile("output.zip").toPath();
+  try (ZipOutputStream out=new ZipOutputStream(Files.newOutputStream(zip))){
+    ZipEntry entry=new ZipEntry("file1");
+    byte[] data="data1".getBytes(Charsets.UTF_8);
+    entry.setSize(data.length);
+    out.putNextEntry(entry);
+    out.write(data);
+    out.closeEntry();
+    entry=new ZipEntry("file2");
+    data="data2".getBytes(Charsets.UTF_8);
+    entry.setSize(data.length);
+    out.putNextEntry(entry);
+    out.write(data);
+    out.closeEntry();
+  }
+   ExecutionContext executionContext=TestExecutionContext.newBuilder().setProjectFilesystem(new ProjectFilesystem(tmp.getRootPath())).build();
+  ZipScrubberStep step=new ZipScrubberStep(Paths.get("output.zip"));
+  assertEquals(0,step.execute(executionContext));
+  Date dosEpoch=new Date(ZipUtil.dosToJavaTime(ZipConstants.DOS_EPOCH_START));
+  try (ZipInputStream is=new ZipInputStream(new FileInputStream(zip.toFile()))){
+    for (ZipEntry entry=is.getNextEntry(); entry != null; entry=is.getNextEntry()) {
+      assertThat(entry.getName(),new Date(entry.getTime()),Matchers.equalTo(dosEpoch));
+    }
+  }
+ }

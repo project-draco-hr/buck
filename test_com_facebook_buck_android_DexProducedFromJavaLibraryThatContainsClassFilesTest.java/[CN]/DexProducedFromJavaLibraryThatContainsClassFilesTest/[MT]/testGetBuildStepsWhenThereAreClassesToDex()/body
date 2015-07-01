@@ -29,12 +29,12 @@
   replayAll();
   ExecutionContext executionContext=TestExecutionContext.newBuilder().setAndroidPlatformTargetSupplier(Suppliers.ofInstance(androidPlatformTarget)).setProjectFilesystem(projectFilesystem).build();
   String expectedDxCommand=String.format("%s --dex --no-optimize --force-jumbo --output %s %s",Paths.get("/usr/bin/dx"),Paths.get("/home/user/buck-out/gen/foo/bar#dex.dex.jar"),Paths.get("/home/user/buck-out/gen/foo/bar.jar"));
-  MoreAsserts.assertSteps("Generate bar.dex.jar.",ImmutableList.of(String.format("rm -f %s",Paths.get("/home/user/buck-out/gen/foo/bar#dex.dex.jar")),String.format("mkdir -p %s",Paths.get("/home/user/buck-out/gen/foo")),"estimate_linear_alloc","(cd / && " + expectedDxCommand + ")","record_dx_success"),steps,executionContext);
+  MoreAsserts.assertSteps("Generate bar.dex.jar.",ImmutableList.of(String.format("rm -f %s",Paths.get("/home/user/buck-out/gen/foo/bar#dex.dex.jar")),String.format("mkdir -p %s",Paths.get("/home/user/buck-out/gen/foo")),"estimate_linear_alloc","(cd / && " + expectedDxCommand + ")","zip-scrub buck-out/gen/foo/bar#dex.dex.jar","record_dx_success"),steps,executionContext);
   verifyAll();
   resetAll();
   replayAll();
   ((EstimateLinearAllocStep)steps.get(2)).setLinearAllocEstimateForTesting(250);
-  Step recordArtifactAndMetadataStep=steps.get(4);
+  Step recordArtifactAndMetadataStep=steps.get(5);
   int exitCode=recordArtifactAndMetadataStep.execute(executionContext);
   assertEquals(0,exitCode);
   assertEquals("The generated .dex.jar file should be in the set of recorded artifacts.",ImmutableSet.of(Paths.get("buck-out/gen/foo/bar#dex.dex.jar")),buildableContext.getRecordedArtifacts());
