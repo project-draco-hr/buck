@@ -7,7 +7,12 @@ def _setup_watchman_watch(self):
             raise BuckToolException(message)
         print('Using watchman.', file=sys.stderr)
         try:
-            check_output(['watchman', 'watch', self._buck_project.root], stderr=subprocess.STDOUT)
+            if self._watchman_atleast(3, 4):
+                response = check_output(['watchman', 'watch-project', self._buck_project.root], stderr=subprocess.STDOUT)
+            else:
+                response = check_output(['watchman', 'watch', self._buck_project.root], stderr=subprocess.STDOUT)
+            jsonresp = json.loads(response)
+            return (jsonresp.get('watch'), jsonresp.get('relative_path'))
         except CalledProcessError as e:
             print(e.output, end='', file=sys.stderr)
             raise
