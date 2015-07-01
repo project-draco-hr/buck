@@ -29,6 +29,9 @@
   int annotationRound=1;
   boolean isLastRound=false;
   eventBus.post(AnnotationProcessingEvent.started(target,annotationProcessorName,operation,annotationRound,isLastRound));
+  final CompilerPluginDurationEvent.Started processingPartOneStarted=CompilerPluginDurationEvent.started(target,annotationProcessorName,"processingPartOne",ImmutableMap.<String,String>of());
+  eventBus.post(processingPartOneStarted);
+  eventBus.post(CompilerPluginDurationEvent.finished(processingPartOneStarted,ImmutableMap.<String,String>of()));
   eventBus.post(AnnotationProcessingEvent.finished(target,annotationProcessorName,operation,annotationRound,isLastRound));
   eventBus.post(StepEvent.finished(stepShortName,stepDescription,stepUuid,0));
   eventBus.post(BuildRuleEvent.finished(rule,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()));
@@ -56,6 +59,8 @@
   assertNextResult(resultListCopy,"//fake:rule",ChromeTraceEvent.Phase.BEGIN,ImmutableMap.of("rule_key","abc123"));
   assertNextResult(resultListCopy,"fakeStep",ChromeTraceEvent.Phase.BEGIN,emptyArgs);
   assertNextResult(resultListCopy,"com.facebook.FakeProcessor.process",ChromeTraceEvent.Phase.BEGIN,emptyArgs);
+  assertNextResult(resultListCopy,"processingPartOne",ChromeTraceEvent.Phase.BEGIN,emptyArgs);
+  assertNextResult(resultListCopy,"processingPartOne",ChromeTraceEvent.Phase.END,emptyArgs);
   assertNextResult(resultListCopy,"com.facebook.FakeProcessor.process",ChromeTraceEvent.Phase.END,emptyArgs);
   assertNextResult(resultListCopy,"fakeStep",ChromeTraceEvent.Phase.END,ImmutableMap.of("description","I'm a Fake Step!","exit_code","0"));
   assertNextResult(resultListCopy,"//fake:rule",ChromeTraceEvent.Phase.END,ImmutableMap.of("cache_result","miss","success_type","BUILT_LOCALLY"));

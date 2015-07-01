@@ -25,15 +25,21 @@
   Writer compilerOutputWriter=new PrintWriter(context.getStdErr());
   JavaCompiler.CompilationTask compilationTask=compiler.getTask(compilerOutputWriter,fileManager,diagnostics,options,classNamesForAnnotationProcessing,compilationUnits);
   boolean isSuccess=false;
-  try (ProcessorBundle bundle=prepareProcessors(context.getBuckEventBus(),compiler.getClass().getClassLoader(),invokingRule,options)){
-    compilationTask.setProcessors(bundle.processors);
-    isSuccess=compilationTask.call();
-  }
- catch (  IOException e) {
-    LOG.warn(e,"Unable to close annotation processor class loader. We may be leaking memory.");
-  }
+  BuckTracing.setCurrentThreadTracingInterfaceFromJsr199Javac(new BuckTracingEventBusBridge(context.getBuckEventBus(),invokingRule));
+  try {
+    try (ProcessorBundle bundle=prepareProcessors(context.getBuckEventBus(),compiler.getClass().getClassLoader(),invokingRule,options)){
+      compilationTask.setProcessors(bundle.processors);
+      isSuccess=compilationTask.call();
+    }
+ catch (    IOException e) {
+      LOG.warn(e,"Unable to close annotation processor class loader. We may be leaking memory.");
+    }
  finally {
-    close(fileManager,compilationUnits);
+      close(fileManager,compilationUnits);
+    }
+  }
+  finally {
+    BuckTracing.clearCurrentThreadTracingInterfaceFromJsr199Javac();
   }
   for (  Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
     LOG.debug("javac: %s",DiagnosticPrettyPrinter.format(diagnostic));
