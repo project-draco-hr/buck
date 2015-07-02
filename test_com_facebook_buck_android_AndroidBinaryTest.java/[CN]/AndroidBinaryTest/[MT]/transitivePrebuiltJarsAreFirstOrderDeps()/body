@@ -2,9 +2,8 @@
   BuildRuleResolver resolver=new BuildRuleResolver();
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   BuildRule keystoreRule=addKeystoreRule(resolver);
-  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   BuildRule prebuiltJarGen=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:jar")).setOut("foo.jar").build(resolver);
-  BuildRule transitivePrebuiltJarDep=PrebuiltJarBuilder.createBuilder(BuildTargetFactory.newInstance("//:transitive_dep")).setBinaryJar(new BuildTargetSourcePath(filesystem,prebuiltJarGen.getBuildTarget())).build(resolver);
+  BuildRule transitivePrebuiltJarDep=PrebuiltJarBuilder.createBuilder(BuildTargetFactory.newInstance("//:transitive_dep")).setBinaryJar(new BuildTargetSourcePath(prebuiltJarGen.getBuildTarget())).build(resolver);
   FakeJavaLibrary immediateDep=resolver.addToIndex(new FakeJavaLibrary(BuildTargetFactory.newInstance("//:immediate_dep"),pathResolver,ImmutableSortedSet.of(transitivePrebuiltJarDep)));
   BuildRule rule=AndroidBinaryBuilder.createBuilder(BuildTargetFactory.newInstance("//:target")).setKeystore(keystoreRule.getBuildTarget()).setManifest(new TestSourcePath("AndroidManifest.xml")).setOriginalDeps(ImmutableSortedSet.of(immediateDep.getBuildTarget())).build(resolver);
   assertThat(rule.getDeps(),Matchers.hasItem(transitivePrebuiltJarDep));
