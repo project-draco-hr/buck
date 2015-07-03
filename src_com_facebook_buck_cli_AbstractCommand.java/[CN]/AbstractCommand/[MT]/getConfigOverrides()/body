@@ -1,9 +1,16 @@
 {
-  ImmutableMap.Builder<String,ImmutableMap<String,String>> builder=ImmutableMap.builder();
+  ConfigOverrideBuilder builder=new ConfigOverrideBuilder();
+  for (  Map.Entry<String,String> entry : configOverrides.entrySet()) {
+    List<String> key=Splitter.on('.').limit(2).splitToList(entry.getKey());
+    if (key.size() != 2) {
+      throw new HumanReadableException("Invalid config override \"%s=%s\".  Expected \"<section>.<field>=<value>\".",entry.getKey(),entry.getValue());
+    }
+    builder.put(key.get(0),key.get(1),entry.getValue());
+  }
   if (buildFileIncludes != null) {
     String includes=MoreStrings.stripPrefix(buildFileIncludes,BUILDFILE_INCLUDES_LONG_ARG + " ").or(buildFileIncludes);
     includes=MoreStrings.stripPrefix(includes,UnflavoredBuildTarget.BUILD_TARGET_PREFIX).or(includes);
-    builder.put(ParserConfig.BUILDFILE_SECTION_NAME,ImmutableMap.of(ParserConfig.INCLUDES_PROPERTY_NAME,UnflavoredBuildTarget.BUILD_TARGET_PREFIX + includes));
+    builder.put(ParserConfig.BUILDFILE_SECTION_NAME,ParserConfig.INCLUDES_PROPERTY_NAME,UnflavoredBuildTarget.BUILD_TARGET_PREFIX + includes);
   }
   return builder.build();
 }
