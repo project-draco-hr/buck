@@ -1,24 +1,24 @@
 {
-  return new ArchiveScrubber(){
+  return new FileScrubber(){
     /** 
  * Efficiently modifies the archive backed by the given buffer to remove any non-deterministic
  * meta-data such as timestamps, UIDs, and GIDs.
- * @param archive a {@link ByteBuffer} wrapping the contents of the archive.
+ * @param file a {@link ByteBuffer} wrapping the contents of the archive.
  */
-    @SuppressWarnings("PMD.AvoidUsingOctalValues") @Override public void scrubArchive(    ByteBuffer archive) throws ScrubException {
+    @SuppressWarnings("PMD.AvoidUsingOctalValues") @Override public void scrubArchive(    ByteBuffer file) throws ScrubException {
       try {
-        byte[] globalHeader=getBytes(archive,expectedGlobalHeader.length);
+        byte[] globalHeader=getBytes(file,expectedGlobalHeader.length);
         checkArchive(Arrays.equals(expectedGlobalHeader,globalHeader),"invalid global header");
-        while (archive.hasRemaining()) {
-          getBytes(archive,16);
-          putIntAsDecimalString(archive,12,0);
-          putIntAsDecimalString(archive,6,0);
-          putIntAsDecimalString(archive,6,0);
-          putIntAsOctalString(archive,8,0100644);
-          int fileSize=getDecimalStringAsInt(archive,10);
-          byte[] fileMagic=getBytes(archive,2);
+        while (file.hasRemaining()) {
+          getBytes(file,16);
+          putIntAsDecimalString(file,12,0);
+          putIntAsDecimalString(file,6,0);
+          putIntAsDecimalString(file,6,0);
+          putIntAsOctalString(file,8,0100644);
+          int fileSize=getDecimalStringAsInt(file,10);
+          byte[] fileMagic=getBytes(file,2);
           checkArchive(Arrays.equals(END_OF_FILE_HEADER_MARKER,fileMagic),"invalid file magic");
-          archive.position(archive.position() + fileSize + fileSize % 2);
+          file.position(file.position() + fileSize + fileSize % 2);
         }
       }
  catch (      BufferUnderflowException|ReadOnlyBufferException e) {
