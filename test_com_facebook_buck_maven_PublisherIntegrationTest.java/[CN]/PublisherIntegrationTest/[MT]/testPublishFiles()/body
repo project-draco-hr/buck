@@ -1,0 +1,18 @@
+{
+  String groupId="com.example";
+  String artifactName="no-deps";
+  String version="1.0";
+  String extension="jar";
+  Path artifactDir=localRepo.resolve(artifactName);
+  String fileNameTemplate=String.format("%s-%s.%%s",artifactName,version);
+  File jar=artifactDir.resolve(String.format(fileNameTemplate,extension)).toFile();
+  File pom=artifactDir.resolve(String.format(fileNameTemplate,"pom")).toFile();
+  publisher.publish(groupId,artifactName,version,jar,pom);
+  List<String> putRequestsInvoked=putRequestsHandler.getPutRequestsPaths();
+  assertFalse(putRequestsInvoked.isEmpty());
+  String urlTemplate=String.format("/%s/%s/%s/%s-%s.%%s",groupId.replace('.','/'),artifactName,version,artifactName,version);
+  assertThat(putRequestsInvoked,hasItem(String.format(urlTemplate,extension)));
+  assertThat(putRequestsInvoked,hasItem(String.format(urlTemplate,extension + ".sha1")));
+  assertThat(putRequestsInvoked,hasItem(String.format(urlTemplate,"pom")));
+  assertThat(putRequestsInvoked,hasItem(String.format(urlTemplate,"pom.sha1")));
+}
