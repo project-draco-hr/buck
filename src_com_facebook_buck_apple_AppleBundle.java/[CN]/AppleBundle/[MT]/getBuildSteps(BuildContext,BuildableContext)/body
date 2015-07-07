@@ -26,6 +26,19 @@
     Path destinationPath=bundleDestinationPath.resolve(resolvedFilePath.getFileName());
     addResourceProcessingSteps(resolvedFilePath,destinationPath,stepsBuilder);
   }
+  if (resourceVariantFiles.isPresent()) {
+    for (    SourcePath variantSourcePath : resourceVariantFiles.get()) {
+      Path variantFilePath=getResolver().getPath(variantSourcePath);
+      Path variantDirectory=variantFilePath.getParent();
+      if (variantDirectory == null || !variantDirectory.toString().endsWith(".lproj")) {
+        throw new HumanReadableException("Variant files have to be in a directory with name ending in '.lproj', " + "but '%s' is not.",variantFilePath);
+      }
+      Path bundleVariantDestinationPath=bundleDestinationPath.resolve(variantDirectory.getFileName());
+      stepsBuilder.add(new MkdirStep(bundleVariantDestinationPath));
+      Path destinationPath=bundleVariantDestinationPath.resolve(variantFilePath.getFileName());
+      addResourceProcessingSteps(variantFilePath,destinationPath,stepsBuilder);
+    }
+  }
   for (  AppleAssetCatalog bundledAssetCatalog : bundledAssetCatalogs) {
     Path bundleDir=bundledAssetCatalog.getOutputDir();
     stepsBuilder.add(CopyStep.forDirectory(bundleDir,bundleRoot,CopyStep.DirectoryMode.DIRECTORY_AND_CONTENTS));
