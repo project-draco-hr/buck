@@ -1,31 +1,19 @@
 {
   Path headerPathPrefix=AppleDescriptions.getHeaderPathPrefix(arg,buildTarget);
   ImmutableMap<String,SourcePath> headerMap=ImmutableMap.<String,SourcePath>builder().putAll(convertAppleHeadersToPublicCxxHeaders(resolver.getPathFunction(),headerPathPrefix,arg)).putAll(convertAppleHeadersToPrivateCxxHeaders(resolver.getPathFunction(),headerPathPrefix,arg)).build();
-  Function<ImmutableList<String>,ImmutableList<String>> expandSdkVariableRefs;
-  if (appleSdkPaths.isPresent()) {
-    expandSdkVariableRefs=expandSdkVariableReferencesFunction(appleSdkPaths.get());
-  }
- else {
-    expandSdkVariableRefs=Functions.identity();
-  }
   output.srcs=Optional.of(SourceWithFlagsList.ofUnnamedSources(arg.srcs.get()));
   output.platformSrcs=Optional.of(PatternMatchedCollection.<SourceWithFlagsList>of());
   output.headers=Optional.of(SourceList.ofNamedSources(headerMap));
   output.platformHeaders=Optional.of(PatternMatchedCollection.<SourceList>of());
   output.prefixHeaders=Optional.of(ImmutableList.copyOf(arg.prefixHeader.asSet()));
-  output.compilerFlags=arg.compilerFlags.transform(expandSdkVariableRefs);
+  output.compilerFlags=arg.compilerFlags;
   output.platformCompilerFlags=Optional.of(PatternMatchedCollection.<ImmutableList<String>>of());
-  output.linkerFlags=Optional.of(FluentIterable.from(arg.frameworks.transform(frameworksToLinkerFlagsFunction(resolver)).get()).append(arg.linkerFlags.transform(expandSdkVariableRefs).get()).toList());
+  output.linkerFlags=Optional.of(FluentIterable.from(arg.frameworks.transform(frameworksToLinkerFlagsFunction(resolver)).get()).append(arg.linkerFlags.get()).toList());
   output.platformLinkerFlags=Optional.of(PatternMatchedCollection.<ImmutableList<String>>of());
-  output.preprocessorFlags=arg.preprocessorFlags.transform(expandSdkVariableRefs);
+  output.preprocessorFlags=arg.preprocessorFlags;
   output.platformPreprocessorFlags=Optional.of(PatternMatchedCollection.<ImmutableList<String>>of());
-  output.langPreprocessorFlags=Optional.of(ImmutableMap.copyOf(Maps.transformValues(arg.langPreprocessorFlags.get(),expandSdkVariableRefs)));
-  if (appleSdkPaths.isPresent()) {
-    output.frameworkSearchPaths=arg.frameworks.transform(frameworksToSearchPathsFunction(resolver,appleSdkPaths.get()));
-  }
- else {
-    output.frameworkSearchPaths=Optional.of(ImmutableList.<Path>of());
-  }
+  output.langPreprocessorFlags=arg.langPreprocessorFlags;
+  output.frameworkSearchPaths=arg.frameworks.isPresent() ? Optional.of(FluentIterable.from(arg.frameworks.get()).transform(FrameworkPath.getUnexpandedSearchPathFunction(resolver.getPathFunction(),Functions.<Path>identity())).toList()) : Optional.<ImmutableList<Path>>absent();
   output.lexSrcs=Optional.of(ImmutableList.<SourcePath>of());
   output.yaccSrcs=Optional.of(ImmutableList.<SourcePath>of());
   output.deps=arg.deps;

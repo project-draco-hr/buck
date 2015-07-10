@@ -1,15 +1,20 @@
 {
   return new Function<FrameworkPath,Iterable<String>>(){
     @Override public Iterable<String> apply(    FrameworkPath input){
+      ImmutableList.Builder<String> flags=ImmutableList.builder();
+      Path frameworkPath=Preconditions.checkNotNull(FrameworkPath.getUnexpandedSearchPathFunction(resolver,Functions.<Path>identity()).apply(input));
       FrameworkPath.FrameworkType frameworkType=input.getFrameworkType(resolver);
 switch (frameworkType) {
 case FRAMEWORK:
-        return ImmutableList.of("-framework",input.getName(resolver));
+        flags.add("-F",frameworkPath.toString(),"-framework",input.getName(resolver));
+      break;
 case LIBRARY:
-      return ImmutableList.of("-l" + input.getName(resolver));
+    flags.add("-L",frameworkPath.toString(),"-l" + input.getName(resolver));
+  break;
 default :
-    throw new RuntimeException("Unsupported framework type: " + frameworkType);
+throw new RuntimeException("Unsupported framework type: " + frameworkType);
 }
+return flags.build();
 }
 }
 ;
