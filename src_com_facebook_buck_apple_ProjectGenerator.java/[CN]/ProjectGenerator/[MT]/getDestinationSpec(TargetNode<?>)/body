@@ -1,0 +1,36 @@
+{
+  if (targetNode.getType().equals(AppleBundleDescription.TYPE)) {
+    AppleBundleDescription.Arg arg=(AppleBundleDescription.Arg)targetNode.getConstructorArg();
+    AppleBundleExtension extension=arg.extension.isLeft() ? arg.extension.getLeft() : AppleBundleExtension.BUNDLE;
+switch (extension) {
+case FRAMEWORK:
+      return Optional.of(CopyFilePhaseDestinationSpec.of(PBXCopyFilesBuildPhase.Destination.FRAMEWORKS));
+case APPEX:
+case PLUGIN:
+    return Optional.of(CopyFilePhaseDestinationSpec.of(PBXCopyFilesBuildPhase.Destination.PLUGINS));
+case APP:
+  if (isWatchApplicationNode(targetNode)) {
+    return Optional.of(CopyFilePhaseDestinationSpec.builder().setDestination(PBXCopyFilesBuildPhase.Destination.PRODUCTS).setPath("$(CONTENTS_FOLDER_PATH)/Watch").build());
+  }
+ else {
+    return Optional.of(CopyFilePhaseDestinationSpec.of(PBXCopyFilesBuildPhase.Destination.EXECUTABLES));
+  }
+default :
+return Optional.of(CopyFilePhaseDestinationSpec.of(PBXCopyFilesBuildPhase.Destination.PRODUCTS));
+}
+}
+ else if (targetNode.getType().equals(AppleLibraryDescription.TYPE)) {
+if (targetNode.getBuildTarget().getFlavors().contains(CxxDescriptionEnhancer.SHARED_FLAVOR)) {
+return Optional.of(CopyFilePhaseDestinationSpec.of(PBXCopyFilesBuildPhase.Destination.FRAMEWORKS));
+}
+ else {
+return Optional.absent();
+}
+}
+ else if (targetNode.getType().equals(AppleBinaryDescription.TYPE)) {
+return Optional.of(CopyFilePhaseDestinationSpec.of(PBXCopyFilesBuildPhase.Destination.EXECUTABLES));
+}
+ else {
+throw new RuntimeException("Unexpected type: " + targetNode.getType());
+}
+}

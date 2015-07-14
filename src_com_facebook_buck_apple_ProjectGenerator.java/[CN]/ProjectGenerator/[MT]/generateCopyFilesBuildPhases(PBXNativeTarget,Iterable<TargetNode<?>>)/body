@@ -1,18 +1,14 @@
 {
-  ImmutableSetMultimap.Builder<PBXCopyFilesBuildPhase.Destination,TargetNode<?>> ruleByDestinationBuilder=ImmutableSetMultimap.builder();
+  ImmutableSetMultimap.Builder<CopyFilePhaseDestinationSpec,TargetNode<?>> ruleByDestinationSpecBuilder=ImmutableSetMultimap.builder();
   for (  TargetNode<?> copiedNode : copiedNodes) {
-    Optional<PBXCopyFilesBuildPhase.Destination> optionalDestination=getDestination(copiedNode);
-    if (optionalDestination.isPresent()) {
-      ruleByDestinationBuilder.put(optionalDestination.get(),copiedNode);
+    Optional<CopyFilePhaseDestinationSpec> optionalDestinationSpec=getDestinationSpec(copiedNode);
+    if (optionalDestinationSpec.isPresent()) {
+      ruleByDestinationSpecBuilder.put(optionalDestinationSpec.get(),copiedNode);
     }
   }
-  ImmutableSetMultimap<PBXCopyFilesBuildPhase.Destination,TargetNode<?>> ruleByDestination=ruleByDestinationBuilder.build();
-  for (  PBXCopyFilesBuildPhase.Destination destination : ruleByDestination.keySet()) {
-    PBXCopyFilesBuildPhase copyFilesBuildPhase=new PBXCopyFilesBuildPhase(destination,"");
-    target.getBuildPhases().add(copyFilesBuildPhase);
-    for (    TargetNode<?> targetNode : ruleByDestination.get(destination)) {
-      PBXFileReference fileReference=getLibraryFileReference(targetNode);
-      copyFilesBuildPhase.getFiles().add(new PBXBuildFile(fileReference));
-    }
+  ImmutableSetMultimap<CopyFilePhaseDestinationSpec,TargetNode<?>> ruleByDestinationSpec=ruleByDestinationSpecBuilder.build();
+  for (  CopyFilePhaseDestinationSpec destinationSpec : ruleByDestinationSpec.keySet()) {
+    Iterable<TargetNode<?>> targetNodes=ruleByDestinationSpec.get(destinationSpec);
+    generateSingleCopyFilesBuildPhase(target,destinationSpec,targetNodes);
   }
 }
