@@ -1,0 +1,15 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"step_test",tmp);
+  workspace.setUp();
+  BuildTarget target=BuildTargetFactory.newInstance("//:binary_with_unused_header");
+  String unusedHeaderName="unused_header.h";
+  BuildTarget linkTarget=CxxDescriptionEnhancer.createCxxLinkTarget(target);
+  workspace.runBuckBuild(target.toString());
+  BuckBuildLog.BuildLogEntry firstRunEntry=workspace.getBuildLog().getLogEntry(linkTarget);
+  assertThat(firstRunEntry.getSuccessType(),Matchers.equalTo(Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)));
+  workspace.writeContentsToPath("static inline int newFunction() { return 20; }",unusedHeaderName);
+  workspace.runBuckBuild(target.toString());
+  BuckBuildLog.BuildLogEntry secondRunEntry=workspace.getBuildLog().getLogEntry(linkTarget);
+  assertThat(secondRunEntry.getSuccessType(),Matchers.equalTo(Optional.of(BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY)));
+  assertThat(secondRunEntry.getRuleKey(),Matchers.not(Matchers.equalTo(firstRunEntry.getRuleKey())));
+}
