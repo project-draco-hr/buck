@@ -3,7 +3,7 @@
   Optional<Path> xcodeDeveloperPath=appleConfig.getAppleDeveloperDirectorySupplier(processExecutor).get();
   if (!xcodeDeveloperPath.isPresent()) {
     params.getConsole().printBuildFailure(String.format("Cannot install %s (Xcode not found)",appleBundle.getFullyQualifiedName()));
-    return 1;
+    return FAILURE;
   }
   UnixUserIdFetcher userIdFetcher=new UnixUserIdFetcher();
   AppleCoreSimulatorServiceController appleCoreSimulatorServiceController=new AppleCoreSimulatorServiceController(processExecutor);
@@ -13,7 +13,7 @@
     LOG.warn("Core simulator service path %s does not match developer directory %s, " + "killing all simulators.",coreSimulatorServicePath,xcodeDeveloperPath.get());
     if (!appleCoreSimulatorServiceController.killSimulatorProcesses()) {
       params.getConsole().printBuildFailure("Could not kill running simulator processes.");
-      return 1;
+      return FAILURE;
     }
     shouldWaitForSimulatorsToShutdown=true;
   }
@@ -21,7 +21,7 @@
   Optional<AppleSimulator> appleSimulator=getAppleSimulatorForBundle(appleBundle,processExecutor,simctlPath);
   if (!appleSimulator.isPresent()) {
     params.getConsole().printBuildFailure(String.format("Cannot install %s (no appropriate simulator found)",appleBundle.getFullyQualifiedName()));
-    return 1;
+    return FAILURE;
   }
   Path iosSimulatorPath=null;
   Path xcodeApplicationsPath=xcodeDeveloperPath.get().resolve("Applications");
@@ -34,20 +34,20 @@
   }
   if (iosSimulatorPath == null) {
     params.getConsole().printBuildFailure(String.format("Cannot install %s (could not find simulator under %s, checked %s)",appleBundle.getFullyQualifiedName(),xcodeApplicationsPath,APPLE_SIMULATOR_APPS));
-    return 1;
+    return FAILURE;
   }
   AppleSimulatorController appleSimulatorController=new AppleSimulatorController(processExecutor,simctlPath,iosSimulatorPath);
   if (!appleSimulatorController.canStartSimulator(appleSimulator.get().getUdid())) {
     LOG.warn("Cannot start simulator %s, killing simulators and trying again.");
     if (!appleCoreSimulatorServiceController.killSimulatorProcesses()) {
       params.getConsole().printBuildFailure("Could not kill running simulator processes.");
-      return 1;
+      return FAILURE;
     }
     shouldWaitForSimulatorsToShutdown=true;
     appleSimulator=getAppleSimulatorForBundle(appleBundle,processExecutor,simctlPath);
     if (!appleSimulator.isPresent()) {
       params.getConsole().printBuildFailure(String.format("Cannot install %s (no appropriate simulator found)",appleBundle.getFullyQualifiedName()));
-      return 1;
+      return FAILURE;
     }
   }
   long remainingMillis=APPLE_SIMULATOR_WAIT_MILLIS;
@@ -55,7 +55,7 @@
     Optional<Long> shutdownMillis=appleSimulatorController.waitForSimulatorsToShutdown(remainingMillis);
     if (!shutdownMillis.isPresent()) {
       params.getConsole().printBuildFailure(String.format("Cannot install %s (simulators did not shut down within %d ms).",appleBundle.getFullyQualifiedName(),APPLE_SIMULATOR_WAIT_MILLIS));
-      return 1;
+      return FAILURE;
     }
     LOG.debug("Simulators shut down in %d millis.",shutdownMillis.get());
     remainingMillis-=shutdownMillis.get();
@@ -64,19 +64,19 @@
   Optional<Long> startMillis=appleSimulatorController.startSimulator(appleSimulator.get().getUdid(),remainingMillis);
   if (!startMillis.isPresent()) {
     params.getConsole().printBuildFailure(String.format("Cannot install %s (could not start simulator %s within %d ms)",appleBundle.getFullyQualifiedName(),appleSimulator.get().getName(),APPLE_SIMULATOR_WAIT_MILLIS));
-    return 1;
+    return FAILURE;
   }
   LOG.debug("Simulator started in %d ms. Installing Apple bundle %s in simulator %s",startMillis.get(),appleBundle,appleSimulator.get());
   if (!appleSimulatorController.installBundleInSimulator(appleSimulator.get().getUdid(),projectFilesystem.resolve(Preconditions.checkNotNull(appleBundle.getPathToOutput())))) {
     params.getConsole().printBuildFailure(String.format("Cannot install %s (could not install bundle %s in simulator %s)",appleBundle.getFullyQualifiedName(),appleBundle.getPathToOutput(),appleSimulator.get().getName()));
-    return 1;
+    return FAILURE;
   }
   if (ReactNativeFlavors.skipBundling(appleBundle.getBuildTarget())) {
     ReactNativeBuckConfig buckConfig=new ReactNativeBuckConfig(params.getBuckConfig());
     if (buckConfig.getServer().isPresent()) {
       int exitCode=launchReactNativeServer(processExecutor,projectFilesystem.resolve(buckConfig.getServer().get()),params.getBuckEventBus());
       if (exitCode != 0) {
-        return exitCode;
+        return InstallResult.builder().setExitCode(exitCode).build();
       }
     }
   }
@@ -85,6 +85,6 @@
   }
  else {
     params.getBuckEventBus().post(ConsoleEvent.info(params.getConsole().getAnsi().asHighlightedSuccessText("Successfully installed %s. (Use `buck install -r %s` to run.)"),getArguments().get(0),getArguments().get(0)));
-    return 0;
+    return InstallResult.builder().setExitCode(0).build();
   }
 }

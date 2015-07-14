@@ -6,13 +6,13 @@
   }
    if (!appleBundleId.isPresent()) {
     params.getConsole().printBuildFailure(String.format("Cannot install %s (could not get bundle ID from %s)",appleBundle.getFullyQualifiedName(),appleBundle.getInfoPlistPath()));
-    return 1;
+    return FAILURE;
   }
   Optional<Long> launchedPid=appleSimulatorController.launchInstalledBundleInSimulator(appleSimulator.getUdid(),appleBundleId.get(),waitForDebugger ? AppleSimulatorController.LaunchBehavior.WAIT_FOR_DEBUGGER : AppleSimulatorController.LaunchBehavior.DO_NOT_WAIT_FOR_DEBUGGER,runArgs);
   if (!launchedPid.isPresent()) {
     params.getConsole().printBuildFailure(String.format("Cannot launch %s (failed to launch bundle ID %s)",appleBundle.getFullyQualifiedName(),appleBundleId.get()));
-    return 1;
+    return FAILURE;
   }
   params.getBuckEventBus().post(ConsoleEvent.info(params.getConsole().getAnsi().asHighlightedSuccessText("Successfully launched %s%s. To debug, run: lldb -p %d"),getArguments().get(0),waitForDebugger ? " (waiting for debugger)" : "",launchedPid.get()));
-  return 0;
+  return InstallResult.builder().setExitCode(0).setLaunchedPid(launchedPid.get()).build();
 }
