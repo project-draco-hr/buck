@@ -1,0 +1,16 @@
+{
+  NewNativeTargetProjectMutator mutator=mutatorWithCommonDefaults();
+  CopyFilePhaseDestinationSpec.Builder specBuilder=CopyFilePhaseDestinationSpec.builder();
+  specBuilder.setDestination(PBXCopyFilesBuildPhase.Destination.FRAMEWORKS);
+  specBuilder.setPath("script/input.png");
+  PBXBuildPhase copyFilesPhase=new PBXCopyFilesBuildPhase(specBuilder.build());
+  mutator.setCopyFilesPhases(ImmutableList.of(copyFilesPhase));
+  TargetNode<?> genruleNode=GenruleBuilder.newGenruleBuilder(BuildTarget.builder("//foo","script").build()).setSrcs(ImmutableList.<SourcePath>of(new TestSourcePath("script/input.png"))).setCmd("echo \"hello world!\"").setOut("helloworld.txt").build();
+  mutator.setPostBuildRunScriptPhases(ImmutableList.<TargetNode<?>>of(genruleNode));
+  NewNativeTargetProjectMutator.Result result=mutator.buildTargetAndAddToProject(generatedProject);
+  PBXNativeTarget target=result.target;
+  List<PBXBuildPhase> buildPhases=target.getBuildPhases();
+  PBXBuildPhase copyBuildPhaseToTest=getSingletonPhaseByType(target,PBXCopyFilesBuildPhase.class);
+  PBXBuildPhase postBuildScriptPhase=getSingletonPhaseByType(target,PBXShellScriptBuildPhase.class);
+  assertThat(buildPhases.indexOf(copyBuildPhaseToTest),lessThan(buildPhases.indexOf(postBuildScriptPhase)));
+}
