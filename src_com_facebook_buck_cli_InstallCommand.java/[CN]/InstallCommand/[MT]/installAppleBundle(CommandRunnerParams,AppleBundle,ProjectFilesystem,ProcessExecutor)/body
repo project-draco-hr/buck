@@ -23,7 +23,19 @@
     params.getConsole().printBuildFailure(String.format("Cannot install %s (no appropriate simulator found)",appleBundle.getFullyQualifiedName()));
     return 1;
   }
-  Path iosSimulatorPath=xcodeDeveloperPath.get().resolve("Applications/iOS Simulator.app");
+  Path iosSimulatorPath=null;
+  Path xcodeApplicationsPath=xcodeDeveloperPath.get().resolve("Applications");
+  for (  String simulatorApp : APPLE_SIMULATOR_APPS) {
+    Path resolvedSimulatorPath=xcodeApplicationsPath.resolve(simulatorApp);
+    if (projectFilesystem.isDirectory(resolvedSimulatorPath)) {
+      iosSimulatorPath=resolvedSimulatorPath;
+      break;
+    }
+  }
+  if (iosSimulatorPath == null) {
+    params.getConsole().printBuildFailure(String.format("Cannot install %s (could not find simulator under %s, checked %s)",appleBundle.getFullyQualifiedName(),xcodeApplicationsPath,APPLE_SIMULATOR_APPS));
+    return 1;
+  }
   AppleSimulatorController appleSimulatorController=new AppleSimulatorController(processExecutor,simctlPath,iosSimulatorPath);
   if (!appleSimulatorController.canStartSimulator(appleSimulator.get().getUdid())) {
     LOG.warn("Cannot start simulator %s, killing simulators and trying again.");
