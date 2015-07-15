@@ -1,9 +1,44 @@
 {
   LOG.debug("Choosing simulator for %s",appleBundle);
+  Optional<AppleSimulator> simulatorByUdid=Optional.absent();
+  Optional<AppleSimulator> simulatorByName=Optional.absent();
+  Optional<AppleSimulator> defaultSimulator=Optional.absent();
+  boolean wantUdid=deviceOptions.hasSerialNumber();
+  boolean wantName=deviceOptions.getSimulatorName().isPresent();
   for (  AppleSimulator simulator : AppleSimulatorDiscovery.discoverAppleSimulators(processExecutor,simctlPath)) {
-    if (simulator.getName().equals("iPhone 5s")) {
-      return Optional.of(simulator);
+    if (wantUdid && deviceOptions.getSerialNumber().toLowerCase(Locale.US).equals(simulator.getUdid().toLowerCase(Locale.US))) {
+      LOG.debug("Got UDID match (%s): %s",deviceOptions.getSerialNumber(),simulator);
+      simulatorByUdid=Optional.of(simulator);
+      break;
+    }
+ else     if (wantName && deviceOptions.getSimulatorName().get().toLowerCase(Locale.US).equals(simulator.getName().toLowerCase(Locale.US))) {
+      LOG.debug("Got name match (%s): %s",simulator.getName(),simulator);
+      simulatorByName=Optional.of(simulator);
+    }
+ else     if (simulator.getName().equals(DEFAULT_APPLE_SIMULATOR_NAME)) {
+      LOG.debug("Got default match (%s): %s",DEFAULT_APPLE_SIMULATOR_NAME,simulator);
+      defaultSimulator=Optional.of(simulator);
     }
   }
-  return Optional.<AppleSimulator>absent();
+  if (wantUdid) {
+    if (simulatorByUdid.isPresent()) {
+      return simulatorByUdid;
+    }
+ else {
+      LOG.warn("Asked to find simulator with UDID %s, but couldn't find one.",deviceOptions.getSerialNumber());
+      return Optional.<AppleSimulator>absent();
+    }
+  }
+ else   if (wantName) {
+    if (simulatorByName.isPresent()) {
+      return simulatorByName;
+    }
+ else {
+      LOG.warn("Asked to find simulator with name %s, but couldn't find one.",deviceOptions.getSimulatorName().get());
+      return Optional.<AppleSimulator>absent();
+    }
+  }
+ else {
+    return defaultSimulator;
+  }
 }
