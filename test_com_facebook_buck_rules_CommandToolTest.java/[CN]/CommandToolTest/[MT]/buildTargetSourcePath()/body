@@ -1,0 +1,13 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildRule rule=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:rule")).setOut("output").build(resolver,filesystem);
+  SourcePath path=new BuildTargetSourcePath(rule.getBuildTarget());
+  CommandTool tool=new CommandTool.Builder().addArg(path).build();
+  assertThat(tool.getCommandPrefix(pathResolver),Matchers.contains(Preconditions.checkNotNull(rule.getPathToOutput()).toAbsolutePath().toString()));
+  assertThat(tool.getInputs(),Matchers.contains(path));
+  tool=new CommandTool.Builder().addArg("prefix:%s",path).build();
+  assertThat(tool.getCommandPrefix(pathResolver),Matchers.contains("prefix:" + Preconditions.checkNotNull(rule.getPathToOutput()).toAbsolutePath().toString()));
+  assertThat(tool.getInputs(),Matchers.contains(path));
+}
