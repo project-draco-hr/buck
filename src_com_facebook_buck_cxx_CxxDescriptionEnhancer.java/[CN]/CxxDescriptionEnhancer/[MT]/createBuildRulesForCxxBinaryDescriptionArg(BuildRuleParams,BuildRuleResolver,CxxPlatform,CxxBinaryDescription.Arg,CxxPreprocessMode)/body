@@ -10,7 +10,18 @@
   ImmutableMap<String,CxxSource> sources=ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build();
   ImmutableMap<CxxPreprocessAndCompile,SourcePath> objects=CxxSourceRuleFactory.requirePreprocessAndCompileRules(params,resolver,sourcePathResolver,cxxPlatform,cxxPreprocessorInput,CxxFlags.getFlags(args.compilerFlags,args.platformCompilerFlags,cxxPlatform),preprocessMode,sources,CxxSourceRuleFactory.PicType.PDC);
   Path output=getOutputPath(params.getBuildTarget());
-  CxxLink cxxLink=CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,sourcePathResolver,ImmutableList.<String>of(),CxxFlags.getFlags(args.linkerFlags,args.platformLinkerFlags,cxxPlatform),createCxxLinkTarget(params.getBuildTarget()),Linker.LinkType.EXECUTABLE,Optional.<String>absent(),output,objects.values(),(args.linkStyle.or(CxxBinaryDescription.LinkStyle.STATIC) == CxxBinaryDescription.LinkStyle.STATIC) ? Linker.LinkableDepType.STATIC : Linker.LinkableDepType.SHARED,params.getDeps(),args.cxxRuntimeType,Optional.<SourcePath>absent());
+  CxxBinaryDescription.LinkStyle linkStyle=args.linkStyle.or(CxxBinaryDescription.LinkStyle.STATIC);
+  ImmutableList.Builder<String> extraLdFlagsBuilder=ImmutableList.builder();
+  CommandTool.Builder executableBuilder=new CommandTool.Builder();
+  extraLdFlagsBuilder.addAll(CxxFlags.getFlags(args.linkerFlags,args.platformLinkerFlags,cxxPlatform));
+  if (linkStyle == CxxBinaryDescription.LinkStyle.SHARED) {
+    SymlinkTree sharedLibraries=resolver.addToIndex(createSharedLibrarySymlinkTree(params,sourcePathResolver,cxxPlatform,Predicates.instanceOf(NativeLinkable.class)));
+    extraLdFlagsBuilder.add("-rpath",String.format("%s/%s",cxxPlatform.getLd().origin(),output.getParent().relativize(sharedLibraries.getRoot()).toString()));
+    executableBuilder.addInput(new BuildTargetSourcePath(sharedLibraries.getBuildTarget()));
+    executableBuilder.addInputs(sharedLibraries.getLinks().values());
+  }
+  CxxLink cxxLink=CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,sourcePathResolver,ImmutableList.<String>of(),extraLdFlagsBuilder.build(),createCxxLinkTarget(params.getBuildTarget()),Linker.LinkType.EXECUTABLE,Optional.<String>absent(),output,objects.values(),linkStyle == CxxBinaryDescription.LinkStyle.STATIC ? Linker.LinkableDepType.STATIC : Linker.LinkableDepType.SHARED,params.getDeps(),args.cxxRuntimeType,Optional.<SourcePath>absent());
   resolver.addToIndex(cxxLink);
-  return new CxxLinkAndCompileRules(cxxLink,ImmutableSortedSet.copyOf(objects.keySet()));
+  executableBuilder.addArg(new BuildTargetSourcePath(cxxLink.getBuildTarget()));
+  return new CxxLinkAndCompileRules(cxxLink,ImmutableSortedSet.copyOf(objects.keySet()),executableBuilder.build());
 }
