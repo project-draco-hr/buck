@@ -5,6 +5,27 @@
     runDxCommands(context,outputToInputs);
     if (secondaryOutputDir.isPresent()) {
       removeExtraneousSecondaryArtifacts(secondaryOutputDir.get(),outputToInputs.keySet(),projectFilesystem);
+      List<Path> secondaryDexJars=new ArrayList<>();
+      for (      Path p : outputToInputs.keySet()) {
+        if (DexStore.XZS.matchesPath(p)) {
+          secondaryDexJars.add(p);
+        }
+      }
+      if (!secondaryDexJars.isEmpty()) {
+        Path secondaryBlobOutput=Paths.get(secondaryOutputDir.get().toString(),"secondary.blob");
+        Path secondaryCompressedBlobOutput=Paths.get(secondaryOutputDir.get().toString(),SECONDARY_SOLID_DEX_FILENAME);
+        StepRunner stepRunner=new DefaultStepRunner(context);
+        Step concatStep=new ConcatStep(secondaryDexJars,secondaryBlobOutput);
+        Step xzStep;
+        if (xzCompressionLevel.isPresent()) {
+          xzStep=new XzStep(secondaryBlobOutput,secondaryCompressedBlobOutput,xzCompressionLevel.get().intValue());
+        }
+ else {
+          xzStep=new XzStep(secondaryBlobOutput,secondaryCompressedBlobOutput);
+        }
+        stepRunner.runStepForBuildTarget(concatStep,Optional.<BuildTarget>absent());
+        stepRunner.runStepForBuildTarget(xzStep,Optional.<BuildTarget>absent());
+      }
     }
   }
  catch (  StepFailedException|IOException e) {
