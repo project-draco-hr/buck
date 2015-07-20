@@ -17,10 +17,20 @@
       if (operation == Operation.PREPROCESS) {
         try (OutputStream output=context.getProjectFilesystem().newFileOutputStream(this.output);FunctionLineProcessorThread outputProcessor=new FunctionLineProcessorThread(process.getInputStream(),output,createPreprocessOutputLineProcessor(context.getProjectDirectoryRoot()))){
           outputProcessor.start();
+          outputProcessor.waitFor();
         }
-       }
+ catch (        Throwable thrown) {
+          process.destroy();
+          throw thrown;
+        }
+      }
+      errorProcessor.waitFor();
     }
-     exitCode=process.waitFor();
+ catch (    Throwable thrown) {
+      process.destroy();
+      throw thrown;
+    }
+    exitCode=process.waitFor();
   }
   finally {
     process.destroy();
