@@ -2,7 +2,10 @@
   SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
   BuildTarget target=params.getBuildTarget();
   String soname=getSoname(target,cxxPlatform,args.soname,args.libName);
-  Path staticLibraryPath=getStaticLibraryPath(target,cxxPlatform,args.libDir,args.libName);
+  Path staticLibraryPath=getStaticPicLibraryPath(target,cxxPlatform,args.libDir,args.libName);
+  if (!params.getProjectFilesystem().exists(staticLibraryPath)) {
+    staticLibraryPath=getStaticLibraryPath(target,cxxPlatform,args.libDir,args.libName);
+  }
   BuildTarget sharedTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(CxxDescriptionEnhancer.SHARED_FLAVOR).build();
   Path builtSharedLibraryPath=BuildTargets.getGenPath(sharedTarget,"%s").resolve(soname);
   return CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,pathResolver,ImmutableList.<String>of(),ImmutableList.<String>of(),sharedTarget,Linker.LinkType.SHARED,Optional.of(soname),builtSharedLibraryPath,ImmutableList.<SourcePath>of(new PathSourcePath(params.getProjectFilesystem(),staticLibraryPath)),Linker.LinkableDepType.SHARED,params.getDeps(),Optional.<Linker.CxxRuntimeType>absent(),Optional.<SourcePath>absent());
