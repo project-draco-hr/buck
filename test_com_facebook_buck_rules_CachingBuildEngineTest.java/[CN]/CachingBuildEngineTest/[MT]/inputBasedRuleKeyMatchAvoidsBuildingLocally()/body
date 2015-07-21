@@ -22,10 +22,15 @@
     }
   }
 ;
+  filesystem.writeContentsToPath("stuff",output);
+  filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of(output.toString())),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
   filesystem.writeContentsToPath(inputRuleKey.toString(),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY));
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW,new FixedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),inputRuleKey)));
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertEquals(BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY,result.getSuccess());
   OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(target);
   assertThat(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_RULE_KEY),Matchers.equalTo(Optional.of(rule.getRuleKey())));
+  File fetchedArtifact=tmp.newFile("fetched_artifact.zip");
+  assertThat(cache.fetch(rule.getRuleKey(),fetchedArtifact).getType(),Matchers.equalTo(CacheResult.Type.HIT));
+  new ZipInspector(fetchedArtifact).assertFileExists(output.toString());
 }

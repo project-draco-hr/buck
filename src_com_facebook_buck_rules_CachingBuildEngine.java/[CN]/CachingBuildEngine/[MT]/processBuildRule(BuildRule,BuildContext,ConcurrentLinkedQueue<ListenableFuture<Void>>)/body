@@ -13,9 +13,14 @@
       if (rule instanceof HasPostBuildSteps && (success == BuildRuleSuccessType.BUILT_LOCALLY || success == BuildRuleSuccessType.FETCHED_FROM_CACHE || success == BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED)) {
         executePostBuildSteps(rule,((HasPostBuildSteps)rule).getPostBuildSteps(context,buildableContext),context);
       }
+      if (success != BuildRuleSuccessType.BUILT_LOCALLY) {
+        for (        String str : onDiskBuildInfo.getValues(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS).get()) {
+          buildInfoRecorder.recordArtifact(Paths.get(str));
+        }
+      }
       buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_TARGET,rule.getBuildTarget().toString());
       buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_DEPS,FluentIterable.from(rule.getDeps()).transform(HasBuildTarget.TO_TARGET).transform(Functions.toStringFunction()));
-      if (success != null && success.shouldWriteRecordedMetadataToDiskAfterBuilding()) {
+      if (success.shouldWriteRecordedMetadataToDiskAfterBuilding()) {
         try {
           boolean clearExistingMetadata=success.shouldClearAndOverwriteMetadataOnDisk();
           buildInfoRecorder.writeMetadataToDisk(clearExistingMetadata);
