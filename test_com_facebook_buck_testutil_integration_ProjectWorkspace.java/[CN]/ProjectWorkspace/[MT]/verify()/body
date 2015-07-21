@@ -9,16 +9,41 @@
         if (!observedFile.isFile()) {
           fail("Expected file " + observedFile + " could not be found.");
         }
-        String expectedFileContent=Files.toString(file.toFile(),Charsets.UTF_8);
-        String observedFileContent=Files.toString(observedFile,Charsets.UTF_8);
-        expectedFileContent=expectedFileContent.replace("\r\n","\n");
-        observedFileContent=observedFileContent.replace("\r\n","\n");
+        String extension=Files.getFileExtension(observedFile.getName());
         String cleanPathToObservedFile=MoreStrings.withoutSuffix(templatePath.relativize(file).toString(),EXPECTED_SUFFIX);
-        assertEquals(String.format("In %s, expected content of %s to match that of %s.",cleanPathToObservedFile,expectedFileContent,observedFileContent),expectedFileContent,observedFileContent);
-      }
-      return FileVisitResult.CONTINUE;
+switch (extension) {
+case "plist":
+case "stringsdict":
+          NSObject expectedObject;
+        try {
+          expectedObject=BinaryPropertyListParser.parse(file.toFile());
+        }
+ catch (        Exception e) {
+          expectedObject=null;
+        }
+      NSObject observedObject;
+    try {
+      observedObject=BinaryPropertyListParser.parse(observedFile);
     }
-  }
+ catch (    Exception e) {
+      observedObject=null;
+    }
+  assertTrue(String.format("In %s, expected plist to be of %s type.",cleanPathToObservedFile,(expectedObject != null) ? "binary" : "XML"),!((expectedObject != null) ^ (observedObject != null)));
+if (expectedObject != null && observedObject != null) {
+  assertEquals(String.format("In %s, expected binary plist contents to match.",cleanPathToObservedFile),expectedObject,observedObject);
+  break;
+}
+ else {
+  assertFileContentsEqual(file.toFile(),observedFile);
+}
+break;
+default :
+assertFileContentsEqual(file.toFile(),observedFile);
+}
+}
+return FileVisitResult.CONTINUE;
+}
+}
 ;
-  java.nio.file.Files.walkFileTree(templatePath,copyDirVisitor);
+java.nio.file.Files.walkFileTree(templatePath,copyDirVisitor);
 }
