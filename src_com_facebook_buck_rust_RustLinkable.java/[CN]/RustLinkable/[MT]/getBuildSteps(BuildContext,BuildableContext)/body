@@ -1,0 +1,12 @@
+{
+  ImmutableMap.Builder<String,Path> externalCratesBuilder=ImmutableMap.builder();
+  for (  BuildRule buildRule : getDeps()) {
+    if (!(buildRule instanceof RustLibrary)) {
+      throw new HumanReadableException("%s (dep of %s) is not an instance of rust_library!",buildRule.getBuildTarget().getFullyQualifiedName(),getBuildTarget().getFullyQualifiedName());
+    }
+    Path ruleOutput=buildRule.getPathToOutput();
+    Preconditions.checkNotNull(ruleOutput);
+    externalCratesBuilder.put(buildRule.getBuildTarget().getShortName(),ruleOutput);
+  }
+  return ImmutableList.of(new SymlinkFilesIntoDirectoryStep(context.getProjectRoot(),getResolver().getAllPaths(srcs),scratchDir),new MakeCleanDirectoryStep(output.getParent()),new RustCompileStep(compiler.getCommandPrefix(getResolver()),flags,features,output,externalCratesBuilder.build(),getCrateRoot()));
+}
