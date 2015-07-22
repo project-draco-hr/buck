@@ -1,0 +1,29 @@
+{
+  BuildRule buildRule=Preconditions.checkNotNull(getBuild().getActionGraph().findBuildRuleByTarget(buildTarget));
+  if (!(buildRule instanceof DefaultJavaLibrary)) {
+    printError(params,"Cannot retrieve maven coordinates for rule of type " + buildRule.getClass().getName());
+    return false;
+  }
+  DefaultJavaLibrary javaLibrary=(DefaultJavaLibrary)buildRule;
+  Optional<String> mavenCoords=javaLibrary.getMavenCoords();
+  if (!mavenCoords.isPresent()) {
+    printError(params,"No maven coordinates specified for published rule " + buildRule);
+    return false;
+  }
+  Path relativePathToOutput=buildRule.getPathToOutput();
+  if (relativePathToOutput == null) {
+    printError(params,"No path to output present in " + buildRule);
+    return false;
+  }
+  ProjectFilesystem projectFilesystem=params.getRepository().getFilesystem();
+  Path pathToOutput=projectFilesystem.resolve(relativePathToOutput);
+  Publisher publisher=new Publisher(projectFilesystem,Optional.fromNullable(remoteRepo));
+  try {
+    publisher.publish(mavenCoords.get(),pathToOutput.toFile());
+  }
+ catch (  DeploymentException e) {
+    params.getConsole().printBuildFailureWithoutStacktraceDontUnwrap(e);
+    return false;
+  }
+  return true;
+}
