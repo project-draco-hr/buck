@@ -1,0 +1,73 @@
+{
+switch (token.kind) {
+case WORD:
+{
+      String word=consume(TokenKind.WORD);
+      if (token.kind == TokenKind.LPAREN) {
+        QueryFunction function=functions.get(word);
+        if (function == null) {
+          throw syntaxError(token);
+        }
+        List<Argument> args=new ArrayList<>();
+        TokenKind tokenKind=TokenKind.LPAREN;
+        int argsSeen=0;
+        for (        ArgumentType type : function.getArgumentTypes()) {
+          if (token.kind == TokenKind.RPAREN && argsSeen >= function.getMandatoryArguments()) {
+            break;
+          }
+          consume(tokenKind);
+          tokenKind=TokenKind.COMMA;
+switch (type) {
+case EXPRESSION:
+            args.add(Argument.of(parseExpression()));
+          break;
+case WORD:
+        args.add(Argument.of(consume(TokenKind.WORD)));
+      break;
+case INTEGER:
+    args.add(Argument.of(consumeIntLiteral()));
+  break;
+default :
+throw new IllegalStateException();
+}
+argsSeen++;
+}
+consume(TokenKind.RPAREN);
+return new FunctionExpression(function,args);
+}
+ else {
+return new TargetLiteral(word);
+}
+}
+case LET:
+{
+consume(TokenKind.LET);
+String name=consume(TokenKind.WORD);
+consume(TokenKind.EQUALS);
+QueryExpression varExpr=parseExpression();
+consume(TokenKind.IN);
+QueryExpression bodyExpr=parseExpression();
+return new LetExpression(name,varExpr,bodyExpr);
+}
+case LPAREN:
+{
+consume(TokenKind.LPAREN);
+QueryExpression expr=parseExpression();
+consume(TokenKind.RPAREN);
+return expr;
+}
+case SET:
+{
+nextToken();
+consume(TokenKind.LPAREN);
+List<TargetLiteral> words=new ArrayList<>();
+while (token.kind == TokenKind.WORD) {
+words.add(new TargetLiteral(consume(TokenKind.WORD)));
+}
+consume(TokenKind.RPAREN);
+return new SetExpression(words);
+}
+default :
+throw syntaxError(token);
+}
+}
