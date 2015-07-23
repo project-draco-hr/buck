@@ -3,22 +3,22 @@
     /** 
  * Efficiently modifies the archive backed by the given buffer to remove any non-deterministic
  * meta-data such as timestamps, UIDs, and GIDs.
- * @param file a {@link ByteBuffer} wrapping the contents of the archive.
  */
-    @SuppressWarnings("PMD.AvoidUsingOctalValues") @Override public void scrubFile(    ByteBuffer file) throws ScrubException {
+    @SuppressWarnings("PMD.AvoidUsingOctalValues") @Override public void scrubFile(    FileChannel file) throws IOException, ScrubException {
+      MappedByteBuffer map=file.map(FileChannel.MapMode.READ_WRITE,0,file.size());
       try {
-        byte[] globalHeader=getBytes(file,expectedGlobalHeader.length);
+        byte[] globalHeader=getBytes(map,expectedGlobalHeader.length);
         checkArchive(Arrays.equals(expectedGlobalHeader,globalHeader),"invalid global header");
-        while (file.hasRemaining()) {
-          getBytes(file,16);
-          putIntAsDecimalString(file,12,0);
-          putIntAsDecimalString(file,6,0);
-          putIntAsDecimalString(file,6,0);
-          putIntAsOctalString(file,8,0100644);
-          int fileSize=getDecimalStringAsInt(file,10);
-          byte[] fileMagic=getBytes(file,2);
+        while (map.hasRemaining()) {
+          getBytes(map,16);
+          putIntAsDecimalString(map,12,0);
+          putIntAsDecimalString(map,6,0);
+          putIntAsDecimalString(map,6,0);
+          putIntAsOctalString(map,8,0100644);
+          int fileSize=getDecimalStringAsInt(map,10);
+          byte[] fileMagic=getBytes(map,2);
           checkArchive(Arrays.equals(END_OF_FILE_HEADER_MARKER,fileMagic),"invalid file magic");
-          file.position(file.position() + fileSize + fileSize % 2);
+          map.position(map.position() + fileSize + fileSize % 2);
         }
       }
  catch (      BufferUnderflowException|ReadOnlyBufferException e) {
