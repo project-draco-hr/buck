@@ -14,10 +14,8 @@
   }
   BuildRuleParams linkParams=params.copyWithChanges(target,Suppliers.ofInstance(deps.build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   ImmutableList.Builder<String> argsBuilder=ImmutableList.builder();
-  argsBuilder.addAll(cxxPlatform.getCxxldflags());
-  argsBuilder.addAll(extraCxxLdFlags);
-  argsBuilder.addAll(iXlinker(cxxPlatform.getLdflags()));
-  argsBuilder.addAll(iXlinker(extraLdFlags));
+  argsBuilder.addAll(cxxPlatform.getLdflags());
+  argsBuilder.addAll(extraLdFlags);
   if (linkType == Linker.LinkType.SHARED) {
     argsBuilder.add("-shared");
   }
@@ -28,17 +26,17 @@
     }
   }
   if (soname.isPresent()) {
-    argsBuilder.addAll(iXlinker(linker.soname(soname.get())));
+    argsBuilder.addAll(linker.soname(soname.get()));
   }
   for (  SourcePath input : inputs) {
-    argsBuilder.addAll(iXlinker(linker.linkWhole(resolver.getPath(input).toString())));
+    argsBuilder.addAll(linker.linkWhole(resolver.getPath(input).toString()));
   }
-  argsBuilder.addAll(iXlinker(linkableInput.getArgs()));
+  argsBuilder.addAll(linkableInput.getArgs());
   Linker.LinkableDepType runtimeDepType=depType;
   if (cxxRuntimeType.or(Linker.CxxRuntimeType.DYNAMIC) == Linker.CxxRuntimeType.STATIC) {
     runtimeDepType=Linker.LinkableDepType.STATIC;
   }
-  argsBuilder.addAll(iXlinker(cxxPlatform.getRuntimeLdflags().get(runtimeDepType)));
+  argsBuilder.addAll(cxxPlatform.getRuntimeLdflags().get(runtimeDepType));
   ImmutableList<String> args=argsBuilder.build();
-  return new CxxLink(linkParams,resolver,cxxPlatform.getCxxld(),output,allInputs,args,CxxDescriptionEnhancer.getFrameworkSearchPaths(Optional.of(linkableInput.getFrameworkRoots()),cxxPlatform),cxxPlatform.getDebugPathSanitizer());
+  return new CxxLink(linkParams,resolver,cxxPlatform.getLd(),output,allInputs,args,CxxDescriptionEnhancer.getFrameworkSearchPaths(Optional.of(linkableInput.getFrameworkRoots()),cxxPlatform),cxxPlatform.getDebugPathSanitizer());
 }

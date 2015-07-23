@@ -29,7 +29,7 @@ default :
 cflagsBuilder.add("-m" + targetSdk.getApplePlatform().getName() + "-version-min="+ minVersion);
 break;
 }
-ImmutableList<String> ldflags=ImmutableList.of("-sdk_version",targetSdk.getVersion());
+ImmutableList<String> ldflags=ImmutableList.copyOf(Linkers.iXlinker("-sdk_version",targetSdk.getVersion()));
 ImmutableList<String> asflags=ImmutableList.of("-arch",targetArchitecture);
 ImmutableList.Builder<String> versionsBuilder=ImmutableList.builder();
 versionsBuilder.add(targetSdk.getVersion());
@@ -63,6 +63,6 @@ if (sdkPaths.getDeveloperPath().isPresent()) {
 macrosBuilder.put("DEVELOPER_DIR",sdkPaths.getDeveloperPath().get().toString());
 }
 ImmutableMap<String,String> macros=macrosBuilder.build();
-CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,config,clangPath,clangPath,new ClangCompiler(clangPath),new ClangCompiler(clangXxPath),clangPath,clangXxPath,new DarwinLinker(clangPath),new DarwinLinker(clangXxPath),ldflags,strip,new BsdArchiver(ar),asflags,ImmutableList.<String>of(),cflags,ImmutableList.<String>of(),getOptionalTool("lex",toolSearchPaths,executableFinder,version),getOptionalTool("yacc",toolSearchPaths,executableFinder,version),"dylib",Optional.of(debugPathSanitizer),macros);
+CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,config,clangPath,clangPath,new ClangCompiler(clangPath),new ClangCompiler(clangXxPath),clangPath,clangXxPath,new DarwinLinker(clangXxPath),ImmutableList.<String>builder().addAll(cflags).addAll(ldflags).build(),strip,new BsdArchiver(ar),asflags,ImmutableList.<String>of(),cflags,ImmutableList.<String>of(),getOptionalTool("lex",toolSearchPaths,executableFinder,version),getOptionalTool("yacc",toolSearchPaths,executableFinder,version),"dylib",Optional.of(debugPathSanitizer),macros);
 return AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setActool(actool).setIbtool(ibtool).setXctest(xctest).setOtest(otest).setDsymutil(dsymutil).build();
 }
