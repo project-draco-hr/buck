@@ -1,12 +1,13 @@
 {
   Preconditions.checkArgument(CxxSourceTypes.isPreprocessableType(source.getType()));
   BuildTarget target=createCompileBuildTarget(name,pic);
+  Preprocessor preprocessor=CxxSourceTypes.getPreprocessor(cxxPlatform,source.getType());
   Compiler compiler=getCompiler(source.getType());
   ImmutableSortedSet<BuildRule> dependencies=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(compiler.getInputs())).addAll(pathResolver.filterBuildRuleInputs(source.getPath())).addAll(preprocessDeps.get()).build();
   ImmutableList<String> platformCompilerFlags=ImmutableList.<String>builder().addAll(pic.getFlags()).addAll(getPlatformCompileFlags(CxxSourceTypes.getPreprocessorOutputType(source.getType()))).build();
   ImmutableList<String> ruleCompilerFlags=ImmutableList.<String>builder().addAll(getRuleCompileFlags(CxxSourceTypes.getPreprocessorOutputType(source.getType()))).addAll(source.getFlags()).build();
   LOG.verbose("Creating preprocess and compile %s for %s",target,source);
-  CxxPreprocessAndCompile result=CxxPreprocessAndCompile.preprocessAndCompile(params.copyWithChanges(target,Suppliers.ofInstance(dependencies),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,compiler,CxxSourceTypes.getPlatformPreprocessFlags(cxxPlatform,source.getType()),preprocessorFlags.getUnchecked(source.getType()),compiler,platformCompilerFlags,ruleCompilerFlags,getCompileOutputPath(target,name),source.getPath(),source.getType(),includeRoots.get(),systemIncludeRoots.get(),frameworkRoots.get(),includes.get(),cxxPlatform.getDebugPathSanitizer(),strategy);
+  CxxPreprocessAndCompile result=CxxPreprocessAndCompile.preprocessAndCompile(params.copyWithChanges(target,Suppliers.ofInstance(dependencies),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,preprocessor,CxxSourceTypes.getPlatformPreprocessFlags(cxxPlatform,source.getType()),preprocessorFlags.getUnchecked(source.getType()),compiler,platformCompilerFlags,ruleCompilerFlags,getCompileOutputPath(target,name),source.getPath(),source.getType(),includeRoots.get(),systemIncludeRoots.get(),frameworkRoots.get(),includes.get(),cxxPlatform.getDebugPathSanitizer(),strategy);
   resolver.addToIndex(result);
   return result;
 }

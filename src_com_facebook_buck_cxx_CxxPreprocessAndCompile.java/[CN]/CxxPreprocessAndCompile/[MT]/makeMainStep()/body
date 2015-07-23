@@ -11,7 +11,7 @@
   ImmutableMap<Path,Path> replacementPaths=replacementPathsBuilder.build();
   Optional<ImmutableList<String>> preprocessorCommand;
   if (preprocessor.isPresent()) {
-    preprocessorCommand=Optional.of(ImmutableList.<String>builder().addAll(preprocessor.get().getCommandPrefix(getResolver())).addAll(getPreprocessorPlatformPrefix()).addAll(getPreprocessorSuffix()).build());
+    preprocessorCommand=Optional.of(ImmutableList.<String>builder().addAll(preprocessor.get().getCommandPrefix(getResolver())).addAll(getPreprocessorPlatformPrefix()).addAll(getPreprocessorSuffix()).addAll(preprocessor.get().getExtraFlags().or(ImmutableList.<String>of())).build());
   }
  else {
     preprocessorCommand=Optional.absent();
@@ -23,5 +23,10 @@
  else {
     compilerCommand=Optional.absent();
   }
-  return new CxxPreprocessAndCompileStep(operation,output,getResolver().getPath(input),inputType,preprocessorCommand,compilerCommand,replacementPaths,sanitizer);
+  return new CxxPreprocessAndCompileStep(operation,output,getResolver().getPath(input),inputType,preprocessorCommand,compilerCommand,replacementPaths,sanitizer,Optionals.bind(preprocessor,new Function<Preprocessor,Optional<Function<String,Iterable<String>>>>(){
+    @Override public Optional<Function<String,Iterable<String>>> apply(    Preprocessor input){
+      return input.getExtraLineProcessor();
+    }
+  }
+));
 }
