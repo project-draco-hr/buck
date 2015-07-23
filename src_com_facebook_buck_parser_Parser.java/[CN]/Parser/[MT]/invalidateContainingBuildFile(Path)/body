@@ -1,7 +1,14 @@
 {
+  List<Path> packageBuildFiles=Lists.newArrayList();
   Optional<Path> packageBuildFile=buildFileTreeCache.get().getBasePathOfAncestorTarget(path);
-  if (!packageBuildFile.isPresent()) {
-    return;
+  packageBuildFiles.addAll(packageBuildFile.asSet());
+  if (!enforceBuckPackageBoundary) {
+    while (packageBuildFile.isPresent() && packageBuildFile.get().getParent() != null) {
+      packageBuildFile=buildFileTreeCache.get().getBasePathOfAncestorTarget(packageBuildFile.get().getParent());
+      packageBuildFiles.addAll(packageBuildFile.asSet());
+    }
   }
-  state.invalidateDependents(repository.getFilesystem().getPathForRelativePath(packageBuildFile.get().resolve(new ParserConfig(repository.getBuckConfig()).getBuildFileName())));
+  for (  Path buildFile : packageBuildFiles) {
+    state.invalidateDependents(repository.getFilesystem().getPathForRelativePath(buildFile.resolve(new ParserConfig(repository.getBuckConfig()).getBuildFileName())));
+  }
 }

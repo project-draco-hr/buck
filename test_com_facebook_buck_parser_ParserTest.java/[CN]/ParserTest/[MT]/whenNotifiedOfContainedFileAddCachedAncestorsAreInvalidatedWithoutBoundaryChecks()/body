@@ -1,0 +1,11 @@
+{
+  TestProjectBuildFileParserFactory buildFileParserFactory=new TestProjectBuildFileParserFactory(filesystem.getRootPath(),buildRuleTypes);
+  Parser parser=createParser(ofInstance(new FilesystemBackedBuildFileTree(filesystem,"BUCK")),emptyBuildTargets(),new TestProjectBuildFileParserFactory(filesystem.getRootPath(),buildRuleTypes),repository,false,ImmutableSet.<Pattern>of(),ParserConfig.DEFAULT_BUILD_FILE_NAME);
+  Path testAncestorBuildFile=tempDir.newFile("java/BUCK").toPath().toRealPath();
+  Files.write("java_library(name = 'root')\n",testAncestorBuildFile.toFile(),Charsets.UTF_8);
+  parseBuildFile(testAncestorBuildFile,parser,buildFileParserFactory);
+  WatchEvent<Path> event=createPathEvent(Paths.get("java/com/facebook/SomeClass.java"),StandardWatchEventKinds.ENTRY_CREATE);
+  parser.onFileSystemChange(event);
+  parseBuildFile(testAncestorBuildFile,parser,buildFileParserFactory);
+  assertEquals("Should have invalidated cache.",2,buildFileParserFactory.calls);
+}
