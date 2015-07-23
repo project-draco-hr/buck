@@ -8,11 +8,12 @@
     }
     return 1;
   }
+  BuildEvent.Started started=BuildEvent.started(getArguments());
   if (params.getParser().getParseStartTime().isPresent()) {
-    params.getBuckEventBus().post(BuildEvent.started(getArguments()),params.getParser().getParseStartTime().get());
+    params.getBuckEventBus().post(started,params.getParser().getParseStartTime().get());
   }
  else {
-    params.getBuckEventBus().post(BuildEvent.started(getArguments()));
+    params.getBuckEventBus().post(started);
   }
   ActionGraph actionGraph;
   BuildRuleResolver resolver;
@@ -40,7 +41,7 @@
   try (CommandThreadManager pool=new CommandThreadManager("Build",getConcurrencyLimit(params.getBuckConfig()));Build build=createBuild(params.getBuckConfig(),actionGraph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),new CachingBuildEngine(pool.getExecutor(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),new InputBasedRuleKeyBuilderFactory(params.getFileHashCache(),new SourcePathResolver(resolver))),artifactCache,params.getConsole(),params.getBuckEventBus(),Optional.<TargetDevice>absent(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
     lastBuild=build;
     int exitCode=build.executeAndPrintFailuresToConsole(buildTargets,isKeepGoing(),params.getConsole(),getPathToBuildReport(params.getBuckConfig()));
-    params.getBuckEventBus().post(BuildEvent.finished(getArguments(),exitCode));
+    params.getBuckEventBus().post(BuildEvent.finished(started,exitCode));
     return exitCode;
   }
  }

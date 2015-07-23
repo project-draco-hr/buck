@@ -1,10 +1,11 @@
 {
   LOG.debug("Running with arguments %s",getArguments());
+  BuildEvent.Started started=BuildEvent.started(getArguments());
   if (params.getParser().getParseStartTime().isPresent()) {
-    params.getBuckEventBus().post(BuildEvent.started(getArguments()),params.getParser().getParseStartTime().get());
+    params.getBuckEventBus().post(started,params.getParser().getParseStartTime().get());
   }
  else {
-    params.getBuckEventBus().post(BuildEvent.started(getArguments()));
+    params.getBuckEventBus().post(started);
   }
   ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
   TargetGraph targetGraph;
@@ -58,7 +59,7 @@
     CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),new InputBasedRuleKeyBuilderFactory(params.getFileHashCache(),new SourcePathResolver(targetGraphToActionGraph.getRuleResolver())));
     try (Build build=createBuild(params.getBuckConfig(),graph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),cachingBuildEngine,getArtifactCache(params),params.getConsole(),params.getBuckEventBus(),getTargetDeviceOptional(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
       int exitCode=build.executeAndPrintFailuresToConsole(testRules,isKeepGoing(),params.getConsole(),getPathToBuildReport(params.getBuckConfig()));
-      params.getBuckEventBus().post(BuildEvent.finished(getArguments(),exitCode));
+      params.getBuckEventBus().post(BuildEvent.finished(started,exitCode));
       if (exitCode != 0) {
         return exitCode;
       }

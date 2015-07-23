@@ -61,12 +61,12 @@
     artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
     eventListeners=addEventListeners(buildEventBus,rootRepository.getFilesystem(),rootRepository.getBuckConfig(),webServer,clock,executionEnvironment,console,consoleListener,rootRepository.getKnownBuildRuleTypes(),clientEnvironment);
     ImmutableList<String> remainingArgs=args.length > 1 ? ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length)) : ImmutableList.<String>of();
-    CommandEvent commandEvent=CommandEvent.started(args.length > 0 ? args[0] : "",remainingArgs,isDaemon);
-    buildEventBus.post(commandEvent);
+    CommandEvent.Started startedEvent=CommandEvent.started(args.length > 0 ? args[0] : "",remainingArgs,isDaemon);
+    buildEventBus.post(startedEvent);
     Parser parser=null;
     if (isDaemon) {
       try {
-        parser=getParserFromDaemon(context,rootRepository,commandEvent,buildEventBus,clock);
+        parser=getParserFromDaemon(context,rootRepository,startedEvent,buildEventBus,clock);
       }
  catch (      WatchmanWatcherException|IOException e) {
         buildEventBus.post(ConsoleEvent.warning("Watchman threw an exception while parsing file changes.\n%s",e.getMessage()));
@@ -96,7 +96,7 @@
     }
     exitCode=command.run(new CommandRunnerParams(console,rootRepository,androidPlatformTargetSupplier,artifactCacheFactory,buildEventBus,parser,platform,clientEnvironment,rootRepository.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,clock,processManager,webServer,buckConfig,fileHashCache));
     parser.cleanCache();
-    buildEventBus.post(CommandEvent.finished(args.length > 0 ? args[0] : "",remainingArgs,isDaemon,exitCode));
+    buildEventBus.post(CommandEvent.finished(startedEvent,exitCode));
   }
  catch (  Throwable t) {
     LOG.debug(t,"Failing build on exception.");

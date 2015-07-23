@@ -10,7 +10,8 @@
   SimpleConsoleEventBusListener listener=new SimpleConsoleEventBusListener(console,fakeClock);
   eventBus.register(listener);
   final long threadId=0;
-  rawEventBus.post(configureTestEventAtTime(BuildEvent.started(buildArgs),0L,TimeUnit.MILLISECONDS,threadId));
+  BuildEvent.Started buildEventStarted=BuildEvent.started(buildArgs);
+  rawEventBus.post(configureTestEventAtTime(buildEventStarted,0L,TimeUnit.MILLISECONDS,threadId));
   rawEventBus.post(configureTestEventAtTime(ParseEvent.started(buildTargets),0L,TimeUnit.MILLISECONDS,threadId));
   assertEquals("",console.getTextWrittenToStdOut());
   assertEquals("",console.getTextWrittenToStdErr());
@@ -20,7 +21,7 @@
   assertEquals(parsingLine,console.getTextWrittenToStdErr());
   rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.started(fakeRule),600L,TimeUnit.MILLISECONDS,threadId));
   rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.finished(fakeRule,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()),1000L,TimeUnit.MILLISECONDS,threadId));
-  rawEventBus.post(configureTestEventAtTime(BuildEvent.finished(buildArgs,0),1234L,TimeUnit.MILLISECONDS,threadId));
+  rawEventBus.post(configureTestEventAtTime(BuildEvent.finished(buildEventStarted,0),1234L,TimeUnit.MILLISECONDS,threadId));
   final String buildingLine="BUILT //banana:stand\n[-] BUILDING...FINISHED 0.8s\n";
   assertEquals("",console.getTextWrittenToStdOut());
   assertEquals(parsingLine + buildingLine,console.getTextWrittenToStdErr());
@@ -28,10 +29,11 @@
   final String logLine="I've made a huge mistake.\n";
   assertEquals("",console.getTextWrittenToStdOut());
   assertEquals(parsingLine + buildingLine + logLine,console.getTextWrittenToStdErr());
-  rawEventBus.post(configureTestEventAtTime(InstallEvent.started(fakeTarget),2500L,TimeUnit.MILLISECONDS,threadId));
+  InstallEvent.Started installEventStarted=configureTestEventAtTime(InstallEvent.started(fakeTarget),2500L,TimeUnit.MILLISECONDS,threadId);
+  rawEventBus.post(installEventStarted);
   assertEquals("",console.getTextWrittenToStdOut());
   assertEquals(parsingLine + buildingLine + logLine,console.getTextWrittenToStdErr());
-  rawEventBus.post(configureTestEventAtTime(InstallEvent.finished(fakeTarget,true,Optional.<Long>absent()),4000L,TimeUnit.MILLISECONDS,threadId));
+  rawEventBus.post(configureTestEventAtTime(InstallEvent.finished(installEventStarted,true,Optional.<Long>absent()),4000L,TimeUnit.MILLISECONDS,threadId));
   final String installLine="[-] INSTALLING...FINISHED 1.5s\n";
   assertEquals("",console.getTextWrittenToStdOut());
   assertEquals(parsingLine + buildingLine + logLine+ installLine,console.getTextWrittenToStdErr());

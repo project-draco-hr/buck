@@ -3,11 +3,12 @@
     params.getConsole().printBuildFailure("Must specify at least one build target to fetch.");
     return 1;
   }
+  BuildEvent.Started started=BuildEvent.started(getArguments());
   if (params.getParser().getParseStartTime().isPresent()) {
-    params.getBuckEventBus().post(BuildEvent.started(getArguments()),params.getParser().getParseStartTime().get());
+    params.getBuckEventBus().post(started,params.getParser().getParseStartTime().get());
   }
  else {
-    params.getBuckEventBus().post(BuildEvent.started(getArguments()));
+    params.getBuckEventBus().post(started);
   }
   FetchTargetNodeToBuildRuleTransformer ruleGenerator=createFetchTransformer(params);
   TargetGraphToActionGraph transformer=new TargetGraphToActionGraph(params.getBuckEventBus(),ruleGenerator,params.getFileHashCache());
@@ -26,6 +27,6 @@
   try (CommandThreadManager pool=new CommandThreadManager("Fetch",getConcurrencyLimit(params.getBuckConfig()));Build build=createBuild(params.getBuckConfig(),actionGraph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),new CachingBuildEngine(pool.getExecutor(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),new InputBasedRuleKeyBuilderFactory(params.getFileHashCache(),new SourcePathResolver(transformer.getRuleResolver()))),getArtifactCache(params),params.getConsole(),params.getBuckEventBus(),Optional.<TargetDevice>absent(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock())){
     exitCode=build.executeAndPrintFailuresToConsole(buildTargets,isKeepGoing(),params.getConsole(),getPathToBuildReport(params.getBuckConfig()));
   }
-   params.getBuckEventBus().post(BuildEvent.finished(getArguments(),exitCode));
+   params.getBuckEventBus().post(BuildEvent.finished(started,exitCode));
   return exitCode;
 }
