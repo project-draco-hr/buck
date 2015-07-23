@@ -6,26 +6,24 @@
     int declaredDepsResult=javac.buildWithClasspath(firstOrderContext,resolver,invokingRule,getOptions(context,declaredClasspathEntries),javaSourceFilePaths,pathToSrcsList,workingDirectory);
     String firstOrderStdout=stdout.getContentsAsString(Charsets.UTF_8);
     String firstOrderStderr=stderr.getContentsAsString(Charsets.UTF_8);
-    if (declaredDepsResult != 0) {
-      int transitiveResult=javac.buildWithClasspath(context,resolver,invokingRule,getOptions(context,transitiveClasspathEntries),javaSourceFilePaths,pathToSrcsList,workingDirectory);
-      if (transitiveResult == 0) {
-        ImmutableSet<String> failedImports=findFailedImports(firstOrderStderr);
-        ImmutableList.Builder<String> errorMessage=ImmutableList.builder();
+    if (declaredDepsResult != 0 && suggestBuildRules.isPresent()) {
+      ImmutableSet<String> failedImports=findFailedImports(firstOrderStderr);
+      ImmutableSet<String> suggestions=suggestBuildRules.get().suggest(context.getProjectFilesystem(),failedImports);
+      ImmutableList.Builder<String> errorMessage=ImmutableList.builder();
+      errorMessage.add(firstOrderStderr);
+      if (!suggestions.isEmpty()) {
         String invoker=invokingRule.toString();
-        errorMessage.add(String.format("Rule %s builds with its transitive " + "dependencies but not with its first order dependencies.",invoker));
-        errorMessage.add("The following packages were missing:");
+        errorMessage.add(String.format("Rule %s has failed to build.",invoker));
         errorMessage.add(Joiner.on(LINE_SEPARATOR).join(failedImports));
-        if (suggestBuildRules.isPresent()) {
-          errorMessage.add("Try adding the following deps:");
-          errorMessage.add(Joiner.on(LINE_SEPARATOR).join(suggestBuildRules.get().suggest(context.getProjectFilesystem(),failedImports)));
-        }
+        errorMessage.add("Try adding the following deps:");
+        errorMessage.add(Joiner.on(LINE_SEPARATOR).join(suggestions));
         errorMessage.add("");
         errorMessage.add("");
-        context.getStdErr().println(Joiner.on("\n").join(errorMessage.build()));
       }
-      return transitiveResult;
+      context.getStdOut().print(firstOrderStdout);
+      context.getStdErr().println(Joiner.on("\n").join(errorMessage.build()));
     }
- else {
+ else     if (declaredDepsResult != 0) {
       context.getStdOut().print(firstOrderStdout);
       context.getStdErr().print(firstOrderStderr);
     }
