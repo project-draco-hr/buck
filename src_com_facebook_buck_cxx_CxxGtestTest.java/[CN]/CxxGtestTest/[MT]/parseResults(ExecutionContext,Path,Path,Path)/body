@@ -30,12 +30,18 @@
     Double time=Double.parseDouble(attributes.getNamedItem("time").getNodeValue()) * 1000;
     ResultType type=ResultType.SUCCESS;
     String message="";
+    @Nullable List<String> testStdout=stdout.get(testFull);
     if (testcase.getChildNodes().getLength() > 0) {
       Node failure=testcase.getChildNodes().item(1);
       type=ResultType.FAILURE;
       message=failure.getAttributes().getNamedItem("message").getNodeValue();
     }
-    summariesBuilder.add(new TestResultSummary(testCase,testName,type,time.longValue(),message,"",Joiner.on(System.lineSeparator()).join(stdout.get(testFull)),""));
+ else     if (attributes.getNamedItem("status").getNodeValue().equals(NOTRUN)) {
+      type=ResultType.ASSUMPTION_VIOLATION;
+      message="DISABLED";
+      testStdout=Lists.newArrayList();
+    }
+    summariesBuilder.add(new TestResultSummary(testCase,testName,type,time.longValue(),message,"",Joiner.on(System.lineSeparator()).join(testStdout),""));
   }
   return summariesBuilder.build();
 }
