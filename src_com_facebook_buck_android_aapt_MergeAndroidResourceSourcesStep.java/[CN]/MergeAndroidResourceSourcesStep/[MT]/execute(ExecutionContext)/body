@@ -1,0 +1,20 @@
+{
+  ResourceMerger merger=new ResourceMerger();
+  try {
+    for (    Path resPath : resPaths) {
+      ResourceSet set=new ResourceSet(resPath.toString());
+      set.setNormalizeResources(false);
+      set.addSource(context.getProjectFilesystem().resolve(resPath).toFile());
+      set.loadFromFiles(new ResourcesSetLoadLogger(context.getBuckEventBus()));
+      merger.addDataSet(set);
+    }
+    MergedResourceWriter writer=new MergedResourceWriter(context.getProjectFilesystem().resolve(outFolderPath).toFile(),new NoopPngCruncher(),false,false);
+    writer.setInsertSourceMarkers(false);
+    merger.mergeData(writer,false);
+  }
+ catch (  MergingException e) {
+    LOG.error(e,"Failed merging resources.");
+    return 1;
+  }
+  return 0;
+}
