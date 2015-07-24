@@ -4,29 +4,18 @@
     params.getConsole().printBuildFailure("Must specify at least one build target.");
     return 1;
   }
-  ImmutableSet<BuildTarget> targets=FluentIterable.from(getArgumentsFormattedAsBuildTargets(params.getBuckConfig())).transform(new Function<String,BuildTarget>(){
-    @Override public BuildTarget apply(    String input){
-      return BuildTargetParser.INSTANCE.parse(input,BuildTargetPatternParser.fullyQualified());
-    }
-  }
-).toSet();
-  TargetGraph graph;
   try {
-    graph=params.getParser().buildTargetGraphForBuildTargets(targets,new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
+    Multimap<BuildTarget,BuildTarget> targetsAndDependencies=getTargetsAndDependencies(params,getArgumentsFormattedAsBuildTargets(params.getBuckConfig()),shouldShowTransitiveDependencies(),shouldIncludeTests(),getEnableProfiling());
+    if (shouldGenerateJsonOutput()) {
+      printJSON(params,targetsAndDependencies);
+    }
+ else {
+      printToConsole(params,targetsAndDependencies);
+    }
   }
  catch (  BuildTargetException|BuildFileParseException e) {
     params.getConsole().printBuildFailureWithoutStacktrace(e);
     return 1;
-  }
-  TreeMultimap<BuildTarget,BuildTarget> targetsAndDependencies=TreeMultimap.create();
-  for (  BuildTarget target : targets) {
-    targetsAndDependencies.putAll(target,getDependenciesWithOptions(params,target,graph));
-  }
-  if (shouldGenerateJsonOutput()) {
-    printJSON(params,targetsAndDependencies);
-  }
- else {
-    printToConsole(params,targetsAndDependencies);
   }
   return 0;
 }
