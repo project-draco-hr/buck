@@ -24,7 +24,17 @@
   BuildRuleParams androidResourceParams=originalBuildRuleParams.copyWithChanges(BuildTargets.createFlavoredBuildTarget(originalBuildTarget,AAR_ANDROID_RESOURCE_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(manifest,assembleAssetsDirectories,assembleResourceDirectories)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   AndroidResource androidResource=new AndroidResource(androidResourceParams,pathResolver,ImmutableSortedSet.<BuildRule>naturalOrder().add(assembleAssetsDirectories).add(assembleResourceDirectories).addAll(originalBuildRuleParams.getDeclaredDeps()).build(),new BuildTargetSourcePath(assembleResourceDirectories.getBuildTarget()),ImmutableSortedSet.<Path>of(),null,new BuildTargetSourcePath(assembleAssetsDirectories.getBuildTarget()),ImmutableSortedSet.<Path>of(),new BuildTargetSourcePath(manifest.getBuildTarget()),false);
   aarExtraDepsBuilder.add(resolver.addToIndex(androidResource));
-  aarExtraDepsBuilder.addAll(getTargetsAsRules(packageableCollection.getNativeLibsTargets(),BuildTarget.of(originalBuildTarget),resolver));
+  AndroidNativeLibsPackageableGraphEnhancer packageableGraphEnhancer=new AndroidNativeLibsPackageableGraphEnhancer(resolver,originalBuildRuleParams,nativePlatforms,ImmutableSet.<NdkCxxPlatforms.TargetCpuType>of());
+  Optional<CopyNativeLibraries> nativeLibrariesOptional=packageableGraphEnhancer.getCopyNativeLibraries(packageableCollection);
+  if (nativeLibrariesOptional.isPresent()) {
+    aarExtraDepsBuilder.add(resolver.addToIndex(nativeLibrariesOptional.get()));
+  }
+  Optional<Path> assembledNativeLibsDir=nativeLibrariesOptional.transform(new Function<CopyNativeLibraries,Path>(){
+    @Override public Path apply(    CopyNativeLibraries input){
+      return input.getPathToNativeLibsDir();
+    }
+  }
+);
   BuildRuleParams androidAarParams=originalBuildRuleParams.copyWithExtraDeps(Suppliers.ofInstance(ImmutableSortedSet.copyOf(aarExtraDepsBuilder.build())));
-  return new AndroidAar(androidAarParams,pathResolver,manifest,androidResource,assembleResourceDirectories.getPathToOutput(),assembleAssetsDirectories.getPathToOutput(),packageableCollection.getNativeLibAssetsDirectories(),packageableCollection.getNativeLibsDirectories());
+  return new AndroidAar(androidAarParams,pathResolver,manifest,androidResource,assembleResourceDirectories.getPathToOutput(),assembleAssetsDirectories.getPathToOutput(),assembledNativeLibsDir,packageableCollection.getNativeLibAssetsDirectories());
 }
