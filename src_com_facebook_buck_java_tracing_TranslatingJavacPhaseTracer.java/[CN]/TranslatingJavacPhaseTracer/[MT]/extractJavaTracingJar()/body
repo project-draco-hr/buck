@@ -1,0 +1,23 @@
+{
+  @Nullable final URL resourceURL=TranslatingJavacPhaseTracer.class.getResource(JAVAC_TRACING_JAR_RESOURCE_PATH);
+  if (resourceURL == null) {
+    return null;
+  }
+ else   if ("file".equals(resourceURL.getProtocol())) {
+    return resourceURL;
+  }
+ else {
+    try (InputStream resourceStream=TranslatingJavacPhaseTracer.class.getResourceAsStream(JAVAC_TRACING_JAR_RESOURCE_PATH)){
+      File tempFile=File.createTempFile("javac-tracing",".jar");
+      tempFile.deleteOnExit();
+      try (OutputStream tempFileStream=new FileOutputStream(tempFile)){
+        ByteStreams.copy(resourceStream,tempFileStream);
+        return tempFile.toURI().toURL();
+      }
+     }
+ catch (    IOException e) {
+      LOG.warn(e,"Failed to extract javac tracing jar");
+      return null;
+    }
+  }
+}
