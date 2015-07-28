@@ -6,9 +6,13 @@
   PBXBuildPhase phase=new PBXResourcesBuildPhase();
   target.getBuildPhases().add(phase);
   for (  AppleResourceDescription.Arg resource : resources) {
-    Iterable<Path> paths=Iterables.transform(Iterables.concat(resource.files,resource.dirs),sourcePathResolver);
-    for (    Path path : paths) {
-      PBXFileReference fileReference=resourcesGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(path)));
+    for (    Path path : Iterables.transform(resource.files,sourcePathResolver)) {
+      PBXFileReference fileReference=resourcesGroup.getOrCreateFileReferenceBySourceTreePath(SourceTreePath.ofAutodetectedType(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(path)));
+      PBXBuildFile buildFile=new PBXBuildFile(fileReference);
+      phase.getFiles().add(buildFile);
+    }
+    for (    Path path : Iterables.transform(resource.dirs,sourcePathResolver)) {
+      PBXFileReference fileReference=resourcesGroup.getOrCreateFileReferenceBySourceTreePath(SourceTreePath.ofFolderType(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(path)));
       PBXBuildFile buildFile=new PBXBuildFile(fileReference);
       phase.getFiles().add(buildFile);
     }
@@ -30,7 +34,7 @@
         phase.getFiles().add(buildFile);
         variantGroups.put(variantFileName,variantGroup);
       }
-      SourceTreePath sourceTreePath=new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputPathToSourcePath(variantSourcePath));
+      SourceTreePath sourceTreePath=SourceTreePath.ofAutodetectedType(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputPathToSourcePath(variantSourcePath));
       variantGroup.getOrCreateVariantFileReferenceByNameAndSourceTreePath(variantLocalization,sourceTreePath);
     }
   }
