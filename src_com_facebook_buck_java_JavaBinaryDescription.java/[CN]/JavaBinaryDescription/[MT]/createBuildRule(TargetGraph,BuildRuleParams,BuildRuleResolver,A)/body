@@ -1,0 +1,17 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ImmutableMap<String,SourcePath> nativeLibraries=JavaLibraryRules.getNativeLibraries(targetGraph,params.getDeps(),cxxPlatform);
+  BuildRuleParams binaryParams=params;
+  if (!nativeLibraries.isEmpty()) {
+    binaryParams=params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addFlavors(FAT_JAR_INNER_JAR_FLAVOR).build(),Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps()));
+  }
+  ImmutableSetMultimap<JavaLibrary,Path> transitiveClasspathEntries=Classpaths.getClasspathEntries(binaryParams.getDeps());
+  BuildRule rule=new JavaBinary(binaryParams.appendExtraDeps(transitiveClasspathEntries.keys()),pathResolver,args.mainClass.orNull(),args.manifestFile.orNull(),args.mergeManifests.or(true),args.metaInfDirectory.orNull(),args.blacklist.or(ImmutableSortedSet.<String>of()),new DefaultDirectoryTraverser(),transitiveClasspathEntries);
+  if (!nativeLibraries.isEmpty()) {
+    BuildRule innerJarRule=rule;
+    resolver.addToIndex(innerJarRule);
+    SourcePath innerJar=new BuildTargetSourcePath(innerJarRule.getBuildTarget());
+    rule=new JarFattener(params.appendExtraDeps(Suppliers.<Iterable<BuildRule>>ofInstance(pathResolver.filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(innerJar).addAll(nativeLibraries.values()).build()))),pathResolver,javacOptions,innerJar,nativeLibraries);
+  }
+  return rule;
+}

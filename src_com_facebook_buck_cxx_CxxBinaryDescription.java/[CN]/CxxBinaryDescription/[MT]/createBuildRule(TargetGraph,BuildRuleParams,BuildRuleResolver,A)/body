@@ -1,0 +1,24 @@
+{
+  CxxPlatform cxxPlatform;
+  ImmutableSet<Flavor> flavors=ImmutableSet.copyOf(params.getBuildTarget().getFlavors());
+  try {
+    cxxPlatform=cxxPlatforms.getValue(flavors).or(defaultCxxPlatform);
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+  }
+  if (flavors.contains(CxxDescriptionEnhancer.HEADER_SYMLINK_TREE_FLAVOR)) {
+    flavors=ImmutableSet.copyOf(Sets.difference(flavors,ImmutableSet.of(CxxDescriptionEnhancer.HEADER_SYMLINK_TREE_FLAVOR)));
+    BuildTarget target=BuildTarget.builder(params.getBuildTarget().getUnflavoredBuildTarget()).addAllFlavors(flavors).build();
+    BuildRuleParams typeParams=params.copyWithChanges(target,Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps()));
+    return createHeaderSymlinkTreeBuildRule(typeParams,resolver,cxxPlatform,args);
+  }
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  if (flavors.contains(CxxCompilationDatabase.COMPILATION_DATABASE)) {
+    BuildRuleParams paramsWithoutCompilationDatabaseFlavor=CxxCompilationDatabase.paramsWithoutCompilationDatabaseFlavor(params);
+    CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(targetGraph,paramsWithoutCompilationDatabaseFlavor,resolver,cxxPlatform,args,preprocessMode);
+    return CxxCompilationDatabase.createCompilationDatabase(params,pathResolver,preprocessMode,cxxLinkAndCompileRules.compileRules);
+  }
+  CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(targetGraph,params,resolver,cxxPlatform,args,preprocessMode);
+  return new CxxBinary(params.appendExtraDeps(cxxLinkAndCompileRules.executable.getInputs(pathResolver)),resolver,pathResolver,cxxLinkAndCompileRules.cxxLink.getOutput(),cxxLinkAndCompileRules.cxxLink,cxxLinkAndCompileRules.executable,args.frameworkSearchPaths.get(),args.tests.get());
+}

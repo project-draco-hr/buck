@@ -1,0 +1,30 @@
+{
+  CxxPlatform cxxPlatform;
+  try {
+    cxxPlatform=cxxPlatforms.getValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors())).or(defaultCxxPlatform);
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+  }
+  if (!(args.main.isPresent() ^ args.mainModule.isPresent())) {
+    throw new HumanReadableException("%s: must set exactly one of `main_module` and `main`",params.getBuildTarget());
+  }
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);
+  String mainModule;
+  ImmutableMap.Builder<Path,SourcePath> modules=ImmutableMap.builder();
+  if (args.main.isPresent()) {
+    LOG.warn("%s: parameter `main` is deprecated, please use `main_module` instead.",params.getBuildTarget());
+    String mainName=pathResolver.getSourcePathName(params.getBuildTarget(),args.main.get());
+    Path main=baseModule.resolve(mainName);
+    modules.put(baseModule.resolve(mainName),args.main.get());
+    mainModule=PythonUtil.toModuleName(params.getBuildTarget(),main.toString());
+  }
+ else {
+    mainModule=args.mainModule.get();
+  }
+  PythonPackageComponents binaryPackageComponents=PythonPackageComponents.of(modules.build(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),args.zipSafe);
+  PythonPackageComponents allPackageComponents=PythonUtil.getAllComponents(targetGraph,params,binaryPackageComponents,cxxPlatform);
+  BuildRuleParams binaryParams=params.copyWithDeps(Suppliers.ofInstance(PythonUtil.getDepsFromComponents(pathResolver,allPackageComponents)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  return new PythonBinary(binaryParams,pathResolver,pathToPex,args.buildArgs.or(ImmutableList.<String>of()),pathToPexExecuter,pexExtension,pythonEnvironment,mainModule,allPackageComponents);
+}

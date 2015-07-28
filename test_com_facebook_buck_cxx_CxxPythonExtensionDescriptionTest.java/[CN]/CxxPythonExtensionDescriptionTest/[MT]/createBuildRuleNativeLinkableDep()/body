@@ -9,19 +9,19 @@
   BuildTarget depTarget=BuildTargetFactory.newInstance("//:dep");
   BuildRuleParams depParams=BuildRuleParamsFactory.createTrivialBuildRuleParams(depTarget);
   AbstractCxxLibrary dep=new AbstractCxxLibrary(depParams,pathResolver){
-    @Override public CxxPreprocessorInput getCxxPreprocessorInput(    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility){
+    @Override public CxxPreprocessorInput getCxxPreprocessorInput(    TargetGraph targetGraph,    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility){
       return CxxPreprocessorInput.EMPTY;
     }
-    @Override public ImmutableMap<BuildTarget,CxxPreprocessorInput> getTransitiveCxxPreprocessorInput(    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility){
-      return ImmutableMap.of(getBuildTarget(),getCxxPreprocessorInput(cxxPlatform,headerVisibility));
+    @Override public ImmutableMap<BuildTarget,CxxPreprocessorInput> getTransitiveCxxPreprocessorInput(    TargetGraph targetGraph,    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility){
+      return ImmutableMap.of(getBuildTarget(),getCxxPreprocessorInput(targetGraph,cxxPlatform,headerVisibility));
     }
-    @Override public NativeLinkableInput getNativeLinkableInput(    CxxPlatform cxxPlatform,    Linker.LinkableDepType type){
+    @Override public NativeLinkableInput getNativeLinkableInput(    TargetGraph targetGraph,    CxxPlatform cxxPlatform,    Linker.LinkableDepType type){
       return type == Linker.LinkableDepType.STATIC ? NativeLinkableInput.of(ImmutableList.<SourcePath>of(),ImmutableList.<String>of(),ImmutableSet.<Path>of()) : NativeLinkableInput.of(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(sharedLibraryDep.getBuildTarget(),sharedLibraryOutput)),ImmutableList.of(sharedLibraryOutput.toString()),ImmutableSet.<Path>of());
     }
     @Override public NativeLinkable.Linkage getPreferredLinkage(    CxxPlatform cxxPlatform){
       return Linkage.ANY;
     }
-    @Override public PythonPackageComponents getPythonPackageComponents(    CxxPlatform cxxPlatform){
+    @Override public PythonPackageComponents getPythonPackageComponents(    TargetGraph targetGraph,    CxxPlatform cxxPlatform){
       return PythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(Paths.get(sharedLibrarySoname),new PathSourcePath(getProjectFilesystem(),sharedLibraryOutput)),ImmutableSet.<SourcePath>of(),Optional.<Boolean>absent());
     }
     @Override public Iterable<AndroidPackageable> getRequiredPackageables(){
@@ -29,7 +29,7 @@
     }
     @Override public void addToCollector(    AndroidPackageableCollector collector){
     }
-    @Override public ImmutableMap<String,SourcePath> getSharedLibraries(    CxxPlatform cxxPlatform){
+    @Override public ImmutableMap<String,SourcePath> getSharedLibraries(    TargetGraph targetGraph,    CxxPlatform cxxPlatform){
       return ImmutableMap.of();
     }
     @Override public boolean isTestedBy(    BuildTarget buildTarget){
@@ -42,8 +42,9 @@
   pyDepBuilder.build(resolver);
   CxxPythonExtensionBuilder extensionBuilder=(CxxPythonExtensionBuilder)getBuilder(target).setDeps(ImmutableSortedSet.of(depTarget));
   CxxPythonExtensionDescription desc=(CxxPythonExtensionDescription)extensionBuilder.build().getDescription();
-  CxxPythonExtension extension=(CxxPythonExtension)extensionBuilder.build(resolver,new FakeProjectFilesystem(),TargetGraphFactory.newInstance(extensionBuilder.build(),pyDepBuilder.build(),GenruleBuilder.newGenruleBuilder(depTarget).build()));
-  extension.getPythonPackageComponents(cxxPlatform);
+  TargetGraph targetGraph=TargetGraphFactory.newInstance(extensionBuilder.build(),pyDepBuilder.build(),GenruleBuilder.newGenruleBuilder(depTarget).build());
+  CxxPythonExtension extension=(CxxPythonExtension)extensionBuilder.build(resolver,new FakeProjectFilesystem(),targetGraph);
+  extension.getPythonPackageComponents(targetGraph,cxxPlatform);
   BuildRule rule=resolver.getRule(desc.getExtensionTarget(target,cxxPlatform.getFlavor()));
   assertEquals(ImmutableSortedSet.of(sharedLibraryDep),rule.getDeps());
 }

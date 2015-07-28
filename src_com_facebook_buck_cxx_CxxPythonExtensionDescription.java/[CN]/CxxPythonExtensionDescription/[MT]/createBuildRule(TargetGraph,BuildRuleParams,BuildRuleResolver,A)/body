@@ -1,0 +1,19 @@
+{
+  Optional<Map.Entry<Flavor,Type>> type;
+  Optional<Map.Entry<Flavor,CxxPlatform>> platform;
+  try {
+    type=LIBRARY_TYPE.getFlavorAndValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors()));
+    platform=cxxPlatforms.getFlavorAndValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors()));
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+  }
+  if (type.isPresent()) {
+    Preconditions.checkState(type.get().getValue() == Type.EXTENSION);
+    Preconditions.checkState(platform.isPresent());
+    return createExtensionBuildRule(targetGraph,params,ruleResolver,platform.get().getValue(),args);
+  }
+  SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
+  Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);
+  return new CxxPythonExtension(params,ruleResolver,pathResolver,baseModule.resolve(getExtensionName(params.getBuildTarget())));
+}

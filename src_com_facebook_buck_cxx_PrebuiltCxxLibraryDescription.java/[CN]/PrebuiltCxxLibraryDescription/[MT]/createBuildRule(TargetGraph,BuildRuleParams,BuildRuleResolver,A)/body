@@ -1,0 +1,43 @@
+{
+  if (args.includeDirs.get().size() > 0) {
+    LOG.warn("Build target %s uses `include_dirs` which is deprecated. Use `exported_headers` instead",params.getBuildTarget().toString());
+  }
+  Optional<Map.Entry<Flavor,Type>> type;
+  Optional<Map.Entry<Flavor,CxxPlatform>> platform;
+  try {
+    type=LIBRARY_TYPE.getFlavorAndValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors()));
+    platform=cxxPlatforms.getFlavorAndValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors()));
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+  }
+  if (type.isPresent()) {
+    Preconditions.checkState(platform.isPresent());
+    if (type.get().getValue() == Type.EXPORTED_HEADERS) {
+      return createExportedHeaderSymlinkTreeBuildRule(params,resolver,platform.get().getValue(),args);
+    }
+ else     if (type.get().getValue() == Type.SHARED) {
+      return createSharedLibraryBuildRule(targetGraph,params,resolver,platform.get().getValue(),args);
+    }
+  }
+  final BuildTarget target=params.getBuildTarget();
+  Function<String,Path> fullPathFn=new Function<String,Path>(){
+    @Override public Path apply(    String input){
+      return target.getBasePath().resolve(input);
+    }
+  }
+;
+  final ImmutableList<Path> includeDirs=FluentIterable.from(args.includeDirs.or(ImmutableList.of("include"))).transform(fullPathFn).toList();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  return new PrebuiltCxxLibrary(params,resolver,pathResolver,includeDirs,args.libDir,args.libName,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
+    @Override public ImmutableMultimap<CxxSource.Type,String> apply(    CxxPlatform input){
+      return CxxFlags.getLanguageFlags(args.exportedPreprocessorFlags,args.exportedPlatformPreprocessorFlags,args.exportedLangPreprocessorFlags,input);
+    }
+  }
+,new Function<CxxPlatform,ImmutableList<String>>(){
+    @Override public ImmutableList<String> apply(    CxxPlatform input){
+      return CxxFlags.getFlags(args.exportedLinkerFlags,args.exportedPlatformLinkerFlags,input);
+    }
+  }
+,args.soname,args.headerOnly.or(false),args.linkWhole.or(false),args.provided.or(false));
+}

@@ -1,0 +1,72 @@
+{
+  String extension=args.extension.isLeft() ? args.extension.getLeft().toFileExtension() : args.extension.getRight();
+  if (!AppleBundleExtensions.VALID_XCTOOL_BUNDLE_EXTENSIONS.contains(extension)) {
+    throw new HumanReadableException("Invalid bundle extension for apple_test rule: %s (must be one of %s)",extension,AppleBundleExtensions.VALID_XCTOOL_BUNDLE_EXTENSIONS);
+  }
+  boolean createBundle=Sets.intersection(params.getBuildTarget().getFlavors(),NON_LIBRARY_FLAVORS).isEmpty();
+  Sets.SetView<Flavor> nonLibraryFlavors=Sets.difference(params.getBuildTarget().getFlavors(),NON_LIBRARY_FLAVORS);
+  boolean addDefaultPlatform=nonLibraryFlavors.isEmpty();
+  ImmutableSet.Builder<Flavor> extraFlavorsBuilder=ImmutableSet.builder();
+  if (createBundle) {
+    extraFlavorsBuilder.add(LIBRARY_FLAVOR,CxxDescriptionEnhancer.MACH_O_BUNDLE_FLAVOR);
+  }
+  if (addDefaultPlatform) {
+    extraFlavorsBuilder.add(defaultCxxPlatform.getFlavor());
+  }
+  Optional<AppleBundle> testHostApp;
+  Optional<SourcePath> testHostAppBinarySourcePath;
+  if (args.testHostApp.isPresent()) {
+    TargetNode<?> testHostAppNode=targetGraph.get(args.testHostApp.get());
+    Preconditions.checkNotNull(testHostAppNode);
+    if (testHostAppNode.getType() != AppleBundleDescription.TYPE) {
+      throw new HumanReadableException("Apple test rule %s has unrecognized test_host_app %s type %s (should be %s)",params.getBuildTarget(),args.testHostApp.get(),testHostAppNode.getType(),AppleBundleDescription.TYPE);
+    }
+    AppleBundleDescription.Arg testHostAppDescription=(AppleBundleDescription.Arg)testHostAppNode.getConstructorArg();
+    testHostApp=Optional.of(appleBundleDescription.createBuildRule(targetGraph,params.copyWithChanges(BuildTarget.builder(args.testHostApp.get()).addAllFlavors(nonLibraryFlavors).build(),Suppliers.ofInstance(BuildRules.toBuildRulesFor(args.testHostApp.get(),resolver,testHostAppNode.getDeclaredDeps())),Suppliers.ofInstance(BuildRules.toBuildRulesFor(args.testHostApp.get(),resolver,testHostAppNode.getExtraDeps()))),resolver,testHostAppDescription));
+    testHostAppBinarySourcePath=Optional.<SourcePath>of(new BuildTargetSourcePath(testHostAppDescription.binary));
+  }
+ else {
+    testHostApp=Optional.absent();
+    testHostAppBinarySourcePath=Optional.absent();
+  }
+  BuildRule library=appleLibraryDescription.createBuildRule(targetGraph,params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addAllFlavors(extraFlavorsBuilder.build()).build(),Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps())),resolver,args,Optional.of(Linker.LinkableDepType.STATIC),testHostAppBinarySourcePath);
+  if (!createBundle) {
+    return library;
+  }
+  CxxPlatform cxxPlatform;
+  try {
+    cxxPlatform=cxxPlatformFlavorDomain.getValue(params.getBuildTarget().getFlavors()).or(defaultCxxPlatform);
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException(e,"%s: %s",params.getBuildTarget(),e.getMessage());
+  }
+  AppleCxxPlatform appleCxxPlatform=platformFlavorsToAppleCxxPlatforms.get(cxxPlatform.getFlavor());
+  if (appleCxxPlatform == null) {
+    throw new HumanReadableException("%s: Apple test requires an Apple platform, found '%s'",params.getBuildTarget(),cxxPlatform.getFlavor().getName());
+  }
+  AppleBundleDestinations destinations=AppleBundleDestinations.platformDestinations(appleCxxPlatform.getAppleSdk().getApplePlatform());
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
+  ImmutableSet.Builder<SourcePath> resourceDirsBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> dirsContainingResourceDirsBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> resourceFilesBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> resourceVariantFilesBuilder=ImmutableSet.builder();
+  AppleResources.collectResourceDirsAndFiles(targetGraph,Preconditions.checkNotNull(targetGraph.get(params.getBuildTarget())),resourceDirsBuilder,dirsContainingResourceDirsBuilder,resourceFilesBuilder,resourceVariantFilesBuilder);
+  ImmutableSet<SourcePath> resourceDirs=resourceDirsBuilder.build();
+  ImmutableSet<SourcePath> dirsContainingResourceDirs=dirsContainingResourceDirsBuilder.build();
+  ImmutableSet<SourcePath> resourceFiles=resourceFilesBuilder.build();
+  ImmutableSet<SourcePath> resourceVariantFiles=resourceVariantFilesBuilder.build();
+  CollectedAssetCatalogs collectedAssetCatalogs=AppleDescriptions.createBuildRulesForTransitiveAssetCatalogDependencies(targetGraph,params,sourcePathResolver,appleCxxPlatform.getAppleSdk().getApplePlatform(),appleCxxPlatform.getActool());
+  Optional<AppleAssetCatalog> mergedAssetCatalog=collectedAssetCatalogs.getMergedAssetCatalog();
+  ImmutableSet<AppleAssetCatalog> bundledAssetCatalogs=collectedAssetCatalogs.getBundledAssetCatalogs();
+  String sdkName=appleCxxPlatform.getAppleSdk().getName();
+  String platformName=appleCxxPlatform.getAppleSdk().getApplePlatform().getName();
+  AppleBundle bundle=new AppleBundle(params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addFlavors(BUNDLE_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(mergedAssetCatalog.asSet()).addAll(bundledAssetCatalogs).addAll(params.getDeclaredDeps()).addAll(BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,SourcePaths.filterBuildTargetSourcePaths(Iterables.concat(resourceFiles,resourceDirs,dirsContainingResourceDirs,resourceVariantFiles)))).build()),Suppliers.ofInstance(params.getExtraDeps())),sourcePathResolver,args.extension,args.infoPlist,args.infoPlistSubstitutions.get(),Optional.of(library),destinations,resourceDirs,resourceFiles,dirsContainingResourceDirsBuilder.build(),Optional.of(resourceVariantFiles),appleCxxPlatform.getIbtool(),appleCxxPlatform.getDsymutil(),bundledAssetCatalogs,mergedAssetCatalog,ImmutableSortedSet.<BuildTarget>of(),platformName,sdkName);
+  Optional<BuildRule> xctoolZipBuildRule;
+  if (appleConfig.getXctoolZipTarget().isPresent()) {
+    xctoolZipBuildRule=Optional.of(resolver.getRule(appleConfig.getXctoolZipTarget().get()));
+  }
+ else {
+    xctoolZipBuildRule=Optional.absent();
+  }
+  return new AppleTest(appleConfig.getXctoolPath(),xctoolZipBuildRule,appleCxxPlatform.getXctest(),appleCxxPlatform.getOtest(),appleConfig.getXctestPlatformNames().contains(platformName),platformName,Optional.<String>absent(),params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(bundle)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),sourcePathResolver,bundle,testHostApp,extension,args.contacts.get(),args.labels.get());
+}
