@@ -18,7 +18,13 @@
     ImmutableMap<Path,SourcePath> includes=includesBuilder.build();
     Path includeRoot=getIncludeRoot(target);
     BuildTarget symlinkTreeTarget=createThriftIncludeSymlinkTreeTarget(target);
-    SymlinkTree symlinkTree=new SymlinkTree(params.copyWithChanges(symlinkTreeTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,includeRoot,includes);
+    SymlinkTree symlinkTree;
+    try {
+      symlinkTree=new SymlinkTree(params.copyWithChanges(symlinkTreeTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,includeRoot,includes);
+    }
+ catch (    SymlinkTree.InvalidSymlinkTreeException e) {
+      throw e.getHumanReadableExceptionForBuildTarget(target);
+    }
     resolver.addToIndex(symlinkTree);
     return new ThriftLibrary(params,pathResolver,thriftDeps,symlinkTree,includes);
   }
