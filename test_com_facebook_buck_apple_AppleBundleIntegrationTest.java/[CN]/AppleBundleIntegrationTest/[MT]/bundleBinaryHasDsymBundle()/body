@@ -4,10 +4,15 @@
   workspace.setUp();
   workspace.runBuckCommand("build","//:DemoApp#iphonesimulator-x86_64").assertSuccess();
   workspace.verify();
-  Path dwarfPath=tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoApp#iphonesimulator-x86_64/DemoApp.app").resolve("DemoApp.dSYM/Contents/Resources/DWARF/DemoApp");
+  Path bundlePath=tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoApp#iphonesimulator-x86_64/DemoApp.app");
+  Path dwarfPath=bundlePath.resolve("DemoApp.dSYM/Contents/Resources/DWARF/DemoApp");
+  Path binaryPath=bundlePath.resolve("DemoApp");
   assertTrue(Files.exists(dwarfPath));
   String dwarfdumpMainStdout=workspace.runCommand("dwarfdump","-n","main",dwarfPath.toString()).getStdout().or("");
   assertTrue(dwarfdumpMainStdout.contains("AT_name"));
   assertTrue(dwarfdumpMainStdout.contains("AT_decl_file"));
   assertTrue(dwarfdumpMainStdout.contains("AT_decl_line"));
+  ProcessExecutor.Result result=workspace.runCommand("dsymutil","-o",binaryPath.toString() + ".test.dSYM",binaryPath.toString());
+  assertThat(result.getStdout().isPresent(),is(true));
+  assertThat(result.getStdout().get(),containsString("warning: no debug symbols in executable"));
 }
