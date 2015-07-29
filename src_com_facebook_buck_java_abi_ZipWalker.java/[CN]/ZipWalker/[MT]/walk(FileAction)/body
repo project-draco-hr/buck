@@ -1,10 +1,18 @@
 {
-  try (FileInputStream fis=new FileInputStream(zipFile.toFile());BufferedInputStream bis=new BufferedInputStream(fis);JarInputStream jis=new JarInputStream(bis)){
-    for (JarEntry entry=jis.getNextJarEntry(); entry != null; entry=jis.getNextJarEntry()) {
+  Set<String> names=Sets.newTreeSet();
+  try (FileInputStream fis=new FileInputStream(zipFile.toFile());BufferedInputStream bis=new BufferedInputStream(fis);ZipInputStream zis=new ZipInputStream(bis)){
+    for (ZipEntry entry=zis.getNextEntry(); entry != null; entry=zis.getNextEntry()) {
       if (entry.isDirectory()) {
         continue;
       }
-      onFile.visit(Paths.get(entry.getName()),jis);
+      names.add(entry.getName());
     }
   }
- }
+   if (!names.isEmpty()) {
+    try (ZipFile zip=new ZipFile(zipFile.toFile())){
+      for (      String name : names) {
+        onFile.visit(Paths.get(name),zip.getInputStream(zip.getEntry(name)));
+      }
+    }
+   }
+}
