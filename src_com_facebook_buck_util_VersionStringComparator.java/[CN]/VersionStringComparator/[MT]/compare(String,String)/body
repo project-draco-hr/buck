@@ -5,40 +5,20 @@
   if (!isValidVersionString(b)) {
     throw new RuntimeException("Invalid version string: " + b);
   }
-  Matcher matcherA=VERSION_STRING_RC_PATTERN.matcher(a);
-  Matcher matcherB=VERSION_STRING_RC_PATTERN.matcher(b);
-  String[] partsA=matcherA.replaceFirst("").split("\\.");
-  String[] partsB=matcherB.replaceFirst("").split("\\.");
-  for (int i=0; i < partsA.length; i++) {
-    if (i >= partsB.length) {
+  String cleanedA=IGNORED_FIELDS_PATTERN.matcher(a).replaceAll("");
+  String cleanedB=IGNORED_FIELDS_PATTERN.matcher(b).replaceAll("");
+  String[] partsA=DELIMITER_PATTERN.split(cleanedA);
+  String[] partsB=DELIMITER_PATTERN.split(cleanedB);
+  Iterator<Integer> valuesA=partsToValues(partsA).iterator();
+  Iterator<Integer> valuesB=partsToValues(partsB).iterator();
+  while (valuesA.hasNext()) {
+    if (!valuesB.hasNext()) {
       return 1;
     }
-    String partA=partsA[i];
-    String partB=partsB[i];
-    int valueA=Integer.parseInt(partA);
-    int valueB=Integer.parseInt(partB);
-    int delta=valueA - valueB;
-    if (delta != 0) {
-      return delta;
+    int comp=valuesA.next().compareTo(valuesB.next());
+    if (comp != 0) {
+      return comp;
     }
   }
-  if (partsA.length == partsB.length) {
-    if (matcherA.find(0) && !matcherB.find(0)) {
-      return -1;
-    }
- else     if (!matcherA.find(0) && matcherB.find(0)) {
-      return 1;
-    }
- else     if (matcherA.find(0) && matcherB.find(0)) {
-      int valueA=Integer.parseInt(matcherA.group(1));
-      int valueB=Integer.parseInt(matcherB.group(1));
-      return valueA - valueB;
-    }
- else {
-      return 0;
-    }
-  }
- else {
-    return -1;
-  }
+  return valuesB.hasNext() ? -1 : 0;
 }
