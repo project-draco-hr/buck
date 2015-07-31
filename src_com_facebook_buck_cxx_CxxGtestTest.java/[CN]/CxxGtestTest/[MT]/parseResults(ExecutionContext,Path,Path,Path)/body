@@ -1,23 +1,27 @@
 {
   ImmutableList.Builder<TestResultSummary> summariesBuilder=ImmutableList.builder();
-  List<String> outputLines=context.getProjectFilesystem().readLines(output);
   Optional<String> currentTest=Optional.absent();
   Map<String,List<String>> stdout=Maps.newHashMap();
-  for (  String line : outputLines) {
-    Matcher matcher;
-    if ((matcher=START.matcher(line.trim())).matches()) {
-      String test=matcher.group(1);
-      currentTest=Optional.of(test);
-      stdout.put(test,Lists.<String>newArrayList());
-    }
- else     if (END.matcher(line.trim()).matches()) {
-      currentTest=Optional.absent();
-    }
- else     if (currentTest.isPresent()) {
-      stdout.get(currentTest.get()).add(line);
+  CharsetDecoder decoder=Charsets.UTF_8.newDecoder();
+  decoder.onMalformedInput(CodingErrorAction.IGNORE);
+  try (InputStream input=context.getProjectFilesystem().newFileInputStream(output);BufferedReader reader=new BufferedReader(new InputStreamReader(input,decoder))){
+    String line;
+    while ((line=reader.readLine()) != null) {
+      Matcher matcher;
+      if ((matcher=START.matcher(line.trim())).matches()) {
+        String test=matcher.group(1);
+        currentTest=Optional.of(test);
+        stdout.put(test,Lists.<String>newArrayList());
+      }
+ else       if (END.matcher(line.trim()).matches()) {
+        currentTest=Optional.absent();
+      }
+ else       if (currentTest.isPresent()) {
+        stdout.get(currentTest.get()).add(line);
+      }
     }
   }
-  Document doc=XmlDomParser.parse(results.toFile());
+   Document doc=XmlDomParser.parse(results.toFile());
   NodeList testcases=doc.getElementsByTagName("testcase");
   for (int index=0; index < testcases.getLength(); index++) {
     Node testcase=testcases.item(index);
