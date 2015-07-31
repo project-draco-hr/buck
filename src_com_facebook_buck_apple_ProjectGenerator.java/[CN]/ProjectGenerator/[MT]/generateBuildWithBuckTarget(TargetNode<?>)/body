@@ -1,0 +1,36 @@
+{
+  CxxPlatform cxxPlatform;
+  ImmutableSet<Flavor> flavors=ImmutableSet.copyOf(targetNode.getBuildTarget().getFlavors());
+  try {
+    cxxPlatform=cxxPlatforms.getValue(flavors).or(defaultCxxPlatform);
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",targetNode.getBuildTarget(),e.getMessage());
+  }
+  final BuildTarget buildTarget=targetNode.getBuildTarget();
+  String productName=getXcodeTargetName(buildTarget) + BUILD_WITH_BUCK_POSTFIX;
+  String binaryName=AppleBundle.getBinaryName(targetToBuildWithBuck.get());
+  Path bundleDestination=getScratchPathForAppBundle(targetToBuildWithBuck.get());
+  PBXShellScriptBuildPhase shellScriptBuildPhase=new PBXShellScriptBuildPhase();
+  String compDir=cxxPlatform.getDebugPathSanitizer().getCompilationDirectory();
+  String sourceDir=Strings.padStart(":" + projectFilesystem.getRootPath().toString(),compDir.length(),'f');
+  shellScriptBuildPhase.setShellScript(Joiner.on('\n').join(String.format("buck build %s %s",Joiner.on(' ').join(Iterables.transform(buildWithBuckFlags,Escaper.BASH_ESCAPER)),Escaper.escapeAsBashString(buildTarget.getFullyQualifiedName())),String.format("rm -r %s 2> /dev/null || true",projectFilesystem.resolve(bundleDestination)),String.format("mkdir -p %s",projectFilesystem.resolve(bundleDestination).getParent()),String.format("cp -r %s %s",projectFilesystem.resolve(AppleBundle.getBundleRoot(targetToBuildWithBuck.get(),"app")),projectFilesystem.resolve(bundleDestination)),"export LANG=C","export LC_ALL=C",String.format("sed -i '' 's|%s|%s|g' %s",compDir,sourceDir,projectFilesystem.resolve(bundleDestination).resolve(binaryName + ".dSYM").resolve("Contents").resolve("Resources").resolve("DWARF").resolve(binaryName))));
+  ImmutableMap<String,ImmutableMap<String,String>> configs=getAppleNativeNode(targetGraph,targetNode).get().getConstructorArg().configs.get();
+  XCConfigurationList configurationList=new XCConfigurationList();
+  PBXGroup group=project.getMainGroup().getOrCreateDescendantGroupByPath(FluentIterable.from(buildTarget.getBasePath()).transform(Functions.toStringFunction()).toList()).getOrCreateChildGroupByName(getXcodeTargetName(buildTarget));
+  for (  String configurationName : configs.keySet()) {
+    XCBuildConfiguration configuration=configurationList.getBuildConfigurationsByName().getUnchecked(configurationName);
+    configuration.setBaseConfigurationReference(getConfigurationFileReference(group,getConfigurationNameToXcconfigPath(buildTarget).apply(configurationName)));
+    NSDictionary inlineSettings=new NSDictionary();
+    inlineSettings.put("HEADER_SEARCH_PATHS","");
+    inlineSettings.put("LIBRARY_SEARCH_PATHS","");
+    inlineSettings.put("FRAMEWORK_SEARCH_PATHS","");
+    configuration.setBuildSettings(inlineSettings);
+  }
+  PBXAggregateTarget buildWithBuckTarget=new PBXAggregateTarget(productName);
+  buildWithBuckTarget.setProductName(productName);
+  buildWithBuckTarget.getBuildPhases().add(shellScriptBuildPhase);
+  buildWithBuckTarget.setBuildConfigurationList(configurationList);
+  project.getTargets().add(buildWithBuckTarget);
+  targetNodeToGeneratedProjectTargetBuilder.put(targetNode,buildWithBuckTarget);
+}

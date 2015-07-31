@@ -28,7 +28,7 @@
   Optional<BuildTarget> targetToBuildWithBuck=getTargetToBuildWithBuck();
   if (combinedProject) {
     LOG.debug("Generating a combined project");
-    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,reactNativeBuckConfig.getServer(),outputDirectory,workspaceName,buildFileName,projectGeneratorOptions,targetToBuildWithBuck,buildWithBuckFlags,outputPathOfNode).setAdditionalCombinedTestTargets(groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
+    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,reactNativeBuckConfig.getServer(),outputDirectory,workspaceName,buildFileName,projectGeneratorOptions,targetToBuildWithBuck,buildWithBuckFlags,cxxPlatforms,defaultCxxPlatform,outputPathOfNode).setAdditionalCombinedTestTargets(groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
     combinedProjectGenerator=Optional.of(generator);
     generator.createXcodeProjects();
     workspaceGenerator.addFilePath(generator.getProjectPath(),Optional.<Path>absent());
@@ -69,7 +69,7 @@
             return rules.contains(input) ? Optional.of(input) : Optional.<BuildTarget>absent();
           }
         }
-),buildWithBuckFlags,outputPathOfNode).setTestsToGenerateAsStaticLibraries(groupableTests);
+),buildWithBuckFlags,cxxPlatforms,defaultCxxPlatform,outputPathOfNode).setTestsToGenerateAsStaticLibraries(groupableTests);
         generator.createXcodeProjects();
         requiredBuildTargetsBuilder.addAll(generator.getRequiredBuildTargets());
         projectGenerators.put(projectDirectory,generator);
@@ -84,7 +84,7 @@
       }
     }
     if (!groupedTests.isEmpty()) {
-      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,reactNativeBuckConfig.getServer(),BuildTargets.getGenPath(workspaceBuildTarget,"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions,Optional.<BuildTarget>absent(),buildWithBuckFlags,outputPathOfNode);
+      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),projectFilesystem,reactNativeBuckConfig.getServer(),BuildTargets.getGenPath(workspaceBuildTarget,"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions,Optional.<BuildTarget>absent(),buildWithBuckFlags,cxxPlatforms,defaultCxxPlatform,outputPathOfNode);
       combinedTestsProjectGenerator.setAdditionalCombinedTestTargets(groupedTests).createXcodeProjects();
       workspaceGenerator.addFilePath(combinedTestsProjectGenerator.getProjectPath());
       requiredBuildTargetsBuilder.addAll(combinedTestsProjectGenerator.getRequiredBuildTargets());
@@ -109,10 +109,10 @@
       Preconditions.checkState(targets.size() == 2);
       PBXTarget first=targets.get(0);
       PBXTarget second=targets.get(1);
-      Preconditions.checkState(first instanceof PBXAggregateTarget ^ second instanceof PBXAggregateTarget);
+      Preconditions.checkState(first.getName().endsWith(ProjectGenerator.BUILD_WITH_BUCK_POSTFIX) ^ second.getName().endsWith(ProjectGenerator.BUILD_WITH_BUCK_POSTFIX));
       PBXTarget buildWithBuckTarget;
       PBXTarget buildWithXcodeTarget;
-      if (first instanceof PBXAggregateTarget) {
+      if (first.getName().endsWith(ProjectGenerator.BUILD_WITH_BUCK_POSTFIX)) {
         buildWithBuckTarget=first;
         buildWithXcodeTarget=second;
       }
