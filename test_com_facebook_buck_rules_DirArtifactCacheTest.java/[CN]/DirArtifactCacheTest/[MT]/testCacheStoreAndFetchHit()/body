@@ -1,16 +1,16 @@
 {
-  File cacheDir=tmpDir.newFolder();
-  File fileX=tmpDir.newFile("x");
-  fileHashCache=new FakeFileHashCache(ImmutableMap.of(fileX.toPath(),HashCode.fromInt(0)));
-  dirArtifactCache=new DirArtifactCache("dir",new ProjectFilesystem(cacheDir.toPath()),Paths.get("."),true,Optional.<Long>absent());
-  Files.write("x",fileX,Charsets.UTF_8);
+  Path cacheDir=tmpDir.newFolder();
+  Path fileX=tmpDir.newFile("x");
+  fileHashCache=new FakeFileHashCache(ImmutableMap.of(fileX,HashCode.fromInt(0)));
+  dirArtifactCache=new DirArtifactCache("dir",new ProjectFilesystem(cacheDir),Paths.get("."),true,Optional.<Long>absent());
+  Files.write(fileX,"x".getBytes(UTF_8));
   BuildRule inputRuleX=new BuildRuleForTest(fileX);
   SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(ImmutableSet.of(inputRuleX)));
   RuleKey ruleKeyX=new DefaultRuleKeyBuilderFactory(fileHashCache,resolver).newInstance(inputRuleX).build();
   dirArtifactCache.store(ImmutableSet.of(ruleKeyX),ImmutableMap.<String,String>of(),fileX);
   assertEquals(CacheResult.Type.HIT,dirArtifactCache.fetch(ruleKeyX,fileX).getType());
   assertEquals(inputRuleX,new BuildRuleForTest(fileX));
-  assertTrue(fileX.delete());
+  Files.delete(fileX);
   assertEquals(CacheResult.Type.HIT,dirArtifactCache.fetch(ruleKeyX,fileX).getType());
   assertEquals(inputRuleX,new BuildRuleForTest(fileX));
 }

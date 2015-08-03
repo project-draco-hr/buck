@@ -4,12 +4,12 @@
   }
   ArtifactCacheEvent.Started started=ArtifactCacheEvent.started(ArtifactCacheEvent.Operation.COMPRESS,ruleKeys);
   eventBus.post(started);
-  File zip;
+  Path zip;
   ImmutableSet<Path> pathsToIncludeInZip=ImmutableSet.of();
   ImmutableMap<String,String> buildMetadata;
   try {
     pathsToIncludeInZip=getRecordedPaths();
-    zip=File.createTempFile("buck_artifact_" + MoreFiles.sanitize(buildTarget.getShortName()),".zip");
+    zip=Files.createTempFile("buck_artifact_" + MoreFiles.sanitize(buildTarget.getShortName()),".zip");
     buildMetadata=getBuildMetadata();
     projectFilesystem.createZip(pathsToIncludeInZip,zip,ImmutableMap.<Path,String>of());
   }
@@ -22,5 +22,10 @@
     eventBus.post(ArtifactCacheEvent.finished(started));
   }
   artifactCache.store(ruleKeys,buildMetadata,zip);
-  zip.delete();
+  try {
+    Files.delete(zip);
+  }
+ catch (  IOException e) {
+    throw new RuntimeException(e);
+  }
 }

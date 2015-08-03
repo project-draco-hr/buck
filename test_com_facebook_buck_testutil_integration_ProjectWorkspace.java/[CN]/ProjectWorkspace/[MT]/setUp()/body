@@ -3,30 +3,27 @@
   Path localProperties=FileSystems.getDefault().getPath("local.properties");
   Path destLocalProperties=destPath.resolve(localProperties.getFileName());
   if (localProperties.toFile().exists() && !destLocalProperties.toFile().exists()) {
-    java.nio.file.Files.copy(localProperties,destLocalProperties);
+    Files.copy(localProperties,destLocalProperties);
   }
   if (Platform.detect() == Platform.WINDOWS) {
     SimpleFileVisitor<Path> copyDirVisitor=new SimpleFileVisitor<Path>(){
       @Override public FileVisitResult visitFile(      Path path,      BasicFileAttributes attrs) throws IOException {
         if (attrs.size() > 0 && attrs.size() <= 4096) {
-          File file=path.toFile();
-          String linkTo=Files.toString(file,Charsets.UTF_8);
-          File linkToFile=new File(templatePath.toFile(),linkTo);
-          if (linkToFile.isFile()) {
-            java.nio.file.Files.copy(linkToFile.toPath(),path,StandardCopyOption.REPLACE_EXISTING);
+          String linkTo=new String(Files.readAllBytes(path),UTF_8);
+          Path linkToFile=templatePath.resolve(linkTo);
+          if (Files.isRegularFile(linkToFile)) {
+            Files.copy(linkToFile,path,StandardCopyOption.REPLACE_EXISTING);
           }
- else           if (linkToFile.isDirectory()) {
-            if (!file.delete()) {
-              throw new IOException();
-            }
-            MoreFiles.copyRecursively(linkToFile.toPath(),path);
+ else           if (Files.isDirectory(linkToFile)) {
+            Files.delete(path);
+            MoreFiles.copyRecursively(linkToFile,path);
           }
         }
         return FileVisitResult.CONTINUE;
       }
     }
 ;
-    java.nio.file.Files.walkFileTree(destPath,copyDirVisitor);
+    Files.walkFileTree(destPath,copyDirVisitor);
   }
   isSetUp=true;
   return this;

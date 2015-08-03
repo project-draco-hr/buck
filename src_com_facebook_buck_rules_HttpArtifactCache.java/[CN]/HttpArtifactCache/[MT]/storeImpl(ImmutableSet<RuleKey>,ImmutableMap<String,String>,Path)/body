@@ -1,0 +1,33 @@
+{
+  Request.Builder builder=new Request.Builder();
+  builder.url(new URL(url,"artifacts/key"));
+  final byte[] rawKeys=createKeysHeader(ruleKeys);
+  final byte[] rawMetadata=createMetadataHeader(ruleKeys,metadata,new ByteSource(){
+    @Override public InputStream openStream() throws IOException {
+      return projectFilesystem.newFileInputStream(file);
+    }
+  }
+,hashFunction);
+  builder.put(new RequestBody(){
+    @Override public MediaType contentType(){
+      return OCTET_STREAM;
+    }
+    @Override public long contentLength() throws IOException {
+      return rawKeys.length + Integer.SIZE / Byte.SIZE + rawMetadata.length + projectFilesystem.getFileSize(file);
+    }
+    @Override public void writeTo(    BufferedSink bufferedSink) throws IOException {
+      bufferedSink.write(rawKeys);
+      bufferedSink.writeInt(rawMetadata.length);
+      bufferedSink.write(rawMetadata);
+      try (BufferedSource fileSource=projectFilesystem.newSource(file)){
+        bufferedSink.writeAll(fileSource);
+      }
+     }
+  }
+);
+  Request request=builder.build();
+  Response response=storeCall(request);
+  if (response.code() != HttpURLConnection.HTTP_ACCEPTED) {
+    reportFailure("store(%s, %s): unexpected response: %d",url,ruleKeys,response.code());
+  }
+}

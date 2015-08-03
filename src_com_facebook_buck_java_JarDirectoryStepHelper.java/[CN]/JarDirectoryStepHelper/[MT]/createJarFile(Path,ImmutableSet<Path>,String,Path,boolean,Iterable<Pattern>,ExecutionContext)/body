@@ -2,15 +2,15 @@
   ProjectFilesystem filesystem=context.getProjectFilesystem();
   Manifest manifest=new Manifest();
   manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION,"1.0");
-  try (CustomZipOutputStream outputFile=ZipOutputStreams.newOutputStream(filesystem.getFileForRelativePath(pathToOutputFile),APPEND_TO_ZIP)){
+  try (CustomZipOutputStream outputFile=ZipOutputStreams.newOutputStream(filesystem.getPathForRelativePath(pathToOutputFile),APPEND_TO_ZIP)){
     Set<String> alreadyAddedEntries=Sets.newHashSet();
     ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
     for (    Path entry : entriesToJar) {
-      File file=projectFilesystem.getFileForRelativePath(entry);
-      if (file.isFile()) {
+      Path file=projectFilesystem.getPathForRelativePath(entry);
+      if (Files.isRegularFile(file)) {
         copyZipEntriesToJar(file,outputFile,manifest,alreadyAddedEntries,context.getBuckEventBus(),blacklist);
       }
- else       if (file.isDirectory()) {
+ else       if (Files.isDirectory(file)) {
         addFilesInDirectoryToJar(file,outputFile,alreadyAddedEntries,context.getBuckEventBus());
       }
  else {
@@ -18,7 +18,7 @@
       }
     }
     if (manifestFile != null) {
-      try (FileInputStream manifestStream=new FileInputStream(filesystem.getFileForRelativePath(manifestFile))){
+      try (InputStream manifestStream=Files.newInputStream(filesystem.getPathForRelativePath(manifestFile))){
         Manifest userSupplied=new Manifest(manifestStream);
         if (mergeManifests) {
           merge(manifest,userSupplied);

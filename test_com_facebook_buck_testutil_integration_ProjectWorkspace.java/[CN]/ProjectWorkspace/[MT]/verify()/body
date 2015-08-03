@@ -4,12 +4,12 @@
       String fileName=file.getFileName().toString();
       if (fileName.endsWith(EXPECTED_SUFFIX)) {
         Path generatedFileWithSuffix=destPath.resolve(templatePath.relativize(file));
-        File directory=generatedFileWithSuffix.getParent().toFile();
-        File observedFile=new File(directory,Files.getNameWithoutExtension(fileName));
-        if (!observedFile.isFile()) {
+        Path directory=generatedFileWithSuffix.getParent();
+        Path observedFile=directory.resolve(MorePaths.getNameWithoutExtension(file));
+        if (!Files.isRegularFile(observedFile)) {
           fail("Expected file " + observedFile + " could not be found.");
         }
-        String extension=Files.getFileExtension(observedFile.getName());
+        String extension=MorePaths.getFileExtension(observedFile);
         String cleanPathToObservedFile=MoreStrings.withoutSuffix(templatePath.relativize(file).toString(),EXPECTED_SUFFIX);
 switch (extension) {
 case "plist":
@@ -23,7 +23,7 @@ case "stringsdict":
         }
       NSObject observedObject;
     try {
-      observedObject=BinaryPropertyListParser.parse(observedFile);
+      observedObject=BinaryPropertyListParser.parse(observedFile.toFile());
     }
  catch (    Exception e) {
       observedObject=null;
@@ -34,16 +34,16 @@ if (expectedObject != null && observedObject != null) {
   break;
 }
  else {
-  assertFileContentsEqual(file.toFile(),observedFile);
+  assertFileContentsEqual(file,observedFile);
 }
 break;
 default :
-assertFileContentsEqual(file.toFile(),observedFile);
+assertFileContentsEqual(file,observedFile);
 }
 }
 return FileVisitResult.CONTINUE;
 }
 }
 ;
-java.nio.file.Files.walkFileTree(templatePath,copyDirVisitor);
+Files.walkFileTree(templatePath,copyDirVisitor);
 }

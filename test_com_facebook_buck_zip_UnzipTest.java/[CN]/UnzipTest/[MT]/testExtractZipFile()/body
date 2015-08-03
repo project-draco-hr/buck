@@ -4,13 +4,13 @@
     zip.add("subdir/2.bin",DUMMY_FILE_CONTENTS);
     zip.addDir("emptydir");
   }
-   File extractFolder=tmpFolder.newFolder();
-  ImmutableList<Path> result=Unzip.extractZipFile(zipFile.toPath().toAbsolutePath(),extractFolder.toPath().toAbsolutePath(),Unzip.ExistingFileMode.OVERWRITE);
-  assertTrue(new File(extractFolder.getAbsolutePath() + "/1.bin").exists());
-  File bin2=new File(extractFolder.getAbsolutePath() + "/subdir/2.bin");
-  assertTrue(bin2.exists());
-  assertTrue(new File(extractFolder.getAbsolutePath() + "/emptydir").isDirectory());
-  try (FileInputStream input=new FileInputStream(bin2)){
+   Path extractFolder=tmpFolder.newFolder();
+  ImmutableList<Path> result=Unzip.extractZipFile(zipFile.toAbsolutePath(),extractFolder.toAbsolutePath(),Unzip.ExistingFileMode.OVERWRITE);
+  assertTrue(Files.exists(extractFolder.toAbsolutePath().resolve("1.bin")));
+  Path bin2=extractFolder.toAbsolutePath().resolve("subdir/2.bin");
+  assertTrue(Files.exists(bin2));
+  assertTrue(Files.isDirectory(extractFolder.toAbsolutePath().resolve("emptydir")));
+  try (InputStream input=Files.newInputStream(bin2)){
     byte[] buffer=new byte[DUMMY_FILE_CONTENTS.length];
     int bytesRead=input.read(buffer,0,DUMMY_FILE_CONTENTS.length);
     assertEquals(DUMMY_FILE_CONTENTS.length,bytesRead);
@@ -18,5 +18,5 @@
       assertEquals(DUMMY_FILE_CONTENTS[i],buffer[i]);
     }
   }
-   assertEquals(ImmutableList.of(extractFolder.toPath().resolve("1.bin"),extractFolder.toPath().resolve("subdir/2.bin")),result);
+   assertEquals(ImmutableList.of(extractFolder.resolve("1.bin"),extractFolder.resolve("subdir/2.bin")),result);
 }

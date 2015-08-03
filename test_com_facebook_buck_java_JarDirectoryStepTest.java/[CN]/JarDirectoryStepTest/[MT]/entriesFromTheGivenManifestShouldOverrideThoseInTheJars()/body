@@ -1,25 +1,25 @@
 {
   String expected="1.4";
-  File tmp=folder.newFolder();
+  Path tmp=folder.newFolder();
   Manifest manifest=new Manifest();
   manifest.getMainAttributes().putValue(MANIFEST_VERSION.toString(),"1.0");
   manifest.getMainAttributes().putValue(IMPLEMENTATION_VERSION.toString(),expected);
-  File manifestFile=new File(tmp,"manifest");
-  try (FileOutputStream fos=new FileOutputStream(manifestFile)){
+  Path manifestFile=tmp.resolve("manifest");
+  try (OutputStream fos=Files.newOutputStream(manifestFile)){
     manifest.write(fos);
   }
    manifest=new Manifest();
   manifest.getMainAttributes().putValue(MANIFEST_VERSION.toString(),"1.0");
   manifest.getMainAttributes().putValue(IMPLEMENTATION_VERSION.toString(),"1.0");
-  File input=new File(tmp,"input.jar");
+  Path input=tmp.resolve("input.jar");
   try (CustomZipOutputStream out=ZipOutputStreams.newOutputStream(input)){
     ZipEntry entry=new ZipEntry("META-INF/MANIFEST.MF");
     out.putNextEntry(entry);
     manifest.write(out);
   }
-   File output=new File(tmp,"output.jar");
+   Path output=tmp.resolve("output.jar");
   JarDirectoryStep step=new JarDirectoryStep(Paths.get("output.jar"),ImmutableSet.of(Paths.get("input.jar")),null,Paths.get("manifest"),true,ImmutableSet.<String>of());
-  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(new ProjectFilesystem(tmp.toPath())).build();
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(new ProjectFilesystem(tmp)).build();
   assertEquals(0,step.execute(context));
   try (Zip zip=new Zip(output,false)){
     byte[] rawManifest=zip.readFully("META-INF/MANIFEST.MF");
