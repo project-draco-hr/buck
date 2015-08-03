@@ -1,0 +1,24 @@
+{
+  Optional<ExopackageInfo> exopackageInfo=installableApk.getExopackageInfo();
+  if (exopackageInfo.isPresent()) {
+    return new ExopackageInstaller(context,this,installableApk).install(quiet);
+  }
+  InstallEvent.Started started=InstallEvent.started(installableApk.getBuildTarget());
+  if (!quiet) {
+    getBuckEventBus().post(started);
+  }
+  final File apk=installableApk.getApkPath().toFile();
+  boolean success=adbCall(new AdbHelper.AdbCallable(){
+    @Override public boolean call(    IDevice device) throws Exception {
+      return installApkOnDevice(device,apk,installViaSd,quiet);
+    }
+    @Override public String toString(){
+      return "install apk";
+    }
+  }
+,quiet);
+  if (!quiet) {
+    getBuckEventBus().post(InstallEvent.finished(started,success,Optional.<Long>absent()));
+  }
+  return success;
+}

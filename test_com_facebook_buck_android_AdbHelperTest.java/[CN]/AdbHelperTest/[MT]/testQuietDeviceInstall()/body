@@ -1,0 +1,38 @@
+{
+  final File apk=new File("/some/file.apk");
+  final AtomicReference<String> apkPath=new AtomicReference<>();
+  TestDevice device=new TestDevice(){
+    @Override public String installPackage(    String s,    boolean b,    String... strings) throws InstallException {
+      apkPath.set(s);
+      return null;
+    }
+  }
+;
+  device.setSerialNumber("serial#1");
+  device.setName("testDevice");
+  final List<IDevice> deviceList=Lists.newArrayList((IDevice)device);
+  TestConsole console=new TestConsole();
+  BuckEventBus eventBus=BuckEventBusFactory.newInstance();
+  AdbHelper adbHelper=new AdbHelper(new AdbOptions(),new TargetDeviceOptions(),TestExecutionContext.newInstance(),console,eventBus,true){
+    @Override protected boolean isDeviceTempWritable(    IDevice device,    String name){
+      return true;
+    }
+    @Override public List<IDevice> getDevices(    boolean quiet){
+      return deviceList;
+    }
+  }
+;
+  boolean success=adbHelper.adbCall(new AdbHelper.AdbCallable(){
+    @Override public boolean call(    IDevice device) throws Exception {
+      return basicAdbHelper.installApkOnDevice(device,apk,false,true);
+    }
+    @Override public String toString(){
+      return "install apk";
+    }
+  }
+,true);
+  assertTrue(success);
+  assertEquals(apk.getAbsolutePath(),apkPath.get());
+  assertEquals("",console.getTextWrittenToStdOut());
+  assertEquals("",console.getTextWrittenToStdErr());
+}

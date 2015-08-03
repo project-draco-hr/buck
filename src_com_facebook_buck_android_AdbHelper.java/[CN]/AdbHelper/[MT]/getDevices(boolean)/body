@@ -1,0 +1,26 @@
+{
+  AndroidDebugBridge adb=createAdb(context);
+  if (adb == null) {
+    console.printBuildFailure("Failed to create adb connection.");
+    return Lists.newArrayList();
+  }
+  List<IDevice> devices=filterDevices(adb.getDevices());
+  if (devices != null && devices.size() > 1) {
+    if (!options.isMultiInstallModeEnabled()) {
+      console.printBuildFailure(String.format("%d device(s) matches specified device filter (1 expected).\n" + "Either disconnect other devices or enable multi-install mode (%s).",devices.size(),AdbOptions.MULTI_INSTALL_MODE_SHORT_ARG));
+      return Lists.newArrayList();
+    }
+    if (!quiet) {
+      console.getStdOut().printf("Found " + devices.size() + " matching devices.\n");
+    }
+  }
+  if (devices == null && restartAdbOnFailure) {
+    console.printErrorText("No devices found with adb, restarting adb-server.");
+    adb.restart();
+    devices=filterDevices(adb.getDevices());
+  }
+  if (devices == null) {
+    return Lists.newArrayList();
+  }
+  return devices;
+}
