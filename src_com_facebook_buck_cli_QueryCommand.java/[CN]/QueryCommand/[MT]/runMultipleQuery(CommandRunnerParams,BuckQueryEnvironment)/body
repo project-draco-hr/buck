@@ -1,0 +1,31 @@
+{
+  if (getArguments().size() < 2) {
+    params.getConsole().printBuildFailure("Specify one or more input targets after the query expression format");
+    return 1;
+  }
+  try {
+    String queryFormat=getArguments().get(0);
+    TreeMultimap<BuildTarget,BuildTarget> queryResultMap=TreeMultimap.create();
+    for (    String input : getMultipleQueryInputsFormattedAsBuildTargets(params.getBuckConfig())) {
+      BuildTarget target=BuildTargetParser.INSTANCE.parse(input,BuildTargetPatternParser.fullyQualified());
+      String query=String.format(queryFormat,input);
+      Set<BuildTarget> queryResult=env.evaluateQuery(query);
+      queryResultMap.putAll(target,queryResult);
+    }
+    LOG.debug("Printing out the following targets: " + queryResultMap);
+    if (shouldGenerateJsonOutput()) {
+      printJSON(params,queryResultMap);
+    }
+ else {
+      printToConsole(params,queryResultMap);
+    }
+  }
+ catch (  QueryException e) {
+    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+catch (  MissingFormatArgumentException e) {
+    params.getConsole().printBuildFailure("The query expression should contain only one format specifier");
+  }
+  return 0;
+}
