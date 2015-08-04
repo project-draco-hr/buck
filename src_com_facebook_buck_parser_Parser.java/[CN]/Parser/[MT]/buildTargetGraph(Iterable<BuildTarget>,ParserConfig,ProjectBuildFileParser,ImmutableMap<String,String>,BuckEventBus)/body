@@ -1,0 +1,62 @@
+{
+  final MutableDirectedGraph<TargetNode<?>> graph=new MutableDirectedGraph<>();
+  final Optional<BuckEventBus> eventBusOptional=Optional.of(eventBus);
+  AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget>(){
+    @Override protected Iterator<BuildTarget> findChildren(    BuildTarget buildTarget) throws IOException, InterruptedException {
+      eventBus.post(GetTargetDependenciesEvent.started(buildTarget));
+      try {
+        BuildTargetPatternParser<BuildTargetPattern> buildTargetPatternParser=BuildTargetPatternParser.forBaseName(buildTarget.getBaseName());
+        eventBus.post(GetTargetNodeEvent.started(buildTarget));
+        TargetNode<?> targetNode=state.get(buildTarget,eventBusOptional);
+        eventBus.post(GetTargetNodeEvent.finished(buildTarget));
+        if (targetNode == null) {
+          throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTarget,buildTargetPatternParser,parserConfig.getBuildFileName()));
+        }
+        Set<BuildTarget> deps=Sets.newHashSet();
+        for (        BuildTarget buildTargetForDep : targetNode.getDeps()) {
+          try {
+            eventBus.post(GetTargetNodeEvent.started(buildTargetForDep));
+            TargetNode<?> depTargetNode=state.get(buildTargetForDep,eventBusOptional);
+            eventBus.post(GetTargetNodeEvent.finished(buildTargetForDep));
+            if (depTargetNode == null) {
+              parseBuildFileContainingTarget(buildTargetForDep,parserConfig,buildFileParser,environment);
+              eventBus.post(GetTargetNodeEvent.started(buildTargetForDep));
+              depTargetNode=state.get(buildTargetForDep,eventBusOptional);
+              eventBus.post(GetTargetNodeEvent.finished(buildTargetForDep));
+              if (depTargetNode == null) {
+                throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTargetForDep,BuildTargetPatternParser.forBaseName(buildTargetForDep.getBaseName()),parserConfig.getBuildFileName()));
+              }
+            }
+            depTargetNode.checkVisibility(buildTarget);
+            deps.add(buildTargetForDep);
+          }
+ catch (          HumanReadableException|BuildTargetException|BuildFileParseException e) {
+            throw new HumanReadableException(e,"Couldn't get dependency '%s' of target '%s':\n%s",buildTargetForDep,buildTarget,e.getHumanReadableErrorMessage());
+          }
+        }
+        return deps.iterator();
+      }
+  finally {
+        eventBus.post(GetTargetDependenciesEvent.finished(buildTarget));
+      }
+    }
+    @Override protected void onNodeExplored(    BuildTarget buildTarget) throws IOException, InterruptedException {
+      TargetNode<?> targetNode=getTargetNode(buildTarget);
+      Preconditions.checkNotNull(targetNode,"No target node found for %s",buildTarget);
+      graph.addNode(targetNode);
+      for (      BuildTarget target : targetNode.getDeps()) {
+        graph.addEdge(targetNode,Preconditions.checkNotNull(getTargetNode(target)));
+      }
+    }
+    @Override protected void onTraversalComplete(    Iterable<BuildTarget> nodesInExplorationOrder){
+    }
+  }
+;
+  try {
+    traversal.traverse(toExplore);
+  }
+ catch (  AbstractAcyclicDepthFirstPostOrderTraversal.CycleException e) {
+    throw new HumanReadableException(e.getMessage());
+  }
+  return new TargetGraph(graph);
+}
