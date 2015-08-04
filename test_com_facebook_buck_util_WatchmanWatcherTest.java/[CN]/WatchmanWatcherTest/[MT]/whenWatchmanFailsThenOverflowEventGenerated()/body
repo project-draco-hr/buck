@@ -1,11 +1,9 @@
 {
-  String watchmanOutput="";
   Capture<WatchEvent<Path>> eventCapture=newCapture();
   EventBus eventBus=createStrictMock(EventBus.class);
   eventBus.post(capture(eventCapture));
-  Process process=createWaitForProcessMock(watchmanOutput,1);
-  replay(eventBus,process);
-  WatchmanWatcher watcher=createWatcher(eventBus,process,new IncrementingFakeClock(),new ObjectMapper());
+  replay(eventBus);
+  WatchmanWatcher watcher=createWatcher(eventBus,new FakeProcess(1,"",""),new IncrementingFakeClock(),new ObjectMapper());
   try {
     watcher.postEvents(new BuckEventBus(new FakeClock(0),new BuildId()));
     fail("Should have thrown IOException.");
@@ -13,6 +11,6 @@
  catch (  WatchmanWatcherException e) {
     assertTrue("Should be watchman error",e.getMessage().startsWith("Watchman failed"));
   }
-  verify(eventBus,process);
+  verify(eventBus);
   assertEquals("Should be overflow event.",StandardWatchEventKinds.OVERFLOW,eventCapture.getValue().kind());
 }

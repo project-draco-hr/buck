@@ -50,13 +50,13 @@
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(processExecutor,clientEnvironment,System.getProperties());
   DefaultFileHashCache fileHashCache;
   if (isDaemon) {
-    fileHashCache=getFileHashCacheFromDaemon(rootRepository,clock);
+    fileHashCache=getFileHashCacheFromDaemon(rootRepository,clock,processExecutor);
   }
  else {
     fileHashCache=new DefaultFileHashCache(rootRepository.getFilesystem());
   }
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
-  Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,clock);
+  Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,clock,processExecutor);
   TestConfig testConfig=new TestConfig(buckConfig);
   try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
     artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
@@ -67,7 +67,7 @@
     Parser parser=null;
     if (isDaemon) {
       try {
-        parser=getParserFromDaemon(context,rootRepository,startedEvent,buildEventBus,clock);
+        parser=getParserFromDaemon(context,rootRepository,startedEvent,buildEventBus,clock,processExecutor);
       }
  catch (      WatchmanWatcherException|IOException e) {
         buildEventBus.post(ConsoleEvent.warning("Watchman threw an exception while parsing file changes.\n%s",e.getMessage()));
@@ -76,7 +76,7 @@
     if (parser == null) {
       ParserConfig parserConfig=new ParserConfig(rootRepository.getBuckConfig());
       PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(rootRepository.getBuckConfig(),new ExecutableFinder());
-      parser=Parser.createParser(rootRepository,pythonBuckConfig.getPythonInterpreter(),parserConfig.getAllowEmptyGlobs(),parserConfig.getEnforceBuckPackageBoundary(),parserConfig.getTempFilePatterns(),parserConfig.getBuildFileName(),parserConfig.getDefaultIncludes());
+      parser=Parser.createParser(rootRepository,pythonBuckConfig.getPythonInterpreter(),parserConfig.getAllowEmptyGlobs(),parserConfig.getEnforceBuckPackageBoundary(),parserConfig.getTempFilePatterns(),parserConfig.getBuildFileName(),parserConfig.getDefaultIncludes(),false);
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootRepository.getFilesystem());
     Optional<ProcessManager> processManager;

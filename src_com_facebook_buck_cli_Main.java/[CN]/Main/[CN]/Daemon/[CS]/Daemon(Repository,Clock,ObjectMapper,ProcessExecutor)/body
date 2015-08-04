@@ -1,0 +1,25 @@
+{
+  this.repository=repository;
+  this.clock=clock;
+  this.objectMapper=objectMapper;
+  this.hashCache=new DefaultFileHashCache(repository.getFilesystem());
+  this.processExecutor=processExecutor;
+  ParserConfig parserConfig=new ParserConfig(repository.getBuckConfig());
+  PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(repository.getBuckConfig(),new ExecutableFinder());
+  this.fileEventBus=new EventBus("file-change-events");
+  this.watchmanWatcher=createWatcher(repository.getFilesystem());
+  Optional<String> watchmanVersion=watchmanWatcher.getWatchmanVersion();
+  boolean useWatchmanGlob;
+  if (watchmanVersion.isPresent()) {
+    useWatchmanGlob=new VersionStringComparator().compare(watchmanVersion.get(),WATCHMAN_GLOB_MIN_VERSION) >= 0;
+  }
+ else {
+    useWatchmanGlob=false;
+  }
+  LOG.debug("Got watchman version: %s, using watchman glob %s",watchmanVersion,useWatchmanGlob);
+  this.parser=Parser.createParser(repository,pythonBuckConfig.getPythonInterpreter(),parserConfig.getAllowEmptyGlobs(),parserConfig.getEnforceBuckPackageBoundary(),parserConfig.getTempFilePatterns(),parserConfig.getBuildFileName(),parserConfig.getDefaultIncludes(),useWatchmanGlob);
+  fileEventBus.register(parser);
+  fileEventBus.register(hashCache);
+  webServer=createWebServer(repository.getBuckConfig(),repository.getFilesystem());
+  JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(repository.getFilesystem());
+}
