@@ -1,0 +1,41 @@
+{
+  ByteBuffer sniffBuffer=ByteBuffer.allocate(SNIFF_BUFFER_SIZE).order(ByteOrder.nativeOrder());
+  Preconditions.checkState(sniffBuffer.hasArray());
+  int sniffBytesRead=ByteStreams.read(inputStream,sniffBuffer.array(),0,INITIAL_SNIFF_LEN);
+  if (sniffBytesRead < INITIAL_SNIFF_LEN) {
+    throw new IOException(String.format("Invalid BSER header (expected %d bytes, got %d bytes)",INITIAL_SNIFF_LEN,sniffBytesRead));
+  }
+  if (sniffBuffer.get() != 0x00 || sniffBuffer.get() != 0x01) {
+    throw new IOException("Invalid BSER header");
+  }
+  byte lengthType=sniffBuffer.get();
+  int lengthBytesRemaining;
+switch (lengthType) {
+case BSER_INT8:
+    lengthBytesRemaining=1;
+  break;
+case BSER_INT16:
+lengthBytesRemaining=2;
+break;
+case BSER_INT32:
+lengthBytesRemaining=4;
+break;
+case BSER_INT64:
+lengthBytesRemaining=8;
+break;
+default :
+throw new IOException(String.format("Unrecognized BSER header length type %d",lengthType));
+}
+int lengthBytesRead=ByteStreams.read(inputStream,sniffBuffer.array(),sniffBuffer.position(),lengthBytesRemaining);
+if (lengthBytesRead < lengthBytesRemaining) {
+throw new IOException(String.format("Invalid BSER header length (expected %d bytes, got %d bytes)",lengthBytesRemaining,lengthBytesRead));
+}
+int bytesRemaining=deserializeIntLen(sniffBuffer,lengthType);
+ByteBuffer bserBuffer=ByteBuffer.allocate(bytesRemaining).order(ByteOrder.nativeOrder());
+Preconditions.checkState(bserBuffer.hasArray());
+int remainingBytesRead=ByteStreams.read(inputStream,bserBuffer.array(),0,bytesRemaining);
+if (remainingBytesRead < bytesRemaining) {
+throw new IOException(String.format("Invalid BSER header (expected %d bytes, got %d bytes)",bytesRemaining,remainingBytesRead));
+}
+return deserializeRecursive(bserBuffer);
+}

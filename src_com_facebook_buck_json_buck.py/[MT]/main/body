@@ -11,23 +11,29 @@ def main():
     options.project_root = cygwin_adjusted_path(options.project_root)
     project_root = os.path.abspath(options.project_root)
     watchman_client = None
+    output_format = 'JSON'
+    output_encode = (lambda val: json.dumps(val, sort_keys=True))
     if options.use_watchman_glob:
         try:
             import pywatchman
             watchman_client = pywatchman.client()
+            output_format = 'BSER'
+            output_encode = (lambda val: pywatchman.bser.dumps(val))
         except ImportError as e:
             pass
     buildFileProcessor = BuildFileProcessor(project_root, options.build_file_name, options.allow_empty_globs, watchman_client, implicit_includes=(options.include or []))
     buildFileProcessor.install_builtins(__builtin__.__dict__)
+    to_parent.write((output_format + '\n'))
+    to_parent.flush()
     for build_file in args:
         build_file = cygwin_adjusted_path(build_file)
         values = buildFileProcessor.process(build_file)
-        to_parent.write(json.dumps(values, sort_keys=True))
+        to_parent.write(output_encode(values))
         to_parent.flush()
     for build_file in iter(sys.stdin.readline, ''):
         build_file = cygwin_adjusted_path(build_file)
         values = buildFileProcessor.process(build_file.rstrip())
-        to_parent.write(json.dumps(values, sort_keys=True))
+        to_parent.write(output_encode(values))
         to_parent.flush()
     try:
         to_parent.close()

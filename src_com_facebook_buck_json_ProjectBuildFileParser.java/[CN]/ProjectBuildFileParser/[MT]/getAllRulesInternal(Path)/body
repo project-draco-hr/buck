@@ -1,7 +1,6 @@
 {
   ensureNotClosed();
   initIfNeeded();
-  Preconditions.checkNotNull(buckPyStdoutParser);
   Preconditions.checkNotNull(buckPyStdinWriter);
   Preconditions.checkNotNull(buckPyProcess);
   buckEventBus.post(ParseBuckFileEvent.started(buildFile));
@@ -10,8 +9,17 @@
   buckPyStdinWriter.write(buildFileString);
   buckPyStdinWriter.newLine();
   buckPyStdinWriter.flush();
-  LOG.debug("Parsing output of process %s...",buckPyProcess);
-  List<Map<String,Object>> result=buckPyStdoutParser.nextRules();
+  LOG.debug("Parsing output of process %s using format %s...",buckPyProcess,buckPyOutputFormat);
+  List<Map<String,Object>> result;
+  if (buckPyOutputFormat == BuckPyOutputFormat.BSER) {
+    Object deserializedValue=bserDeserializer.deserializeBserValue(buckPyProcess.getInputStream());
+    Preconditions.checkState(deserializedValue instanceof List<?>);
+    result=(List<Map<String,Object>>)deserializedValue;
+  }
+ else {
+    Preconditions.checkNotNull(buckPyStdoutParser);
+    result=buckPyStdoutParser.nextRules();
+  }
   LOG.verbose("Got rules: %s",result);
   int numRules=result.size();
   LOG.debug("Parsed %d rules from process",numRules);
