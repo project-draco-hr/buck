@@ -1,0 +1,19 @@
+{
+  String filenameTime=dateFormat.get().format(new Date(clock.currentTimeMillis()));
+  String traceName=String.format("build.%s.%s.trace",filenameTime,buildId);
+  if (compressTraces) {
+    traceName=traceName + ".gz";
+  }
+  Path tracePath=BuckConstant.BUCK_TRACE_DIR.resolve(traceName);
+  try {
+    projectFilesystem.createParentDirs(tracePath);
+    OutputStream stream=projectFilesystem.newFileOutputStream(tracePath);
+    if (compressTraces) {
+      stream=new BestCompressionGZIPOutputStream(stream,true);
+    }
+    return new TracePathAndStream(tracePath,stream);
+  }
+ catch (  IOException e) {
+    throw new HumanReadableException(e,"Unable to write trace file: " + e);
+  }
+}

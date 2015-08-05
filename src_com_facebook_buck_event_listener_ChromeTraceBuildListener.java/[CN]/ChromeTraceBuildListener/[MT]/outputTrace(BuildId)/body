@@ -1,18 +1,18 @@
 {
   try {
-    String filenameTime=dateFormat.get().format(new Date(clock.currentTimeMillis()));
-    String traceName=String.format("build.%s.%s.trace",filenameTime,buildId);
-    if (compressTraces) {
-      traceName=traceName + ".gz";
-    }
-    Path tracePath=BuckConstant.BUCK_TRACE_DIR.resolve(traceName);
-    projectFilesystem.createParentDirs(tracePath);
-    OutputStream stream=projectFilesystem.newFileOutputStream(tracePath);
-    if (compressTraces) {
-      stream=new BestCompressionGZIPOutputStream(stream,true);
-    }
     LOG.debug("Writing Chrome trace to %s",tracePath);
-    mapper.writeValue(stream,eventList);
+    outputExecutor.shutdown();
+    try {
+      if (!outputExecutor.awaitTermination(TIMEOUT_SECONDS,TimeUnit.SECONDS)) {
+        LOG.warn("Failed to log buck trace %s.  Trace might be corrupt",tracePath);
+      }
+    }
+ catch (    InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+    jsonGenerator.writeEndArray();
+    jsonGenerator.close();
+    traceStream.close();
     String symlinkName=compressTraces ? "build.trace.gz" : "build.trace";
     Path symlinkPath=BuckConstant.BUCK_TRACE_DIR.resolve(symlinkName);
     projectFilesystem.createSymLink(projectFilesystem.resolve(symlinkPath),projectFilesystem.resolve(tracePath),true);
