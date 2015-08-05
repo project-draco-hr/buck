@@ -1,0 +1,16 @@
+{
+  ProjectFilesystem projectFilesystem=new ProjectFilesystem(tmpDir.getRoot().toPath());
+  ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
+  Path output=Paths.get("headers.hmap");
+  ImmutableMap<Path,Path> entries=ImmutableMap.of(Paths.get("file1.h"),Paths.get("/some/absolute/path.h"),Paths.get("file2.h"),Paths.get("/other/absolute/path.h"),Paths.get("prefix/file1.h"),Paths.get("/some/absolute/path.h"));
+  HeaderMapStep step=new HeaderMapStep(output,entries);
+  step.execute(context);
+  assertTrue(projectFilesystem.exists(output));
+  byte[] headerMapBytes=ByteStreams.toByteArray(projectFilesystem.newFileInputStream(output));
+  HeaderMap headerMap=HeaderMap.deserialize(headerMapBytes);
+  assertNotNull(headerMap);
+  assertThat(headerMap.getNumEntries(),equalTo(entries.size()));
+  for (  Map.Entry<Path,Path> entry : entries.entrySet()) {
+    assertThat(headerMap.lookup(entry.getKey().toString()),equalTo(entry.getValue().toString()));
+  }
+}
