@@ -1,0 +1,15 @@
+def receive(self):
+    buf = [self.transport.readBytes(sniff_len)]
+    if (not buf[0]):
+        raise WatchmanError('empty watchman response')
+    elen = bser.pdu_len(buf[0])
+    rlen = len(buf[0])
+    while (elen > rlen):
+        buf.append(self.transport.readBytes((elen - rlen)))
+        rlen += len(buf[(-1)])
+    response = ''.join(buf)
+    try:
+        res = bser.loads(response)
+        return res
+    except ValueError as e:
+        raise WatchmanError(('watchman response decode error: %s' % e))

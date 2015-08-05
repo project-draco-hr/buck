@@ -10,7 +10,14 @@ def main():
     (options, args) = parser.parse_args()
     options.project_root = cygwin_adjusted_path(options.project_root)
     project_root = os.path.abspath(options.project_root)
-    buildFileProcessor = BuildFileProcessor(project_root, options.build_file_name, options.allow_empty_globs, options.use_watchman_glob, implicit_includes=(options.include or []))
+    watchman_client = None
+    if options.use_watchman_glob:
+        try:
+            import pywatchman
+            watchman_client = pywatchman.client()
+        except ImportError as e:
+            pass
+    buildFileProcessor = BuildFileProcessor(project_root, options.build_file_name, options.allow_empty_globs, watchman_client, implicit_includes=(options.include or []))
     buildFileProcessor.install_builtins(__builtin__.__dict__)
     for build_file in args:
         build_file = cygwin_adjusted_path(build_file)

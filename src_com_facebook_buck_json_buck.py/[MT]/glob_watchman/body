@@ -1,5 +1,5 @@
 @memoized
-def glob_watchman(includes, excludes, include_dotfiles, base_path, project_root, sync_cookie_state):
+def glob_watchman(includes, excludes, include_dotfiles, base_path, project_root, sync_cookie_state, watchman_client):
     assert includes, 'The includes argument must be a non-empty list of strings.'
     match_exprs = ['allof', 'exists']
     match_flags = {}
@@ -15,9 +15,7 @@ def glob_watchman(includes, excludes, include_dotfiles, base_path, project_root,
     else:
         query_params['sync_timeout'] = 0
     query = ['query', project_root, query_params]
-    process = subprocess.Popen(['watchman', '-j', '--no-pretty'], stdout=subprocess.PIPE, stdin=subprocess.PIPE, stderr=subprocess.PIPE)
-    (stdout, _) = process.communicate(input=json.dumps(query))
-    res = json.loads(stdout)
+    res = watchman_client.query(*query)
     if res.get('error'):
         raise RuntimeError('Error from Watchman query {}: {}'.format(query, res.get('error')))
     if res.get('warning'):

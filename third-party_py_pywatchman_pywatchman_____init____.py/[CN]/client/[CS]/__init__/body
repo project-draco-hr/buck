@@ -1,0 +1,20 @@
+def __init__(self, sockpath=None, timeout=1.0, transport=None, sendEncoding=None, recvEncoding=None):
+    self.sockpath = sockpath
+    self.timeout = timeout
+    transport = (transport or os.getenv('WATCHMAN_TRANSPORT') or 'local')
+    if ((transport == 'local') and (os.name == 'nt')):
+        self.transport = WindowsNamedPipeTransport
+    elif (transport == 'local'):
+        self.transport = UnixSocketTransport
+    elif (transport == 'cli'):
+        self.transport = CLIProcessTransport
+        if (sendEncoding is None):
+            sendEncoding = 'json'
+        if (recvEncoding is None):
+            recvEncoding = sendEncoding
+    else:
+        raise WatchmanError(('invalid transport %s' % transport))
+    sendEncoding = (sendEncoding or os.getenv('WATCHMAN_ENCODING') or 'bser')
+    recvEncoding = (recvEncoding or os.getenv('WATCHMAN_ENCODING') or 'bser')
+    self.recvCodec = self._parseEncoding(recvEncoding)
+    self.sendCodec = self._parseEncoding(sendEncoding)
