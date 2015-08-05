@@ -1,0 +1,24 @@
+{
+  final ImmutableSet.Builder<ProvisioningProfileMetadata> profilesBuilder=ImmutableSet.builder();
+  try {
+    Files.walkFileTree(searchPath.toAbsolutePath(),new SimpleFileVisitor<Path>(){
+      @Override public FileVisitResult visitFile(      Path file,      BasicFileAttributes attrs){
+        if (file.toString().endsWith(".mobileprovision")) {
+          try {
+            ProvisioningProfileMetadata profile=ProvisioningProfileMetadata.fromProvisioningProfilePath(file);
+            profilesBuilder.add(profile);
+          }
+ catch (          IOException|IllegalArgumentException e) {
+            LOG.error(e,"Ignoring invalid or malformed .mobileprovision file");
+          }
+        }
+        return FileVisitResult.CONTINUE;
+      }
+    }
+);
+  }
+ catch (  IOException e) {
+    LOG.error(e,"Error while searching for mobileprovision files");
+  }
+  return profilesBuilder.build();
+}

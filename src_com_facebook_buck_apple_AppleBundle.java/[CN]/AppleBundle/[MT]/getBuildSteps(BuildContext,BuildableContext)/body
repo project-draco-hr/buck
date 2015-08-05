@@ -48,6 +48,17 @@
     Path bundleDir=mergedAssetCatalog.get().getOutputDir();
     stepsBuilder.add(CopyStep.forDirectory(bundleDir,bundleRoot,CopyStep.DirectoryMode.CONTENTS_ONLY));
   }
+  if (provisioningProfiles.isPresent()) {
+    Optional<Path> entitlementsPlist=Optional.absent();
+    final String srcRoot=context.getProjectRoot().resolve(getBuildTarget().getBasePath()).toString();
+    Optional<String> entitlementsPlistString=InfoPlistSubstitution.getVariableExpansionForPlatform(CODE_SIGN_ENTITLEMENTS,platformName,withDefaults(infoPlistSubstitutions,ImmutableMap.of("SOURCE_ROOT",srcRoot,"SRCROOT",srcRoot)));
+    if (entitlementsPlistString.isPresent()) {
+      entitlementsPlist=Optional.of(Paths.get(entitlementsPlistString.get()));
+    }
+    final Path signingEntitlementsTempPath=BuildTargets.getScratchPath(getBuildTarget(),"%s.xcent");
+    stepsBuilder.add(new ProvisioningProfileCopyStep(infoPlistOutputPath,Optional.<String>absent(),entitlementsPlist,provisioningProfiles.get(),bundleDestinationPath.resolve("embedded.mobileprovision"),signingEntitlementsTempPath));
+    stepsBuilder.add(new CodeSignStep(bundleDestinationPath,signingEntitlementsTempPath,codeSignIdentity.get().getHash()));
+  }
   buildableContext.recordArtifact(bundleRoot);
   return stepsBuilder.build();
 }

@@ -1,0 +1,25 @@
+{
+  String fileAsString=Files.toString(profilePath.toFile(),Charsets.UTF_8);
+  Matcher matcher=PLIST_XML_PATTERN.matcher(fileAsString);
+  if (matcher.find()) {
+    fileAsString=matcher.group();
+  }
+ else {
+    throw new IllegalArgumentException("Malformed .mobileprovision file (could not find embedded plist)");
+  }
+  try {
+    NSDictionary plist=(NSDictionary)PropertyListParser.parse(fileAsString.getBytes());
+    Date expirationDate=((NSDate)plist.get("ExpirationDate")).getDate();
+    String uuid=((NSString)plist.get("UUID")).getContent();
+    ImmutableMap.Builder<String,NSObject> builder=ImmutableMap.<String,NSObject>builder();
+    NSDictionary entitlements=((NSDictionary)plist.get("Entitlements"));
+    for (    String key : entitlements.keySet()) {
+      builder=builder.put(key,entitlements.objectForKey(key));
+    }
+    String appID=entitlements.get("application-identifier").toString();
+    return ProvisioningProfileMetadata.builder().setAppID(ProvisioningProfileMetadata.splitAppID(appID)).setExpirationDate(expirationDate).setUUID(uuid).setProfilePath(Optional.<Path>of(profilePath)).setEntitlements(builder.build()).build();
+  }
+ catch (  Exception e) {
+    throw new IllegalArgumentException("Malformed embedded plist: " + e);
+  }
+}

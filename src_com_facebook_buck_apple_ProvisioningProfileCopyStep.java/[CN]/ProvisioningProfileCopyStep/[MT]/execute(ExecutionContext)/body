@@ -1,0 +1,52 @@
+{
+  final String bundleID;
+  try {
+    bundleID=AppleInfoPlistParsing.getBundleIdFromPlistStream(context.getProjectFilesystem().getInputStreamForRelativePath(infoPlist)).get();
+  }
+ catch (  IOException e) {
+    throw new HumanReadableException("Unable to get bundle ID from info.plist: " + infoPlist);
+  }
+  final Optional<String> prefix;
+  if (entitlementsPlist.isPresent()) {
+    NSDictionary entitlementsPlistDict;
+    try {
+      entitlementsPlistDict=(NSDictionary)PropertyListParser.parse(entitlementsPlist.get().toFile());
+    }
+ catch (    Exception e) {
+      throw new HumanReadableException("Malformed entitlement .plist: " + entitlementsPlist.get());
+    }
+    try {
+      String appID=((NSArray)entitlementsPlistDict.get("keychain-access-groups")).objectAtIndex(0).toString();
+      prefix=Optional.<String>of(ProvisioningProfileMetadata.splitAppID(appID).getFirst());
+    }
+ catch (    Exception e) {
+      throw new HumanReadableException("Malformed entitlement .plist (missing keychain-access-groups): " + entitlementsPlist.get());
+    }
+  }
+ else {
+    prefix=Optional.<String>absent();
+  }
+  Optional<ProvisioningProfileMetadata> bestProfile=getBestProvisioningProfile(profiles,bundleID,provisioningProfileUUID,prefix);
+  if (!bestProfile.isPresent()) {
+    throw new HumanReadableException("No valid non-expired provisioning profiles match for " + prefix + "."+ bundleID);
+  }
+  Path provisioningProfileSource=bestProfile.get().getProfilePath().get();
+  try {
+    context.getProjectFilesystem().copy(provisioningProfileSource,provisioningProfileDestination,CopySourceMode.FILE);
+  }
+ catch (  IOException e) {
+    context.logError(e,"Failed when trying to copy: %s",getDescription(context));
+    return 1;
+  }
+  if (entitlementsPlist.isPresent()) {
+    return (new PlistProcessStep(entitlementsPlist.get(),signingEntitlementsTempPath,bestProfile.get().getEntitlements(),ImmutableMap.<String,NSObject>of(),PlistProcessStep.OutputFormat.XML)).execute(context);
+  }
+ else {
+    String appID=bestProfile.get().getAppID().getFirst() + "." + bundleID;
+    NSDictionary entitlements=new NSDictionary();
+    entitlements.putAll(bestProfile.get().getEntitlements());
+    entitlements.put(APPLICATION_IDENTIFIER,appID);
+    entitlements.put(KEYCHAIN_ACCESS_GROUPS,new String[]{appID});
+    return (new WriteFileStep(entitlements.toXMLPropertyList(),signingEntitlementsTempPath)).execute(context);
+  }
+}
