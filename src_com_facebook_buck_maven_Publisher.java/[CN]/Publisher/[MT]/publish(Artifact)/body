@@ -3,12 +3,11 @@
   DefaultRepositorySystemSession session=MavenRepositorySystemUtils.newSession();
   session.setLocalRepositoryManager(repoSys.newLocalRepositoryManager(session,localRepo));
   session.setReadOnly();
-  DeployRequest deployRequest=new DeployRequest().setRepository(remoteRepo);
-  for (  Artifact artifact : toPublish) {
-    File file=artifact.getFile();
-    Preconditions.checkNotNull(file);
-    Preconditions.checkArgument(file.exists(),"No such file: %s",file.getAbsolutePath());
-    deployRequest.addArtifact(artifact);
+  DeployRequest deployRequest=createDeployRequest(toPublish);
+  if (dryRun) {
+    return new DeployResult(deployRequest).setArtifacts(Arrays.asList(toPublish)).setMetadata(deployRequest.getMetadata());
   }
-  repoSys.deploy(session,deployRequest);
+ else {
+    return repoSys.deploy(session,deployRequest);
+  }
 }
