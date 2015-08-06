@@ -1,0 +1,16 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  final FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  final Path output=Paths.get("output");
+  BuildRuleParams params=BuildRuleParamsFactory.createTrivialBuildRuleParams(BuildTargetFactory.newInstance("//:rule"));
+  BuildRule rule=new NoopBuildRule(params,pathResolver){
+    @AddToRuleKey RuleKeyAppendableWithInput input=new RuleKeyAppendableWithInput(new PathSourcePath(filesystem,output));
+  }
+;
+  FakeFileHashCache hashCache=new FakeFileHashCache(ImmutableMap.of(output,HashCode.fromInt(0)));
+  RuleKey inputKey1=new DependencyFileRuleKeyBuilderFactory(hashCache,pathResolver).newInstance(rule).build();
+  hashCache=new FakeFileHashCache(ImmutableMap.of(output,HashCode.fromInt(1)));
+  RuleKey inputKey2=new DependencyFileRuleKeyBuilderFactory(hashCache,pathResolver).newInstance(rule).build();
+  assertThat(inputKey1,Matchers.equalTo(inputKey2));
+}
