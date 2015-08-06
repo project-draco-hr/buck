@@ -8,6 +8,17 @@
  else {
       exitCode=executeOther(context);
     }
+    if (operation.isPreprocess()) {
+      try (InputStream input=context.getProjectFilesystem().newFileInputStream(getDepTemp());BufferedReader reader=new BufferedReader(new InputStreamReader(input));OutputStream output=context.getProjectFilesystem().newFileOutputStream(depFile);BufferedWriter writer=new BufferedWriter(new OutputStreamWriter(output))){
+        for (        String prereq : Makefiles.parseMakefile(reader).getRules().get(0).getPrereqs()) {
+          Path replacement=replacementPaths.get(Paths.get(prereq));
+          if (replacement != null) {
+            writer.write(replacement.toString());
+            writer.newLine();
+          }
+        }
+      }
+     }
     if (exitCode == 0 && operation == Operation.COMPILE_MUNGE_DEBUGINFO) {
       try {
         sanitizer.restoreCompilationDirectory(context.getProjectDirectoryRoot().toAbsolutePath().resolve(output),context.getProjectDirectoryRoot().toAbsolutePath());
