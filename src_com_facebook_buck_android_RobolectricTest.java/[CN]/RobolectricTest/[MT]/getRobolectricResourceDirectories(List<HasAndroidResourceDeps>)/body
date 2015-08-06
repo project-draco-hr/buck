@@ -1,4 +1,19 @@
 {
-  String resourceDirectories=Joiner.on(File.pathSeparator).join(Iterables.transform(resourceDeps,resourceDirectoryFunction));
+  ImmutableList<String> resourceDirs=FluentIterable.from(resourceDeps).transform(resourceDirectoryFunction).filter(new Predicate<Path>(){
+    @Override public boolean apply(    Path input){
+      try {
+        if (!getProjectFilesystem().isDirectory(input)) {
+          throw new RuntimeException(String.format("Path %s is needed to run robolectric test %s, but was not found.",input,getBuildTarget()));
+        }
+        return !getProjectFilesystem().getDirectoryContents(input).isEmpty();
+      }
+ catch (      IOException e) {
+        LOG.warn(e,"Error filtering path for Robolectric resources.");
+        return true;
+      }
+    }
+  }
+).transform(Functions.toStringFunction()).toList();
+  String resourceDirectories=Joiner.on(File.pathSeparator).join(resourceDirs);
   return String.format("-D%s=%s",LIST_OF_RESOURCE_DIRECTORIES_PROPERTY_NAME,resourceDirectories);
 }
