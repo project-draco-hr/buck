@@ -11,6 +11,15 @@
   return Futures.transform(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,BuildResult>(){
     @Override public ListenableFuture<BuildResult> apply(    @Nonnull List<BuildResult> depResults) throws Exception {
       context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule));
+      if (useDependencyFileRuleKey(rule)) {
+        Optional<RuleKey> depFileRuleKey=calculateDepFileRuleKey(rule,onDiskBuildInfo.getValues(BuildInfo.METADATA_KEY_FOR_DEP_FILE),true);
+        if (depFileRuleKey.isPresent()) {
+          Optional<RuleKey> lastDepFileRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY);
+          if (lastDepFileRuleKey.isPresent() && lastDepFileRuleKey.get().equals(depFileRuleKey.get())) {
+            return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.MATCHING_DEP_FILE_RULE_KEY,CacheResult.localKeyUnchangedHit()));
+          }
+        }
+      }
       if (rule instanceof SupportsInputBasedRuleKey) {
         RuleKey inputRuleKey=inputBasedRuleKeyBuilderFactory.newInstance(rule).build();
         buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY,inputRuleKey.toString());
