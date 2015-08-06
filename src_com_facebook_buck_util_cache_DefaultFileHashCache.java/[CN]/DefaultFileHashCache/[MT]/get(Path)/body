@@ -1,17 +1,13 @@
 {
-  Optional<Path> relativePath=projectFilesystem.getPathRelativeToProjectRoot(path);
+  Preconditions.checkState(!path.isAbsolute());
+  Preconditions.checkState(!projectFilesystem.isIgnored(path));
   HashCode sha1;
-  if (!relativePath.isPresent() || projectFilesystem.isIgnored(relativePath.get())) {
-    sha1=getHashCodeAndFileType(path).getHashCode();
+  try {
+    sha1=loadingCache.get(path.normalize()).getHashCode();
   }
- else {
-    try {
-      sha1=loadingCache.get(relativePath.get().normalize()).getHashCode();
-    }
- catch (    ExecutionException e) {
-      Throwables.propagateIfInstanceOf(e.getCause(),IOException.class);
-      throw Throwables.propagate(e.getCause());
-    }
+ catch (  ExecutionException e) {
+    Throwables.propagateIfInstanceOf(e.getCause(),IOException.class);
+    throw Throwables.propagate(e.getCause());
   }
   return Preconditions.checkNotNull(sha1,"Failed to find a HashCode for %s.",path);
 }

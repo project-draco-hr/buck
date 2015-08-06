@@ -48,13 +48,14 @@
     clock=new DefaultClock();
   }
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(processExecutor,clientEnvironment,System.getProperties());
-  DefaultFileHashCache fileHashCache;
+  ProjectFileHashCache repoHashCache;
   if (isDaemon) {
-    fileHashCache=getFileHashCacheFromDaemon(rootRepository,clock,processExecutor);
+    repoHashCache=getFileHashCacheFromDaemon(rootRepository,clock,processExecutor);
   }
  else {
-    fileHashCache=new DefaultFileHashCache(rootRepository.getFilesystem());
+    repoHashCache=new DefaultFileHashCache(rootRepository.getFilesystem());
   }
+  FileHashCache fileHashCache=new MultiProjectFileHashCache(ImmutableList.of(repoHashCache,new DefaultFileHashCache(new ProjectFilesystem(rootRepository.getFilesystem().getRootPath())),new DefaultFileHashCache(new ProjectFilesystem(Paths.get("/")))));
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,clock,processExecutor);
   TestConfig testConfig=new TestConfig(buckConfig);
