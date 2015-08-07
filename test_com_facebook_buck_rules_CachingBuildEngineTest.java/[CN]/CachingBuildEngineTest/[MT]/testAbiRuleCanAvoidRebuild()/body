@@ -1,5 +1,6 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   BuildRuleParams buildRuleParams=new FakeBuildRuleParamsBuilder(buildTarget).build();
   TestAbstractCachingBuildRule buildRule=new TestAbstractCachingBuildRule(buildRuleParams,new SourcePathResolver(new BuildRuleResolver()));
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
@@ -11,7 +12,7 @@
   filesystem.writeContentsToPath(TestAbstractCachingBuildRule.ABI_KEY_FOR_DEPS_HASH,BuildInfo.getPathToMetadataDirectory(buildTarget).resolve(CachingBuildEngine.ABI_KEY_FOR_DEPS_ON_DISK_METADATA));
   filesystem.writeContentsToPath("At some point, this method call should go away.",BuildInfo.getPathToMetadataDirectory(buildTarget).resolve(AbiRule.ABI_KEY_ON_DISK_METADATA));
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(buildTarget).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY);
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY);
   ListenableFuture<BuildResult> buildResult=cachingBuildEngine.build(buildContext,buildRule);
   buckEventBus.post(CommandEvent.finished(CommandEvent.started("build",ImmutableList.<String>of(),false),0));
   BuildResult result=buildResult.get();
