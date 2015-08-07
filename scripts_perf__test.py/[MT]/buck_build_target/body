@@ -4,14 +4,14 @@ def buck_build_target(args, cwd, target, perftest_side, log_as_perftest=True):
     bucklogging_properties_path = os.path.join(cwd, '.bucklogging.local.properties')
     with open(bucklogging_properties_path, 'w') as bucklogging_properties:
         bucklogging_properties.write('.level=FINER\n            java.util.logging.FileHandler.level=FINER')
-    env = {}
+    env = os.environ.copy()
     env.update({'BUCK_REPOSITORY_DIRTY': '0', })
     if log_as_perftest:
         env.update({'BUCK_EXTRA_JAVA_ARGS': ('-Dbuck.perftest_id=%s, -Dbuck.perftest_side=%s' % (args.perftest_id, perftest_side)), })
     start = datetime.now()
     tmpFile = tempfile.TemporaryFile()
     try:
-        run_buck_cmd(args, cwd, ['build', target, '-v', '5'], extra_env=env, stdout=tmpFile, stderr=tmpFile)
+        subprocess.check_call([args.path_to_buck, 'build', target, '-v', '5'], stdout=tmpFile, stderr=tmpFile, cwd=cwd, env=env)
     except:
         tmpFile.seek(0)
         log(('Buck build failed: %s' % tmpFile.read()))
