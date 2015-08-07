@@ -1,0 +1,16 @@
+{
+  BuildTarget directoryTarget=BuildTarget.builder("//foo","dir").build();
+  BuildTarget resourceTarget=BuildTarget.builder("//foo","res").build();
+  BuildTarget libraryTarget=BuildTarget.builder("//foo","lib").build();
+  TargetNode<?> directoryNode=ExportFileBuilder.newExportFileBuilder(directoryTarget).build();
+  TargetNode<?> resourceNode=AppleResourceBuilder.createBuilder(resourceTarget).setDirs(ImmutableSet.<SourcePath>of(new BuildTargetSourcePath(directoryTarget))).setFiles(ImmutableSet.<SourcePath>of()).build();
+  TargetNode<?> libraryNode=AppleLibraryBuilder.createBuilder(libraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(resourceTarget))).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(directoryNode,resourceNode,libraryNode));
+  projectGenerator.createXcodeProjects();
+  PBXProject project=projectGenerator.getGeneratedProject();
+  PBXGroup mainGroup=project.getMainGroup();
+  PBXGroup resourcesGroup=mainGroup.getOrCreateDescendantGroupByPath(ImmutableList.of("//foo:lib","Resources"));
+  PBXFileReference resource=(PBXFileReference)Iterables.get(resourcesGroup.getChildren(),0);
+  assertThat(resource.getName(),equalTo("dir"));
+  assertThat(resource.getExplicitFileType(),equalTo(Optional.of("folder")));
+}
