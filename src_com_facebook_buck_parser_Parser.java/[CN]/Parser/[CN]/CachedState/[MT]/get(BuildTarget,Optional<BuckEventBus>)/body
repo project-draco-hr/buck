@@ -44,19 +44,23 @@
     try {
       ImmutableSet.Builder<BuildTarget> declaredDeps=ImmutableSet.builder();
       ImmutableSet.Builder<BuildTargetPattern> visibilityPatterns=ImmutableSet.builder();
+      MarshalConstructorArgsEvent.Started marshalConstructorArgsEvent=null;
       if (eventBus.isPresent()) {
-        eventBus.get().post(MarshalConstructorArgsEvent.started(buildTarget));
+        marshalConstructorArgsEvent=MarshalConstructorArgsEvent.started(buildTarget);
+        eventBus.get().post(marshalConstructorArgsEvent);
       }
       marshaller.populate(targetRepo.getFilesystem(),factoryParams,constructorArg,declaredDeps,visibilityPatterns,map);
       if (eventBus.isPresent()) {
-        eventBus.get().post(MarshalConstructorArgsEvent.finished(buildTarget));
+        eventBus.get().post(MarshalConstructorArgsEvent.finished(Preconditions.checkNotNull(marshalConstructorArgsEvent)));
       }
+      CreateTargetNodeEvent.Started createTargetNodeEvent=null;
       if (eventBus.isPresent()) {
-        eventBus.get().post(CreateTargetNodeEvent.started(buildTarget));
+        createTargetNodeEvent=CreateTargetNodeEvent.started(buildTarget);
+        eventBus.get().post(createTargetNodeEvent);
       }
       targetNode=new TargetNode(description,constructorArg,factoryParams,declaredDeps.build(),visibilityPatterns.build());
       if (eventBus.isPresent()) {
-        eventBus.get().post(CreateTargetNodeEvent.finished(buildTarget));
+        eventBus.get().post(CreateTargetNodeEvent.finished(Preconditions.checkNotNull(createTargetNodeEvent)));
       }
     }
  catch (    NoSuchBuildTargetException|TargetNode.InvalidSourcePathInputException e) {

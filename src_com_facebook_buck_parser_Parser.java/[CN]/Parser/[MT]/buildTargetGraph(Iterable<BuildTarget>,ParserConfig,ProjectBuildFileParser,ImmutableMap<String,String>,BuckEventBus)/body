@@ -3,26 +3,30 @@
   final Optional<BuckEventBus> eventBusOptional=Optional.of(eventBus);
   AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget>(){
     @Override protected Iterator<BuildTarget> findChildren(    BuildTarget buildTarget) throws IOException, InterruptedException {
-      eventBus.post(GetTargetDependenciesEvent.started(buildTarget));
+      GetTargetDependenciesEvent.Started getTargetDependenciesEvent=GetTargetDependenciesEvent.started(buildTarget);
+      eventBus.post(getTargetDependenciesEvent);
       try {
         BuildTargetPatternParser<BuildTargetPattern> buildTargetPatternParser=BuildTargetPatternParser.forBaseName(buildTarget.getBaseName());
-        eventBus.post(GetTargetNodeEvent.started(buildTarget));
+        GetTargetNodeEvent.Started getTargetNodeEvent=GetTargetNodeEvent.started(buildTarget);
+        eventBus.post(getTargetNodeEvent);
         TargetNode<?> targetNode=state.get(buildTarget,eventBusOptional);
-        eventBus.post(GetTargetNodeEvent.finished(buildTarget));
+        eventBus.post(GetTargetNodeEvent.finished(getTargetNodeEvent));
         if (targetNode == null) {
           throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTarget,buildTargetPatternParser,parserConfig.getBuildFileName(),getDefinedFilepathMessage(buildTarget)));
         }
         Set<BuildTarget> deps=Sets.newHashSet();
         for (        BuildTarget buildTargetForDep : targetNode.getDeps()) {
           try {
-            eventBus.post(GetTargetNodeEvent.started(buildTargetForDep));
+            getTargetNodeEvent=GetTargetNodeEvent.started(buildTargetForDep);
+            eventBus.post(getTargetNodeEvent);
             TargetNode<?> depTargetNode=state.get(buildTargetForDep,eventBusOptional);
-            eventBus.post(GetTargetNodeEvent.finished(buildTargetForDep));
+            eventBus.post(GetTargetNodeEvent.finished(getTargetNodeEvent));
             if (depTargetNode == null) {
               parseBuildFileContainingTarget(buildTargetForDep,parserConfig,buildFileParser,environment);
-              eventBus.post(GetTargetNodeEvent.started(buildTargetForDep));
+              getTargetNodeEvent=GetTargetNodeEvent.started(buildTargetForDep);
+              eventBus.post(getTargetNodeEvent);
               depTargetNode=state.get(buildTargetForDep,eventBusOptional);
-              eventBus.post(GetTargetNodeEvent.finished(buildTargetForDep));
+              eventBus.post(GetTargetNodeEvent.finished(getTargetNodeEvent));
               if (depTargetNode == null) {
                 throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(buildTargetForDep,BuildTargetPatternParser.forBaseName(buildTargetForDep.getBaseName()),parserConfig.getBuildFileName(),getDefinedFilepathMessage(buildTarget)));
               }
@@ -37,7 +41,7 @@
         return deps.iterator();
       }
   finally {
-        eventBus.post(GetTargetDependenciesEvent.finished(buildTarget));
+        eventBus.post(GetTargetDependenciesEvent.finished(getTargetDependenciesEvent));
       }
     }
     @Override protected void onNodeExplored(    BuildTarget buildTarget) throws IOException, InterruptedException {
