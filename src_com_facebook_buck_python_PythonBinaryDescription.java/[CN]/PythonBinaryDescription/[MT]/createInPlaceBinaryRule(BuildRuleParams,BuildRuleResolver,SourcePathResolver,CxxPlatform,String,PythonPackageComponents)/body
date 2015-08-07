@@ -1,0 +1,36 @@
+{
+  if (cxxPlatform.getLd() instanceof WindowsLinker) {
+    throw new HumanReadableException("%s: cannot build in-place python binaries for Windows (%s)",params.getBuildTarget(),cxxPlatform.getFlavor());
+  }
+  BuildTarget linkTreeTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(ImmutableFlavor.of("link-tree")).build();
+  Path linkTreeRoot=BuildTargets.getGenPath(linkTreeTarget,"%s");
+  SymlinkTree linkTree;
+  try {
+    linkTree=resolver.addToIndex(new SymlinkTree(params.copyWithChanges(linkTreeTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,linkTreeRoot,ImmutableMap.<Path,SourcePath>builder().putAll(components.getModules()).putAll(components.getResources()).putAll(components.getNativeLibraries()).build()));
+  }
+ catch (  SymlinkTree.InvalidSymlinkTreeException e) {
+    throw e.getHumanReadableExceptionForBuildTarget(params.getBuildTarget());
+  }
+  Map<String,String> env=Maps.newLinkedHashMap();
+  if (!components.getNativeLibraries().isEmpty()) {
+    env.put(cxxPlatform.getLd().searchPathEnvVar(),linkTreeRoot.toString());
+  }
+  env.put("PYTHONPATH",linkTreeRoot.toString());
+  List<String> args=Lists.newArrayList();
+  args.add(pythonEnvironment.getPythonPath().toString());
+  args.add("-m");
+  args.add(mainModule);
+  List<String> escapedCmdArgs=Lists.newArrayList();
+  for (  Map.Entry<String,String> entry : env.entrySet()) {
+    escapedCmdArgs.add(String.format("%s=%s",Escaper.escapeAsShellString(entry.getKey()),Escaper.escapeAsShellString(entry.getValue())));
+  }
+  for (  String arg : args) {
+    escapedCmdArgs.add(Escaper.escapeAsShellString(arg));
+  }
+  escapedCmdArgs.add("\"$@\"");
+  String cmd=Joiner.on(' ').join(escapedCmdArgs);
+  BuildTarget scriptTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(ImmutableFlavor.of("script")).build();
+  Path scriptPath=BuildTargets.getGenPath(params.getBuildTarget(),"%s" + pythonBuckConfig.getPexExtension());
+  WriteFile script=resolver.addToIndex(new WriteFile(params.copyWithChanges(scriptTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,"#!/bin/sh\n" + cmd,scriptPath,true));
+  return new PythonInPlaceBinary(params,pathResolver,script,linkTree,mainModule,components);
+}

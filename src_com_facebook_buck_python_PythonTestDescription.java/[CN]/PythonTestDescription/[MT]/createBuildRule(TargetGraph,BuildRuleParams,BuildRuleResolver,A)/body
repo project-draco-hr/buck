@@ -17,10 +17,10 @@
   ImmutableSet<String> testModules=testModulesBuilder.build();
   BuildRule testModulesBuildRule=createTestModulesSourceBuildRule(params,resolver,getTestModulesListPath(params.getBuildTarget()),testModules);
   resolver.addToIndex(testModulesBuildRule);
-  PythonPackageComponents testComponents=PythonPackageComponents.of(ImmutableMap.<Path,SourcePath>builder().put(getTestModulesListName(),new BuildTargetSourcePath(testModulesBuildRule.getBuildTarget())).put(getTestMainName(),new PathSourcePath(projectFilesystem,pathToPythonTestMain)).putAll(srcs).build(),resources,ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),args.zipSafe);
+  PythonPackageComponents testComponents=PythonPackageComponents.of(ImmutableMap.<Path,SourcePath>builder().put(getTestModulesListName(),new BuildTargetSourcePath(testModulesBuildRule.getBuildTarget())).put(getTestMainName(),new PathSourcePath(params.getProjectFilesystem(),pythonBuckConfig.getPathToTestMain())).putAll(srcs).build(),resources,ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),args.zipSafe);
   PythonPackageComponents allComponents=PythonUtil.getAllComponents(targetGraph,params,testComponents,cxxPlatform);
   BuildRuleParams binaryParams=params.copyWithChanges(getBinaryBuildTarget(params.getBuildTarget()),Suppliers.ofInstance(PythonUtil.getDepsFromComponents(pathResolver,allComponents)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
-  PythonBinary binary=new PythonBinary(binaryParams,pathResolver,pathToPex,args.buildArgs.or(ImmutableList.<String>of()),pathToPexExecuter,pexExtension,pythonEnvironment,PythonUtil.toModuleName(params.getBuildTarget(),getTestMainName().toString()),allComponents);
+  PythonBinary binary=binaryDescription.createPackageRule(binaryParams,resolver,pathResolver,cxxPlatform,PythonUtil.toModuleName(params.getBuildTarget(),getTestMainName().toString()),allComponents,args.buildArgs.or(ImmutableList.<String>of()));
   resolver.addToIndex(binary);
   return new PythonTest(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps()).add(binary).build()),Suppliers.ofInstance(params.getExtraDeps())),pathResolver,binary,ImmutableSortedSet.copyOf(Sets.difference(params.getDeps(),binaryParams.getDeps())),resolver.getAllRules(args.sourceUnderTest.or(ImmutableSortedSet.<BuildTarget>of())),args.labels.or(ImmutableSet.<Label>of()),args.contacts.or(ImmutableSet.<String>of()));
 }
