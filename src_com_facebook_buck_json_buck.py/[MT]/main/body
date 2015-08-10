@@ -6,6 +6,8 @@ def main():
     parser.add_option('--build_file_name', action='store', type='string', dest='build_file_name')
     parser.add_option('--allow_empty_globs', action='store_true', dest='allow_empty_globs', help='Tells the parser not to raise an error when glob returns no results.')
     parser.add_option('--use_watchman_glob', action='store_true', dest='use_watchman_glob', help='Invokes `watchman query` to get lists of files instead of globbing in-process.')
+    parser.add_option('--watchman_watch_root', action='store', type='string', dest='watchman_watch_root', help='Path to root of watchman watch as returned by `watchman watch-project`.')
+    parser.add_option('--watchman_project_prefix', action='store', type='string', dest='watchman_project_prefix', help='Relative project prefix as returned by `watchman watch-project`.')
     parser.add_option('--include', action='append', dest='include')
     (options, args) = parser.parse_args()
     options.project_root = cygwin_adjusted_path(options.project_root)
@@ -21,7 +23,7 @@ def main():
             output_encode = (lambda val: pywatchman.bser.dumps(val))
         except ImportError as e:
             pass
-    buildFileProcessor = BuildFileProcessor(project_root, options.build_file_name, options.allow_empty_globs, watchman_client, implicit_includes=(options.include or []))
+    buildFileProcessor = BuildFileProcessor(project_root, options.watchman_watch_root, options.watchman_project_prefix, options.build_file_name, options.allow_empty_globs, watchman_client, implicit_includes=(options.include or []))
     buildFileProcessor.install_builtins(__builtin__.__dict__)
     to_parent.write((output_format + '\n'))
     to_parent.flush()

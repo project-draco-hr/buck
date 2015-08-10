@@ -1,12 +1,16 @@
 @memoized
-def glob_watchman(includes, excludes, include_dotfiles, base_path, project_root, sync_cookie_state, watchman_client):
+def glob_watchman(includes, excludes, include_dotfiles, base_path, watchman_watch_root, watchman_project_prefix, sync_cookie_state, watchman_client):
     assert includes, 'The includes argument must be a non-empty list of strings.'
-    query_params = format_watchman_query_params(includes, excludes, include_dotfiles, base_path)
+    if watchman_project_prefix:
+        relative_root = os.path.join(watchman_project_prefix, base_path)
+    else:
+        relative_root = base_path
+    query_params = format_watchman_query_params(includes, excludes, include_dotfiles, relative_root)
     if sync_cookie_state.use_sync_cookies:
         sync_cookie_state.use_sync_cookies = False
     else:
         query_params['sync_timeout'] = 0
-    query = ['query', project_root, query_params]
+    query = ['query', watchman_watch_root, query_params]
     res = watchman_client.query(*query)
     if res.get('error'):
         raise RuntimeError('Error from Watchman query {}: {}'.format(query, res.get('error')))
