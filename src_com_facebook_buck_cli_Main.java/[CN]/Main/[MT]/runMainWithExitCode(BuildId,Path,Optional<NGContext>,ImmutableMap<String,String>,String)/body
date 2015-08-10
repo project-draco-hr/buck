@@ -103,21 +103,12 @@
  catch (  Throwable t) {
     LOG.debug(t,"Failing build on exception.");
     closeCreatedArtifactCaches(artifactCacheFactory);
+    flushEventListeners(console,buildId,eventListeners);
     throw t;
   }
  finally {
     if (commandSemaphoreAcquired) {
       commandSemaphore.release();
-    }
-    for (    BuckEventListener eventListener : eventListeners) {
-      try {
-        eventListener.outputTrace(buildId);
-      }
- catch (      RuntimeException e) {
-        PrintStream stdErr=console.getStdErr();
-        stdErr.println("Skipping over non-fatal error");
-        e.printStackTrace(stdErr);
-      }
     }
   }
   if (isDaemon && !rootRepository.getBuckConfig().getFlushEventsBeforeExit()) {
@@ -125,5 +116,6 @@
     context.get().exit(exitCode);
   }
   closeCreatedArtifactCaches(artifactCacheFactory);
+  flushEventListeners(console,buildId,eventListeners);
   return exitCode;
 }
