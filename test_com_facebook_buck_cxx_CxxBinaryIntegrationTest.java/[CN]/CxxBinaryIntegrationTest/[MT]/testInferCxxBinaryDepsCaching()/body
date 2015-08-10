@@ -1,0 +1,34 @@
+{
+  Path inferTopLevel=InferHelper.assumeInferIsInstalled();
+  ProjectWorkspace workspace=InferHelper.setupCxxInferWorkspace(this,inferTopLevel,tmp);
+  workspace.enableDirCache();
+  CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(new CxxBuckConfig(new FakeBuckConfig()));
+  BuildTarget inputBuildTarget=BuildTargetFactory.newInstance("//foo:binary_with_deps");
+  String inputBuildTargetName=inputBuildTarget.withFlavors(CxxInferEnhancer.INFER).getFullyQualifiedName();
+  workspace.runBuckCommand("build",inputBuildTargetName).assertSuccess();
+  workspace.runBuckCommand("clean").assertSuccess();
+  workspace.runBuckCommand("build",inputBuildTargetName).assertSuccess();
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  for (  BuildTarget buildTarget : buildLog.getAllTargets()) {
+    buildLog.assertTargetWasFetchedFromCache(buildTarget.toString());
+  }
+  String sourceName="src_with_deps.c";
+  workspace.replaceFileContents("foo/" + sourceName,"10","30");
+  workspace.runBuckCommand("clean").assertSuccess();
+  workspace.runBuckCommand("build",inputBuildTargetName).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  CxxSourceRuleFactory cxxSourceRuleFactory=CxxSourceRuleFactoryHelper.of(inputBuildTarget,cxxPlatform);
+  BuildTarget captureBuildTarget=cxxSourceRuleFactory.createInferCaptureBuildTarget(sourceName);
+  BuildTarget inferAnalysisTarget=inputBuildTarget.withFlavors(CxxInferEnhancer.INFER_ANALYZE);
+  BuildTarget inferReportTarget=inputBuildTarget.withFlavors(CxxInferEnhancer.INFER);
+  String bt;
+  for (  BuildTarget buildTarget : buildLog.getAllTargets()) {
+    bt=buildTarget.toString();
+    if (bt.equals(inferAnalysisTarget.toString()) || bt.equals(captureBuildTarget.toString()) || bt.equals(inferReportTarget.toString())) {
+      buildLog.assertTargetBuiltLocally(bt);
+    }
+ else {
+      buildLog.assertTargetWasFetchedFromCache(buildTarget.toString());
+    }
+  }
+}

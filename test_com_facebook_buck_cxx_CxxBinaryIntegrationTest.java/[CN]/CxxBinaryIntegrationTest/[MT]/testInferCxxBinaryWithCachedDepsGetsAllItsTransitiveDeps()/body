@@ -1,0 +1,19 @@
+{
+  Path inferTopLevel=InferHelper.assumeInferIsInstalled();
+  ProjectWorkspace workspace=InferHelper.setupCxxInferWorkspace(this,inferTopLevel,tmp);
+  workspace.enableDirCache();
+  BuildTarget inputBuildTarget=BuildTargetFactory.newInstance("//foo:binary_with_chain_deps");
+  String inputBuildTargetName=inputBuildTarget.withFlavors(CxxInferEnhancer.INFER).getFullyQualifiedName();
+  workspace.runBuckCommand("build",inputBuildTargetName).assertSuccess();
+  workspace.runBuckCommand("clean").assertSuccess();
+  workspace.runBuckCommand("build",inputBuildTargetName).assertSuccess();
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  for (  BuildTarget buildTarget : buildLog.getAllTargets()) {
+    buildLog.assertTargetWasFetchedFromCache(buildTarget.toString());
+  }
+  String sourceName="top_chain.c";
+  workspace.replaceFileContents("foo/" + sourceName,"*p += 1","*p += 10");
+  workspace.runBuckCommand("clean").assertSuccess();
+  workspace.runBuckCommand("build",inputBuildTargetName).assertSuccess();
+  assertTrue("Expected specs file for func_ret_null() in chain_dep_two.c not found",workspace.getPath("buck-out/gen/foo/infer-analysis-chain_dep_two#default,infer-analyze/specs/" + "func_ret_null{AF55}.specs").toFile().exists());
+}
