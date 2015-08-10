@@ -4,12 +4,12 @@
     LinkedHashMap<BuildRule,Optional<BuildResult>> ruleToResult=executeBuild(targetsish,isKeepGoing);
     BuildReport buildReport=new BuildReport(ruleToResult);
     if (isKeepGoing) {
-      String buildReportText=buildReport.generateForConsole(console.getAnsi());
+      String buildReportText=buildReport.generateForConsole(ansi);
       buildReportText=buildReportText.substring(0,buildReportText.length() - 1);
-      executionContext.getBuckEventBus().post(ConsoleEvent.info(buildReportText));
+      eventBus.post(ConsoleEvent.info(buildReportText));
       exitCode=Iterables.any(ruleToResult.values(),RULES_FAILED_PREDICATE) ? 1 : 0;
       if (exitCode != 0) {
-        executionContext.getBuckEventBus().post(ConsoleEvent.severe("Not all rules succeeded."));
+        eventBus.post(ConsoleEvent.severe("Not all rules succeeded."));
       }
     }
  else {
@@ -21,17 +21,17 @@
         Files.write(jsonBuildReport,pathToBuildReport.get().toFile(),Charsets.UTF_8);
       }
  catch (      IOException e) {
-        e.printStackTrace(console.getStdErr());
+        eventBus.post(ThrowableConsoleEvent.create(e,"Failed writing report"));
         exitCode=1;
       }
     }
   }
  catch (  IOException e) {
-    console.printBuildFailureWithoutStacktrace(e);
+    eventBus.post(ConsoleEvent.severe(getFailureMessage(e)));
     exitCode=1;
   }
 catch (  StepFailedException e) {
-    console.printBuildFailureWithoutStacktrace(e);
+    eventBus.post(ConsoleEvent.severe(getFailureMessage(e)));
     exitCode=e.getExitCode();
   }
 catch (  ExecutionException e) {
@@ -44,10 +44,10 @@ catch (  ExecutionException e) {
     }
  else {
       if (cause instanceof RuntimeException) {
-        console.printBuildFailureWithStacktrace(e);
+        eventBus.post(ThrowableConsoleEvent.create(cause,getFailureMessage(cause)));
       }
  else {
-        console.printBuildFailureWithoutStacktrace(e);
+        eventBus.post(ConsoleEvent.severe(getFailureMessage(cause)));
       }
       exitCode=1;
     }
