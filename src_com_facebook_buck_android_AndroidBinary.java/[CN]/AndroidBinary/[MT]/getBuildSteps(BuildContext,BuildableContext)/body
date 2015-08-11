@@ -11,12 +11,16 @@
     nativeLibraryDirectories=ImmutableSet.of(enhancementResult.getCopyNativeLibraries().get().getPathToNativeLibsDir());
   }
   ImmutableSet<Path> nativeLibraryAsAssetDirectories;
-  if (!packageableCollection.getNativeLibAssetsDirectories().isEmpty()) {
+  if ((!packageableCollection.getNativeLibAssetsDirectories().isEmpty()) || (!packageableCollection.getNativeLinkablesAssets().isEmpty() && packageAssetLibraries.or(Boolean.FALSE))) {
     Path pathForNativeLibsAsAssets=getPathForNativeLibsAsAssets();
-    Path libSubdirectory=pathForNativeLibsAsAssets.resolve("assets").resolve("lib");
+    final Path libSubdirectory=pathForNativeLibsAsAssets.resolve("assets").resolve("lib");
     steps.add(new MakeCleanDirectoryStep(libSubdirectory));
     for (    SourcePath nativeLibDir : packageableCollection.getNativeLibAssetsDirectories()) {
       CopyNativeLibraries.copyNativeLibrary(getResolver().getPath(nativeLibDir),libSubdirectory,cpuFilters,steps);
+    }
+    if (packageAssetLibraries.or(Boolean.FALSE)) {
+      Path cxxNativeLibsSrc=enhancementResult.getCopyNativeLibraries().get().getPathToNativeLibsAssetsDir();
+      steps.add(CopyStep.forDirectory(cxxNativeLibsSrc,libSubdirectory,CopyStep.DirectoryMode.CONTENTS_ONLY));
     }
     nativeLibraryAsAssetDirectories=ImmutableSet.of(pathForNativeLibsAsAssets);
   }

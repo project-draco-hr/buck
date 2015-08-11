@@ -2,17 +2,13 @@
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   final Path pathToNativeLibs=getPathToNativeLibsDir();
   steps.add(new MakeCleanDirectoryStep(pathToNativeLibs));
+  final Path pathToNativeLibsAssets=getPathToNativeLibsAssetsDir();
+  steps.add(new MakeCleanDirectoryStep(pathToNativeLibsAssets));
   for (  SourcePath nativeLibDir : nativeLibDirectories.asList().reverse()) {
     copyNativeLibrary(getResolver().getPath(nativeLibDir),pathToNativeLibs,cpuFilters,steps);
   }
-  for (  Map.Entry<Pair<TargetCpuType,String>,SourcePath> entry : filteredNativeLibraries.entrySet()) {
-    Optional<String> abiDirectoryComponent=getAbiDirectoryComponent(entry.getKey().getFirst());
-    Preconditions.checkState(abiDirectoryComponent.isPresent());
-    Path destination=pathToNativeLibs.resolve(abiDirectoryComponent.get()).resolve(entry.getKey().getSecond());
-    NdkCxxPlatform platform=Preconditions.checkNotNull(nativePlatforms.get(entry.getKey().getFirst()));
-    steps.add(new MkdirStep(destination.getParent()));
-    steps.add(new StripStep(platform.getCxxPlatform().getStrip().getCommandPrefix(getResolver()),ImmutableList.of("--strip-unneeded"),getResolver().getPath(entry.getValue()),destination));
-  }
+  addStepsForCopyingNativeLibrariesOrAssets(filteredNativeLibraries,pathToNativeLibs,steps);
+  addStepsForCopyingNativeLibrariesOrAssets(filteredNativeLibrariesAssets,pathToNativeLibsAssets,steps);
   final Path pathToMetadataTxt=getPathToMetadataTxt();
   steps.add(new AbstractExecutionStep("hash_native_libs"){
     @Override public int execute(    ExecutionContext context){
@@ -22,6 +18,11 @@
         for (        Path nativeLib : filesystem.getFilesUnderPath(pathToNativeLibs)) {
           String filesha1=filesystem.computeSha1(nativeLib);
           Path relativePath=pathToNativeLibs.relativize(nativeLib);
+          metadataLines.add(String.format("%s %s",relativePath.toString(),filesha1));
+        }
+        for (        Path nativeLib : filesystem.getFilesUnderPath(pathToNativeLibsAssets)) {
+          String filesha1=filesystem.computeSha1(nativeLib);
+          Path relativePath=pathToNativeLibsAssets.relativize(nativeLib);
           metadataLines.add(String.format("%s %s",relativePath.toString(),filesha1));
         }
         filesystem.writeLinesToPath(metadataLines.build(),pathToMetadataTxt);
@@ -35,6 +36,7 @@
   }
 );
   buildableContext.recordArtifact(pathToNativeLibs);
+  buildableContext.recordArtifact(pathToNativeLibsAssets);
   buildableContext.recordArtifact(pathToMetadataTxt);
   return steps.build();
 }
