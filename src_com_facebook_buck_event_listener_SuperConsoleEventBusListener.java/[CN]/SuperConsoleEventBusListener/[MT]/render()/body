@@ -2,6 +2,15 @@
   ImmutableList<String> lines=createRenderLinesAtTime(clock.currentTimeMillis());
   String nextFrame=clearLastRender() + Joiner.on("\n").join(lines);
   lastNumLinesPrinted=lines.size();
+  String logFrame;
+  ImmutableList<String> logLines=createLogRenderLines();
+  if (!logLines.isEmpty()) {
+    lastNumLinesPrinted+=logLines.size();
+    logFrame="\n" + Joiner.on("\n").join(logLines);
+  }
+ else {
+    logFrame="";
+  }
 synchronized (console.getStdOut()) {
 synchronized (console.getStdErr()) {
       boolean stdoutDirty=console.getStdOut().isDirty();
@@ -10,9 +19,10 @@ synchronized (console.getStdErr()) {
         LOG.debug("Stopping console output (stdout dirty %s, stderr dirty %s).",stdoutDirty,stderrDirty);
         stopRenderScheduler();
       }
- else       if (!nextFrame.isEmpty()) {
+ else       if (!nextFrame.isEmpty() || !logFrame.isEmpty()) {
         nextFrame=ansi.asNoWrap(nextFrame);
-        console.getStdErr().getRawStream().println(nextFrame);
+        String fullFrame=nextFrame + logFrame;
+        console.getStdErr().getRawStream().println(fullFrame);
       }
     }
   }
