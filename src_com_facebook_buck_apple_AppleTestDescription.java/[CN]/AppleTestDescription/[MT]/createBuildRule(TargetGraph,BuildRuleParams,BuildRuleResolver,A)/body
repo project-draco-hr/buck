@@ -13,8 +13,16 @@
   if (addDefaultPlatform) {
     extraFlavorsBuilder.add(defaultCxxPlatform.getFlavor());
   }
+  CxxPlatform cxxPlatform;
+  try {
+    cxxPlatform=cxxPlatformFlavorDomain.getValue(params.getBuildTarget().getFlavors()).or(defaultCxxPlatform);
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException(e,"%s: %s",params.getBuildTarget(),e.getMessage());
+  }
   Optional<AppleBundle> testHostApp;
   Optional<SourcePath> testHostAppBinarySourcePath;
+  ImmutableSet<BuildRule> blacklist;
   if (args.testHostApp.isPresent()) {
     TargetNode<?> testHostAppNode=targetGraph.get(args.testHostApp.get());
     Preconditions.checkNotNull(testHostAppNode);
@@ -24,21 +32,17 @@
     AppleBundleDescription.Arg testHostAppDescription=(AppleBundleDescription.Arg)testHostAppNode.getConstructorArg();
     testHostApp=Optional.of(appleBundleDescription.createBuildRule(targetGraph,params.copyWithChanges(BuildTarget.builder(args.testHostApp.get()).addAllFlavors(nonLibraryFlavors).build(),Suppliers.ofInstance(BuildRules.toBuildRulesFor(args.testHostApp.get(),resolver,testHostAppNode.getDeclaredDeps())),Suppliers.ofInstance(BuildRules.toBuildRulesFor(args.testHostApp.get(),resolver,testHostAppNode.getExtraDeps()))),resolver,testHostAppDescription));
     testHostAppBinarySourcePath=Optional.<SourcePath>of(new BuildTargetSourcePath(testHostAppDescription.binary));
+    Pair<MutableDirectedGraph<BuildRule>,Map<BuildTarget,Linker.LinkableDepType>> transitiveDependencies=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,testHostApp.get().getBinary().get().getDeps(),Linker.LinkableDepType.STATIC,Predicates.alwaysTrue());
+    blacklist=ImmutableSet.copyOf(transitiveDependencies.getFirst().getNodes());
   }
  else {
     testHostApp=Optional.absent();
     testHostAppBinarySourcePath=Optional.absent();
+    blacklist=ImmutableSet.of();
   }
-  BuildRule library=appleLibraryDescription.createBuildRule(targetGraph,params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addAllFlavors(extraFlavorsBuilder.build()).build(),Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps())),resolver,args,Optional.of(Linker.LinkableDepType.STATIC),testHostAppBinarySourcePath);
+  BuildRule library=appleLibraryDescription.createBuildRule(targetGraph,params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addAllFlavors(extraFlavorsBuilder.build()).build(),Suppliers.ofInstance(params.getDeclaredDeps()),Suppliers.ofInstance(params.getExtraDeps())),resolver,args,Optional.of(Linker.LinkableDepType.STATIC),testHostAppBinarySourcePath,blacklist);
   if (!createBundle) {
     return library;
-  }
-  CxxPlatform cxxPlatform;
-  try {
-    cxxPlatform=cxxPlatformFlavorDomain.getValue(params.getBuildTarget().getFlavors()).or(defaultCxxPlatform);
-  }
- catch (  FlavorDomainException e) {
-    throw new HumanReadableException(e,"%s: %s",params.getBuildTarget(),e.getMessage());
   }
   AppleCxxPlatform appleCxxPlatform=platformFlavorsToAppleCxxPlatforms.get(cxxPlatform.getFlavor());
   if (appleCxxPlatform == null) {
