@@ -1,0 +1,23 @@
+{
+  model.setGroupId(mavenCoordinates.getGroupId());
+  model.setArtifactId(mavenCoordinates.getArtifactId());
+  model.setVersion(mavenCoordinates.getVersion());
+  if (Strings.isNullOrEmpty(model.getName())) {
+    model.setName(mavenCoordinates.getArtifactId());
+  }
+  ImmutableMap<DepKey,Dependency> depIndex=Maps.uniqueIndex(getModel().getDependencies(),new Function<Dependency,DepKey>(){
+    @Override public DepKey apply(    Dependency input){
+      return new DepKey(input);
+    }
+  }
+);
+  for (  Artifact artifactDep : deps) {
+    DepKey key=new DepKey(artifactDep);
+    Dependency dependency=depIndex.get(key);
+    if (dependency == null) {
+      dependency=key.createDependency();
+      getModel().addDependency(dependency);
+    }
+    updateDependency(dependency,artifactDep);
+  }
+}
