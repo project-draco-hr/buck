@@ -1,0 +1,33 @@
+{
+  BuckBuildManager buildManager=BuckBuildManager.getInstance(e.getProject());
+  String target=buildManager.getCurrentSavedTarget(e.getProject());
+  if (target == null) {
+    buildManager.showNoTargetMessage(e.getProject());
+    return;
+  }
+  BuckSettingsProvider.State state=BuckSettingsProvider.getInstance().getState();
+  if (state == null) {
+    return;
+  }
+  BuckBuildCommandHandler handler=new BuckBuildCommandHandler(e.getProject(),e.getProject().getBaseDir(),BuckCommand.INSTALL);
+  if (state.customizedInstallSetting) {
+    String commands=state.customizedInstallSettingCommand;
+    Matcher matcher=Pattern.compile("([^\"]\\S*|\".+?\")\\s*").matcher(commands);
+    while (matcher.find()) {
+      handler.command().addParameter(matcher.group(1));
+    }
+  }
+ else {
+    if (state.runAfterInstall) {
+      handler.command().addParameter("-r");
+    }
+    if (state.multiInstallMode) {
+      handler.command().addParameter("-x");
+    }
+    if (state.uninstallBeforeInstalling) {
+      handler.command().addParameter("-u");
+    }
+  }
+  handler.command().addParameter(target);
+  buildManager.runBuckCommand(handler,ACTION_TITLE);
+}
