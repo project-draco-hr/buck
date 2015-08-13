@@ -3,14 +3,12 @@
   ArtifactCache cache=createMock(ArtifactCache.class);
   expect(cache.fetch(eq(new RuleKey(ruleKeyHash)),isA(Path.class))).andReturn(CacheResult.hit("http"));
   ArtifactCacheFactory artifactCacheFactory=new InstanceArtifactCacheFactory(cache);
-  Console console=createMock(Console.class);
-  Capture<String> successMessage=newCapture();
-  console.printSuccess(capture(successMessage));
+  TestConsole console=new TestConsole();
   CommandRunnerParams commandRunnerParams=CommandRunnerParamsForTesting.builder().setConsole(console).setArtifactCacheFactory(artifactCacheFactory).build();
   replayAll();
   CacheCommand cacheCommand=new CacheCommand();
   cacheCommand.setArguments(ImmutableList.of(ruleKeyHash));
   int exitCode=cacheCommand.run(commandRunnerParams);
   assertEquals(0,exitCode);
-  assertThat(successMessage.getValue(),startsWith("Successfully downloaded artifact with id " + ruleKeyHash + " at "));
+  assertThat(console.getTextWrittenToStdErr(),startsWith("Successfully downloaded artifact with id " + ruleKeyHash + " at "));
 }
