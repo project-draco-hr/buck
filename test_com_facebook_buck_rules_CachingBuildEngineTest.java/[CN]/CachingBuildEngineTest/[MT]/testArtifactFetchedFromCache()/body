@@ -11,11 +11,12 @@
   Map<String,String> desiredZipEntries=ImmutableMap.of("buck-out/gen/src/com/facebook/orca/orca.jar","Imagine this is the contents of a valid JAR file.");
   expect(artifactCache.fetch(eq(buildRule.getRuleKey()),isA(Path.class))).andDelegateTo(new FakeArtifactCacheThatWritesAZipFile(desiredZipEntries));
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   BuildContext buildContext=ImmutableBuildContext.builder().setActionGraph(RuleMap.createGraphFromSingleRule(buildRule)).setStepRunner(stepRunner).setProjectFilesystem(filesystem).setClock(new DefaultClock()).setBuildId(new BuildId()).setArtifactCache(artifactCache).setJavaPackageFinder(createMock(JavaPackageFinder.class)).setEventBus(buckEventBus).build();
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(buildRule.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
   replayAll();
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),new NullFileHashCache(),CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY);
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY);
   ListenableFuture<BuildResult> buildResult=cachingBuildEngine.build(buildContext,buildRule);
   buckEventBus.post(CommandEvent.finished(CommandEvent.started("build",ImmutableList.<String>of(),false),0));
   verifyAll();

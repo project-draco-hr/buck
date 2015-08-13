@@ -9,6 +9,9 @@
   }
   AsyncFunction<BuildResult,BuildResult> callback=new AsyncFunction<BuildResult,BuildResult>(){
     @Override public ListenableFuture<BuildResult> apply(    @Nonnull BuildResult input) throws Exception {
+      if (input.getStatus() != BuildRuleStatus.SUCCESS) {
+        return Futures.immediateFuture(input);
+      }
       BuildRuleSuccessType success=Preconditions.checkNotNull(input.getSuccess());
       if (success != BuildRuleSuccessType.BUILT_LOCALLY) {
         for (        String str : onDiskBuildInfo.getValues(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS).get()) {
@@ -60,9 +63,15 @@
   buildResult=Futures.transform(buildResult,callback);
   final SettableFuture<BuildResult> result=SettableFuture.create();
   asyncCallbacks.add(MoreFutures.addListenableCallback(buildResult,new FutureCallback<BuildResult>(){
-    @Override public void onSuccess(    BuildResult input){
-      BuildRuleSuccessType success=Preconditions.checkNotNull(input.getSuccess());
-      result.set(input);
+    private void cleanupAfterError(){
+      try {
+        onDiskBuildInfo.deleteExistingMetadata();
+      }
+ catch (      Throwable t) {
+        context.getEventBus().post(ThrowableConsoleEvent.create(t,"Error when deleting metadata for %s.",rule));
+      }
+    }
+    private void uploadToCache(    BuildRuleSuccessType success){
       Set<RuleKey> ruleKeys=Sets.newHashSet();
       if (success.shouldUploadResultingArtifact()) {
         ruleKeys.add(rule.getRuleKey());
@@ -75,31 +84,38 @@
           buildInfoRecorder.performUploadToArtifactCache(ImmutableSet.copyOf(ruleKeys),context.getArtifactCache(),context.getEventBus());
         }
  catch (        Throwable t) {
-          onFailure(t);
-          return;
+          context.getEventBus().post(ThrowableConsoleEvent.create(t,"Error uploading to cache for %s.",rule));
         }
       }
-      long outputSize;
-      HashCode outputHash;
-      try {
-        outputSize=buildInfoRecorder.getOutputSize();
-        outputHash=buildInfoRecorder.getOutputHash(fileHashCache);
+    }
+    private void handleResult(    BuildResult input){
+      Optional<Long> outputSize=Optional.absent();
+      Optional<HashCode> outputHash=Optional.absent();
+      Optional<BuildRuleSuccessType> successType=Optional.absent();
+      if (input.getStatus() == BuildRuleStatus.FAIL) {
+        firstFailure=input.getFailure();
+        cleanupAfterError();
       }
- catch (      IOException e) {
-        onFailure(e);
-        return;
+      result.set(input);
+      if (input.getStatus() == BuildRuleStatus.SUCCESS) {
+        BuildRuleSuccessType success=Preconditions.checkNotNull(input.getSuccess());
+        successType=Optional.of(success);
+        uploadToCache(success);
+        try {
+          outputSize=Optional.of(buildInfoRecorder.getOutputSize());
+          outputHash=Optional.of(buildInfoRecorder.getOutputHash(fileHashCache));
+        }
+ catch (        IOException e) {
+          context.getEventBus().post(ThrowableConsoleEvent.create(e,"Error getting output hash and size for %s.",rule));
+        }
       }
-      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,BuildRuleStatus.SUCCESS,input.getCacheResult(),Optional.of(input.getSuccess()),Optional.of(outputHash),Optional.of(outputSize)));
+      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,input.getStatus(),input.getCacheResult(),successType,outputHash,outputSize));
+    }
+    @Override public void onSuccess(    BuildResult input){
+      handleResult(input);
     }
     @Override public void onFailure(    @Nonnull Throwable thrown){
-      try {
-        onDiskBuildInfo.deleteExistingMetadata();
-      }
- catch (      Throwable t) {
-        context.getEventBus().post(ThrowableConsoleEvent.create(t,"Error when deleting metadata for %s.",rule));
-      }
-      result.setException(thrown);
-      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,BuildRuleStatus.FAIL,CacheResult.miss(),Optional.<BuildRuleSuccessType>absent(),Optional.<HashCode>absent(),Optional.<Long>absent()));
+      handleResult(BuildResult.failure(rule,thrown));
       if (thrown instanceof InterruptedException) {
         Thread.currentThread().interrupt();
       }

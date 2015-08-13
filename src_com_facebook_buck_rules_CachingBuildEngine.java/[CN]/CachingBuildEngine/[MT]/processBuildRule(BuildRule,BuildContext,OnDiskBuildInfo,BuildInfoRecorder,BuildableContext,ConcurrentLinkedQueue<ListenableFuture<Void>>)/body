@@ -1,22 +1,33 @@
 {
+  if (!context.isKeepGoing() && firstFailure != null) {
+    return Futures.immediateFuture(BuildResult.canceled(rule,firstFailure));
+  }
   Optional<RuleKey> cachedRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_RULE_KEY);
   if (cachedRuleKey.isPresent() && rule.getRuleKey().equals(cachedRuleKey.get())) {
-    return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.MATCHING_RULE_KEY,CacheResult.localKeyUnchangedHit()));
+    return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_RULE_KEY,CacheResult.localKeyUnchangedHit()));
   }
   final CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,rule.getRuleKey(),buildInfoRecorder,context.getArtifactCache(),context.getProjectFilesystem(),context);
   if (cacheResult.getType().isSuccess()) {
-    return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult));
+    return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult));
   }
   context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.suspended(rule));
   return Futures.transform(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,BuildResult>(){
     @Override public ListenableFuture<BuildResult> apply(    @Nonnull List<BuildResult> depResults) throws Exception {
       context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule));
+      for (      BuildResult depResult : depResults) {
+        if (depResult.getStatus() != BuildRuleStatus.SUCCESS) {
+          return Futures.immediateFuture(BuildResult.canceled(rule,Preconditions.checkNotNull(depResult.getFailure())));
+        }
+      }
+      if (!context.isKeepGoing() && firstFailure != null) {
+        return Futures.immediateFuture(BuildResult.canceled(rule,firstFailure));
+      }
       if (useDependencyFileRuleKey(rule)) {
         Optional<RuleKey> depFileRuleKey=calculateDepFileRuleKey(rule,onDiskBuildInfo.getValues(BuildInfo.METADATA_KEY_FOR_DEP_FILE),true);
         if (depFileRuleKey.isPresent()) {
           Optional<RuleKey> lastDepFileRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY);
           if (lastDepFileRuleKey.isPresent() && lastDepFileRuleKey.get().equals(depFileRuleKey.get())) {
-            return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.MATCHING_DEP_FILE_RULE_KEY,CacheResult.localKeyUnchangedHit()));
+            return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_DEP_FILE_RULE_KEY,CacheResult.localKeyUnchangedHit()));
           }
         }
       }
@@ -25,11 +36,11 @@
         buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY,inputRuleKey.toString());
         Optional<RuleKey> lastInputRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY);
         if (lastInputRuleKey.isPresent() && lastInputRuleKey.get().equals(inputRuleKey)) {
-          return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY,CacheResult.localKeyUnchangedHit()));
+          return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY,CacheResult.localKeyUnchangedHit()));
         }
         CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,inputRuleKey,buildInfoRecorder,context.getArtifactCache(),context.getProjectFilesystem(),context);
         if (cacheResult.getType().isSuccess()) {
-          return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,cacheResult));
+          return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,cacheResult));
         }
       }
       AbiRule abiRule=checkIfRuleOrBuildableIsAbiRule(rule);
@@ -40,12 +51,12 @@
           Sha1HashCode abiKeyForDeps=abiRule.getAbiKeyForDeps();
           Optional<Sha1HashCode> cachedAbiKeyForDeps=onDiskBuildInfo.getHash(ABI_KEY_FOR_DEPS_ON_DISK_METADATA);
           if (abiKeyForDeps.equals(cachedAbiKeyForDeps.orNull())) {
-            return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,AbstractCacheResult.localKeyUnchangedHit()));
+            return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_DEPS_ABI_AND_RULE_KEY_NO_DEPS,AbstractCacheResult.localKeyUnchangedHit()));
           }
         }
       }
       executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext,buildInfoRecorder);
-      return Futures.immediateFuture(new BuildResult(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResult));
+      return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResult));
     }
   }
 ,service);

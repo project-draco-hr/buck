@@ -1,6 +1,7 @@
 {
   SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   ArtifactCache cache=new NoopArtifactCache(){
     @Override public CacheResult fetch(    RuleKey ruleKey,    Path output){
       return CacheResult.error("cache","error");
@@ -9,7 +10,7 @@
 ;
   BuildContext buildContext=FakeBuildContext.newBuilder(filesystem).setArtifactCache(cache).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
   BuildRule rule=new NoopBuildRule(BuildRuleParamsFactory.createTrivialBuildRuleParams(BuildTargetFactory.newInstance("//:rule")),resolver);
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),new NullFileHashCache(),CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY);
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY);
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertThat(result.getSuccess(),Matchers.equalTo(BuildRuleSuccessType.BUILT_LOCALLY));
   assertThat(result.getCacheResult().getType(),Matchers.equalTo(CacheResult.Type.ERROR));
