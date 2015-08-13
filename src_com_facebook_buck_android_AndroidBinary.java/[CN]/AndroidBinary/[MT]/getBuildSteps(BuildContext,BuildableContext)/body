@@ -22,6 +22,53 @@
       Path cxxNativeLibsSrc=enhancementResult.getCopyNativeLibraries().get().getPathToNativeLibsAssetsDir();
       steps.add(CopyStep.forDirectory(cxxNativeLibsSrc,libSubdirectory,CopyStep.DirectoryMode.CONTENTS_ONLY));
     }
+    final List<Path> inputAssetLibraries=Lists.newArrayList();
+    final ImmutableList.Builder<Path> outputAssetLibrariesBuilder=ImmutableList.builder();
+    if (compressAssetLibraries.or(Boolean.FALSE)) {
+      steps.add(new AbstractExecutionStep("write_metadata_for_asset_libraries"){
+        @Override public int execute(        ExecutionContext context){
+          ProjectFilesystem filesystem=context.getProjectFilesystem();
+          try {
+            filesystem.walkRelativeFileTree(libSubdirectory,new SimpleFileVisitor<Path>(){
+              @Override public FileVisitResult visitFile(              Path file,              BasicFileAttributes attrs) throws IOException {
+                if (!file.toString().endsWith(".so")) {
+                  throw new IOException("unexpected file in lib directory");
+                }
+                inputAssetLibraries.add(file);
+                return FileVisitResult.CONTINUE;
+              }
+            }
+);
+            for (            Path libPath : inputAssetLibraries) {
+              Path tempPath=libPath.resolveSibling(libPath.getFileName() + "~");
+              filesystem.move(libPath,tempPath);
+              outputAssetLibrariesBuilder.add(tempPath);
+            }
+            ImmutableList<Path> outputAssetLibraries=outputAssetLibrariesBuilder.build();
+            ImmutableList.Builder<String> metadataLines=ImmutableList.builder();
+            Path metadataOutput=libSubdirectory.resolve("metadata.txt");
+            for (            Path libPath : outputAssetLibraries) {
+              Path relativeLibPath=libSubdirectory.relativize(libPath);
+              long filesize=filesystem.getFileSize(libPath);
+              metadataLines.add(relativeLibPath.toString() + ' ' + filesize);
+            }
+            ImmutableList<String> metadata=metadataLines.build();
+            if (!metadata.isEmpty()) {
+              filesystem.writeLinesToPath(metadata,metadataOutput);
+            }
+          }
+ catch (          IOException e) {
+            context.logError(e,"Writing metadata for asset libraries failed.");
+            return 1;
+          }
+          return 0;
+        }
+      }
+);
+      Path libOutputBlob=libSubdirectory.resolve("libraries.blob");
+      steps.add(new ConcatStep(outputAssetLibrariesBuilder,libOutputBlob));
+      steps.add(new XzStep(libOutputBlob,libSubdirectory.resolve(SOLID_COMPRESSED_ASSET_LIBRARY_FILENAME)));
+    }
     nativeLibraryAsAssetDirectories=ImmutableSet.of(pathForNativeLibsAsAssets);
   }
  else {
