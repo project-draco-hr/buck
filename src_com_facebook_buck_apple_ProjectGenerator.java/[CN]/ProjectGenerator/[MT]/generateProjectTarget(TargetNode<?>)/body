@@ -12,40 +12,10 @@
     result=Optional.<PBXTarget>of(generateAppleBundleTarget(project,bundleTargetNode,(TargetNode<AppleNativeTargetDescriptionArg>)Preconditions.checkNotNull(targetGraph.get(bundleTargetNode.getConstructorArg().binary)),Optional.<TargetNode<AppleBundleDescription.Arg>>absent()));
   }
  else   if (targetNode.getType().equals(AppleTestDescription.TYPE)) {
-    TargetNode<AppleTestDescription.Arg> testTargetNode=(TargetNode<AppleTestDescription.Arg>)targetNode;
-    Optional<TargetNode<AppleBundleDescription.Arg>> testHostBundle;
-    if (testTargetNode.getConstructorArg().testHostApp.isPresent()) {
-      BuildTarget testHostBundleTarget=testTargetNode.getConstructorArg().testHostApp.get();
-      TargetNode<?> testHostBundleNode=targetGraph.get(testHostBundleTarget);
-      Preconditions.checkNotNull(testHostBundleNode);
-      if (testHostBundleNode.getType() != AppleBundleDescription.TYPE) {
-        throw new HumanReadableException("The test host target '%s' has the wrong type (%s), must be apple_bundle",testHostBundleTarget,testHostBundleNode.getType());
-      }
-      testHostBundle=Optional.of((TargetNode<AppleBundleDescription.Arg>)testHostBundleNode);
-    }
- else {
-      testHostBundle=Optional.absent();
-    }
-    if (testsToGenerateAsStaticLibraries.contains(testTargetNode)) {
-      result=Optional.<PBXTarget>of(generateAppleLibraryTarget(project,testTargetNode,testHostBundle));
-    }
- else {
-      result=Optional.<PBXTarget>of(generateAppleBundleTarget(project,testTargetNode,testTargetNode,testHostBundle));
-    }
+    result=generateAppleTestTarget((TargetNode<AppleTestDescription.Arg>)targetNode);
   }
  else   if (targetNode.getType().equals(AppleResourceDescription.TYPE)) {
-    TargetNode<AppleResourceDescription.Arg> resource=(TargetNode<AppleResourceDescription.Arg>)targetNode;
-    AppleResourceDescription.Arg arg=resource.getConstructorArg();
-    for (    SourcePath dir : arg.dirs) {
-      if (dir instanceof PathSourcePath && !projectFilesystem.isDirectory(sourcePathResolver.apply(dir))) {
-        throw new HumanReadableException("%s specified in the dirs parameter of %s is not a directory",dir.toString(),resource.toString());
-      }
-    }
-    for (    SourcePath file : arg.files) {
-      if (file instanceof PathSourcePath && !projectFilesystem.isFile(sourcePathResolver.apply(file))) {
-        throw new HumanReadableException("%s specified in the files parameter of %s is not a regular file",file.toString(),resource.toString());
-      }
-    }
+    checkAppleResourceTargetNodeReferencingValidContents((TargetNode<AppleResourceDescription.Arg>)targetNode);
   }
   return result;
 }
