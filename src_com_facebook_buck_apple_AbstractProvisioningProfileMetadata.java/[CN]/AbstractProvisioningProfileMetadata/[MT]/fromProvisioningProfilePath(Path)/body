@@ -1,14 +1,17 @@
 {
-  String fileAsString=Files.toString(profilePath.toFile(),Charsets.UTF_8);
-  Matcher matcher=PLIST_XML_PATTERN.matcher(fileAsString);
-  if (matcher.find()) {
-    fileAsString=matcher.group();
-  }
- else {
-    throw new IllegalArgumentException("Malformed .mobileprovision file (could not find embedded plist)");
+  CapturingPrintStream stdout=new CapturingPrintStream();
+  CapturingPrintStream stderr=new CapturingPrintStream();
+  Console console=new Console(Verbosity.SILENT,stdout,stderr,Ansi.withoutTty());
+  ProcessExecutor processExecutor=new ProcessExecutor(console);
+  Set<ProcessExecutor.Option> options=EnumSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT);
+  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().setCommand(ImmutableList.of("/usr/bin/security","cms","-D","-i",profilePath.toString())).build();
+  ProcessExecutor.Result result;
+  result=processExecutor.launchAndExecute(processExecutorParams,options,Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
+  if (result.getExitCode() != 0) {
+    throw new HumanReadableException("Invalid provisioning profile: " + profilePath + ": "+ result.getStderr());
   }
   try {
-    NSDictionary plist=(NSDictionary)PropertyListParser.parse(fileAsString.getBytes());
+    NSDictionary plist=(NSDictionary)PropertyListParser.parse(result.getStdout().get().getBytes());
     Date expirationDate=((NSDate)plist.get("ExpirationDate")).getDate();
     String uuid=((NSString)plist.get("UUID")).getContent();
     ImmutableMap.Builder<String,NSObject> builder=ImmutableMap.<String,NSObject>builder();
