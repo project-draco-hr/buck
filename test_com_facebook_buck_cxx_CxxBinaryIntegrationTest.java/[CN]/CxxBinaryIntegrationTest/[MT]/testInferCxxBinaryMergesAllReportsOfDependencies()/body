@@ -1,12 +1,10 @@
 {
-  Path inferTopLevel=InferHelper.assumeInferIsInstalled();
-  ProjectWorkspace workspace=InferHelper.setupCxxInferWorkspace(this,inferTopLevel,tmp);
+  assumeTrue(Platform.detect() != Platform.WINDOWS);
+  ProjectWorkspace workspace=InferHelper.setupCxxInferWorkspace(this,tmp);
   BuildTarget inputBuildTarget=BuildTargetFactory.newInstance("//foo:binary_with_chain_deps");
   String inputBuildTargetName=inputBuildTarget.withFlavors(CxxInferEnhancer.INFER).getFullyQualifiedName();
   workspace.runBuckCommand("build",inputBuildTargetName).assertSuccess();
-  InferHelper.InferBug expectedBug=new InferHelper.InferBug("NULL_DEREFERENCE","foo/chain_dep_two.c","func_bad");
   String reportPath="buck-out/gen/foo/infer-binary_with_chain_deps#infer/report.json";
-  List<InferHelper.InferBug> bugs=InferHelper.loadInferReport(workspace,reportPath);
-  Assert.assertThat("2 bugs expected in " + reportPath + " not found",bugs.size(),Matchers.equalTo(2));
-  Assert.assertThat("Expected NULL_DEREFERENCE in func_bad",bugs,Matchers.hasItem(expectedBug));
+  List<Object> bugs=InferHelper.loadInferReport(workspace,reportPath);
+  Assert.assertThat("3 bugs expected in " + reportPath + " not found",bugs.size(),Matchers.equalTo(3));
 }
