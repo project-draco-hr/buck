@@ -1,16 +1,8 @@
 {
+  String lastRenderClear=clearLastRender();
   ImmutableList<String> lines=createRenderLinesAtTime(clock.currentTimeMillis());
-  String nextFrame=clearLastRender() + Joiner.on("\n").join(lines);
-  lastNumLinesPrinted=lines.size();
-  String logFrame;
   ImmutableList<String> logLines=createLogRenderLines();
-  if (!logLines.isEmpty()) {
-    lastNumLinesPrinted+=logLines.size();
-    logFrame="\n" + Joiner.on("\n").join(logLines);
-  }
- else {
-    logFrame="";
-  }
+  lastNumLinesPrinted=lines.size() + logLines.size();
 synchronized (console.getStdOut()) {
 synchronized (console.getStdErr()) {
       boolean stdoutDirty=console.getStdOut().isDirty();
@@ -19,12 +11,13 @@ synchronized (console.getStdErr()) {
         LOG.debug("Stopping console output (stdout dirty %s, stderr dirty %s).",stdoutDirty,stderrDirty);
         stopRenderScheduler();
       }
- else       if (!nextFrame.isEmpty() || !logFrame.isEmpty()) {
-        if (!nextFrame.isEmpty()) {
-          nextFrame=ansi.asNoWrap(nextFrame);
+ else       if (!lastRenderClear.isEmpty() || !lines.isEmpty() || !logLines.isEmpty()) {
+        Iterable<String> renderedLines=Iterables.concat(ansi.asNoWrap(MoreIterables.zipAndConcat(lines,Iterables.cycle("\n"))),MoreIterables.zipAndConcat(logLines,Iterables.cycle("\n")));
+        StringBuilder fullFrame=new StringBuilder(lastRenderClear);
+        for (        String part : renderedLines) {
+          fullFrame.append(part);
         }
-        String fullFrame=nextFrame + logFrame;
-        console.getStdErr().getRawStream().println(fullFrame);
+        console.getStdErr().getRawStream().print(fullFrame);
       }
     }
   }
