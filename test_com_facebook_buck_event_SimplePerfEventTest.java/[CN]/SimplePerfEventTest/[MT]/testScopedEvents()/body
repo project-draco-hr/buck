@@ -1,0 +1,21 @@
+{
+  PerfEventId testEventId=PerfEventId.of("Unicorn");
+  SimplePerfEventListener listener=new SimplePerfEventListener();
+  BuckEventBus eventBus=BuckEventBusFactory.newInstance();
+  eventBus.register(listener);
+  try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(Optional.<BuckEventBus>absent(),testEventId)){
+    scope.appendFinishedInfo("finished","info");
+    scope.update(ImmutableMap.<String,Object>of("update","updateValue"));
+  }
+   try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,testEventId)){
+    scope.appendFinishedInfo("finished","info");
+    scope.update(ImmutableMap.<String,Object>of("update","updateValue"));
+    scope.update(ImmutableMap.<String,Object>of("update","laterUpdate"));
+  }
+   ImmutableList<SimplePerfEvent> perfEvents=listener.getPerfEvents();
+  assertThat(perfEvents,Matchers.hasSize(4));
+  assertPerfEvent(perfEvents.get(0),testEventId,SimplePerfEvent.Type.STARTED,ImmutableMap.<String,String>of());
+  assertPerfEvent(perfEvents.get(1),testEventId,SimplePerfEvent.Type.UPDATED,ImmutableMap.of("update","updateValue"));
+  assertPerfEvent(perfEvents.get(2),testEventId,SimplePerfEvent.Type.UPDATED,ImmutableMap.of("update","laterUpdate"));
+  assertPerfEvent(perfEvents.get(3),testEventId,SimplePerfEvent.Type.FINISHED,ImmutableMap.of("finished","info"));
+}
