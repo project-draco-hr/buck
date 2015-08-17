@@ -1,6 +1,14 @@
 {
   BuildTarget testBuildTarget=BuildTarget.builder(BuildTargetFactory.newInstance("//foo:baz")).addAllFlavors(ImmutableSet.of(CxxCompilationDatabase.COMPILATION_DATABASE)).build();
-  BuildRuleParams testBuildRuleParams=new FakeBuildRuleParamsBuilder(testBuildTarget).build();
+  final String root="/Users/user/src";
+  final Path fakeRoot=Paths.get(root);
+  ProjectFilesystem filesystem=new FakeProjectFilesystem(){
+    @Override public Path resolve(    Path relativePath){
+      return fakeRoot.resolve(relativePath);
+    }
+  }
+;
+  BuildRuleParams testBuildRuleParams=new FakeBuildRuleParamsBuilder(testBuildTarget).setProjectFilesystem(filesystem).build();
   BuildRuleResolver testBuildRuleResolver=new BuildRuleResolver();
   SourcePathResolver testSourcePathResolver=new SourcePathResolver(testBuildRuleResolver);
   BuildTarget preprocessTarget=BuildTarget.builder(testBuildRuleParams.getBuildTarget().getUnflavoredBuildTarget()).addFlavors(ImmutableFlavor.of("preprocess-test.cpp")).build();
@@ -11,17 +19,17 @@
 switch (strategy) {
 case SEPARATE:
     operation=CxxPreprocessAndCompileStep.Operation.COMPILE;
-  CxxPreprocessAndCompile preprocessRule=new CxxPreprocessAndCompile(new FakeBuildRuleParamsBuilder(preprocessTarget).build(),testSourcePathResolver,operation,Optional.<Preprocessor>of(new DefaultPreprocessor(new HashedFileTool(Paths.get("preprocessor")))),Optional.of(ImmutableList.<String>of()),Optional.of(ImmutableList.<String>of()),Optional.<Compiler>absent(),Optional.<ImmutableList<String>>absent(),Optional.<ImmutableList<String>>absent(),Paths.get("test.o"),new TestSourcePath("test.cpp"),CxxSource.Type.CXX,ImmutableSet.of(Paths.get("foo/bar"),Paths.get("test")),ImmutableSet.<Path>of(),ImmutableSet.<Path>of(),ImmutableSet.<Path>of(),Optional.<SourcePath>absent(),ImmutableList.<CxxHeaders>of(),CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER);
+  CxxPreprocessAndCompile preprocessRule=new CxxPreprocessAndCompile(new FakeBuildRuleParamsBuilder(preprocessTarget).setProjectFilesystem(filesystem).build(),testSourcePathResolver,operation,Optional.<Preprocessor>of(new DefaultPreprocessor(new HashedFileTool(Paths.get("preprocessor")))),Optional.of(ImmutableList.<String>of()),Optional.of(ImmutableList.<String>of()),Optional.<Compiler>absent(),Optional.<ImmutableList<String>>absent(),Optional.<ImmutableList<String>>absent(),Paths.get("test.o"),new TestSourcePath("test.cpp"),CxxSource.Type.CXX,ImmutableSet.of(Paths.get("foo/bar"),Paths.get("test")),ImmutableSet.<Path>of(),ImmutableSet.<Path>of(),ImmutableSet.<Path>of(),Optional.<SourcePath>absent(),ImmutableList.<CxxHeaders>of(),CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER);
 rules.add(preprocessRule);
-compileBuildRuleParams=new FakeBuildRuleParamsBuilder(compileTarget).setDeps(ImmutableSortedSet.<BuildRule>of(preprocessRule)).build();
+compileBuildRuleParams=new FakeBuildRuleParamsBuilder(compileTarget).setProjectFilesystem(filesystem).setDeps(ImmutableSortedSet.<BuildRule>of(preprocessRule)).build();
 break;
 case COMBINED:
 operation=CxxPreprocessAndCompileStep.Operation.COMPILE_MUNGE_DEBUGINFO;
-compileBuildRuleParams=new FakeBuildRuleParamsBuilder(compileTarget).build();
+compileBuildRuleParams=new FakeBuildRuleParamsBuilder(compileTarget).setProjectFilesystem(filesystem).build();
 break;
 case PIPED:
 operation=CxxPreprocessAndCompileStep.Operation.PIPED_PREPROCESS_AND_COMPILE;
-compileBuildRuleParams=new FakeBuildRuleParamsBuilder(compileTarget).build();
+compileBuildRuleParams=new FakeBuildRuleParamsBuilder(compileTarget).setProjectFilesystem(filesystem).build();
 break;
 default :
 throw new RuntimeException("Invalid strategy");
@@ -35,17 +43,8 @@ List<Step> buildSteps=compilationDatabase.getPostBuildSteps(buildContext,buildab
 assertEquals(2,buildSteps.size());
 assertTrue(buildSteps.get(0) instanceof MkdirStep);
 assertTrue(buildSteps.get(1) instanceof CxxCompilationDatabase.GenerateCompilationCommandsJson);
-final String root="/Users/user/src";
-final Path fakeRoot=Paths.get(root);
-ProjectFilesystem projectFilesystem=new FakeProjectFilesystem(){
-@Override public Path resolve(Path relativePath){
-return fakeRoot.resolve(relativePath);
-}
-}
-;
-ExecutionContext context=TestExecutionContext.newBuilder().setProjectFilesystem(projectFilesystem).build();
 CxxCompilationDatabase.GenerateCompilationCommandsJson step=(CxxCompilationDatabase.GenerateCompilationCommandsJson)buildSteps.get(1);
-Iterable<CxxCompilationDatabaseEntry> observedEntries=step.createEntries(context);
+Iterable<CxxCompilationDatabaseEntry> observedEntries=step.createEntries();
 Iterable<CxxCompilationDatabaseEntry> expectedEntries=ImmutableList.of(new CxxCompilationDatabaseEntry(root + "/foo",root + "/test.cpp",expectedArguments));
 MoreAsserts.assertIterablesEquals(expectedEntries,observedEntries);
 }

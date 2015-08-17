@@ -4,8 +4,7 @@
   steps.add(new MakeCleanDirectoryStep(output.getParent()));
   steps.add(new ShellStep(){
     @Override protected ImmutableList<String> getShellCommandInternal(    ExecutionContext context){
-      ProjectFilesystem filesystem=context.getProjectFilesystem();
-      return ImmutableList.of(getResolver().getPath(jsPackager).toString(),"list-dependencies",platform.toString(),filesystem.resolve(getResolver().getPath(entryPath)).toString(),"--output",filesystem.resolve(output).toString());
+      return ImmutableList.of(getResolver().getPath(jsPackager).toString(),"list-dependencies",platform.toString(),getProjectFilesystem().resolve(getResolver().getPath(entryPath)).toString(),"--output",getProjectFilesystem().resolve(output).toString());
     }
     @Override public String getShortName(){
       return "react-native-deps";
@@ -14,16 +13,15 @@
 );
   steps.add(new AbstractExecutionStep("hash_js_inputs"){
     @Override public int execute(    ExecutionContext context){
-      ProjectFilesystem filesystem=context.getProjectFilesystem();
       ImmutableList<Path> paths;
       try {
-        paths=FluentIterable.from(filesystem.readLines(output)).transform(MorePaths.TO_PATH).transform(filesystem.getRelativizer()).toSortedList(Ordering.natural());
+        paths=FluentIterable.from(getProjectFilesystem().readLines(output)).transform(MorePaths.TO_PATH).transform(getProjectFilesystem().getRelativizer()).toSortedList(Ordering.natural());
       }
  catch (      IOException e) {
         context.logError(e,"Error reading output of the 'react-native-deps' step.");
         return 1;
       }
-      FluentIterable<SourcePath> unlistedSrcs=FluentIterable.from(paths).transform(SourcePaths.toSourcePath(filesystem)).filter(Predicates.not(Predicates.in(srcs)));
+      FluentIterable<SourcePath> unlistedSrcs=FluentIterable.from(paths).transform(SourcePaths.toSourcePath(getProjectFilesystem())).filter(Predicates.not(Predicates.in(srcs)));
       if (!unlistedSrcs.isEmpty()) {
         context.logError(new RuntimeException(),"Entry path '%s' transitively uses the following source files which were not " + "included in 'srcs':\n%s",entryPath,Joiner.on('\n').join(unlistedSrcs));
         return 1;
@@ -31,7 +29,7 @@
       Hasher hasher=Hashing.sha1().newHasher();
       for (      Path path : paths) {
         try {
-          hasher.putUnencodedChars(filesystem.computeSha1(path));
+          hasher.putUnencodedChars(getProjectFilesystem().computeSha1(path));
         }
  catch (        IOException e) {
           context.logError(e,"Error hashing input file: %s",path);

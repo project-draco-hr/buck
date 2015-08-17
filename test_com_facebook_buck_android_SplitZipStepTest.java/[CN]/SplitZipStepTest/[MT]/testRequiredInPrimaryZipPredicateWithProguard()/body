@@ -1,18 +1,18 @@
 {
+  List<String> linesInMappingFile=ImmutableList.of("foo.bar.MappedPrimary -> foo.bar.a:","foo.bar.MappedSecondary -> foo.bar.b:","foo.bar.UnmappedPrimary -> foo.bar.UnmappedPrimary:","foo.bar.UnmappedSecondary -> foo.bar.UnmappedSecondary:","foo.primary.MappedPackage -> x.a:","foo.secondary.MappedPackage -> x.b:","foo.primary.UnmappedPackage -> foo.primary.UnmappedPackage:");
+  List<String> linesInManifestFile=ImmutableList.of("foo/bar/MappedPrimary","foo/bar/UnmappedPrimary","foo/bar/b","x/b");
   Path proguardConfigFile=Paths.get("the/configuration.txt");
   Path proguardMappingFile=Paths.get("the/mapping.txt");
   Path primaryDexClassesFile=Paths.get("the/manifest.txt");
-  SplitZipStep splitZipStep=new SplitZipStep(ImmutableSet.<Path>of(),Paths.get(""),Paths.get(""),Paths.get(""),"",Optional.of(proguardConfigFile),Optional.of(proguardMappingFile),new DexSplitMode(true,ZipSplitter.DexSplitStrategy.MAXIMIZE_PRIMARY_DEX_SIZE,DexStore.JAR,true,4 * 1024 * 1024,ImmutableSet.of("/primary/","x/"),Optional.<SourcePath>of(new TestSourcePath("the/manifest.txt")),Optional.<SourcePath>absent(),false,Optional.<SourcePath>absent(),Optional.<SourcePath>absent()),Optional.<Path>absent(),Optional.of(Paths.get("the/manifest.txt")),Optional.<Path>absent(),Optional.<Path>absent(),Paths.get(""));
-  List<String> linesInMappingFile=ImmutableList.of("foo.bar.MappedPrimary -> foo.bar.a:","foo.bar.MappedSecondary -> foo.bar.b:","foo.bar.UnmappedPrimary -> foo.bar.UnmappedPrimary:","foo.bar.UnmappedSecondary -> foo.bar.UnmappedSecondary:","foo.primary.MappedPackage -> x.a:","foo.secondary.MappedPackage -> x.b:","foo.primary.UnmappedPackage -> foo.primary.UnmappedPackage:");
-  List<String> linesInManifestFile=ImmutableList.of("foo/bar/MappedPrimary","foo/bar/UnmappedPrimary","foo/bar/b","x/b");
   ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
   EasyMock.expect(projectFilesystem.readLines(primaryDexClassesFile)).andReturn(linesInManifestFile);
   EasyMock.expect(projectFilesystem.readLines(proguardConfigFile)).andReturn(ImmutableList.<String>of());
   EasyMock.expect(projectFilesystem.readLines(proguardMappingFile)).andReturn(linesInMappingFile);
+  SplitZipStep splitZipStep=new SplitZipStep(projectFilesystem,ImmutableSet.<Path>of(),Paths.get(""),Paths.get(""),Paths.get(""),"",Optional.of(proguardConfigFile),Optional.of(proguardMappingFile),new DexSplitMode(true,ZipSplitter.DexSplitStrategy.MAXIMIZE_PRIMARY_DEX_SIZE,DexStore.JAR,true,4 * 1024 * 1024,ImmutableSet.of("/primary/","x/"),Optional.<SourcePath>of(new TestSourcePath("the/manifest.txt")),Optional.<SourcePath>absent(),false,Optional.<SourcePath>absent(),Optional.<SourcePath>absent()),Optional.<Path>absent(),Optional.of(Paths.get("the/manifest.txt")),Optional.<Path>absent(),Optional.<Path>absent(),Paths.get(""));
   ExecutionContext context=EasyMock.createMock(ExecutionContext.class);
   EasyMock.expect(context.getProjectFilesystem()).andReturn(projectFilesystem).anyTimes();
   EasyMock.replay(projectFilesystem,context);
-  ProguardTranslatorFactory translatorFactory=ProguardTranslatorFactory.create(context,Optional.of(proguardConfigFile),Optional.of(proguardMappingFile));
+  ProguardTranslatorFactory translatorFactory=ProguardTranslatorFactory.create(projectFilesystem,Optional.of(proguardConfigFile),Optional.of(proguardMappingFile));
   Predicate<String> requiredInPrimaryZipPredicate=splitZipStep.createRequiredInPrimaryZipPredicate(context,translatorFactory,Suppliers.ofInstance(ImmutableList.<ClassNode>of()));
   assertTrue("Mapped class from primary list should be in primary.",requiredInPrimaryZipPredicate.apply("foo/bar/a.class"));
   assertTrue("Unmapped class from primary list should be in primary.",requiredInPrimaryZipPredicate.apply("foo/bar/UnmappedPrimary.class"));

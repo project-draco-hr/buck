@@ -1,12 +1,12 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
-  Path resolvedTestBundleDirectory=executionContext.getProjectFilesystem().resolve(Preconditions.checkNotNull(testBundle.getPathToOutput()));
-  Path pathToTestOutput=executionContext.getProjectFilesystem().resolve(getPathToTestOutputDirectory());
+  Path resolvedTestBundleDirectory=getProjectFilesystem().resolve(Preconditions.checkNotNull(testBundle.getPathToOutput()));
+  Path pathToTestOutput=getProjectFilesystem().resolve(getPathToTestOutputDirectory());
   steps.add(new MakeCleanDirectoryStep(pathToTestOutput));
-  Path resolvedTestOutputPath=executionContext.getProjectFilesystem().resolve(testOutputPath);
+  Path resolvedTestOutputPath=getProjectFilesystem().resolve(testOutputPath);
   Optional<Path> testHostAppPath=Optional.absent();
   if (testHostApp.isPresent()) {
-    Path resolvedTestHostAppDirectory=executionContext.getProjectFilesystem().resolve(Preconditions.checkNotNull(testHostApp.get().getPathToOutput()));
+    Path resolvedTestHostAppDirectory=getProjectFilesystem().resolve(Preconditions.checkNotNull(testHostApp.get().getPathToOutput()));
     testHostAppPath=Optional.of(resolvedTestHostAppDirectory.resolve(testHostApp.get().getUnzippedOutputFilePathToBinary()));
   }
   if (!useXctest) {
@@ -23,7 +23,7 @@
     }
     Path xctoolBinaryPath;
     if (xctoolZipRule.isPresent()) {
-      Path resolvedXctoolUnzipDirectory=executionContext.getProjectFilesystem().resolve(xctoolUnzipDirectory);
+      Path resolvedXctoolUnzipDirectory=getProjectFilesystem().resolve(xctoolUnzipDirectory);
       steps.add(new MakeCleanDirectoryStep(resolvedXctoolUnzipDirectory));
       steps.add(new UnzipStep(Preconditions.checkNotNull(xctoolZipRule.get().getPathToOutput()),resolvedXctoolUnzipDirectory));
       xctoolBinaryPath=resolvedXctoolUnzipDirectory.resolve("bin/xctool");
@@ -36,7 +36,7 @@
   }
  else {
     Tool testRunningTool;
-    if (testBundleExtension == "xctest") {
+    if (testBundleExtension.equals("xctest")) {
       testRunningTool=xctest;
     }
  else     if (otest.isPresent()) {
@@ -45,7 +45,7 @@
  else {
       throw new HumanReadableException("Cannot run non-xctest bundle type %s (otest not present)",testBundleExtension);
     }
-    steps.add(new XctestRunTestsStep(testRunningTool.getCommandPrefix(getResolver()),(testBundleExtension == "xctest" ? "-XCTest" : "-SenTest"),resolvedTestBundleDirectory,resolvedTestOutputPath));
+    steps.add(new XctestRunTestsStep(testRunningTool.getCommandPrefix(getResolver()),(testBundleExtension.equals("xctest") ? "-XCTest" : "-SenTest"),resolvedTestBundleDirectory,resolvedTestOutputPath));
   }
   return steps.build();
 }

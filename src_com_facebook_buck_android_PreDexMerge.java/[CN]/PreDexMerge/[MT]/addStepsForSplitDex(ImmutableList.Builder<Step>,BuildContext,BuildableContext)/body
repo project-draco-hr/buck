@@ -18,12 +18,11 @@
   buildableContext.recordArtifact(paths.metadataSubdir);
   buildableContext.recordArtifact(paths.successDir);
   PreDexedFilesSorter preDexedFilesSorter=new PreDexedFilesSorter(aaptPackageResources.getRDotJavaDexWithClasses(),dexFilesToMerge,dexSplitMode.getPrimaryDexPatterns(),paths.scratchDir,dexSplitMode.getLinearAllocHardLimit(),dexSplitMode.getDexStore(),paths.jarfilesSubdir);
-  final PreDexedFilesSorter.Result sortResult=preDexedFilesSorter.sortIntoPrimaryAndSecondaryDexes(context,steps);
+  final PreDexedFilesSorter.Result sortResult=preDexedFilesSorter.sortIntoPrimaryAndSecondaryDexes(context,getProjectFilesystem(),steps);
   steps.add(new SmartDexingStep(primaryDexPath,Suppliers.ofInstance(sortResult.primaryDexInputs),Optional.of(paths.jarfilesSubdir),Optional.of(Suppliers.ofInstance(sortResult.secondaryOutputToInputs)),sortResult.dexInputHashesProvider,paths.successDir,DX_MERGE_OPTIONS,dxExecutorService,xzCompressionLevel));
   steps.add(new RecordFileSha1Step(primaryDexPath,PRIMARY_DEX_HASH_KEY,buildableContext));
   steps.add(new AbstractExecutionStep("write_metadata_txt"){
     @Override public int execute(    ExecutionContext executionContext){
-      ProjectFilesystem filesystem=executionContext.getProjectFilesystem();
       Map<Path,DexWithClasses> metadataTxtEntries=sortResult.metadataTxtDexEntries;
       List<String> lines=Lists.newArrayListWithCapacity(metadataTxtEntries.size());
       if (dexSplitMode.getDexStore() == DexStore.RAW) {
@@ -34,10 +33,10 @@
           Path pathToSecondaryDex=entry.getKey();
           String containedClass=Iterables.get(entry.getValue().getClassNames(),0);
           containedClass=containedClass.replace('/','.');
-          String hash=filesystem.computeSha1(pathToSecondaryDex);
+          String hash=getProjectFilesystem().computeSha1(pathToSecondaryDex);
           lines.add(String.format("%s %s %s",pathToSecondaryDex.getFileName(),hash,containedClass));
         }
-        filesystem.writeLinesToPath(lines,paths.metadataFile);
+        getProjectFilesystem().writeLinesToPath(lines,paths.metadataFile);
       }
  catch (      IOException e) {
         executionContext.logError(e,"Failed when writing metadata.txt multi-dex.");

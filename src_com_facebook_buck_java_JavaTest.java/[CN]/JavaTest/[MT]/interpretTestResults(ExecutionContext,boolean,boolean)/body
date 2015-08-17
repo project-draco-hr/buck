@@ -2,12 +2,11 @@
   final ImmutableSet<String> contacts=getContacts();
   return new Callable<TestResults>(){
     @Override public TestResults call() throws Exception {
-      Set<String> testClassNames=getClassNamesForSources(context);
+      Set<String> testClassNames=getClassNamesForSources();
       if (testClassNames.isEmpty()) {
         return new TestResults(getBuildTarget(),ImmutableList.<TestCaseSummary>of(),contacts,FluentIterable.from(labels).transform(Functions.toStringFunction()).toSet());
       }
       List<TestCaseSummary> summaries=Lists.newArrayListWithCapacity(testClassNames.size());
-      ProjectFilesystem filesystem=context.getProjectFilesystem();
       for (      String testClass : testClassNames) {
         String testSelectorSuffix="";
         if (isUsingTestSelectors) {
@@ -17,7 +16,7 @@
           testSelectorSuffix+=".dry_run";
         }
         String path=String.format("%s%s.xml",testClass,testSelectorSuffix);
-        Path testResultFile=filesystem.getPathForRelativePath(getPathToTestOutputDirectory().resolve(path));
+        Path testResultFile=getProjectFilesystem().getPathForRelativePath(getPathToTestOutputDirectory().resolve(path));
         if (!isUsingTestSelectors && !Files.isRegularFile(testResultFile)) {
           String message;
           if (Preconditions.checkNotNull(junit).hasTimedOut()) {
