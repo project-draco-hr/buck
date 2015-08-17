@@ -1,19 +1,22 @@
 {
   Preconditions.checkArgument(targetNode.getConstructorArg() instanceof ReactNativeLibraryArgs);
-  ProjectFilesystem filesystem=targetNode.getRuleFactoryParams().getProjectFilesystem();
+  ST template;
+  try {
+    template=new ST(Resources.toString(Resources.getResource(NewNativeTargetProjectMutator.class,REACT_NATIVE_PACKAGE_TEMPLATE),Charsets.UTF_8));
+  }
+ catch (  IOException e) {
+    throw new RuntimeException("There was an error loading 'rn_package.st' template",e);
+  }
   ReactNativeLibraryArgs args=(ReactNativeLibraryArgs)targetNode.getConstructorArg();
-  IosReactNativeLibraryDescription description=(IosReactNativeLibraryDescription)targetNode.getDescription();
-  ImmutableList.Builder<String> script=ImmutableList.builder();
-  script.add("BASE_DIR=${CONFIGURATION_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}");
-  script.add("JS_OUT=${BASE_DIR}/" + args.bundleName);
-  script.add("SOURCE_MAP=${TEMP_DIR}/rn_source_map/" + args.bundleName + ".map");
-  if (skipRNBundle) {
-    script.add("rm -rf ${JS_OUT}");
-  }
- else {
-    script.add("mkdir -p `dirname ${JS_OUT}`");
-    script.add("mkdir -p `dirname ${SOURCE_MAP}`");
-    script.add(Joiner.on(" ").join(ReactNativeBundle.getBundleScript(filesystem.resolve(sourcePathResolver.apply(description.getReactNativePackager())),filesystem.resolve(sourcePathResolver.apply(args.entryPath)),ReactNativePlatform.IOS,ReactNativeFlavors.isDevMode(targetNode.getBuildTarget()),"${JS_OUT}","${BASE_DIR}","${SOURCE_MAP}")));
-  }
-  return Joiner.on(" && ").join(script.build());
+  template.add("bundle_name",args.bundleName);
+  template.add("skip_rn_bundle",skipRNBundle);
+  ProjectFilesystem filesystem=targetNode.getRuleFactoryParams().getProjectFilesystem();
+  BuildTarget buildTarget=targetNode.getBuildTarget();
+  Path jsOutput=ReactNativeBundle.getPathToJSBundleDir(buildTarget).resolve(args.bundleName);
+  template.add("built_bundle_path",filesystem.resolve(jsOutput));
+  Path resourceOutput=ReactNativeBundle.getPathToResources(buildTarget);
+  template.add("built_resources_path",filesystem.resolve(resourceOutput));
+  Path sourceMap=ReactNativeBundle.getPathToSourceMap(buildTarget);
+  template.add("built_source_map_path",filesystem.resolve(sourceMap));
+  return template.render();
 }
