@@ -44,25 +44,13 @@
     try {
       ImmutableSet.Builder<BuildTarget> declaredDeps=ImmutableSet.builder();
       ImmutableSet.Builder<BuildTargetPattern> visibilityPatterns=ImmutableSet.builder();
-      MarshalConstructorArgsEvent.Started marshalConstructorArgsEvent=null;
-      if (eventBus.isPresent()) {
-        marshalConstructorArgsEvent=MarshalConstructorArgsEvent.started(buildTarget);
-        eventBus.get().post(marshalConstructorArgsEvent);
+      try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,PerfEventId.of("MarshalledConstructorArg"),"target",buildTarget)){
+        marshaller.populate(targetRepo.getFilesystem(),factoryParams,constructorArg,declaredDeps,visibilityPatterns,map);
       }
-      marshaller.populate(targetRepo.getFilesystem(),factoryParams,constructorArg,declaredDeps,visibilityPatterns,map);
-      if (eventBus.isPresent()) {
-        eventBus.get().post(MarshalConstructorArgsEvent.finished(Preconditions.checkNotNull(marshalConstructorArgsEvent)));
+       try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,PerfEventId.of("CreatedTargetNode"),"target",buildTarget)){
+        targetNode=new TargetNode(description,constructorArg,factoryParams,declaredDeps.build(),visibilityPatterns.build());
       }
-      CreateTargetNodeEvent.Started createTargetNodeEvent=null;
-      if (eventBus.isPresent()) {
-        createTargetNodeEvent=CreateTargetNodeEvent.started(buildTarget);
-        eventBus.get().post(createTargetNodeEvent);
-      }
-      targetNode=new TargetNode(description,constructorArg,factoryParams,declaredDeps.build(),visibilityPatterns.build());
-      if (eventBus.isPresent()) {
-        eventBus.get().post(CreateTargetNodeEvent.finished(Preconditions.checkNotNull(createTargetNodeEvent)));
-      }
-    }
+     }
  catch (    NoSuchBuildTargetException|TargetNode.InvalidSourcePathInputException e) {
       throw new HumanReadableException(e);
     }
