@@ -1,0 +1,14 @@
+{
+  TargetNode<?> guava=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//third_party/java/guava:guava")).build();
+  TargetNode<?> papaya=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:papaya")).build();
+  TargetNode<?> base=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/example/base:base")).addDep(guava.getBuildTarget()).build();
+  TargetNode<?> core=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/example/core:core")).addDep(papaya.getBuildTarget()).build();
+  IjModuleGraph moduleGraph=createModuleGraph(ImmutableSet.of(guava,papaya,base,core),ImmutableMap.<TargetNode<?>,Path>of(),Functions.constant(Optional.<Path>absent()),IjModuleGraph.AggregationMode.SHALLOW);
+  IjModule guavaModule=getModuleForTarget(moduleGraph,guava);
+  IjModule papayaModule=getModuleForTarget(moduleGraph,papaya);
+  IjModule baseModule=getModuleForTarget(moduleGraph,base);
+  IjModule coreModule=getModuleForTarget(moduleGraph,core);
+  assertThat(baseModule,Matchers.sameInstance(coreModule));
+  assertThat(baseModule.getModuleBasePath(),Matchers.equalTo(Paths.get("java","com","example")));
+  assertThat(moduleGraph.getDepsFor(baseModule),Matchers.equalTo(ImmutableMap.<IjProjectElement,IjModuleGraph.DependencyType>of(papayaModule,IjModuleGraph.DependencyType.PROD,guavaModule,IjModuleGraph.DependencyType.PROD)));
+}
