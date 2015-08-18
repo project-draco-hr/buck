@@ -1,0 +1,18 @@
+{
+  BuildTarget location=BuildTargetFactory.newInstance("//:loc");
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  ExportFileBuilder locBuilder=ExportFileBuilder.newExportFileBuilder(location);
+  locBuilder.setOut("somewhere.over.the.rainbow");
+  CxxLibraryBuilder libBuilder=new CxxLibraryBuilder(target);
+  libBuilder.setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new PathSourcePath(filesystem,Paths.get("test.cpp")))));
+  libBuilder.setExportedPlatformLinkerFlags(PatternMatchedCollection.<ImmutableList<String>>builder().add(Pattern.compile("default"),ImmutableList.of("-Wl,--version-script=$(location //:loc)")).build());
+  TargetGraph targetGraph=TargetGraphFactory.newInstance(libBuilder.build(),locBuilder.build());
+  ExportFile loc=(ExportFile)locBuilder.build(resolver,filesystem,targetGraph);
+  CxxLibrary lib=(CxxLibrary)libBuilder.build(resolver,filesystem,targetGraph);
+  NativeLinkableInput nativeLinkableInput=lib.getNativeLinkableInput(targetGraph,CxxLibraryBuilder.createDefaultPlatform(),Linker.LinkableDepType.SHARED);
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  assertThat(pathResolver.filterBuildRuleInputs(nativeLinkableInput.getInputs()),Matchers.hasItem(loc));
+  assertThat(nativeLinkableInput.getArgs(),Matchers.hasItem(Matchers.containsString(loc.getPathToOutput().toString())));
+}
