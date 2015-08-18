@@ -56,6 +56,15 @@
     stepsBuilder.add(new ProvisioningProfileCopyStep(infoPlistOutputPath,Optional.<String>absent(),entitlementsPlist,provisioningProfiles.get(),bundleDestinationPath.resolve("embedded.mobileprovision"),signingEntitlementsTempPath));
     stepsBuilder.add(new CodeSignStep(bundleDestinationPath,signingEntitlementsTempPath,codeSignIdentity.get().getHash()));
   }
-  buildableContext.recordArtifact(bundleRoot);
+  if (ipaPath.isPresent()) {
+    Path temp=BuildTargets.getScratchPath(getBuildTarget(),"__temp__%s");
+    stepsBuilder.add(new MakeCleanDirectoryStep(temp));
+    Path payloadDir=temp.resolve("Payload");
+    stepsBuilder.add(new MkdirStep(payloadDir));
+    stepsBuilder.add(new RmStep(ipaPath.get(),true));
+    stepsBuilder.add(CopyStep.forDirectory(bundleRoot,payloadDir,CopyStep.DirectoryMode.DIRECTORY_AND_CONTENTS));
+    stepsBuilder.add(new ZipStep(ipaPath.get(),ImmutableSet.<Path>of(),false,ZipStep.DEFAULT_COMPRESSION_LEVEL,temp));
+  }
+  buildableContext.recordArtifact(getPathToOutput());
   return stepsBuilder.build();
 }
