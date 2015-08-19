@@ -4,18 +4,10 @@
     params.getConsole().printBuildFailure("Must specify at least one build target.");
     return 1;
   }
-  try {
-    Multimap<BuildTarget,BuildTarget> targetsAndDependencies=getTargetsAndDependencies(params,getArgumentsFormattedAsBuildTargets(params.getBuckConfig()),shouldShowTransitiveDependencies(),shouldIncludeTests(),getEnableProfiling());
-    if (shouldGenerateJsonOutput()) {
-      CommandHelper.printJSON(params,targetsAndDependencies);
-    }
- else {
-      CommandHelper.printToConsole(params,targetsAndDependencies);
-    }
+  if (params.getConsole().getAnsi().isAnsiTerminal()) {
+    params.getBuckEventBus().post(ConsoleEvent.info("'buck audit dependencies' is deprecated. Please use 'buck query' instead.\n" + "The equivalent 'buck query' command is:\n$ %s",QueryCommand.buildAuditDependenciesQueryExpression(getArguments(),shouldShowTransitiveDependencies(),shouldIncludeTests(),shouldGenerateJsonOutput())));
   }
- catch (  BuildTargetException|BuildFileParseException e) {
-    params.getConsole().printBuildFailureWithoutStacktrace(e);
-    return 1;
-  }
-  return 0;
+  Set<QueryEnvironment.Setting> settings=new HashSet<>();
+  BuckQueryEnvironment env=new BuckQueryEnvironment(params,settings,getEnableProfiling());
+  return QueryCommand.runMultipleQuery(params,env,QueryCommand.getAuditDependenciesQueryFormat(shouldShowTransitiveDependencies(),shouldIncludeTests()),getArgumentsFormattedAsBuildTargets(params.getBuckConfig()),shouldGenerateJsonOutput());
 }

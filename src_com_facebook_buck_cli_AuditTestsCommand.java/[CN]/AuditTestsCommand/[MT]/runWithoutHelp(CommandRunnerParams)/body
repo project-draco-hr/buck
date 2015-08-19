@@ -4,20 +4,10 @@
     params.getConsole().printBuildFailure("Must specify at least one build target.");
     return 1;
   }
-  ImmutableSet<BuildTarget> targets=getBuildTargets(ImmutableSet.copyOf(getArgumentsFormattedAsBuildTargets(params.getBuckConfig())));
-  try {
-    TreeMultimap<BuildTarget,BuildTarget> targetsToPrint=getTestsForTargets(params,targets,getEnableProfiling());
-    LOG.debug("Printing out the following targets: " + targetsToPrint);
-    if (shouldGenerateJsonOutput()) {
-      CommandHelper.printJSON(params,targetsToPrint);
-    }
- else {
-      CommandHelper.printToConsole(params,targetsToPrint);
-    }
+  if (params.getConsole().getAnsi().isAnsiTerminal()) {
+    params.getBuckEventBus().post(ConsoleEvent.info("'buck audit tests' is deprecated. Please use 'buck query' instead. e.g.\n\t%s",QueryCommand.buildAuditTestsQueryExpression(getArguments(),shouldGenerateJsonOutput())));
   }
- catch (  BuildTargetException|BuildFileParseException e) {
-    params.getConsole().printBuildFailureWithoutStacktrace(e);
-    return 1;
-  }
-  return 0;
+  Set<QueryEnvironment.Setting> settings=new HashSet<>();
+  BuckQueryEnvironment env=new BuckQueryEnvironment(params,settings,getEnableProfiling());
+  return QueryCommand.runMultipleQuery(params,env,"testsof('%s')",getArgumentsFormattedAsBuildTargets(params.getBuckConfig()),shouldGenerateJsonOutput());
 }
