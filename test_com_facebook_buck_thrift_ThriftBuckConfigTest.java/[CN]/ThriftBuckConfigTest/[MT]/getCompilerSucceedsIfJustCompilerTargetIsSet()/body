@@ -1,12 +1,9 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver();
-  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  BuildRule thriftRule=createFakeBuildRule("//thrift:target",pathResolver);
-  BuildTarget thriftTarget=thriftRule.getBuildTarget();
+  ShBinary thriftRule=(ShBinary)new ShBinaryBuilder(BuildTargetFactory.newInstance("//thrift:target")).setMain(new TestSourcePath("thrift.sh")).build(resolver);
   resolver.addToIndex(thriftRule);
-  FakeBuckConfig buckConfig=new FakeBuckConfig(ImmutableMap.of("thrift",ImmutableMap.of("compiler",thriftTarget.toString())));
+  FakeBuckConfig buckConfig=new FakeBuckConfig(ImmutableMap.of("thrift",ImmutableMap.of("compiler",thriftRule.getBuildTarget().toString())));
   ThriftBuckConfig thriftBuckConfig=new ThriftBuckConfig(buckConfig);
-  SourcePath compiler=thriftBuckConfig.getCompiler(ThriftLibraryDescription.CompilerType.THRIFT);
-  assertTrue(compiler instanceof BuildTargetSourcePath);
-  assertEquals(BuildTargetFactory.newInstance("//thrift:target"),((BuildTargetSourcePath)compiler).getTarget());
+  Tool compiler=thriftBuckConfig.getCompiler(ThriftLibraryDescription.CompilerType.THRIFT,resolver);
+  assertThat(compiler.getDeps(new SourcePathResolver(resolver)),Matchers.<BuildRule>contains(thriftRule));
 }

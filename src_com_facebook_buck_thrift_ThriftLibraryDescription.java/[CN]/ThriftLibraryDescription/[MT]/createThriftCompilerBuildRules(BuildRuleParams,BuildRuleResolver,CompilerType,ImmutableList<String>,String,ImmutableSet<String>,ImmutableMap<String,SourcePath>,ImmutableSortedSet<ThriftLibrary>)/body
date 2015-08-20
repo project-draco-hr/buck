@@ -1,5 +1,6 @@
 {
-  SourcePath compiler=thriftBuckConfig.getCompiler(compilerType);
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  Tool compiler=thriftBuckConfig.getCompiler(compilerType,resolver);
   ImmutableMap.Builder<Path,SourcePath> includesBuilder=ImmutableMap.builder();
   ImmutableSortedSet.Builder<HeaderSymlinkTree> includeTreeRulesBuilder=ImmutableSortedSet.naturalOrder();
   ImmutableList.Builder<Path> includeRootsBuilder=ImmutableList.builder();
@@ -20,7 +21,7 @@
     SourcePath source=ent.getValue();
     BuildTarget target=createThriftCompilerBuildTarget(params.getBuildTarget(),name);
     Path outputDir=getThriftCompilerOutputDir(params.getBuildTarget(),name);
-    compileRules.put(name,new ThriftCompiler(params.copyWithChanges(target,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(new SourcePathResolver(resolver).filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(compiler).add(source).addAll(includes.values()).build())).addAll(includeTreeRules).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),new SourcePathResolver(resolver),compiler,flags,outputDir,source,language,options,includeRoots,headerMaps,includes));
+    compileRules.put(name,new ThriftCompiler(params.copyWithChanges(target,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(compiler.getDeps(pathResolver)).addAll(new SourcePathResolver(resolver).filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(source).addAll(includes.values()).build())).addAll(includeTreeRules).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,compiler,flags,outputDir,source,language,options,includeRoots,headerMaps,includes));
   }
   return compileRules.build();
 }
