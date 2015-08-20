@@ -34,11 +34,20 @@
   ImmutableSet<BuildTarget> implicitDeps=enhancer.getImplicitDepsForTargetFromConstructorArg(target,args);
   ThriftLibrary thriftLibrary=(ThriftLibrary)resolver.getRule(BuildTarget.of(target.getUnflavoredBuildTarget()));
   ImmutableSortedSet<BuildRule> languageSpecificDeps=BuildRules.toBuildRulesFor(target,resolver,Iterables.concat(BuildTargets.propagateFlavorDomains(target,ImmutableList.<FlavorDomain<?>>of(enhancers),FluentIterable.from(thriftDeps).transform(HasBuildTarget.TO_TARGET)),implicitDeps));
-  ImmutableMap<String,ThriftCompiler> compilerRules=createThriftCompilerBuildRules(params,resolver,enhancer.getCompilerType(),args.flags.or(ImmutableList.<String>of()),language,options,namedSources,ImmutableSortedSet.<ThriftLibrary>naturalOrder().add(thriftLibrary).addAll(getTransitiveThriftLibraryDeps(thriftDeps)).build());
+  ImmutableMap.Builder<String,ImmutableSortedSet<String>> generatedSourcesBuilder=ImmutableMap.builder();
+  for (  ImmutableMap.Entry<String,SourcePath> ent : namedSources.entrySet()) {
+    String thriftName=ent.getKey();
+    ImmutableList<String> services=Preconditions.checkNotNull(args.srcs.get(ent.getValue()));
+    generatedSourcesBuilder.put(thriftName,enhancer.getGeneratedSources(target,args,thriftName,services));
+  }
+  ImmutableMap<String,ImmutableSortedSet<String>> generatedSources=generatedSourcesBuilder.build();
+  ImmutableMap<String,ThriftCompiler> compilerRules=createThriftCompilerBuildRules(params,resolver,enhancer.getCompilerType(),args.flags.or(ImmutableList.<String>of()),language,options,namedSources,ImmutableSortedSet.<ThriftLibrary>naturalOrder().add(thriftLibrary).addAll(getTransitiveThriftLibraryDeps(thriftDeps)).build(),generatedSources);
   resolver.addAllToIndex(compilerRules.values());
   ImmutableMap.Builder<String,ThriftSource> thriftSourceBuilder=ImmutableMap.builder();
   for (  ImmutableMap.Entry<String,SourcePath> ent : namedSources.entrySet()) {
-    thriftSourceBuilder.put(ent.getKey(),new ThriftSource(Preconditions.checkNotNull(compilerRules.get(ent.getKey())),Preconditions.checkNotNull(args.srcs.get(ent.getValue())),getThriftCompilerOutputDir(target,ent.getKey())));
+    ImmutableList<String> services=Preconditions.checkNotNull(args.srcs.get(ent.getValue()));
+    ThriftCompiler compilerRule=Preconditions.checkNotNull(compilerRules.get(ent.getKey()));
+    thriftSourceBuilder.put(ent.getKey(),new ThriftSource(compilerRule,services,getThriftCompilerOutputDir(target,ent.getKey())));
   }
   ImmutableMap<String,ThriftSource> thriftSources=thriftSourceBuilder.build();
   return enhancer.createBuildRule(targetGraph,params,resolver,args,thriftSources,languageSpecificDeps);
