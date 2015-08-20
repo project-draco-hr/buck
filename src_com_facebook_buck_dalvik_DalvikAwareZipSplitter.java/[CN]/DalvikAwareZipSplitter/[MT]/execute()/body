@@ -4,8 +4,10 @@
   primaryOut=newZipOutput(outPrimary);
   secondaryDexWriter.reset();
   final ImmutableMap.Builder<String,FileLike> entriesBuilder=ImmutableMap.builder();
+  LOG.debug("Traversing classpath for primary zip");
   classpathTraverser.traverse(new ClasspathTraversal(inFiles,filesystem){
     @Override public void visit(    FileLike entry) throws IOException {
+      LOG.debug("Visiting " + entry.getRelativePath());
       String relativePath=entry.getRelativePath();
       Preconditions.checkNotNull(primaryOut);
       if (requiredInPrimaryZip.apply(relativePath)) {
@@ -36,12 +38,14 @@
       }
     }
   }
+  LOG.debug("Traversing classpath for secondary zip");
   classpathTraverser.traverse(new ClasspathTraversal(inFiles,filesystem){
     @Override public void visit(    FileLike entry) throws IOException {
       Preconditions.checkNotNull(primaryOut);
       if (primaryOut.containsEntry(entry)) {
         return;
       }
+      LOG.debug("Visiting " + entry.getRelativePath());
       if (dexSplitStrategy == DexSplitStrategy.MAXIMIZE_PRIMARY_DEX_SIZE && primaryOut.canPutEntry(entry)) {
         primaryOut.putEntry(entry);
       }
