@@ -35,8 +35,16 @@
   AndroidBuckConfig androidBuckConfig=new AndroidBuckConfig(buckConfig,platform);
   AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(filesystem,androidBuckConfig.getNdkVersion(),propertyFinder);
   ProcessExecutor processExecutor=new ProcessExecutor(console);
-  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createInstance(buckConfig,processExecutor,androidDirectoryResolver,new PythonBuckConfig(buckConfig,new ExecutableFinder()).getPythonEnvironment(processExecutor));
-  Repository rootRepository=new Repository(Optional.<String>absent(),filesystem,buckConfig,buildRuleTypes,androidDirectoryResolver);
+  PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(buckConfig,new ExecutableFinder());
+  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createInstance(buckConfig,processExecutor,androidDirectoryResolver,pythonBuckConfig.getPythonEnvironment(processExecutor));
+  Watchman watchman;
+  if (context.isPresent()) {
+    watchman=Watchman.build(projectRoot,clientEnvironment);
+  }
+ else {
+    watchman=Watchman.NULL_WATCHMAN;
+  }
+  Repository rootRepository=new Repository(Optional.<String>absent(),filesystem,watchman,buckConfig,buildRuleTypes,androidDirectoryResolver);
   int exitCode;
   ImmutableList<BuckEventListener> eventListeners=ImmutableList.of();
   Clock clock;
@@ -76,9 +84,7 @@
       }
     }
     if (parser == null) {
-      ParserConfig parserConfig=new ParserConfig(rootRepository.getBuckConfig());
-      PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(rootRepository.getBuckConfig(),new ExecutableFinder());
-      parser=Parser.createBuildFileParser(rootRepository,pythonBuckConfig.getPythonInterpreter(),parserConfig.getEnforceBuckPackageBoundary(),parserConfig.getTempFilePatterns(),false,Watchman.NULL_WATCHMAN);
+      parser=Parser.createBuildFileParser(rootRepository,false);
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootRepository.getFilesystem());
     Optional<ProcessManager> processManager;
