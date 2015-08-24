@@ -1,0 +1,45 @@
+{
+  try {
+    String watchman=exeFinder.getExecutable(WATCHMAN,env).toAbsolutePath().toString();
+    Optional<Map<String,String>> result;
+    result=execute(executor,watchman,"version");
+    if (!result.isPresent()) {
+      return NULL_WATCHMAN;
+    }
+    Optional<String> rawVersion=Optional.fromNullable(result.get().get("version"));
+    if (!rawVersion.isPresent()) {
+      return NULL_WATCHMAN;
+    }
+    LOG.debug("Discovered watchman version: %s",rawVersion.get());
+    ImmutableSet<Capability> capabilities=deriveCapabilities(rawVersion.get());
+    LOG.error("Adding watchman root: %s",rootPath);
+    long start=System.currentTimeMillis();
+    if (capabilities.contains(Capability.SUPPORTS_PROJECT_WATCH)) {
+      result=execute(executor,watchman,"watch-project",rootPath.toAbsolutePath().toString());
+    }
+ else {
+      result=execute(executor,watchman,"watch",rootPath.toAbsolutePath().toString());
+    }
+    LOG.info("Took %d ms to add root %s",(System.currentTimeMillis() - start),rootPath);
+    if (!result.isPresent()) {
+      return NULL_WATCHMAN;
+    }
+    Map<String,String> map=result.get();
+    if (map.containsKey("error")) {
+      LOG.warn("Error in watchman output: %s",map.get("error"));
+      return NULL_WATCHMAN;
+    }
+    if (map.containsKey("warning")) {
+      LOG.warn("Warning in watchman output: %s",map.get("warning"));
+      return NULL_WATCHMAN;
+    }
+    if (!map.containsKey("watch")) {
+      return NULL_WATCHMAN;
+    }
+    return new Watchman(rawVersion,Optional.fromNullable(map.get("relative_path")),Optional.fromNullable(map.get("watch")),capabilities);
+  }
+ catch (  ClassCastException|HumanReadableException|IOException e) {
+    LOG.warn(e,"Unable to determine the version of watchman. Going without.");
+    return NULL_WATCHMAN;
+  }
+}
