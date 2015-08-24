@@ -1,18 +1,36 @@
 {
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   BuildTarget target=params.getBuildTarget();
-  if (target.getFlavors().contains(JavaLibrary.SRC_JAR)) {
-    return new JavaSourceJar(params,pathResolver,args.srcs.get(),args.mavenCoords.transform(new Function<String,String>(){
+  ImmutableSortedSet<Flavor> flavors=target.getFlavors();
+  BuildRuleParams paramsWithMavenFlavor=null;
+  if (flavors.contains(JavaLibrary.MAVEN_JAR)) {
+    paramsWithMavenFlavor=params;
+    params=params.copyWithBuildTarget(params.getBuildTarget().withoutFlavors(ImmutableSet.of(JavaLibrary.MAVEN_JAR)));
+  }
+  if (flavors.contains(JavaLibrary.SRC_JAR)) {
+    args.mavenCoords=args.mavenCoords.transform(new Function<String,String>(){
       @Override public String apply(      String input){
         return AetherUtil.addClassifier(input,AetherUtil.CLASSIFIER_SOURCES);
       }
     }
-));
+);
+    if (!flavors.contains(JavaLibrary.MAVEN_JAR)) {
+      return new JavaSourceJar(params,pathResolver,args.srcs.get(),args.mavenCoords);
+    }
+ else {
+      return MavenUberJar.SourceJar.create(Preconditions.checkNotNull(paramsWithMavenFlavor),pathResolver,args.srcs.get(),args.mavenCoords);
+    }
   }
   JavacOptions.Builder javacOptionsBuilder=JavaLibraryDescription.getJavacOptions(pathResolver,args,defaultOptions);
   AnnotationProcessingParams annotationParams=args.buildAnnotationProcessingParams(target,params.getProjectFilesystem(),resolver);
   javacOptionsBuilder.setAnnotationProcessingParams(annotationParams);
   JavacOptions javacOptions=javacOptionsBuilder.build();
   ImmutableSortedSet<BuildRule> exportedDeps=resolver.getAllRules(args.exportedDeps.get());
-  return new DefaultJavaLibrary(params.appendExtraDeps(Iterables.concat(BuildRules.getExportedRules(Iterables.concat(params.getDeclaredDeps(),exportedDeps,resolver.getAllRules(args.providedDeps.get()))),pathResolver.filterBuildRuleInputs(javacOptions.getInputs(pathResolver)))),pathResolver,args.srcs.get(),validateResources(pathResolver,args,params.getProjectFilesystem()),args.proguardConfig.transform(SourcePaths.toSourcePath(params.getProjectFilesystem())),args.postprocessClassesCommands.get(),exportedDeps,resolver.getAllRules(args.providedDeps.get()),ImmutableSet.<Path>of(),javacOptions,args.resourcesRoot,args.mavenCoords);
+  DefaultJavaLibrary defaultJavaLibrary=new DefaultJavaLibrary(params.appendExtraDeps(Iterables.concat(BuildRules.getExportedRules(Iterables.concat(params.getDeclaredDeps(),exportedDeps,resolver.getAllRules(args.providedDeps.get()))),pathResolver.filterBuildRuleInputs(javacOptions.getInputs(pathResolver)))),pathResolver,args.srcs.get(),validateResources(pathResolver,args,params.getProjectFilesystem()),args.proguardConfig.transform(SourcePaths.toSourcePath(params.getProjectFilesystem())),args.postprocessClassesCommands.get(),exportedDeps,resolver.getAllRules(args.providedDeps.get()),ImmutableSet.<Path>of(),javacOptions,args.resourcesRoot,args.mavenCoords);
+  if (!flavors.contains(JavaLibrary.MAVEN_JAR)) {
+    return defaultJavaLibrary;
+  }
+ else {
+    return MavenUberJar.create(defaultJavaLibrary,Preconditions.checkNotNull(paramsWithMavenFlavor),pathResolver,args.mavenCoords);
+  }
 }

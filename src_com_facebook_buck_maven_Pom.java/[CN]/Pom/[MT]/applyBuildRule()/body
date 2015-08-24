@@ -1,22 +1,11 @@
 {
-  Optional<String> mavenCoords=getMavenCoords(publishable);
-  if (!mavenCoordsPresent(mavenCoords)) {
+  if (!HasMavenCoordinates.MAVEN_COORDS_PRESENT_PREDICATE.apply(publishable)) {
     throw new IllegalArgumentException("Cannot retrieve maven coordinates for target" + publishable.getBuildTarget().getFullyQualifiedName());
   }
-  DefaultArtifact artifact=new DefaultArtifact(mavenCoords.get());
-  Iterable<Artifact> deps=FluentIterable.from(publishable.getDeps()).transform(new Function<BuildRule,Optional<String>>(){
-    @Override public Optional<String> apply(    BuildRule input){
-      return getMavenCoords(input);
-    }
-  }
-).filter(new Predicate<Optional<String>>(){
-    @Override public boolean apply(    Optional<String> input){
-      return mavenCoordsPresent(input);
-    }
-  }
-).transform(new Function<Optional<String>,Artifact>(){
-    @Override public Artifact apply(    Optional<String> input){
-      return new DefaultArtifact(input.get());
+  DefaultArtifact artifact=new DefaultArtifact(getMavenCoords(publishable).get());
+  Iterable<Artifact> deps=FluentIterable.from(publishable.getMavenDeps()).filter(HasMavenCoordinates.MAVEN_COORDS_PRESENT_PREDICATE).transform(new Function<HasMavenCoordinates,Artifact>(){
+    @Override public Artifact apply(    HasMavenCoordinates input){
+      return new DefaultArtifact(input.getMavenCoords().get());
     }
   }
 );
