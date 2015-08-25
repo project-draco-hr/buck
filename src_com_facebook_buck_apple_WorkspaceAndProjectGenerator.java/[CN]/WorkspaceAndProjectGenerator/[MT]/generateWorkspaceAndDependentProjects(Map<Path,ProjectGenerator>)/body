@@ -4,12 +4,12 @@
   Path outputDirectory;
   if (combinedProject) {
     workspaceName+="-Combined";
-    outputDirectory=BuildTargets.getGenPath(workspaceBuildTarget,"%s").getParent();
+    outputDirectory=BuildTargets.getGenPath(workspaceBuildTarget,"%s").getParent().resolve(workspaceName + ".xcodeproj");
   }
  else {
     outputDirectory=workspaceBuildTarget.getBasePath();
   }
-  WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,workspaceName,outputDirectory);
+  WorkspaceGenerator workspaceGenerator=new WorkspaceGenerator(projectFilesystem,combinedProject ? "project" : workspaceName,outputDirectory);
   ImmutableMap.Builder<String,XcodeWorkspaceConfigDescription.Arg> schemeConfigsBuilder=ImmutableMap.builder();
   ImmutableSetMultimap.Builder<String,Optional<TargetNode<?>>> schemeNameToSrcTargetNodeBuilder=ImmutableSetMultimap.builder();
   ImmutableSetMultimap.Builder<String,TargetNode<?>> buildForTestNodesBuilder=ImmutableSetMultimap.builder();
@@ -28,7 +28,7 @@
   Optional<BuildTarget> targetToBuildWithBuck=getTargetToBuildWithBuck();
   if (combinedProject) {
     LOG.debug("Generating a combined project");
-    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,reactNativeBuckConfig.getServer(),outputDirectory,workspaceName,buildFileName,projectGeneratorOptions,targetToBuildWithBuck,buildWithBuckFlags,executableFinder,environment,cxxPlatforms,defaultCxxPlatform,outputPathOfNode).setAdditionalCombinedTestTargets(groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
+    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,projectFilesystem,reactNativeBuckConfig.getServer(),outputDirectory.getParent(),workspaceName,buildFileName,projectGeneratorOptions,targetToBuildWithBuck,buildWithBuckFlags,executableFinder,environment,cxxPlatforms,defaultCxxPlatform,outputPathOfNode).setAdditionalCombinedTestTargets(groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
     combinedProjectGenerator=Optional.of(generator);
     generator.createXcodeProjects();
     workspaceGenerator.addFilePath(generator.getProjectPath(),Optional.<Path>absent());
