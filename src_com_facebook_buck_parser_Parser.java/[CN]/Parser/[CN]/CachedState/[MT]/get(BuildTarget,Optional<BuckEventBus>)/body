@@ -1,5 +1,5 @@
 {
-  TargetNode<?> toReturn=memoizedTargetNodes.get(buildTarget);
+  TargetNode<?> toReturn=memoizedTargetNodes.getIfPresent(buildTarget);
   if (toReturn != null) {
     return toReturn;
   }
@@ -62,10 +62,12 @@ catch (    ConstructorArgMarshalException e) {
       LOG.warn("Disabling caching for target %s, because one or more input files are under a " + "symbolic link (%s). This will severely impact performance! To resolve this, use " + "separate rules and declare dependencies instead of using symbolic links.",targetNode.getBuildTarget(),newSymlinksEncountered);
       buildInputPathsUnderSymlink.add(buildFilePath);
     }
-    TargetNode<?> existingTargetNode=memoizedTargetNodes.put(buildTarget,targetNode);
-    if (existingTargetNode != null) {
-      throw new HumanReadableException("Duplicate definition for " + unflavored);
+synchronized (memoizedTargetNodes) {
+      if (memoizedTargetNodes.getIfPresent(buildTarget) != null) {
+        throw new HumanReadableException("Duplicate definition for " + unflavored);
+      }
+      memoizedTargetNodes.put(buildTarget,targetNode);
     }
   }
-  return memoizedTargetNodes.get(buildTarget);
+  return memoizedTargetNodes.getIfPresent(buildTarget);
 }
