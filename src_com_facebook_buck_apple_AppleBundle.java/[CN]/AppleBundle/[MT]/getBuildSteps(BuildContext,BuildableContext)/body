@@ -4,7 +4,7 @@
   Path infoPlistInputPath=getResolver().getPath(infoPlist);
   Path infoPlistSubstitutionTempPath=BuildTargets.getScratchPath(getBuildTarget(),"%s.plist");
   Path infoPlistOutputPath=metadataPath.resolve("Info.plist");
-  stepsBuilder.add(new MakeCleanDirectoryStep(bundleRoot),new MkdirStep(metadataPath),new WriteFileStep("APPLWRUN",metadataPath.resolve("PkgInfo"),false),new FindAndReplaceStep(infoPlistInputPath,infoPlistSubstitutionTempPath,InfoPlistSubstitution.createVariableExpansionFunction(withDefaults(infoPlistSubstitutions,ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName)))),new PlistProcessStep(infoPlistSubstitutionTempPath,infoPlistOutputPath,getInfoPlistAdditionalKeys(platformName,sdkName),getInfoPlistOverrideKeys(platformName),PlistProcessStep.OutputFormat.BINARY));
+  stepsBuilder.add(new MakeCleanDirectoryStep(bundleRoot),new MkdirStep(metadataPath),new WriteFileStep(getProjectFilesystem(),"APPLWRUN",metadataPath.resolve("PkgInfo"),false),new FindAndReplaceStep(infoPlistInputPath,infoPlistSubstitutionTempPath,InfoPlistSubstitution.createVariableExpansionFunction(withDefaults(infoPlistSubstitutions,ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName)))),new PlistProcessStep(infoPlistSubstitutionTempPath,infoPlistOutputPath,getInfoPlistAdditionalKeys(platformName,sdkName),getInfoPlistOverrideKeys(platformName),PlistProcessStep.OutputFormat.BINARY));
   if (binary.isPresent() && binary.get().getPathToOutput() != null) {
     stepsBuilder.add(new MkdirStep(bundleRoot.resolve(this.destinations.getExecutablesPath())));
     Path bundleBinaryPath=bundleRoot.resolve(binaryPath);
@@ -53,7 +53,7 @@
       entitlementsPlist=Optional.of(Paths.get(entitlementsPlistString.get()));
     }
     final Path signingEntitlementsTempPath=BuildTargets.getScratchPath(getBuildTarget(),"%s.xcent");
-    stepsBuilder.add(new ProvisioningProfileCopyStep(infoPlistOutputPath,Optional.<String>absent(),entitlementsPlist,provisioningProfiles.get(),bundleDestinationPath.resolve("embedded.mobileprovision"),signingEntitlementsTempPath));
+    stepsBuilder.add(new ProvisioningProfileCopyStep(getProjectFilesystem(),infoPlistOutputPath,Optional.<String>absent(),entitlementsPlist,provisioningProfiles.get(),bundleDestinationPath.resolve("embedded.mobileprovision"),signingEntitlementsTempPath));
     stepsBuilder.add(new CodeSignStep(bundleDestinationPath,signingEntitlementsTempPath,codeSignIdentity.get().getHash()));
   }
   buildableContext.recordArtifact(getPathToOutput());
