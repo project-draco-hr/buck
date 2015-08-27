@@ -1,0 +1,34 @@
+{
+  workspace.runBuckCommand("build","//apps/sample:app_cxx_lib_asset").assertSuccess();
+  Path pathToZip=workspace.getPath("buck-out/gen/apps/sample/app_cxx_lib_asset.apk");
+  ZipFile file=new ZipFile(pathToZip.toFile());
+  ZipEntry metadata=file.getEntry("assets/lib/metadata.txt");
+  assertNotNull(metadata);
+  BufferedReader contents=new BufferedReader(new InputStreamReader(file.getInputStream(metadata)));
+  String line=contents.readLine();
+  byte[] buffer=new byte[512];
+  while (line != null) {
+    String[] tokens=line.split(" ");
+    assertSame(tokens.length,3);
+    String filename=tokens[0];
+    int filesize=Integer.parseInt(tokens[1]);
+    String checksum=tokens[2];
+    ZipEntry lib=file.getEntry("assets/lib/" + filename);
+    assertNotNull(lib);
+    InputStream is=file.getInputStream(lib);
+    ByteArrayOutputStream out=new ByteArrayOutputStream();
+    while (filesize > 0) {
+      int read=is.read(buffer,0,Math.min(buffer.length,filesize));
+      assertTrue(read >= 0);
+      out.write(buffer,0,read);
+      filesize-=read;
+    }
+    String actualChecksum=Hashing.sha256().hashBytes(out.toByteArray()).toString();
+    assertEquals(checksum,actualChecksum);
+    is.close();
+    out.close();
+    line=contents.readLine();
+  }
+  file.close();
+  contents.close();
+}
