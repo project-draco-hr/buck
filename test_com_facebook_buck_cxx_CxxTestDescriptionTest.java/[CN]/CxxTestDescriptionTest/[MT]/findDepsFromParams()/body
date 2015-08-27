@@ -1,13 +1,16 @@
 {
   BuildTarget gtest=BuildTargetFactory.newInstance("//:gtest");
-  FakeBuckConfig buckConfig=new FakeBuckConfig(ImmutableMap.of("cxx",ImmutableMap.of("gtest_dep",gtest.toString())));
+  BuildTarget gtestMain=BuildTargetFactory.newInstance("//:gtest_main");
+  FakeBuckConfig buckConfig=new FakeBuckConfig(ImmutableMap.of("cxx",ImmutableMap.of("gtest_dep",gtest.toString(),"gtest_default_test_main_dep",gtestMain.toString())));
   CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(buckConfig);
   CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(new CxxBuckConfig(buckConfig));
   CxxTestDescription desc=new CxxTestDescription(cxxBuckConfig,cxxPlatform,new FlavorDomain<>("platform",ImmutableMap.<Flavor,CxxPlatform>of()));
   BuildTarget target=BuildTargetFactory.newInstance("//:target");
   CxxTestDescription.Arg constructorArg=desc.createUnpopulatedConstructorArg();
   constructorArg.framework=Optional.of(CxxTestType.GTEST);
+  constructorArg.useDefaultTestMain=Optional.of(true);
   constructorArg.lexSrcs=Optional.of(ImmutableList.<SourcePath>of());
   Iterable<BuildTarget> implicit=desc.findDepsForTargetFromConstructorArgs(target,constructorArg);
   assertTrue(Iterables.contains(implicit,gtest));
+  assertTrue(Iterables.contains(implicit,gtestMain));
 }
