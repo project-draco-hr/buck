@@ -37,12 +37,22 @@
   ProcessExecutor processExecutor=new ProcessExecutor(console);
   PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(buckConfig,new ExecutableFinder());
   KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createInstance(buckConfig,processExecutor,androidDirectoryResolver,pythonBuckConfig.getPythonEnvironment(processExecutor));
+  ParserConfig parserConfig=new ParserConfig(buckConfig);
   Watchman watchman;
-  if (context.isPresent()) {
+  ParserConfig.GlobHandler globHandler;
+  if (context.isPresent() || parserConfig.getGlobHandler() == ParserConfig.GlobHandler.WATCHMAN) {
     watchman=Watchman.build(projectRoot,clientEnvironment);
+    if (parserConfig.getGlobHandler() == ParserConfig.GlobHandler.WATCHMAN && watchman.hasWildmatchGlob()) {
+      globHandler=ParserConfig.GlobHandler.WATCHMAN;
+    }
+ else {
+      globHandler=ParserConfig.GlobHandler.PYTHON;
+    }
+    LOG.debug("Watchman capabilities: %s Watch root: %s Project prefix: %s Glob handler config: %s " + "Final glob handler: %s",watchman.getCapabilities(),watchman.getWatchRoot(),watchman.getProjectPrefix(),parserConfig.getGlobHandler(),globHandler);
   }
  else {
     watchman=Watchman.NULL_WATCHMAN;
+    globHandler=ParserConfig.GlobHandler.PYTHON;
   }
   Repository rootRepository=new Repository(Optional.<String>absent(),filesystem,watchman,buckConfig,buildRuleTypes,androidDirectoryResolver);
   int exitCode;
@@ -59,14 +69,14 @@
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(processExecutor,clientEnvironment,System.getProperties());
   ProjectFileHashCache repoHashCache;
   if (isDaemon) {
-    repoHashCache=getFileHashCacheFromDaemon(rootRepository,clock,processExecutor,clientEnvironment);
+    repoHashCache=getFileHashCacheFromDaemon(rootRepository,globHandler);
   }
  else {
     repoHashCache=new DefaultFileHashCache(rootRepository.getFilesystem());
   }
   FileHashCache fileHashCache=new MultiProjectFileHashCache(ImmutableList.of(repoHashCache,new DefaultFileHashCache(new ProjectFilesystem(rootRepository.getFilesystem().getRootPath())),new DefaultFileHashCache(new ProjectFilesystem(Paths.get("/")))));
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
-  Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,clock,processExecutor,clientEnvironment);
+  Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,globHandler);
   TestConfig testConfig=new TestConfig(buckConfig);
   try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
     artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
@@ -77,14 +87,16 @@
     Parser parser=null;
     if (isDaemon) {
       try {
-        parser=getParserFromDaemon(context,rootRepository,startedEvent,buildEventBus,clock,processExecutor,clientEnvironment);
+        Daemon daemon=getDaemon(rootRepository,globHandler);
+        WatchmanWatcher watchmanWatcher=new WatchmanWatcher(watchman.getWatchRoot().or(canonicalRootPath.toString()),daemon.getFileEventBus(),clock,objectMapper,processExecutor,filesystem.getIgnorePaths(),DEFAULT_IGNORE_GLOBS,watchman,daemon.getWatchmanQueryUUID());
+        parser=getParserFromDaemon(context,rootRepository,startedEvent,buildEventBus,watchmanWatcher,globHandler);
       }
  catch (      WatchmanWatcherException|IOException e) {
         buildEventBus.post(ConsoleEvent.warning("Watchman threw an exception while parsing file changes.\n%s",e.getMessage()));
       }
     }
     if (parser == null) {
-      parser=Parser.createBuildFileParser(rootRepository,false);
+      parser=Parser.createBuildFileParser(rootRepository,globHandler == ParserConfig.GlobHandler.WATCHMAN);
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootRepository.getFilesystem());
     Optional<ProcessManager> processManager;
