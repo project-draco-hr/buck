@@ -11,6 +11,7 @@
   String productName=getXcodeTargetName(buildTarget) + BUILD_WITH_BUCK_POSTFIX;
   String binaryName=AppleBundle.getBinaryName(targetToBuildWithBuck.get());
   Path bundleDestination=getScratchPathForAppBundle(targetToBuildWithBuck.get());
+  Path dsymDestination=getScratchPathForDsymBundle(targetToBuildWithBuck.get());
   PBXShellScriptBuildPhase shellScriptBuildPhase=new PBXShellScriptBuildPhase();
   ST template=new ST(Resources.toString(Resources.getResource(ProjectGenerator.class,BUILD_WITH_BUCK_TEMPLATE),Charsets.UTF_8));
   Path pathToBuck=executableFinder.getExecutable(Paths.get("buck"),environment);
@@ -19,7 +20,9 @@
   String buildFlags=Joiner.on(' ').join(Iterables.transform(buildWithBuckFlags,Escaper.BASH_ESCAPER));
   String escapedBuildTarget=Escaper.escapeAsBashString(buildTarget.getFullyQualifiedName());
   Path resolvedBundleSource=projectFilesystem.resolve(AppleBundle.getBundleRoot(targetToBuildWithBuck.get(),"app"));
+  Path resolvedDsymSource=projectFilesystem.resolve(AppleBundle.getBundleRoot(targetToBuildWithBuck.get(),"dSYM"));
   Path resolvedBundleDestination=projectFilesystem.resolve(bundleDestination);
+  Path resolvedDsymDestination=projectFilesystem.resolve(dsymDestination);
   template.add("repo_root",projectFilesystem.getRootPath());
   template.add("path_to_buck",pathToBuck);
   template.add("comp_dir",compDir);
@@ -29,6 +32,8 @@
   template.add("resolved_bundle_source",resolvedBundleSource);
   template.add("resolved_bundle_destination",resolvedBundleDestination);
   template.add("resolved_bundle_destination_parent",resolvedBundleDestination.getParent());
+  template.add("resolved_dsym_source",resolvedDsymSource);
+  template.add("resolved_dsym_destination",resolvedDsymDestination);
   template.add("binary_name",binaryName);
   shellScriptBuildPhase.setShellScript(template.render());
   ImmutableMap<String,ImmutableMap<String,String>> configs=getAppleNativeNode(targetGraph,targetNode).get().getConstructorArg().configs.get();
