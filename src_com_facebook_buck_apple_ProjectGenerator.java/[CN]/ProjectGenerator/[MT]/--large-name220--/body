@@ -7,7 +7,7 @@
   NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver);
   ImmutableSet<SourcePath> exportedHeaders=ImmutableSet.copyOf(getHeaderSourcePaths(arg.exportedHeaders));
   ImmutableSet<SourcePath> headers=ImmutableSet.copyOf(getHeaderSourcePaths(arg.headers));
-  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setShouldGenerateCopyHeadersPhase(!targetNode.getConstructorArg().getUseBuckHeaderMaps()).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setExtraXcodeSources(ImmutableSet.copyOf(arg.extraXcodeSources.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setPrefixHeader(arg.prefixHeader).setRecursiveResources(recursiveResources).setDirectResources(directResources);
+  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setExtraXcodeSources(ImmutableSet.copyOf(arg.extraXcodeSources.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setPrefixHeader(arg.prefixHeader).setRecursiveResources(recursiveResources).setDirectResources(directResources);
   if (options.contains(Option.CREATE_DIRECTORY_STRUCTURE)) {
     mutator.setTargetGroupPath(FluentIterable.from(buildTarget.getBasePath()).transform(Functions.toStringFunction()).toList());
   }
@@ -72,18 +72,13 @@
     extraSettingsBuilder.put("GCC_PREFIX_HEADER",prefixHeaderPath.toString());
     extraSettingsBuilder.put("GCC_PRECOMPILE_PREFIX_HEADER","YES");
   }
-  if (targetNode.getConstructorArg().getUseBuckHeaderMaps()) {
-    extraSettingsBuilder.put("USE_HEADERMAP","NO");
-  }
+  extraSettingsBuilder.put("USE_HEADERMAP","NO");
   ImmutableMap.Builder<String,String> defaultSettingsBuilder=ImmutableMap.builder();
   defaultSettingsBuilder.put("REPO_ROOT",projectFilesystem.getRootPath().toAbsolutePath().normalize().toString());
   defaultSettingsBuilder.put("PRODUCT_NAME",getProductName(buildTarget));
   if (bundle.isPresent()) {
     defaultSettingsBuilder.put("WRAPPER_EXTENSION",getExtensionString(bundle.get().getConstructorArg().getExtension()));
   }
-  String publicHeadersPath=getHeaderOutputPath(buildTargetNode,targetNode.getConstructorArg().headerPathPrefix);
-  LOG.debug("Public headers path for %s: %s",targetNode,publicHeadersPath);
-  defaultSettingsBuilder.put("PUBLIC_HEADERS_FOLDER_PATH",publicHeadersPath);
   defaultSettingsBuilder.put("BUILT_PRODUCTS_DIR",Joiner.on('/').join("$SYMROOT","$CONFIGURATION$EFFECTIVE_PLATFORM_NAME"));
   defaultSettingsBuilder.put("CONFIGURATION_BUILD_DIR","$BUILT_PRODUCTS_DIR");
   if (!bundle.isPresent() && targetNode.getType().equals(AppleLibraryDescription.TYPE)) {
@@ -92,7 +87,7 @@
   ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
   ImmutableSet<Path> recursiveHeaderMaps=collectRecursiveHeaderMaps(targetNode);
   ImmutableSet<Path> headerMapBases=recursiveHeaderMaps.isEmpty() ? ImmutableSet.<Path>of() : ImmutableSet.of(pathRelativizer.outputDirToRootRelative(BuckConstant.BUCK_OUTPUT_PATH));
-  appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterables.concat(collectRecursiveHeaderSearchPaths(targetNode),recursiveHeaderMaps,headerMapBases))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(ImmutableSet.of(targetNode)))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(ImmutableList.of(targetNode)))).put("OTHER_CFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get(),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode))),Escaper.BASH_ESCAPER))).put("OTHER_LDFLAGS",Joiner.on(' ').join(Iterables.transform(MoreIterables.zipAndConcat(Iterables.cycle("-Xlinker"),Iterables.concat(targetNode.getConstructorArg().linkerFlags.get(),collectRecursiveExportedLinkerFlags(ImmutableList.of(targetNode)))),Escaper.BASH_ESCAPER)));
+  appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterables.concat(recursiveHeaderMaps,headerMapBases))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(ImmutableSet.of(targetNode)))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(ImmutableList.of(targetNode)))).put("OTHER_CFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get(),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode))),Escaper.BASH_ESCAPER))).put("OTHER_LDFLAGS",Joiner.on(' ').join(Iterables.transform(MoreIterables.zipAndConcat(Iterables.cycle("-Xlinker"),Iterables.concat(targetNode.getConstructorArg().linkerFlags.get(),collectRecursiveExportedLinkerFlags(ImmutableList.of(targetNode)))),Escaper.BASH_ESCAPER)));
   ImmutableMap<CxxSource.Type,ImmutableList<String>> langPreprocessorFlags=targetNode.getConstructorArg().langPreprocessorFlags.get();
   Sets.SetView<CxxSource.Type> unsupportedLangPreprocessorFlags=Sets.difference(langPreprocessorFlags.keySet(),SUPPORTED_LANG_PREPROCESSOR_FLAG_TYPES);
   if (!unsupportedLangPreprocessorFlags.isEmpty()) {
@@ -113,11 +108,9 @@
   }
   PBXNativeTarget target=targetBuilderResult.target;
   setTargetBuildConfigurations(getConfigurationNameToXcconfigPath(buildTarget),target,project.getMainGroup(),targetNode.getConstructorArg().configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
-  if (targetNode.getConstructorArg().getUseBuckHeaderMaps()) {
-    Path headerPathPrefix=AppleDescriptions.getHeaderPathPrefix(arg,targetNode.getBuildTarget());
-    createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPublicCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PUBLIC).get());
-    createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPrivateCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PRIVATE).get());
-  }
+  Path headerPathPrefix=AppleDescriptions.getHeaderPathPrefix(arg,targetNode.getBuildTarget());
+  createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPublicCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PUBLIC));
+  createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPrivateCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PRIVATE));
   addCoreDataModelBuildPhase(targetGroup,FluentIterable.from(targetNode.getDeps()).transform(new Function<BuildTarget,TargetNode<?>>(){
     @Override public TargetNode<?> apply(    BuildTarget input){
       return Preconditions.checkNotNull(targetGraph.get(input));

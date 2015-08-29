@@ -1,14 +1,14 @@
 {
   BuildTarget depTarget=BuildTarget.builder("//dep","dep").build();
-  TargetNode<?> depNode=AppleLibraryBuilder.createBuilder(depTarget).setSrcs(Optional.of(ImmutableSortedSet.of(SourceWithFlags.of(new TestSourcePath("e.m"))))).setUseBuckHeaderMaps(Optional.of(false)).build();
+  TargetNode<?> depNode=AppleLibraryBuilder.createBuilder(depTarget).setSrcs(Optional.of(ImmutableSortedSet.of(SourceWithFlags.of(new TestSourcePath("e.m"))))).build();
   BuildTarget binaryTarget=BuildTarget.builder("//foo","binary").build();
-  TargetNode<?> binaryNode=AppleBinaryBuilder.createBuilder(binaryTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).setSrcs(Optional.of(ImmutableSortedSet.of(SourceWithFlags.of(new TestSourcePath("foo.m"),ImmutableList.of("-foo"))))).setExtraXcodeSources(Optional.of(ImmutableList.<SourcePath>of(new TestSourcePath("libsomething.a")))).setHeaders(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("foo.h"))).setFrameworks(Optional.of(ImmutableSortedSet.of(FrameworkPath.ofSourceTreePath(new SourceTreePath(PBXReference.SourceTree.SDKROOT,Paths.get("Foo.framework"),Optional.<String>absent()))))).setDeps(Optional.of(ImmutableSortedSet.of(depTarget))).setHeaderPathPrefix(Optional.<String>absent()).setUseBuckHeaderMaps(Optional.of(false)).setPrefixHeader(Optional.<SourcePath>absent()).build();
+  TargetNode<?> binaryNode=AppleBinaryBuilder.createBuilder(binaryTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).setSrcs(Optional.of(ImmutableSortedSet.of(SourceWithFlags.of(new TestSourcePath("foo.m"),ImmutableList.of("-foo"))))).setExtraXcodeSources(Optional.of(ImmutableList.<SourcePath>of(new TestSourcePath("libsomething.a")))).setHeaders(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("foo.h"))).setFrameworks(Optional.of(ImmutableSortedSet.of(FrameworkPath.ofSourceTreePath(new SourceTreePath(PBXReference.SourceTree.SDKROOT,Paths.get("Foo.framework"),Optional.<String>absent()))))).setDeps(Optional.of(ImmutableSortedSet.of(depTarget))).setHeaderPathPrefix(Optional.<String>absent()).setPrefixHeader(Optional.<SourcePath>absent()).build();
   ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(depNode,binaryNode));
   projectGenerator.createXcodeProjects();
   PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:binary");
   assertHasConfigurations(target,"Debug");
   assertEquals(target.getProductType(),ProductType.TOOL);
-  assertEquals("Should have exact number of build phases",3,target.getBuildPhases().size());
+  assertEquals("Should have exact number of build phases",2,target.getBuildPhases().size());
   assertHasSingletonSourcesPhaseWithSourcesAndFlags(target,ImmutableMap.of("foo.m",Optional.of("-foo"),"libsomething.a",Optional.<String>absent()));
   assertHasSingletonFrameworksPhaseWithFrameworkEntries(target,ImmutableList.of("$SDKROOT/Foo.framework","$BUILT_PRODUCTS_DIR/libdep.a"));
   assertFalse(hasShellScriptPhaseToCompileAssetCatalogs(target));
