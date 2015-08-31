@@ -1,0 +1,14 @@
+{
+  BuildTarget fooLibTarget=BuildTarget.builder("//foo","FooLib").build();
+  TargetNode<AppleNativeTargetDescriptionArg> fooLib=AppleLibraryBuilder.createBuilder(fooLibTarget).build();
+  TargetNode<XcodeWorkspaceConfigDescription.Arg> workspaceNode=XcodeWorkspaceConfigBuilder.createBuilder(BuildTarget.builder("//foo","workspace").build()).setWorkspaceName(Optional.of("workspace")).setSrcTarget(Optional.of(fooLibTarget)).build();
+  TargetGraph targetGraph=TargetGraphFactory.newInstance(fooLib,workspaceNode);
+  WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(projectFilesystem,reactNativeBuckConfig,targetGraph,workspaceNode.getConstructorArg(),workspaceNode.getBuildTarget(),ImmutableSet.of(ProjectGenerator.Option.INCLUDE_TESTS),false,false,ImmutableList.<String>of(),true,new AlwaysFoundExecutableFinder(),ImmutableMap.<String,String>of(),PLATFORMS,DEFAULT_PLATFORM,"BUCK",getOutputPathOfNodeFunction(targetGraph));
+  Map<Path,ProjectGenerator> projectGenerators=new HashMap<>();
+  generator.generateWorkspaceAndDependentProjects(projectGenerators);
+  XCScheme mainScheme=generator.getSchemeGenerators().get("workspace").getOutputScheme().get();
+  XCScheme.BuildAction mainSchemeBuildAction=mainScheme.getBuildAction().get();
+  assertThat(mainSchemeBuildAction.getBuildActionEntries(),hasSize(1));
+  assertThat(mainSchemeBuildAction.getBuildActionEntries().get(0),withNameAndBuildingFor("FooLib",equalTo(XCScheme.BuildActionEntry.BuildFor.DEFAULT)));
+  assertThat(mainSchemeBuildAction.getParallelizeBuild(),is(true));
+}
