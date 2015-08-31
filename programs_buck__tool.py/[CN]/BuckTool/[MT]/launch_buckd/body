@@ -18,7 +18,7 @@ def launch_buckd(self, buck_version_uid=None):
         command.append('-Dcom.martiansoftware.nailgun.NGServer.outputPath={0}'.format(ngserver_output_path))
         command.append('com.facebook.buck.cli.bootstrapper.ClassLoaderBootstrapper')
         command.append('com.martiansoftware.nailgun.NGServer')
-        command.append('localhost:0')
+        command.append('local:.buckd/sock')
         command.append('{0}'.format(BUCKD_CLIENT_TIMEOUT_MILLIS))
         '\n            Change the process group of the child buckd process so that when this\n            script is interrupted, it does not kill buckd.\n            '
 
@@ -29,29 +29,20 @@ def launch_buckd(self, buck_version_uid=None):
             os.dup2(dev_null_fd, 1)
             os.dup2(dev_null_fd, 2)
             os.close(dev_null_fd)
+        buck_socket_path = self._buck_project.get_buckd_socket_path()
+        try:
+            os.unlink(buck_socket_path)
+        except OSError as e:
+            if (e.errno == errno.ENOENT):
+                pass
+            else:
+                raise e
         process = subprocess.Popen(command, executable=which('java'), cwd=self._buck_project.root, close_fds=True, preexec_fn=preexec_func, env=self._environ_for_buck())
-        buckd_port = None
-        for i in range(100):
-            if buckd_port:
-                break
-            try:
-                try:
-                    with open(ngserver_output_path) as f:
-                        for line in f:
-                            match = BUCKD_LOG_FILE_PATTERN.match(line)
-                            if match:
-                                buckd_port = match.group(1)
-                                break
-                except IOError as e:
-                    pass
-            finally:
-                time.sleep(0.1)
-        else:
-            print('nailgun server did not respond after 10s. Aborting buckd.', file=sys.stderr)
-            return 1
-        self._buck_project.save_buckd_port(buckd_port)
         self._buck_project.save_buckd_version(buck_version_uid)
         self._buck_project.update_buckd_run_count(0)
+        for i in range(0, 100):
+            if (not os.path.exists(buck_socket_path)):
+                time.sleep(0.01)
         returncode = process.poll()
         if (returncode is None):
             return 0

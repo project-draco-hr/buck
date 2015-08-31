@@ -1,20 +1,17 @@
 def kill_buckd(self):
     with Tracing('BuckRepo.kill_buckd'):
-        buckd_port = self._buck_project.get_buckd_port()
-        if buckd_port:
-            if (not buckd_port.isdigit()):
-                print("WARNING: Corrupt buckd port: '{0}'.".format(buckd_port))
-            else:
-                print('Shutting down nailgun server...', file=sys.stderr)
-                buck_client_file = self._get_resource(CLIENT)
-                command = [buck_client_file]
-                command.append('ng-stop')
-                command.append('--nailgun-port')
-                command.append(buckd_port)
-                try:
-                    check_output(command, cwd=self._buck_project.root, stderr=subprocess.STDOUT)
-                except CalledProcessError as e:
-                    if (e.returncode not in [NAILGUN_CONNECTION_REFUSED_CODE, NAILGUN_CONNECTION_BROKEN_CODE, NAILGUN_UNEXPECTED_CHUNK_TYPE]):
-                        print(e.output, end='', file=sys.stderr)
-                        raise
+        buckd_socket_path = self._buck_project.get_buckd_socket_path()
+        if os.path.exists(buckd_socket_path):
+            print('Shutting down nailgun server...', file=sys.stderr)
+            buck_client_file = self._get_resource(CLIENT)
+            command = [buck_client_file]
+            command.append('ng-stop')
+            command.append('--nailgun-server')
+            command.append('local:.buckd/sock')
+            try:
+                check_output(command, cwd=self._buck_project.root, stderr=subprocess.STDOUT)
+            except CalledProcessError as e:
+                if (e.returncode not in [NAILGUN_CONNECTION_REFUSED_CODE, NAILGUN_CONNECTION_BROKEN_CODE, NAILGUN_UNEXPECTED_CHUNK_TYPE]):
+                    print(e.output, end='', file=sys.stderr)
+                    raise
         self._buck_project.clean_up_buckd()
