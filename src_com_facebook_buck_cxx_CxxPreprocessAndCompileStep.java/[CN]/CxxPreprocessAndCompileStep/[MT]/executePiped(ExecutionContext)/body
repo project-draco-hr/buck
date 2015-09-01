@@ -1,10 +1,10 @@
 {
   ByteArrayOutputStream preprocessError=new ByteArrayOutputStream();
-  ProcessBuilder preprocessBuilder=makeSubprocessBuilder(context);
+  ProcessBuilder preprocessBuilder=makeSubprocessBuilder();
   preprocessBuilder.command(makePreprocessCommand());
   preprocessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
   ByteArrayOutputStream compileError=new ByteArrayOutputStream();
-  ProcessBuilder compileBuilder=makeSubprocessBuilder(context);
+  ProcessBuilder compileBuilder=makeSubprocessBuilder();
   compileBuilder.command(makeCompileCommand("-",inputType.getPreprocessedLanguage(),false));
   compileBuilder.redirectInput(ProcessBuilder.Redirect.PIPE);
   Process preprocess=null;
@@ -16,11 +16,11 @@
     LOG.debug("Running command (pwd=%s): %s",preprocessBuilder.directory(),getDescription(context));
     preprocess=preprocessBuilder.start();
     compile=compileBuilder.start();
-    errorProcessorPreprocess=new FunctionLineProcessorThread(preprocess.getErrorStream(),preprocessError,createErrorLineProcessor(context.getProjectDirectoryRoot()));
+    errorProcessorPreprocess=new FunctionLineProcessorThread(preprocess.getErrorStream(),preprocessError,createErrorLineProcessor(workingDirectory));
     errorProcessorPreprocess.start();
-    errorProcessorCompile=new FunctionLineProcessorThread(compile.getErrorStream(),compileError,createErrorLineProcessor(context.getProjectDirectoryRoot()));
+    errorProcessorCompile=new FunctionLineProcessorThread(compile.getErrorStream(),compileError,createErrorLineProcessor(workingDirectory));
     errorProcessorCompile.start();
-    lineDirectiveMunger=new FunctionLineProcessorThread(preprocess.getInputStream(),compile.getOutputStream(),createPreprocessOutputLineProcessor(context.getProjectDirectoryRoot()));
+    lineDirectiveMunger=new FunctionLineProcessorThread(preprocess.getInputStream(),compile.getOutputStream(),createPreprocessOutputLineProcessor(workingDirectory));
     lineDirectiveMunger.start();
     int compileStatus=compile.waitFor();
     int preprocessStatus=preprocess.waitFor();

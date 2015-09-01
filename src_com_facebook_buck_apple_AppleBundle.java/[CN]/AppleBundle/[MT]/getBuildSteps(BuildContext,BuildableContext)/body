@@ -9,8 +9,8 @@
     stepsBuilder.add(new MkdirStep(bundleRoot.resolve(this.destinations.getExecutablesPath())));
     buildableContext.recordArtifact(dsymPath);
     stepsBuilder.add(CopyStep.forFile(binary.get().getPathToOutput(),bundleBinaryPath));
-    stepsBuilder.add(new DsymStep(dsymutil.getCommandPrefix(getResolver()),bundleBinaryPath,dsymPath));
-    stepsBuilder.add(new DefaultShellStep(ImmutableList.<String>builder().addAll(strip.getCommandPrefix(getResolver())).add("-S").add(getProjectFilesystem().resolve(bundleBinaryPath).toString()).build()));
+    stepsBuilder.add(new DsymStep(getProjectFilesystem().getRootPath(),dsymutil.getCommandPrefix(getResolver()),bundleBinaryPath,dsymPath));
+    stepsBuilder.add(new DefaultShellStep(getProjectFilesystem().getRootPath(),ImmutableList.<String>builder().addAll(strip.getCommandPrefix(getResolver())).add("-S").add(getProjectFilesystem().resolve(bundleBinaryPath).toString()).build()));
   }
   Path bundleDestinationPath=bundleRoot.resolve(this.destinations.getResourcesPath());
   for (  SourcePath dir : resourceDirs) {
@@ -54,7 +54,7 @@
     }
     final Path signingEntitlementsTempPath=BuildTargets.getScratchPath(getBuildTarget(),"%s.xcent");
     stepsBuilder.add(new ProvisioningProfileCopyStep(getProjectFilesystem(),infoPlistOutputPath,Optional.<String>absent(),entitlementsPlist,provisioningProfiles.get(),bundleDestinationPath.resolve("embedded.mobileprovision"),signingEntitlementsTempPath));
-    stepsBuilder.add(new CodeSignStep(bundleDestinationPath,signingEntitlementsTempPath,codeSignIdentity.get().getHash()));
+    stepsBuilder.add(new CodeSignStep(getProjectFilesystem().getRootPath(),bundleDestinationPath,signingEntitlementsTempPath,codeSignIdentity.get().getHash()));
   }
   buildableContext.recordArtifact(getPathToOutput());
   return stepsBuilder.build();

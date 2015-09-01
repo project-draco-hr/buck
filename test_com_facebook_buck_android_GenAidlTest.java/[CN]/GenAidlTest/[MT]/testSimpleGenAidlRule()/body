@@ -1,23 +1,8 @@
 {
-  BuildContext context=null;
-  Path pathToAidl=Paths.get("java/com/example/base/IWhateverService.aidl");
-  String importPath=Paths.get("java/com/example/base").toString();
-  BuildTarget target=BuildTargetFactory.newInstance("//java/com/example/base:IWhateverService");
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
-  GenAidl genAidlRule=new GenAidl(params,new SourcePathResolver(new BuildRuleResolver()),pathToAidl,importPath);
-  GenAidlDescription description=new GenAidlDescription();
-  assertEquals(GenAidlDescription.TYPE,description.getBuildRuleType());
-  assertTrue(genAidlRule.getProperties().is(ANDROID));
-  List<Step> steps=genAidlRule.getBuildSteps(context,new FakeBuildableContext());
-  final String pathToAidlExecutable=Paths.get("/usr/local/bin/aidl").toString();
-  final String pathToFrameworkAidl=Paths.get("/home/root/android/platforms/android-16/framework.aidl").toString();
-  AndroidPlatformTarget androidPlatformTarget=createMock(AndroidPlatformTarget.class);
-  expect(androidPlatformTarget.getAidlExecutable()).andReturn(Paths.get(pathToAidlExecutable));
-  expect(androidPlatformTarget.getAndroidFrameworkIdlFile()).andReturn(Paths.get(pathToFrameworkAidl));
-  ExecutionContext executionContext=createMock(ExecutionContext.class);
-  expect(executionContext.getAndroidPlatformTarget()).andReturn(androidPlatformTarget);
-  expect(executionContext.getProjectDirectoryRoot()).andReturn(Paths.get("/"));
-  expect(executionContext.getProjectFilesystem()).andReturn(new ProjectFilesystem(Paths.get(".")){
+  FileSystem vfs=Jimfs.newFileSystem(Configuration.unix());
+  Path root=vfs.getPath("/");
+  Files.createDirectories(root);
+  ProjectFilesystem stubFilesystem=new ProjectFilesystem(root){
     @Override public Path resolve(    Path path){
       return path;
     }
@@ -25,7 +10,23 @@
       return true;
     }
   }
-);
+;
+  Path pathToAidl=Paths.get("java/com/example/base/IWhateverService.aidl");
+  String importPath=Paths.get("java/com/example/base").toString();
+  BuildTarget target=BuildTargetFactory.newInstance("//java/com/example/base:IWhateverService");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setProjectFilesystem(stubFilesystem).build();
+  GenAidl genAidlRule=new GenAidl(params,new SourcePathResolver(new BuildRuleResolver()),pathToAidl,importPath);
+  GenAidlDescription description=new GenAidlDescription();
+  assertEquals(GenAidlDescription.TYPE,description.getBuildRuleType());
+  assertTrue(genAidlRule.getProperties().is(ANDROID));
+  List<Step> steps=genAidlRule.getBuildSteps(null,new FakeBuildableContext());
+  final String pathToAidlExecutable=Paths.get("/usr/local/bin/aidl").toString();
+  final String pathToFrameworkAidl=Paths.get("/home/root/android/platforms/android-16/framework.aidl").toString();
+  AndroidPlatformTarget androidPlatformTarget=createMock(AndroidPlatformTarget.class);
+  expect(androidPlatformTarget.getAidlExecutable()).andReturn(Paths.get(pathToAidlExecutable));
+  expect(androidPlatformTarget.getAndroidFrameworkIdlFile()).andReturn(Paths.get(pathToFrameworkAidl));
+  ExecutionContext executionContext=createMock(ExecutionContext.class);
+  expect(executionContext.getAndroidPlatformTarget()).andReturn(androidPlatformTarget);
   replay(androidPlatformTarget,executionContext);
   Path outputDirectory=Paths.get(BuckConstant.SCRATCH_DIR,"/java/com/example/base/__IWhateverService.aidl");
   MakeCleanDirectoryStep mkdirStep=(MakeCleanDirectoryStep)steps.get(1);

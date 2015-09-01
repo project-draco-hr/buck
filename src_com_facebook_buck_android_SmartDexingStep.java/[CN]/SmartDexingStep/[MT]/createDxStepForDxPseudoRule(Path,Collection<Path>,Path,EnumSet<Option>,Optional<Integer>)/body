@@ -1,0 +1,35 @@
+{
+  String output=outputPath.toString();
+  List<Step> steps=Lists.newArrayList();
+  if (DexStore.XZ.matchesPath(outputPath)) {
+    Path tempDexJarOutput=Paths.get(output.replaceAll("\\.jar\\.xz$",".tmp.jar"));
+    steps.add(new DxStep(workingDirectory,tempDexJarOutput,filesToDex,dxOptions));
+    Path repackedJar=Paths.get(output.replaceAll("\\.xz$",""));
+    steps.add(new RepackZipEntriesStep(tempDexJarOutput,repackedJar,ImmutableSet.of("classes.dex"),ZipStep.MIN_COMPRESSION_LEVEL));
+    steps.add(new RmStep(tempDexJarOutput,true));
+    steps.add(new DexJarAnalysisStep(repackedJar,repackedJar.resolveSibling(repackedJar.getFileName() + ".meta")));
+    if (xzCompressionLevel.isPresent()) {
+      steps.add(new XzStep(repackedJar,xzCompressionLevel.get().intValue()));
+    }
+ else {
+      steps.add(new XzStep(repackedJar));
+    }
+  }
+ else   if (DexStore.XZS.matchesPath(outputPath)) {
+    Path tempDexJarOutput=Paths.get(output.replaceAll("\\.jar\\.xzs\\.tmp~$",".tmp.jar"));
+    steps.add(new DxStep(workingDirectory,tempDexJarOutput,filesToDex,dxOptions));
+    steps.add(new RepackZipEntriesStep(tempDexJarOutput,outputPath,ImmutableSet.of("classes.dex"),ZipStep.MIN_COMPRESSION_LEVEL));
+    steps.add(new RmStep(tempDexJarOutput,true));
+    steps.add(new DexJarAnalysisStep(outputPath,outputPath.resolveSibling(outputPath.getFileName() + ".meta")));
+  }
+ else   if (DexStore.JAR.matchesPath(outputPath) || DexStore.RAW.matchesPath(outputPath) || output.endsWith("classes.dex")) {
+    steps.add(new DxStep(workingDirectory,outputPath,filesToDex,dxOptions));
+    if (DexStore.JAR.matchesPath(outputPath)) {
+      steps.add(new DexJarAnalysisStep(outputPath,outputPath.resolveSibling(outputPath.getFileName() + ".meta")));
+    }
+  }
+ else {
+    throw new IllegalArgumentException(String.format("Suffix of %s does not have a corresponding DexStore type.",outputPath));
+  }
+  return new CompositeStep(steps);
+}

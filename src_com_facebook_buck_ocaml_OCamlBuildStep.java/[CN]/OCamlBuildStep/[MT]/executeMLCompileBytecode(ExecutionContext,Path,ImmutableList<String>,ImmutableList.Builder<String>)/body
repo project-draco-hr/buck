@@ -1,0 +1,22 @@
+{
+  MakeCleanDirectoryStep mkDir=new MakeCleanDirectoryStep(ocamlContext.getCompileBytecodeOutputDir());
+  int mkDirExitCode=mkDir.execute(context);
+  if (mkDirExitCode != 0) {
+    return mkDirExitCode;
+  }
+  for (  String inputOutput : sortedInput) {
+    String inputFileName=Paths.get(inputOutput).getFileName().toString();
+    String outputFileName=inputFileName.replaceFirst(OCamlCompilables.OCAML_ML_REGEX,OCamlCompilables.OCAML_CMO).replaceFirst(OCamlCompilables.OCAML_MLI_REGEX,OCamlCompilables.OCAML_CMI);
+    Path outputPath=ocamlContext.getCompileBytecodeOutputDir().resolve(outputFileName);
+    if (!outputFileName.endsWith(OCamlCompilables.OCAML_CMI)) {
+      linkerInputs.add(outputPath.toString());
+    }
+    final ImmutableList<String> compileFlags=getCompileFlags(true,false);
+    Step compileBytecodeStep=new OCamlMLCompileStep(workingDirectory,new OCamlMLCompileStep.Args(cCompiler,ocamlContext.getOcamlBytecodeCompiler().get(),outputPath,Paths.get(inputOutput),compileFlags));
+    int compileExitCode=compileBytecodeStep.execute(context);
+    if (compileExitCode != 0) {
+      return compileExitCode;
+    }
+  }
+  return 0;
+}

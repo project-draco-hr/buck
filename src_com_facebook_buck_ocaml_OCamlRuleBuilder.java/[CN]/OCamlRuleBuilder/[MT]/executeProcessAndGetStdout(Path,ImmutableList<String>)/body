@@ -1,0 +1,15 @@
+{
+  try (CapturingPrintStream stdout=new CapturingPrintStream();CapturingPrintStream stderr=new CapturingPrintStream()){
+    ImmutableSet.Builder<ProcessExecutor.Option> options=ImmutableSet.builder();
+    options.add(ProcessExecutor.Option.EXPECTING_STD_OUT);
+    Console console=new Console(Verbosity.SILENT,stdout,stderr,Ansi.withoutTty());
+    ProcessExecutor exe=new ProcessExecutor(console);
+    ProcessBuilder processBuilder=new ProcessBuilder(cmd);
+    processBuilder.directory(baseDir.toFile());
+    ProcessExecutor.Result result=exe.execute(processBuilder.start(),options.build(),Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
+    if (result.getExitCode() != 0) {
+      throw new HumanReadableException(stderr.getContentsAsString(StandardCharsets.UTF_8));
+    }
+    return result.getStdout();
+  }
+ }
