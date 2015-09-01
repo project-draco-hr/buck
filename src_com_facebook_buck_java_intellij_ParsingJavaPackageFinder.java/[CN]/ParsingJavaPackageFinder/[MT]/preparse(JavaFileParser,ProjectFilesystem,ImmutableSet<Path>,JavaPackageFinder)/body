@@ -1,0 +1,16 @@
+{
+  PackagePathCache packagePathCache=new PackagePathCache();
+  for (  Path path : FluentIterable.from(filesToParse).toSortedSet(new PathComponentCountOrder())) {
+    Optional<String> packageNameFromSource=Optionals.bind(projectFilesystem.readFileIfItExists(path),new Function<String,Optional<String>>(){
+      @Override public Optional<String> apply(      String input){
+        return javaFileParser.getPackageNameFromSource(input);
+      }
+    }
+);
+    if (packageNameFromSource.isPresent()) {
+      Path javaPackagePath=findPackageFolderWithJavaPackage(packageNameFromSource.get());
+      packagePathCache.insert(path,javaPackagePath);
+    }
+  }
+  return new CacheBasedPackageFinder(fallbackPackageFinder,packagePathCache);
+}
