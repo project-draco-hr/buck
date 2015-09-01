@@ -1,0 +1,11 @@
+{
+  try (BuckEventOrderer<BuckEvent> orderer=new BuckEventOrderer<>(addToSerializedEventsFunction,MAX_SKEW,TimeUnit.MILLISECONDS)){
+    orderer.add(createUniqueEvent(0,TimeUnit.MILLISECONDS,THREAD_ONE));
+    orderer.add(createUniqueEvent(5,TimeUnit.MILLISECONDS,THREAD_ONE));
+    orderer.add(createUniqueEvent(MAX_SKEW + 1,TimeUnit.MILLISECONDS,THREAD_TWO));
+    assertThat(FluentIterable.from(serializedEvents).transform(TO_EVENT_TIMESTAMP_FUNCTION),Matchers.contains(0L));
+    orderer.add(createUniqueEvent(5 + MAX_SKEW + 1,TimeUnit.MILLISECONDS,THREAD_ONE));
+    assertThat(FluentIterable.from(serializedEvents).transform(TO_EVENT_TIMESTAMP_FUNCTION),Matchers.contains(0L,5L));
+  }
+   assertThat(FluentIterable.from(serializedEvents).transform(TO_EVENT_TIMESTAMP_FUNCTION),Matchers.contains(0L,5L,MAX_SKEW + 1,5 + MAX_SKEW + 1));
+}

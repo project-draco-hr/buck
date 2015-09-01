@@ -1,0 +1,19 @@
+{
+  while (!oldestEventQueue.isEmpty() && oldestEventQueue.peek().getFirst().getNanoTime() <= upperTimeBound) {
+    Deque<T> queueWithOldestEvent=oldestEventQueue.remove();
+    long upperTimeBoundForThisQueue=upperTimeBound;
+    if (!oldestEventQueue.isEmpty()) {
+      Deque<T> nextOldestQueue=oldestEventQueue.peek();
+      Preconditions.checkState(queueWithOldestEvent.getFirst().getNanoTime() <= nextOldestQueue.getFirst().getNanoTime());
+      if (nextOldestQueue.getFirst().getNanoTime() < upperTimeBoundForThisQueue) {
+        upperTimeBoundForThisQueue=nextOldestQueue.getFirst().getNanoTime();
+      }
+    }
+    while (!queueWithOldestEvent.isEmpty() && queueWithOldestEvent.getFirst().getNanoTime() <= upperTimeBoundForThisQueue) {
+      eventSinkFunction.apply(queueWithOldestEvent.removeFirst());
+    }
+    if (!queueWithOldestEvent.isEmpty()) {
+      oldestEventQueue.add(queueWithOldestEvent);
+    }
+  }
+}

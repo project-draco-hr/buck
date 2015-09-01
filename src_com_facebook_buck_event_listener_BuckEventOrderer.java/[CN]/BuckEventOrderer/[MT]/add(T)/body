@@ -1,0 +1,26 @@
+{
+  Deque<T> queue=getQueueForEvent(buckEvent);
+  boolean shouldAddToEventQueue=queue.isEmpty();
+  if (!queue.isEmpty() && queue.getLast().getNanoTime() > buckEvent.getNanoTime()) {
+    oldestEventQueue.remove(queue);
+    List<T> mergedEventsList=new ArrayList<>(queue.size() + 1);
+    while (!queue.isEmpty() && queue.getFirst().getNanoTime() <= buckEvent.getNanoTime()) {
+      mergedEventsList.add(queue.removeFirst());
+    }
+    mergedEventsList.add(buckEvent);
+    mergedEventsList.addAll(queue);
+    queue.clear();
+    queue.addAll(mergedEventsList);
+    oldestEventQueue.add(queue);
+  }
+ else {
+    queue.add(buckEvent);
+  }
+  if (shouldAddToEventQueue) {
+    oldestEventQueue.add(queue);
+  }
+  if (maximumNanoTime < buckEvent.getNanoTime()) {
+    maximumNanoTime=buckEvent.getNanoTime();
+  }
+  dispatchEventsOlderThan(maximumNanoTime - maximumSkewNanos);
+}
