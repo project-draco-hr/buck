@@ -1,7 +1,7 @@
 {
-  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
   DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
-  BuildRuleParams buildRuleParams=new FakeBuildRuleParamsBuilder(buildTarget).build();
+  BuildRuleParams buildRuleParams=new FakeBuildRuleParamsBuilder(BUILD_TARGET).setProjectFilesystem(filesystem).build();
   TestAbstractCachingBuildRule buildRule=new LocallyBuiltTestAbstractCachingBuildRule(buildRuleParams,new SourcePathResolver(new BuildRuleResolver()));
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   FakeBuckEventListener listener=new FakeBuckEventListener();
@@ -10,7 +10,7 @@
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY);
   ListenableFuture<BuildResult> buildResult=cachingBuildEngine.build(buildContext,buildRule);
   buckEventBus.post(CommandEvent.finished(CommandEvent.started("build",ImmutableList.<String>of(),false),0));
-  OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(buildTarget.getBuildTarget());
+  OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(BUILD_TARGET.getBuildTarget(),filesystem);
   assertEquals(Optional.of(new RuleKey(TestAbstractCachingBuildRule.ABI_KEY_FOR_DEPS_HASH)),onDiskBuildInfo.getRuleKey(CachingBuildEngine.ABI_KEY_FOR_DEPS_ON_DISK_METADATA));
   BuildResult result=buildResult.get();
   assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
