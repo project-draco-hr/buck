@@ -9,32 +9,37 @@
   DefaultJavaPackageFinder defaultJavaPackageFinder=defaultJavaPackageFinderOptional.get();
   Set<String> srcFolders=Sets.newHashSet();
   loopThroughSourcePath:   for (  Path javaSrcPath : javaSrcs) {
-    if (!MorePaths.isGeneratedFile(javaSrcPath)) {
-      for (      String srcFolder : srcFolders) {
-        if (javaSrcPath.startsWith(srcFolder)) {
-          continue loopThroughSourcePath;
-        }
-      }
-      ImmutableSortedSet<String> pathsFromRoot=defaultJavaPackageFinder.getPathsFromRoot();
-      for (      String root : pathsFromRoot) {
-        if (javaSrcPath.startsWith(root)) {
-          srcFolders.add(root);
-          continue loopThroughSourcePath;
-        }
-      }
-      ImmutableSet<String> pathElements=defaultJavaPackageFinder.getPathElements();
-      Path directory=filesystem.getPathForRelativePath(javaSrcPath.getParent());
-      while (directory != null && !pathElements.contains(directory.getFileName().toString())) {
-        directory=directory.getParent();
-      }
-      if (directory != null) {
-        String directoryPath=directory.toString();
-        if (!directoryPath.endsWith("/")) {
-          directoryPath+="/";
-        }
-        srcFolders.add(directoryPath);
+    if (MorePaths.isGeneratedFile(javaSrcPath)) {
+      continue;
+    }
+    for (    String srcFolder : srcFolders) {
+      if (javaSrcPath.startsWith(srcFolder)) {
+        continue loopThroughSourcePath;
       }
     }
+    ImmutableSortedSet<String> pathsFromRoot=defaultJavaPackageFinder.getPathsFromRoot();
+    for (    String root : pathsFromRoot) {
+      if (javaSrcPath.startsWith(root)) {
+        srcFolders.add(root);
+        continue loopThroughSourcePath;
+      }
+    }
+    ImmutableSet<String> pathElements=defaultJavaPackageFinder.getPathElements();
+    Path directory=filesystem.getPathForRelativePath(javaSrcPath.getParent());
+    if (pathElements.isEmpty()) {
+      continue;
+    }
+    while (directory != null && directory.getFileName() != null && !pathElements.contains(directory.getFileName().toString())) {
+      directory=directory.getParent();
+    }
+    if (directory == null || directory.getFileName() == null) {
+      continue;
+    }
+    String directoryPath=directory.toString();
+    if (!directoryPath.endsWith("/")) {
+      directoryPath+="/";
+    }
+    srcFolders.add(directoryPath);
   }
   return ImmutableSet.copyOf(srcFolders);
 }
