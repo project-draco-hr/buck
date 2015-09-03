@@ -56,7 +56,8 @@
     printMatchingTestRules(params.getConsole(),testRules);
   }
   try (CommandThreadManager pool=new CommandThreadManager("Test",getConcurrencyLimit(params.getBuckConfig()))){
-    CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),params.getFileHashCache(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),params.getBuckConfig().getBuildDepFiles(),new InputBasedRuleKeyBuilderFactory(params.getFileHashCache(),new SourcePathResolver(targetGraphToActionGraph.getRuleResolver())),new DependencyFileRuleKeyBuilderFactory(params.getFileHashCache(),new SourcePathResolver(targetGraphToActionGraph.getRuleResolver())));
+    SourcePathResolver pathResolver=new SourcePathResolver(targetGraphToActionGraph.getRuleResolver());
+    CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),params.getFileHashCache(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),params.getBuckConfig().getBuildDepFiles(),new InputBasedRuleKeyBuilderFactory(params.getFileHashCache(),pathResolver),new AbiRuleKeyBuilderFactory(params.getFileHashCache(),pathResolver),new DependencyFileRuleKeyBuilderFactory(params.getFileHashCache(),pathResolver));
     try (Build build=createBuild(params.getBuckConfig(),graph,params.getRepository().getFilesystem(),params.getAndroidPlatformTargetSupplier(),cachingBuildEngine,getArtifactCache(params),params.getConsole(),params.getBuckEventBus(),getTargetDeviceOptional(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock(),Optional.of(getAdbOptions()),Optional.of(getTargetDeviceOptions()))){
       int exitCode=build.executeAndPrintFailuresToEventBus(testRules,isKeepGoing(),params.getBuckEventBus(),params.getConsole().getAnsi(),getPathToBuildReport(params.getBuckConfig()));
       params.getBuckEventBus().post(BuildEvent.finished(started,exitCode));

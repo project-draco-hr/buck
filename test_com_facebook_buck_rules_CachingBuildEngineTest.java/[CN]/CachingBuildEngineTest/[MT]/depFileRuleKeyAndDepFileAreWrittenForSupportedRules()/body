@@ -23,16 +23,16 @@
     }
   }
 ;
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,new FixedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),depFileRuleKey),fileHashCache));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new FixedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),depFileRuleKey),fileHashCache));
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
   OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(target,filesystem);
-  assertThat(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY),Matchers.equalTo(Optional.of(depFileRuleKey)));
-  assertThat(onDiskBuildInfo.getValues(BuildInfo.METADATA_KEY_FOR_DEP_FILE),Matchers.equalTo(Optional.of(ImmutableList.of(input.toString()))));
+  assertThat(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY),equalTo(Optional.of(depFileRuleKey)));
+  assertThat(onDiskBuildInfo.getValues(BuildInfo.METADATA_KEY_FOR_DEP_FILE),equalTo(Optional.of(ImmutableList.of(input.toString()))));
   Path fetchedArtifact=tmp.newFile("fetched_artifact.zip").toPath();
   CacheResult cacheResult=cache.fetch(rule.getRuleKey(),fetchedArtifact);
-  assertThat(cacheResult.getType(),Matchers.equalTo(CacheResult.Type.HIT));
-  assertThat(cacheResult.getMetadata().get(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY),Matchers.equalTo(depFileRuleKey.toString()));
+  assertThat(cacheResult.getType(),equalTo(CacheResult.Type.HIT));
+  assertThat(cacheResult.getMetadata().get(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY),equalTo(depFileRuleKey.toString()));
   ZipInspector inspector=new ZipInspector(fetchedArtifact);
   inspector.assertFileContents(BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_DEP_FILE).toString(),new ObjectMapper().writeValueAsString(ImmutableList.of(input.toString())));
 }
