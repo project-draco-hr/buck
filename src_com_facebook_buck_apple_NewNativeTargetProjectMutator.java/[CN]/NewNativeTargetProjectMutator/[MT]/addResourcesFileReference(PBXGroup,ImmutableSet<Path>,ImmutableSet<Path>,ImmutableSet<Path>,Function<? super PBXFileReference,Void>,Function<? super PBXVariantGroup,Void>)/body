@@ -1,0 +1,33 @@
+{
+  if (resourceFiles.isEmpty() && resourceDirs.isEmpty() && variantResourceFiles.isEmpty()) {
+    return;
+  }
+  PBXGroup resourcesGroup=targetGroup.getOrCreateChildGroupByName("Resources");
+  for (  Path path : resourceFiles) {
+    PBXFileReference fileReference=resourcesGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(path),Optional.<String>absent()));
+    resourceCallback.apply(fileReference);
+  }
+  for (  Path path : resourceDirs) {
+    PBXFileReference fileReference=resourcesGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(path),Optional.of("folder")));
+    resourceCallback.apply(fileReference);
+  }
+  Map<String,PBXVariantGroup> variantGroups=Maps.newHashMap();
+  for (  Path variantFilePath : variantResourceFiles) {
+    String lprojSuffix=".lproj";
+    Path variantDirectory=variantFilePath.getParent();
+    if (variantDirectory == null || !variantDirectory.toString().endsWith(lprojSuffix)) {
+      throw new HumanReadableException("Variant files have to be in a directory with name ending in '.lproj', " + "but '%s' is not.",variantFilePath);
+    }
+    String variantDirectoryName=variantDirectory.getFileName().toString();
+    String variantLocalization=variantDirectoryName.substring(0,variantDirectoryName.length() - lprojSuffix.length());
+    String variantFileName=variantFilePath.getFileName().toString();
+    PBXVariantGroup variantGroup=variantGroups.get(variantFileName);
+    if (variantGroup == null) {
+      variantGroup=resourcesGroup.getOrCreateChildVariantGroupByName(variantFileName);
+      variantGroupCallback.apply(variantGroup);
+      variantGroups.put(variantFileName,variantGroup);
+    }
+    SourceTreePath sourceTreePath=new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(variantFilePath),Optional.<String>absent());
+    variantGroup.getOrCreateVariantFileReferenceByNameAndSourceTreePath(variantLocalization,sourceTreePath);
+  }
+}

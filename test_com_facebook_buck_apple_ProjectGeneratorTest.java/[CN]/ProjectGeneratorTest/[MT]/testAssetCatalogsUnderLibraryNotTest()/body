@@ -10,19 +10,15 @@
   PBXProject project=projectGenerator.getGeneratedProject();
   PBXGroup mainGroup=project.getMainGroup();
   PBXTarget fooLibTarget=assertTargetExistsAndReturnTarget(project,"lib");
-  assertFalse(hasShellScriptPhaseToCompileAssetCatalogs(fooLibTarget));
+  assertTrue(FluentIterable.from(fooLibTarget.getBuildPhases()).filter(PBXResourcesBuildPhase.class).isEmpty());
   PBXGroup libResourcesGroup=mainGroup.getOrCreateChildGroupByName("lib").getOrCreateChildGroupByName("Resources");
-  PBXFileReference assetCatalogFile=(PBXFileReference)Iterables.get(libResourcesGroup.getChildren(),0);
+  PBXFileReference assetCatalogFile=(PBXFileReference)libResourcesGroup.getChildren().get(0);
   assertEquals("AssetCatalog.xcassets",assetCatalogFile.getName());
   PBXTarget fooTestTarget=assertTargetExistsAndReturnTarget(project,"test");
-  assertTrue(hasShellScriptPhaseToCompileAssetCatalogs(fooTestTarget));
-  boolean hasAssetCatalog=false;
+  PBXResourcesBuildPhase resourcesBuildPhase=getSingletonPhaseByType(fooTestTarget,PBXResourcesBuildPhase.class);
+  assertThat(resourcesBuildPhase.getFiles(),hasSize(1));
+  assertThat(assertFileRefIsRelativeAndResolvePath(resourcesBuildPhase.getFiles().get(0).getFileRef()),equalTo(projectFilesystem.resolve("AssetCatalog.xcassets").toString()));
   PBXGroup testResourcesGroup=mainGroup.getOrCreateChildGroupByName("test").getOrCreateChildGroupByName("Resources");
-  for (  PBXReference reference : testResourcesGroup.getChildren()) {
-    if ("AssetCatalog.xcassets".equals(reference.getName())) {
-      hasAssetCatalog=true;
-      break;
-    }
-  }
-  assertFalse(hasAssetCatalog);
+  assetCatalogFile=(PBXFileReference)testResourcesGroup.getChildren().get(0);
+  assertEquals("AssetCatalog.xcassets",assetCatalogFile.getName());
 }
