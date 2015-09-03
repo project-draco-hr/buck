@@ -4,31 +4,11 @@
   Iterator<TargetNode<?>> valueIterator=buildIndex.values().iterator();
   while (valueIterator.hasNext()) {
     TargetNode<?> targetNode=valueIterator.next();
-    BuildTarget buildTarget=targetNode.getBuildTarget();
-    List<Map<String,Object>> rules;
-    try {
-      Path buildFile=params.getRepository().getAbsolutePathToBuildFile(buildTarget);
-      rules=params.getParser().parseBuildFile(buildFile,parserConfig,params.getEnvironment(),params.getConsole(),params.getBuckEventBus());
-    }
- catch (    BuildTargetException e) {
-      params.getConsole().printErrorText("unable to find rule for target " + buildTarget.getFullyQualifiedName());
+    SortedMap<String,Object> sortedTargetRule=getBuildTargetRules(params,parserConfig,targetNode);
+    if (sortedTargetRule == null) {
+      params.getConsole().printErrorText("unable to find rule for target " + targetNode.getBuildTarget().getFullyQualifiedName());
       continue;
     }
-    Map<String,Object> targetRule=null;
-    for (    Map<String,Object> rule : rules) {
-      String name=(String)Preconditions.checkNotNull(rule.get("name"));
-      if (name.equals(buildTarget.getShortNameAndFlavorPostfix())) {
-        targetRule=rule;
-        break;
-      }
-    }
-    if (targetRule == null) {
-      params.getConsole().printErrorText("unable to find rule for target " + buildTarget.getFullyQualifiedName());
-      continue;
-    }
-    targetRule.put("buck.direct_dependencies",ImmutableList.copyOf((Iterables.transform(targetNode.getDeps(),Functions.toStringFunction()))));
-    SortedMap<String,Object> sortedTargetRule=Maps.newTreeMap();
-    sortedTargetRule.putAll(targetRule);
     StringWriter stringWriter=new StringWriter();
     try {
       mapper.writerWithDefaultPrettyPrinter().writeValue(stringWriter,sortedTargetRule);

@@ -1,0 +1,37 @@
+{
+  ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
+  SortedMap<String,SortedMap<String,Object>> result=Maps.newTreeMap();
+  for (  QueryTarget target : queryResult) {
+    if (!(target instanceof QueryBuildTarget)) {
+      continue;
+    }
+    TargetNode<?> node=env.getNode(target);
+    try {
+      SortedMap<String,Object> sortedTargetRule=TargetsCommand.getBuildTargetRules(params,parserConfig,node);
+      if (sortedTargetRule == null) {
+        params.getConsole().printErrorText("unable to find rule for target " + node.getBuildTarget().getFullyQualifiedName());
+        continue;
+      }
+      SortedMap<String,Object> attributes=Maps.newTreeMap();
+      for (      String attribute : outputAttributes.get()) {
+        if (sortedTargetRule.containsKey(attribute)) {
+          attributes.put(attribute,sortedTargetRule.get(attribute));
+        }
+      }
+      result.put(node.getBuildTarget().getUnflavoredBuildTarget().getFullyQualifiedName(),attributes);
+    }
+ catch (    BuildFileParseException e) {
+      params.getConsole().printErrorText("unable to find rule for target " + node.getBuildTarget().getFullyQualifiedName());
+      continue;
+    }
+  }
+  StringWriter stringWriter=new StringWriter();
+  try {
+    params.getObjectMapper().writerWithDefaultPrettyPrinter().writeValue(stringWriter,result);
+  }
+ catch (  IOException e) {
+    throw Throwables.propagate(e);
+  }
+  String output=stringWriter.getBuffer().toString();
+  params.getConsole().getStdOut().println(output);
+}
