@@ -101,12 +101,14 @@
         BuildRuleSuccessType success=Preconditions.checkNotNull(input.getSuccess());
         successType=Optional.of(success);
         uploadToCache(success);
-        try {
-          outputSize=Optional.of(buildInfoRecorder.getOutputSize());
-          outputHash=Optional.of(buildInfoRecorder.getOutputHash(fileHashCache));
-        }
- catch (        IOException e) {
-          context.getEventBus().post(ThrowableConsoleEvent.create(e,"Error getting output hash and size for %s.",rule));
+        if (success == BuildRuleSuccessType.BUILT_LOCALLY) {
+          try {
+            outputSize=Optional.of(buildInfoRecorder.getOutputSize());
+            outputHash=Optional.of(buildInfoRecorder.getOutputHash(fileHashCache));
+          }
+ catch (          IOException e) {
+            context.getEventBus().post(ThrowableConsoleEvent.create(e,"Error getting output hash and size for %s.",rule));
+          }
         }
       }
       context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,input.getStatus(),input.getCacheResult(),successType,outputHash,outputSize));
