@@ -8,10 +8,10 @@
  else {
     secondaryDexDirectories=ImmutableSet.of(paths.metadataDir,paths.jarfilesDir);
   }
-  steps.add(new MkdirStep(paths.jarfilesSubdir));
-  steps.add(new MkdirStep(paths.successDir));
-  steps.add(new MakeCleanDirectoryStep(paths.metadataSubdir));
-  steps.add(new MakeCleanDirectoryStep(paths.scratchDir));
+  steps.add(new MkdirStep(getProjectFilesystem(),paths.jarfilesSubdir));
+  steps.add(new MkdirStep(getProjectFilesystem(),paths.successDir));
+  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),paths.metadataSubdir));
+  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),paths.scratchDir));
   buildableContext.addMetadata(SECONDARY_DEX_DIRECTORIES_KEY,Iterables.transform(secondaryDexDirectories,Functions.toStringFunction()));
   buildableContext.recordArtifact(primaryDexPath);
   buildableContext.recordArtifact(paths.jarfilesSubdir);
@@ -19,8 +19,8 @@
   buildableContext.recordArtifact(paths.successDir);
   PreDexedFilesSorter preDexedFilesSorter=new PreDexedFilesSorter(aaptPackageResources.getRDotJavaDexWithClasses(),dexFilesToMerge,dexSplitMode.getPrimaryDexPatterns(),paths.scratchDir,dexSplitMode.getLinearAllocHardLimit(),dexSplitMode.getDexStore(),paths.jarfilesSubdir);
   final PreDexedFilesSorter.Result sortResult=preDexedFilesSorter.sortIntoPrimaryAndSecondaryDexes(context,getProjectFilesystem(),steps);
-  steps.add(new SmartDexingStep(primaryDexPath,Suppliers.ofInstance(sortResult.primaryDexInputs),Optional.of(paths.jarfilesSubdir),Optional.of(Suppliers.ofInstance(sortResult.secondaryOutputToInputs)),sortResult.dexInputHashesProvider,paths.successDir,DX_MERGE_OPTIONS,dxExecutorService,xzCompressionLevel));
-  steps.add(new RecordFileSha1Step(primaryDexPath,PRIMARY_DEX_HASH_KEY,buildableContext));
+  steps.add(new SmartDexingStep(getProjectFilesystem(),primaryDexPath,Suppliers.ofInstance(sortResult.primaryDexInputs),Optional.of(paths.jarfilesSubdir),Optional.of(Suppliers.ofInstance(sortResult.secondaryOutputToInputs)),sortResult.dexInputHashesProvider,paths.successDir,DX_MERGE_OPTIONS,dxExecutorService,xzCompressionLevel));
+  steps.add(new RecordFileSha1Step(getProjectFilesystem(),primaryDexPath,PRIMARY_DEX_HASH_KEY,buildableContext));
   steps.add(new AbstractExecutionStep("write_metadata_txt"){
     @Override public int execute(    ExecutionContext executionContext){
       Map<Path,DexWithClasses> metadataTxtEntries=sortResult.metadataTxtDexEntries;

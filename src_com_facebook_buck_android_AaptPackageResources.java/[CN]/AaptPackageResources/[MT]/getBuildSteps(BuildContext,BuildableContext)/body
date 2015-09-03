@@ -1,6 +1,6 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
-  steps.add(new MkdirAndSymlinkFileStep(getResolver().getPath(manifest),getAndroidManifestXml()));
+  steps.add(new MkdirAndSymlinkFileStep(getProjectFilesystem(),getResolver().getPath(manifest),getAndroidManifestXml()));
   Step collectAssets=new Step(){
     @Override public int execute(    ExecutionContext context) throws IOException, InterruptedException {
       ImmutableList.Builder<Step> commands=ImmutableList.builder();
@@ -35,26 +35,26 @@
  else {
     assetsDirectory=Optional.of(getPathToAllAssetsDirectory());
   }
-  steps.add(new MkdirStep(getResourceApkPath().getParent()));
+  steps.add(new MkdirStep(getProjectFilesystem(),getResourceApkPath().getParent()));
   Path rDotTxtDir=getPathToRDotTxtDir();
-  steps.add(new MakeCleanDirectoryStep(rDotTxtDir));
+  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),rDotTxtDir));
   Optional<Path> pathToGeneratedProguardConfig=Optional.absent();
   if (packageType.isBuildWithObfuscation()) {
     Path proguardConfigDir=getPathToGeneratedProguardConfigDir();
-    steps.add(new MakeCleanDirectoryStep(proguardConfigDir));
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),proguardConfigDir));
     pathToGeneratedProguardConfig=Optional.of(proguardConfigDir.resolve("proguard.txt"));
     buildableContext.recordArtifact(proguardConfigDir);
   }
   steps.add(new AaptStep(getProjectFilesystem().getRootPath(),getAndroidManifestXml(),filteredResourcesProvider.getResDirectories(),assetsDirectory,getResourceApkPath(),rDotTxtDir,pathToGeneratedProguardConfig,!skipCrunchPngs));
-  steps.add(new TouchStep(getPathToRDotTxtFile()));
+  steps.add(new TouchStep(getProjectFilesystem(),getPathToRDotTxtFile()));
   if (!filteredResourcesProvider.getResDirectories().isEmpty()) {
     generateAndCompileRDotJavaFiles(steps,buildableContext);
     if (rDotJavaNeedsDexing) {
       Path rDotJavaDexDir=getPathToRDotJavaDexFiles();
-      steps.add(new MakeCleanDirectoryStep(rDotJavaDexDir));
-      steps.add(new DxStep(getProjectFilesystem().getRootPath(),getPathToRDotJavaDex(),Collections.singleton(getPathToCompiledRDotJavaFiles()),DX_OPTIONS));
-      steps.add(new ZipScrubberStep(getPathToRDotJavaDex()));
-      final EstimateLinearAllocStep estimateLinearAllocStep=new EstimateLinearAllocStep(getPathToCompiledRDotJavaFiles());
+      steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),rDotJavaDexDir));
+      steps.add(new DxStep(getProjectFilesystem(),getPathToRDotJavaDex(),Collections.singleton(getPathToCompiledRDotJavaFiles()),DX_OPTIONS));
+      steps.add(new ZipScrubberStep(getProjectFilesystem(),getPathToRDotJavaDex()));
+      final EstimateLinearAllocStep estimateLinearAllocStep=new EstimateLinearAllocStep(getProjectFilesystem(),getPathToCompiledRDotJavaFiles());
       steps.add(estimateLinearAllocStep);
       buildableContext.recordArtifact(getPathToRDotJavaDex());
       steps.add(new AbstractExecutionStep("record_build_output"){
@@ -69,6 +69,6 @@
   buildableContext.addMetadata(FILTERED_RESOURCE_DIRS_KEY,FluentIterable.from(filteredResourcesProvider.getResDirectories()).transform(Functions.toStringFunction()).toSortedList(Ordering.natural()));
   buildableContext.recordArtifact(getAndroidManifestXml());
   buildableContext.recordArtifact(getResourceApkPath());
-  steps.add(new RecordFileSha1Step(getResourceApkPath(),RESOURCE_PACKAGE_HASH_KEY,buildableContext));
+  steps.add(new RecordFileSha1Step(getProjectFilesystem(),getResourceApkPath(),RESOURCE_PACKAGE_HASH_KEY,buildableContext));
   return steps.build();
 }

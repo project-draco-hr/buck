@@ -1,18 +1,18 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
-  steps.add(new RmStep(getPathToDex(),true));
-  steps.add(new MkdirStep(getPathToDex().getParent()));
+  steps.add(new RmStep(getProjectFilesystem(),getPathToDex(),true));
+  steps.add(new MkdirStep(getProjectFilesystem(),getPathToDex().getParent()));
   final ImmutableSortedMap<String,HashCode> classNamesToHashes=javaLibrary.getClassNamesToHashes();
   final boolean hasClassesToDx=!classNamesToHashes.isEmpty();
   final Supplier<Integer> linearAllocEstimate;
   if (hasClassesToDx) {
     Path pathToOutputFile=javaLibrary.getPathToOutput();
-    EstimateLinearAllocStep estimate=new EstimateLinearAllocStep(pathToOutputFile);
+    EstimateLinearAllocStep estimate=new EstimateLinearAllocStep(getProjectFilesystem(),pathToOutputFile);
     steps.add(estimate);
     linearAllocEstimate=estimate;
-    DxStep dx=new DxStep(getProjectFilesystem().getRootPath(),getPathToDex(),Collections.singleton(pathToOutputFile),EnumSet.of(DxStep.Option.USE_CUSTOM_DX_IF_AVAILABLE,DxStep.Option.RUN_IN_PROCESS,DxStep.Option.NO_OPTIMIZE,DxStep.Option.FORCE_JUMBO));
+    DxStep dx=new DxStep(getProjectFilesystem(),getPathToDex(),Collections.singleton(pathToOutputFile),EnumSet.of(DxStep.Option.USE_CUSTOM_DX_IF_AVAILABLE,DxStep.Option.RUN_IN_PROCESS,DxStep.Option.NO_OPTIMIZE,DxStep.Option.FORCE_JUMBO));
     steps.add(dx);
-    steps.add(new ZipScrubberStep(getPathToDex()));
+    steps.add(new ZipScrubberStep(getProjectFilesystem(),getPathToDex()));
   }
  else {
     linearAllocEstimate=Suppliers.ofInstance(0);

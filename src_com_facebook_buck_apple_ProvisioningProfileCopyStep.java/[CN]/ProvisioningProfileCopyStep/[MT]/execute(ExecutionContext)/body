@@ -1,7 +1,7 @@
 {
   final String bundleID;
   try {
-    bundleID=AppleInfoPlistParsing.getBundleIdFromPlistStream(context.getProjectFilesystem().getInputStreamForRelativePath(infoPlist)).get();
+    bundleID=AppleInfoPlistParsing.getBundleIdFromPlistStream(filesystem.getInputStreamForRelativePath(infoPlist)).get();
   }
  catch (  IOException e) {
     throw new HumanReadableException("Unable to get bundle ID from info.plist: " + infoPlist);
@@ -17,7 +17,7 @@
     }
     try {
       String appID=((NSArray)entitlementsPlistDict.get("keychain-access-groups")).objectAtIndex(0).toString();
-      prefix=Optional.<String>of(ProvisioningProfileMetadata.splitAppID(appID).getFirst());
+      prefix=Optional.of(ProvisioningProfileMetadata.splitAppID(appID).getFirst());
     }
  catch (    Exception e) {
       throw new HumanReadableException("Malformed entitlement .plist (missing keychain-access-groups): " + entitlementsPlist.get());
@@ -32,14 +32,14 @@
   }
   Path provisioningProfileSource=bestProfile.get().getProfilePath().get();
   try {
-    context.getProjectFilesystem().copy(provisioningProfileSource,provisioningProfileDestination,CopySourceMode.FILE);
+    filesystem.copy(provisioningProfileSource,provisioningProfileDestination,CopySourceMode.FILE);
   }
  catch (  IOException e) {
     context.logError(e,"Failed when trying to copy: %s",getDescription(context));
     return 1;
   }
   if (entitlementsPlist.isPresent()) {
-    return (new PlistProcessStep(entitlementsPlist.get(),signingEntitlementsTempPath,bestProfile.get().getEntitlements(),ImmutableMap.<String,NSObject>of(),PlistProcessStep.OutputFormat.XML)).execute(context);
+    return (new PlistProcessStep(filesystem,entitlementsPlist.get(),signingEntitlementsTempPath,bestProfile.get().getEntitlements(),ImmutableMap.<String,NSObject>of(),PlistProcessStep.OutputFormat.XML)).execute(context);
   }
  else {
     String appID=bestProfile.get().getAppID().getFirst() + "." + bundleID;

@@ -1,11 +1,11 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   final Path rDotJavaSrcFolder=getRDotJavaSrcFolder(getBuildTarget());
-  steps.add(new MakeCleanDirectoryStep(rDotJavaSrcFolder));
+  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),rDotJavaSrcFolder));
   Set<Path> javaSourceFilePaths;
   if (androidResourceDeps.isEmpty()) {
     Path emptyRDotJava=rDotJavaSrcFolder.resolve("com/facebook/R.java");
-    steps.add(new MakeCleanDirectoryStep(emptyRDotJava.getParent()));
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),emptyRDotJava.getParent()));
     steps.add(new WriteFileStep(getProjectFilesystem(),"package com.facebook;\n public class R {}\n",emptyRDotJava,false));
     javaSourceFilePaths=ImmutableSet.of(emptyRDotJava);
   }
@@ -15,13 +15,13 @@
     javaSourceFilePaths=ImmutableSet.copyOf(mergeStep.getRDotJavaFiles());
   }
   final Path rDotJavaClassesFolder=getRDotJavaBinFolder();
-  steps.add(new MakeCleanDirectoryStep(rDotJavaClassesFolder));
+  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),rDotJavaClassesFolder));
   Path pathToAbiOutputDir=getPathToAbiOutputDir(getBuildTarget());
-  steps.add(new MakeCleanDirectoryStep(pathToAbiOutputDir));
+  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),pathToAbiOutputDir));
   Path pathToAbiOutputFile=pathToAbiOutputDir.resolve("abi.jar");
   final JavacStep javacStep=RDotJava.createJavacStepForDummyRDotJavaFiles(javaSourceFilePaths,rDotJavaClassesFolder,javacOptions,getBuildTarget(),getResolver(),getProjectFilesystem());
   steps.add(javacStep);
   buildableContext.recordArtifact(rDotJavaClassesFolder);
-  steps.add(new CalculateAbiStep(buildableContext,rDotJavaClassesFolder,pathToAbiOutputFile));
+  steps.add(new CalculateAbiStep(buildableContext,getProjectFilesystem(),rDotJavaClassesFolder,pathToAbiOutputFile));
   return steps.build();
 }

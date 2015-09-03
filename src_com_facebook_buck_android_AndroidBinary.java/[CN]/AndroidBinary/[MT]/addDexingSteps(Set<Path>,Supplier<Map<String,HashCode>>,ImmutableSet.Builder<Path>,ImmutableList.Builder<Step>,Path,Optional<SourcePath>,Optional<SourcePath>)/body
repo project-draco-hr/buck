@@ -12,27 +12,27 @@
       proguardMappingFile=Optional.of(proguardConfigDir.resolve("mapping.txt"));
     }
     Path splitZipDir=getBinPath("__%s_split_zip__");
-    steps.add(new MakeCleanDirectoryStep(splitZipDir));
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),splitZipDir));
     Path primaryJarPath=splitZipDir.resolve("primary.jar");
     Path secondaryJarMetaDirParent=splitZipDir.resolve("secondary_meta");
     Path secondaryJarMetaDir=secondaryJarMetaDirParent.resolve(SECONDARY_DEX_SUBDIR);
-    steps.add(new MakeCleanDirectoryStep(secondaryJarMetaDir));
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),secondaryJarMetaDir));
     Path secondaryJarMeta=secondaryJarMetaDir.resolve("metadata.txt");
     final Path secondaryZipDir=getBinPath("__%s_secondary_zip__");
-    steps.add(new MakeCleanDirectoryStep(secondaryZipDir));
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),secondaryZipDir));
     Path zipSplitReportDir=getBinPath("__%s_split_zip_report__");
-    steps.add(new MakeCleanDirectoryStep(zipSplitReportDir));
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),zipSplitReportDir));
     SplitZipStep splitZipCommand=new SplitZipStep(getProjectFilesystem(),classpathEntriesToDex,secondaryJarMeta,primaryJarPath,secondaryZipDir,"secondary-%d.jar",proguardFullConfigFile,proguardMappingFile,dexSplitMode,dexSplitMode.getPrimaryDexScenarioFile().transform(getResolver().getPathFunction()),dexSplitMode.getPrimaryDexClassesFile().transform(getResolver().getPathFunction()),dexSplitMode.getSecondaryDexHeadClassesFile().transform(getResolver().getPathFunction()),dexSplitMode.getSecondaryDexTailClassesFile().transform(getResolver().getPathFunction()),zipSplitReportDir);
     steps.add(splitZipCommand);
     if (isReorderingClasses()) {
       secondaryDexDir=Optional.of(secondaryDexParentDir.resolve(SMART_DEX_SECONDARY_DEX_SUBDIR));
       Path intraDexReorderSecondaryDexDir=secondaryDexParentDir.resolve(SECONDARY_DEX_SUBDIR);
-      steps.add(new MakeCleanDirectoryStep(secondaryDexDir.get()));
-      steps.add(new MakeCleanDirectoryStep(intraDexReorderSecondaryDexDir));
+      steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),secondaryDexDir.get()));
+      steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),intraDexReorderSecondaryDexDir));
     }
  else {
       secondaryDexDir=Optional.of(secondaryDexParentDir.resolve(SECONDARY_DEX_SUBDIR));
-      steps.add(new MkdirStep(secondaryDexDir.get()));
+      steps.add(new MkdirStep(getProjectFilesystem(),secondaryDexDir.get()));
     }
     if (dexSplitMode.getDexStore() == DexStore.RAW) {
       secondaryDexDirectories.add(secondaryDexDir.get());
@@ -50,10 +50,10 @@
     secondaryDexDir=Optional.absent();
     secondaryOutputToInputs=Optional.absent();
   }
-  HashInputJarsToDexStep hashInputJarsToDexStep=new HashInputJarsToDexStep(primaryInputsToDex,secondaryOutputToInputs,classNamesToHashesSupplier);
+  HashInputJarsToDexStep hashInputJarsToDexStep=new HashInputJarsToDexStep(getProjectFilesystem(),primaryInputsToDex,secondaryOutputToInputs,classNamesToHashesSupplier);
   steps.add(hashInputJarsToDexStep);
   Path successDir=getBinPath("__%s_smart_dex__/.success");
-  steps.add(new MkdirStep(successDir));
+  steps.add(new MkdirStep(getProjectFilesystem(),successDir));
   EnumSet<DxStep.Option> dxOptions=PackageType.RELEASE.equals(packageType) ? EnumSet.noneOf(DxStep.Option.class) : EnumSet.of(DxStep.Option.NO_OPTIMIZE);
   Path selectedPrimaryDexPath=primaryDexPath;
   if (isReorderingClasses()) {
@@ -62,10 +62,10 @@
     Path smartDexPrimaryDexPath=Paths.get(primaryDexPath.toString().replace(primaryDexFileName,smartDexPrimaryDexFileName));
     selectedPrimaryDexPath=smartDexPrimaryDexPath;
   }
-  SmartDexingStep smartDexingCommand=new SmartDexingStep(selectedPrimaryDexPath,primaryInputsToDex,secondaryDexDir,secondaryOutputToInputs,hashInputJarsToDexStep,successDir,dxOptions,dxExecutorService,xzCompressionLevel);
+  SmartDexingStep smartDexingCommand=new SmartDexingStep(getProjectFilesystem(),selectedPrimaryDexPath,primaryInputsToDex,secondaryDexDir,secondaryOutputToInputs,hashInputJarsToDexStep,successDir,dxOptions,dxExecutorService,xzCompressionLevel);
   steps.add(smartDexingCommand);
   if (isReorderingClasses()) {
-    IntraDexReorderStep intraDexReorderStep=new IntraDexReorderStep(getProjectFilesystem().getRootPath(),dexReorderToolFile,dexReorderDataDumpFile,getResolver(),getBuildTarget(),selectedPrimaryDexPath,primaryDexPath,secondaryOutputToInputs,SMART_DEX_SECONDARY_DEX_SUBDIR,SECONDARY_DEX_SUBDIR);
+    IntraDexReorderStep intraDexReorderStep=new IntraDexReorderStep(getProjectFilesystem(),dexReorderToolFile,dexReorderDataDumpFile,getResolver(),getBuildTarget(),selectedPrimaryDexPath,primaryDexPath,secondaryOutputToInputs,SMART_DEX_SECONDARY_DEX_SUBDIR,SECONDARY_DEX_SUBDIR);
     steps.add(intraDexReorderStep);
   }
 }

@@ -1,18 +1,18 @@
 {
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
-  commands.add(new MakeCleanDirectoryStep(temp));
-  commands.add(new RmStep(pathToOutputFile,true));
-  commands.add(CopyStep.forFile(manifest.getPathToOutput(),temp.resolve("AndroidManifest.xml")));
-  commands.add(CopyStep.forFile(Preconditions.checkNotNull(androidResource.getPathToOutput()),temp.resolve("R.txt")));
-  commands.add(CopyStep.forDirectory(assembledResourceDirectory,temp.resolve("res"),CopyStep.DirectoryMode.CONTENTS_ONLY));
-  commands.add(CopyStep.forDirectory(assembledAssetsDirectory,temp.resolve("assets"),CopyStep.DirectoryMode.CONTENTS_ONLY));
-  commands.add(new JarDirectoryStep(temp.resolve("classes.jar"),ImmutableSet.copyOf(getTransitiveClasspathEntries().values()),null,null));
+  commands.add(new MakeCleanDirectoryStep(getProjectFilesystem(),temp));
+  commands.add(new RmStep(getProjectFilesystem(),pathToOutputFile,true));
+  commands.add(CopyStep.forFile(getProjectFilesystem(),manifest.getPathToOutput(),temp.resolve("AndroidManifest.xml")));
+  commands.add(CopyStep.forFile(getProjectFilesystem(),Preconditions.checkNotNull(androidResource.getPathToOutput()),temp.resolve("R.txt")));
+  commands.add(CopyStep.forDirectory(getProjectFilesystem(),assembledResourceDirectory,temp.resolve("res"),CopyStep.DirectoryMode.CONTENTS_ONLY));
+  commands.add(CopyStep.forDirectory(getProjectFilesystem(),assembledAssetsDirectory,temp.resolve("assets"),CopyStep.DirectoryMode.CONTENTS_ONLY));
+  commands.add(new JarDirectoryStep(getProjectFilesystem(),temp.resolve("classes.jar"),ImmutableSet.copyOf(getTransitiveClasspathEntries().values()),null,null));
   if (assembledNativeLibs.isPresent()) {
-    commands.add(CopyStep.forDirectory(assembledNativeLibs.get(),temp.resolve("jni"),CopyStep.DirectoryMode.CONTENTS_ONLY));
+    commands.add(CopyStep.forDirectory(getProjectFilesystem(),assembledNativeLibs.get(),temp.resolve("jni"),CopyStep.DirectoryMode.CONTENTS_ONLY));
   }
   for (  SourcePath dir : nativeLibAssetsDirectories) {
     CopyNativeLibraries.copyNativeLibrary(getProjectFilesystem(),getResolver().getPath(dir),temp.resolve("assets").resolve("lib"),ImmutableSet.<TargetCpuType>of(),commands);
   }
-  commands.add(new ZipStep(pathToOutputFile,ImmutableSet.<Path>of(),false,ZipStep.DEFAULT_COMPRESSION_LEVEL,temp));
+  commands.add(new ZipStep(getProjectFilesystem(),pathToOutputFile,ImmutableSet.<Path>of(),false,ZipStep.DEFAULT_COMPRESSION_LEVEL,temp));
   return commands.build();
 }

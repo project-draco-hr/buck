@@ -1,15 +1,15 @@
 {
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
   Path outputDirectory=getOutputDirectory();
-  Step mkdir=new MkdirStep(outputDirectory);
+  Step mkdir=new MkdirStep(getProjectFilesystem(),outputDirectory);
   commands.add(mkdir);
   ImmutableSet<Path> includePaths;
   if (metaInfDirectory != null) {
     Path stagingRoot=outputDirectory.resolve("meta_inf_staging");
     Path stagingTarget=stagingRoot.resolve("META-INF");
-    MakeCleanDirectoryStep createStagingRoot=new MakeCleanDirectoryStep(stagingRoot);
+    MakeCleanDirectoryStep createStagingRoot=new MakeCleanDirectoryStep(getProjectFilesystem(),stagingRoot);
     commands.add(createStagingRoot);
-    MkdirAndSymlinkFileStep link=new MkdirAndSymlinkFileStep(metaInfDirectory,stagingTarget);
+    MkdirAndSymlinkFileStep link=new MkdirAndSymlinkFileStep(getProjectFilesystem(),metaInfDirectory,stagingTarget);
     commands.add(link);
     includePaths=ImmutableSet.<Path>builder().add(stagingRoot).addAll(getTransitiveClasspathEntries().values()).build();
   }
@@ -18,7 +18,7 @@
   }
   Path outputFile=getPathToOutput();
   Path manifestPath=manifestFile == null ? null : getResolver().getPath(manifestFile);
-  Step jar=new JarDirectoryStep(outputFile,includePaths,mainClass,manifestPath,mergeManifests,blacklist);
+  Step jar=new JarDirectoryStep(getProjectFilesystem(),outputFile,includePaths,mainClass,manifestPath,mergeManifests,blacklist);
   commands.add(jar);
   buildableContext.recordArtifact(outputFile);
   return commands.build();

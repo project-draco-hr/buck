@@ -12,7 +12,7 @@
       ImmutableSet<Path> values=ImmutableSet.copyOf(replacementPaths.values());
       LOG.debug("Processing dependency file %s as Makefile",getDepTemp());
       ImmutableMap<String,Object> params=ImmutableMap.<String,Object>of("input",this.input,"output",this.output);
-      try (InputStream input=context.getProjectFilesystem().newFileInputStream(getDepTemp());BufferedReader reader=new BufferedReader(new InputStreamReader(input));OutputStream output=context.getProjectFilesystem().newFileOutputStream(depFile);BufferedWriter writer=new BufferedWriter(new OutputStreamWriter(output));SimplePerfEvent.Scope perfEvent=SimplePerfEvent.scope(context.getBuckEventBus(),PerfEventId.of("depfile-parse"),params)){
+      try (InputStream input=filesystem.newFileInputStream(getDepTemp());BufferedReader reader=new BufferedReader(new InputStreamReader(input));OutputStream output=filesystem.newFileOutputStream(depFile);BufferedWriter writer=new BufferedWriter(new OutputStreamWriter(output));SimplePerfEvent.Scope perfEvent=SimplePerfEvent.scope(context.getBuckEventBus(),PerfEventId.of("depfile-parse"),params)){
         for (        String prereq : Depfiles.parseDepfile(reader).getPrereqs()) {
           if (values.contains(Paths.get(prereq))) {
             writer.write(prereq);
@@ -29,7 +29,7 @@
      }
     if (exitCode == 0 && operation == Operation.COMPILE_MUNGE_DEBUGINFO) {
       try {
-        sanitizer.restoreCompilationDirectory(workingDirectory.toAbsolutePath().resolve(output),workingDirectory.toAbsolutePath());
+        sanitizer.restoreCompilationDirectory(filesystem.getRootPath().toAbsolutePath().resolve(output),filesystem.getRootPath().toAbsolutePath());
       }
  catch (      IOException e) {
         context.logError(e,"error updating compilation directory");

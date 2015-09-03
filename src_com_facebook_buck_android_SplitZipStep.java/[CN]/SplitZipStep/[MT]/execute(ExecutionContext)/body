@@ -1,12 +1,12 @@
 {
   try {
-    Set<Path> inputJarPaths=FluentIterable.from(inputPathsToSplit).transform(context.getProjectFilesystem().getAbsolutifier()).toSet();
+    Set<Path> inputJarPaths=FluentIterable.from(inputPathsToSplit).transform(filesystem.getAbsolutifier()).toSet();
     Supplier<ImmutableList<ClassNode>> classes=ClassNodeListSupplier.createMemoized(inputJarPaths);
     ProguardTranslatorFactory translatorFactory=ProguardTranslatorFactory.create(filesystem,proguardFullConfigFile,proguardMappingFile);
-    Predicate<String> requiredInPrimaryZip=createRequiredInPrimaryZipPredicate(context,translatorFactory,classes);
-    final ImmutableSet<String> wantedInPrimaryZip=getWantedPrimaryDexEntries(context,translatorFactory,classes);
-    final ImmutableSet<String> secondaryHeadSet=getSecondaryHeadSet(context,translatorFactory);
-    final ImmutableSet<String> secondaryTailSet=getSecondaryTailSet(context,translatorFactory);
+    Predicate<String> requiredInPrimaryZip=createRequiredInPrimaryZipPredicate(translatorFactory,classes);
+    final ImmutableSet<String> wantedInPrimaryZip=getWantedPrimaryDexEntries(translatorFactory,classes);
+    final ImmutableSet<String> secondaryHeadSet=getSecondaryHeadSet(translatorFactory);
+    final ImmutableSet<String> secondaryTailSet=getSecondaryTailSet(translatorFactory);
     ZipSplitterFactory zipSplitterFactory;
     if (dexSplitMode.useLinearAllocSplitDex()) {
       zipSplitterFactory=new DalvikAwareZipSplitterFactory(dexSplitMode.getLinearAllocHardLimit(),wantedInPrimaryZip);
@@ -14,8 +14,7 @@
  else {
       zipSplitterFactory=new DefaultZipSplitterFactory(ZIP_SIZE_SOFT_LIMIT,ZIP_SIZE_HARD_LIMIT);
     }
-    ProjectFilesystem projectFilesystem=context.getProjectFilesystem();
-    outputFiles=zipSplitterFactory.newInstance(projectFilesystem,inputJarPaths,primaryJarPath,secondaryJarDir,secondaryJarPattern,requiredInPrimaryZip,secondaryHeadSet,secondaryTailSet,dexSplitMode.getDexSplitStrategy(),ZipSplitter.CanaryStrategy.INCLUDE_CANARIES,projectFilesystem.getPathForRelativePath(pathToReportDir)).execute();
+    outputFiles=zipSplitterFactory.newInstance(filesystem,inputJarPaths,primaryJarPath,secondaryJarDir,secondaryJarPattern,requiredInPrimaryZip,secondaryHeadSet,secondaryTailSet,dexSplitMode.getDexSplitStrategy(),ZipSplitter.CanaryStrategy.INCLUDE_CANARIES,filesystem.getPathForRelativePath(pathToReportDir)).execute();
     try (BufferedWriter secondaryMetaInfoWriter=Files.newWriter(secondaryJarMetaPath.toFile(),Charsets.UTF_8)){
       writeMetaList(secondaryMetaInfoWriter,outputFiles,dexSplitMode.getDexStore());
     }
