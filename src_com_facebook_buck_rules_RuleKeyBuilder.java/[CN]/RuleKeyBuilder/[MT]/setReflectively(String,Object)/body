@@ -9,37 +9,43 @@
     Object o=((Optional<?>)val).orNull();
     return setReflectively(key,o);
   }
-  setKey(key);
-  if (val instanceof Collection) {
-    val=((Collection<?>)val).iterator();
-  }
-  if (val instanceof Iterable && !(val instanceof Path)) {
-    val=((Iterable<?>)val).iterator();
-  }
-  if (val instanceof Iterator) {
-    Iterator<?> iterator=(Iterator<?>)val;
-    while (iterator.hasNext()) {
-      setReflectively(key,iterator.next());
+  int oldSize=keyStack.size();
+  keyStack.push(key);
+  try {
+    if (val instanceof Collection) {
+      val=((Collection<?>)val).iterator();
     }
-    return separate();
-  }
-  if (val instanceof Map) {
-    if (!(val instanceof SortedMap | val instanceof ImmutableMap)) {
-      logger.info("Adding an unsorted map to the rule key (%s). " + "Expect unstable ordering and caches misses: %s",key,val);
+    if (val instanceof Iterable && !(val instanceof Path)) {
+      val=((Iterable<?>)val).iterator();
     }
-    feed("{".getBytes());
-    for (    Map.Entry<?,?> entry : ((Map<?,?>)val).entrySet()) {
-      setReflectively(key,entry.getKey());
-      feed(" -> ".getBytes());
-      setReflectively(key,entry.getValue());
-      separate();
+    if (val instanceof Iterator) {
+      Iterator<?> iterator=(Iterator<?>)val;
+      while (iterator.hasNext()) {
+        setReflectively(key,iterator.next());
+      }
+      return this;
     }
-    feed("}".getBytes());
-    return separate();
+    if (val instanceof Map) {
+      if (!(val instanceof SortedMap | val instanceof ImmutableMap)) {
+        logger.info("Adding an unsorted map to the rule key (%s). " + "Expect unstable ordering and caches misses: %s",key,val);
+      }
+      feed("{".getBytes());
+      for (      Map.Entry<?,?> entry : ((Map<?,?>)val).entrySet()) {
+        setReflectively(key,entry.getKey());
+        feed(" -> ".getBytes());
+        setReflectively(key,entry.getValue());
+      }
+      return feed("}".getBytes());
+    }
+    if (val instanceof Supplier) {
+      Object newVal=((Supplier<?>)val).get();
+      return setReflectively(key,newVal);
+    }
+    return setSingleValue(val);
   }
-  if (val instanceof Supplier) {
-    Object newVal=((Supplier<?>)val).get();
-    return setReflectively(key,newVal);
+  finally {
+    while (keyStack.size() > oldSize) {
+      keyStack.pop();
+    }
   }
-  return setSingleValue(val);
 }
