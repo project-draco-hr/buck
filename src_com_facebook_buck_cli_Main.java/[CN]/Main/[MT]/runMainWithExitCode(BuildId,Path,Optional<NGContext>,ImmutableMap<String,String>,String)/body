@@ -36,7 +36,11 @@
   AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(filesystem,androidBuckConfig.getNdkVersion(),propertyFinder);
   ProcessExecutor processExecutor=new ProcessExecutor(console);
   PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(buckConfig,new ExecutableFinder());
-  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createInstance(buckConfig,processExecutor,androidDirectoryResolver,pythonBuckConfig.getPythonEnvironment(processExecutor));
+  Optional<Path> testTempDirOverride=getTestTempDirOverride(buckConfig,clientEnvironment,"buck-" + buildId.toString());
+  if (testTempDirOverride.isPresent()) {
+    LOG.debug("Using test temp dir override %s",testTempDirOverride.get());
+  }
+  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createInstance(buckConfig,processExecutor,androidDirectoryResolver,pythonBuckConfig.getPythonEnvironment(processExecutor),testTempDirOverride);
   ParserConfig parserConfig=new ParserConfig(buckConfig);
   Watchman watchman;
   ParserConfig.GlobHandler globHandler;
@@ -78,7 +82,7 @@
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,globHandler);
   TestConfig testConfig=new TestConfig(buckConfig);
-  try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
+  try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer);TempDirectoryCreator tempDirectoryCreator=new TempDirectoryCreator(testTempDirOverride);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
     artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
     eventListeners=addEventListeners(buildEventBus,rootRepository.getFilesystem(),buildId,rootRepository.getBuckConfig(),webServer,clock,executionEnvironment,console,consoleListener,rootRepository.getKnownBuildRuleTypes(),clientEnvironment);
     ImmutableList<String> remainingArgs=args.length > 1 ? ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length)) : ImmutableList.<String>of();
