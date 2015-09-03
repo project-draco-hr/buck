@@ -13,17 +13,19 @@ def main():
     options.project_root = cygwin_adjusted_path(options.project_root)
     project_root = os.path.abspath(options.project_root)
     watchman_client = None
+    watchman_error = None
     output_format = 'JSON'
     output_encode = (lambda val: json.dumps(val, sort_keys=True))
     if options.use_watchman_glob:
         try:
             import pywatchman
             watchman_client = pywatchman.client()
+            watchman_error = pywatchman.WatchmanError
             output_format = 'BSER'
             output_encode = (lambda val: pywatchman.bser.dumps(val))
         except ImportError as e:
             pass
-    buildFileProcessor = BuildFileProcessor(project_root, options.watchman_watch_root, options.watchman_project_prefix, options.build_file_name, options.allow_empty_globs, watchman_client, implicit_includes=(options.include or []))
+    buildFileProcessor = BuildFileProcessor(project_root, options.watchman_watch_root, options.watchman_project_prefix, options.build_file_name, options.allow_empty_globs, watchman_client, watchman_error, implicit_includes=(options.include or []))
     buildFileProcessor.install_builtins(__builtin__.__dict__)
     to_parent.write((output_format + '\n'))
     to_parent.flush()
