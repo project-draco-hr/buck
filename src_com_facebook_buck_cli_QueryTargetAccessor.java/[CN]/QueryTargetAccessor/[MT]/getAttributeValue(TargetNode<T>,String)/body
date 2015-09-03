@@ -1,0 +1,25 @@
+{
+  try {
+    final ImmutableSet.Builder<QueryTarget> builder=ImmutableSortedSet.naturalOrder();
+    Field field=node.getConstructorArg().getClass().getField(attribute);
+    ParamInfo<T> info=new ParamInfo<>(typeCoercerFactory,field);
+    info.traverse(new ParamInfo.Traversal(){
+      @Override public void traverse(      Object value){
+        if (value instanceof Path) {
+          builder.add(QueryFileTarget.of((Path)value));
+        }
+ else         if (value instanceof SourcePath) {
+          builder.add(extractSourcePath((SourcePath)value));
+        }
+ else         if (value instanceof HasBuildTarget) {
+          builder.add(extractBuildTargetContainer((HasBuildTarget)value));
+        }
+      }
+    }
+,node.getConstructorArg());
+    return builder.build();
+  }
+ catch (  NoSuchFieldException e) {
+    return ImmutableSet.of();
+  }
+}
