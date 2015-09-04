@@ -1,8 +1,11 @@
 {
-  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  ImmutableList<SourcePath> srcs=args.srcs.get();
-  ImmutableSortedSet<BuildRule> extraDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getExtraDeps().get()).addAll(pathResolver.filterBuildRuleInputs(srcs)).build();
-  return new Genrule(params.copyWithExtraDeps(Suppliers.ofInstance(extraDeps)).appendExtraDeps(findExtraDepsFromArgs(params.getBuildTarget(),resolver,args)),pathResolver,srcs,macroHandler.getExpander(params.getBuildTarget(),resolver,params.getProjectFilesystem()),args.cmd,args.bash,args.cmdExe,args.out,params.getProjectFilesystem().getAbsolutifier(),new Supplier<ImmutableList<Object>>(){
+  final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  return new Genrule(params.appendExtraDeps(new Supplier<ImmutableSortedSet<BuildRule>>(){
+    @Override public ImmutableSortedSet<BuildRule> get(){
+      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(args.srcs.get())).addAll(findExtraDepsFromArgs(params.getBuildTarget(),resolver,args)).build();
+    }
+  }
+),pathResolver,args.srcs.get(),macroHandler.getExpander(params.getBuildTarget(),resolver,params.getProjectFilesystem()),args.cmd,args.bash,args.cmdExe,args.out,params.getProjectFilesystem().getAbsolutifier(),new Supplier<ImmutableList<Object>>(){
     @Override public ImmutableList<Object> get(){
       return findRuleKeyAppendables(params.getBuildTarget(),resolver,args);
     }
