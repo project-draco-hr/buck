@@ -72,13 +72,16 @@
   }
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(processExecutor,clientEnvironment,System.getProperties());
   ProjectFileHashCache repoHashCache;
+  ProjectFileHashCache buckOutHashCache;
   if (isDaemon) {
     repoHashCache=getFileHashCacheFromDaemon(rootRepository,globHandler);
+    buckOutHashCache=getBuckOutFileHashCacheFromDaemon(rootRepository,globHandler);
   }
  else {
     repoHashCache=new DefaultFileHashCache(rootRepository.getFilesystem());
+    buckOutHashCache=new DefaultFileHashCache(new ProjectFilesystem(rootRepository.getFilesystem().getRootPath(),Optional.of(ImmutableSet.of(BuckConstant.BUCK_OUTPUT_PATH)),ImmutableSet.<Path>of()));
   }
-  FileHashCache fileHashCache=new MultiProjectFileHashCache(ImmutableList.of(repoHashCache,new DefaultFileHashCache(new ProjectFilesystem(rootRepository.getFilesystem().getRootPath())),new DefaultFileHashCache(new ProjectFilesystem(Paths.get("/")))));
+  FileHashCache fileHashCache=new MultiProjectFileHashCache(ImmutableList.of(repoHashCache,buckOutHashCache,new DefaultFileHashCache(new ProjectFilesystem(rootRepository.getFilesystem().getRootPath())),new DefaultFileHashCache(new ProjectFilesystem(Paths.get("/")))));
   @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,globHandler);
   TestConfig testConfig=new TestConfig(buckConfig);
