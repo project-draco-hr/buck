@@ -36,7 +36,15 @@
   template.add("resolved_dsym_destination",resolvedDsymDestination);
   template.add("binary_name",binaryName);
   shellScriptBuildPhase.setShellScript(template.render());
-  ImmutableMap<String,ImmutableMap<String,String>> configs=getAppleNativeNode(targetGraph,targetNode).get().getConstructorArg().configs.get();
+  ImmutableMap<String,ImmutableMap<String,String>> configs;
+  TargetNode<CxxLibraryDescription.Arg> node=getAppleNativeNode(targetGraph,targetNode).get();
+  Optional<TargetNode<AppleNativeTargetDescriptionArg>> appleTarget=node.castArg(AppleNativeTargetDescriptionArg.class);
+  if (appleTarget.isPresent()) {
+    configs=appleTarget.get().getConstructorArg().configs.get();
+  }
+ else {
+    configs=ImmutableMap.<String,ImmutableMap<String,String>>of();
+  }
   XCConfigurationList configurationList=new XCConfigurationList();
   PBXGroup group=project.getMainGroup().getOrCreateDescendantGroupByPath(FluentIterable.from(buildTarget.getBasePath()).transform(Functions.toStringFunction()).toList()).getOrCreateChildGroupByName(getXcodeTargetName(buildTarget));
   for (  String configurationName : configs.keySet()) {

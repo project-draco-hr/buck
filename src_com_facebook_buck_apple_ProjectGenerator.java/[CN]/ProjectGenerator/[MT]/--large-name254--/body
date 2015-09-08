@@ -3,11 +3,16 @@
   TargetNode<?> buildTargetNode=bundle.isPresent() ? bundle.get() : targetNode;
   final BuildTarget buildTarget=buildTargetNode.getBuildTarget();
   String productName=getProductName(buildTarget);
-  AppleNativeTargetDescriptionArg arg=targetNode.getConstructorArg();
+  CxxLibraryDescription.Arg arg=targetNode.getConstructorArg();
   NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver);
   ImmutableSet<SourcePath> exportedHeaders=ImmutableSet.copyOf(getHeaderSourcePaths(arg.exportedHeaders));
   ImmutableSet<SourcePath> headers=ImmutableSet.copyOf(getHeaderSourcePaths(arg.headers));
-  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setExtraXcodeSources(ImmutableSet.copyOf(arg.extraXcodeSources.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setPrefixHeader(arg.prefixHeader).setRecursiveResources(recursiveResources).setDirectResources(directResources);
+  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setPrefixHeader(arg.prefixHeader).setRecursiveResources(recursiveResources).setDirectResources(directResources);
+  Optional<TargetNode<AppleNativeTargetDescriptionArg>> appleTargetNode=targetNode.castArg(AppleNativeTargetDescriptionArg.class);
+  if (appleTargetNode.isPresent()) {
+    AppleNativeTargetDescriptionArg appleArg=appleTargetNode.get().getConstructorArg();
+    mutator=mutator.setExtraXcodeSources(ImmutableSet.copyOf(appleArg.extraXcodeSources.get()));
+  }
   if (options.contains(Option.CREATE_DIRECTORY_STRUCTURE)) {
     mutator.setTargetGroupPath(FluentIterable.from(buildTarget.getBasePath()).transform(Functions.toStringFunction()).toList());
   }
@@ -81,7 +86,7 @@
   }
   defaultSettingsBuilder.put("BUILT_PRODUCTS_DIR",Joiner.on('/').join("$SYMROOT","$CONFIGURATION$EFFECTIVE_PLATFORM_NAME"));
   defaultSettingsBuilder.put("CONFIGURATION_BUILD_DIR","$BUILT_PRODUCTS_DIR");
-  if (!bundle.isPresent() && targetNode.getType().equals(AppleLibraryDescription.TYPE)) {
+  if (!bundle.isPresent() && (targetNode.getType().equals(AppleLibraryDescription.TYPE) || targetNode.getType().equals(CxxLibraryDescription.TYPE))) {
     defaultSettingsBuilder.put("EXECUTABLE_PREFIX","lib");
   }
   ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
@@ -106,26 +111,25 @@
   if (!allCxxFlags.isEmpty()) {
     appendConfigsBuilder.put("OTHER_CPLUSPLUSFLAGS",Joiner.on(' ').join(allCxxFlags));
   }
+  Optional<ImmutableSortedMap<String,ImmutableMap<String,String>>> configs=Optional.absent();
+  if (appleTargetNode.isPresent()) {
+    configs=appleTargetNode.get().getConstructorArg().configs;
+  }
+ else   if (targetNode.getType().equals(CxxLibraryDescription.TYPE)) {
+    ImmutableMap<String,String> appendedConfig=appendConfigsBuilder.build();
+    ImmutableMap<String,ImmutableMap<String,String>> defaultConfig=getDefaultConfigForCxxLibraryTargetNode(appendedConfig);
+    configs=Optional.of(ImmutableSortedMap.copyOf(defaultConfig));
+  }
+ else {
+    throw new HumanReadableException("config must be set for target node %@",targetNode);
+  }
   PBXNativeTarget target=targetBuilderResult.target;
-  setTargetBuildConfigurations(getConfigurationNameToXcconfigPath(buildTarget),target,project.getMainGroup(),targetNode.getConstructorArg().configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
-  Path headerPathPrefix=AppleDescriptions.getHeaderPathPrefix(arg,targetNode.getBuildTarget());
-  createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPublicCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PUBLIC));
-  createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPrivateCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PRIVATE));
-  addCoreDataModelBuildPhase(targetGroup,FluentIterable.from(targetNode.getDeps()).transform(new Function<BuildTarget,TargetNode<?>>(){
-    @Override public TargetNode<?> apply(    BuildTarget input){
-      return Preconditions.checkNotNull(targetGraph.get(input));
-    }
+  setTargetBuildConfigurations(getConfigurationNameToXcconfigPath(buildTarget),target,project.getMainGroup(),configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
+  if (appleTargetNode.isPresent()) {
+    Path headerPathPrefix=AppleDescriptions.getHeaderPathPrefix(appleTargetNode.get().getConstructorArg(),targetNode.getBuildTarget());
+    createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPublicCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(appleTargetNode.get(),HeaderVisibility.PUBLIC));
+    createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPrivateCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(appleTargetNode.get(),HeaderVisibility.PRIVATE));
+    addCoreDataModelsIntoTarget(appleTargetNode.get(),targetGroup);
   }
-).filter(new Predicate<TargetNode<?>>(){
-    @Override public boolean apply(    TargetNode<?> input){
-      return CoreDataModelDescription.TYPE.equals(input.getType());
-    }
-  }
-).transform(new Function<TargetNode<?>,CoreDataModelDescription.Arg>(){
-    @Override public CoreDataModelDescription.Arg apply(    TargetNode<?> input){
-      return (CoreDataModelDescription.Arg)input.getConstructorArg();
-    }
-  }
-).toSet());
   return target;
 }
