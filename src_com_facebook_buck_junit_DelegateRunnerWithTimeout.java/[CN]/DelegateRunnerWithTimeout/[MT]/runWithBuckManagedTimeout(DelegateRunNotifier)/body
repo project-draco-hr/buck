@@ -1,0 +1,40 @@
+{
+  final Semaphore completionSemaphore=new Semaphore(1);
+  final AtomicBoolean testsCompleted=new AtomicBoolean(false);
+  try {
+    completionSemaphore.acquire();
+  }
+ catch (  InterruptedException e) {
+  }
+  executor.get().submit(new Runnable(){
+    @Override public void run(){
+      try {
+        delegate.run(wrapper);
+      }
+  finally {
+        if (!wrapper.hasTestThatExceededTimeout()) {
+          testsCompleted.set(true);
+        }
+        completionSemaphore.release();
+      }
+    }
+  }
+);
+  while (true) {
+    if (testsCompleted.get()) {
+      return;
+    }
+    if (wrapper.hasTestThatExceededTimeout()) {
+      executor.get().shutdownNow();
+      return;
+    }
+    try {
+      if (completionSemaphore.tryAcquire(250L,TimeUnit.MILLISECONDS)) {
+        completionSemaphore.release();
+      }
+    }
+ catch (    InterruptedException e) {
+      Thread.currentThread().interrupt();
+    }
+  }
+}

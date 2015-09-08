@@ -1,26 +1,9 @@
 {
   final DelegateRunNotifier wrapper=new DelegateRunNotifier(delegate,notifier,defaultTestTimeoutMillis);
-  Future<?> future=executor.get().submit(new Runnable(){
-    @Override public void run(){
-      delegate.run(wrapper);
-    }
+  if (wrapper.hasJunitTimeout(getDescription())) {
+    runWithoutBuckManagedTimeout(wrapper);
   }
-);
-  while (true) {
-    if (future.isDone()) {
-      return;
-    }
- else     if (wrapper.hasTestThatExceededTimeout()) {
-      executor.get().shutdownNow();
-      return;
-    }
  else {
-      try {
-        Thread.sleep(250L);
-      }
- catch (      InterruptedException e) {
-        Thread.currentThread().interrupt();
-      }
-    }
+    runWithBuckManagedTimeout(wrapper);
   }
 }
