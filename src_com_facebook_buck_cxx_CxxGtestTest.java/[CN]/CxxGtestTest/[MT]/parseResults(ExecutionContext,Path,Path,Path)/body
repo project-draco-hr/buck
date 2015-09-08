@@ -8,7 +8,7 @@
   }
   ImmutableList.Builder<TestResultSummary> summariesBuilder=ImmutableList.builder();
   Optional<String> currentTest=Optional.absent();
-  Map<String,List<String>> stdout=Maps.newHashMap();
+  Map<String,ChunkAccumulator> stdout=Maps.newHashMap();
   CharsetDecoder decoder=Charsets.UTF_8.newDecoder();
   decoder.onMalformedInput(CodingErrorAction.IGNORE);
   try (InputStream input=getProjectFilesystem().newFileInputStream(output);BufferedReader reader=new BufferedReader(new InputStreamReader(input,decoder))){
@@ -18,13 +18,13 @@
       if ((matcher=START.matcher(line.trim())).matches()) {
         String test=matcher.group(1);
         currentTest=Optional.of(test);
-        stdout.put(test,Lists.<String>newArrayList());
+        stdout.put(test,new ChunkAccumulator(Charsets.UTF_8,maxTestOutputSize));
       }
  else       if (END.matcher(line.trim()).matches()) {
         currentTest=Optional.absent();
       }
  else       if (currentTest.isPresent()) {
-        stdout.get(currentTest.get()).add(line);
+        stdout.get(currentTest.get()).append(line);
       }
     }
   }
@@ -38,7 +38,6 @@
     Double time=Double.parseDouble(attributes.getNamedItem("time").getNodeValue()) * 1000;
     ResultType type=ResultType.SUCCESS;
     String message="";
-    @Nullable List<String> testStdout=stdout.get(testFull);
     if (testcase.getChildNodes().getLength() > 0) {
       Node failure=testcase.getChildNodes().item(1);
       type=ResultType.FAILURE;
@@ -47,9 +46,12 @@
  else     if (attributes.getNamedItem("status").getNodeValue().equals(NOTRUN)) {
       type=ResultType.ASSUMPTION_VIOLATION;
       message="DISABLED";
-      testStdout=Lists.newArrayList();
     }
-    summariesBuilder.add(new TestResultSummary(testCase,testName,type,time.longValue(),message,"",Joiner.on(System.lineSeparator()).join(testStdout),""));
+    String testStdout="";
+    if (stdout.containsKey(testFull)) {
+      testStdout=Joiner.on(System.lineSeparator()).join(stdout.get(testFull).getChunks());
+    }
+    summariesBuilder.add(new TestResultSummary(testCase,testName,type,time.longValue(),message,"",testStdout,""));
   }
   return summariesBuilder.build();
 }
