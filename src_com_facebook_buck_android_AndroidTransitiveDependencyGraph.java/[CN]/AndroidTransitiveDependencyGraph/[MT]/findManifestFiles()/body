@@ -2,18 +2,24 @@
   final ImmutableSet.Builder<SourcePath> manifestFiles=ImmutableSet.builder();
   new AbstractBreadthFirstTraversal<BuildRule>(rulesToTraverseForTransitiveDeps){
     @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      ImmutableSet<BuildRule> deps;
       if (rule instanceof AndroidResource) {
         AndroidResource androidRule=(AndroidResource)rule;
         SourcePath manifestFile=androidRule.getManifestFile();
         if (manifestFile != null) {
           manifestFiles.add(manifestFile);
         }
+        deps=androidRule.getDeclaredDeps();
       }
  else       if (rule instanceof AndroidLibrary) {
         AndroidLibrary androidLibraryRule=(AndroidLibrary)rule;
         Optionals.addIfPresent(androidLibraryRule.getManifestFile(),manifestFiles);
+        deps=androidLibraryRule.getDepsForTransitiveClasspathEntries();
       }
-      return BuildRuleDependencyVisitors.maybeVisitAllDeps(rule,rule.getProperties().is(LIBRARY));
+ else {
+        deps=ImmutableSet.of();
+      }
+      return deps;
     }
   }
 .start();
