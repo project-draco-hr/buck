@@ -5,7 +5,8 @@
   BuildRule gtestMain=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:gtestMain")).setOut("out").build(resolver);
   CxxTestBuilder builder=new CxxTestBuilder(BuildTargetFactory.newInstance("//:test"),new CxxBuckConfig(new FakeBuckConfig(ImmutableMap.of("cxx",ImmutableMap.of("gtest_dep",gtest.getBuildTarget().toString(),"gtest_default_test_main_dep",gtestMain.getBuildTarget().toString())))),CxxTestBuilder.createDefaultPlatform(),CxxTestBuilder.createDefaultPlatforms());
   CxxTest test=(CxxTest)builder.setArgs(ImmutableList.of("value $(location //:some_rule)")).build(resolver);
-  ImmutableList<Step> steps=test.runTests(FakeBuildContext.NOOP_CONTEXT,TestExecutionContext.newInstance(),false,false,TestSelectorList.empty(),TestRule.NOOP_REPORTING_CALLBACK);
+  TestRunningOptions testOptions=TestRunningOptions.builder().setDryRun(false).setShufflingTests(false).setTestSelectorList(TestSelectorList.empty()).build();
+  ImmutableList<Step> steps=test.runTests(FakeBuildContext.NOOP_CONTEXT,TestExecutionContext.newInstance(),testOptions,TestRule.NOOP_REPORTING_CALLBACK);
   CxxTestStep testStep=(CxxTestStep)Iterables.getLast(steps);
   assertThat(testStep.getCommand(),Matchers.hasItem("value " + Preconditions.checkNotNull(someRule.getPathToOutput()).toAbsolutePath()));
 }
