@@ -5,11 +5,13 @@
   Path infoPlistSubstitutionTempPath=BuildTargets.getScratchPath(getBuildTarget(),"%s.plist");
   Path infoPlistOutputPath=metadataPath.resolve("Info.plist");
   stepsBuilder.add(new MakeCleanDirectoryStep(getProjectFilesystem(),bundleRoot),new MkdirStep(getProjectFilesystem(),metadataPath),new WriteFileStep(getProjectFilesystem(),"APPLWRUN",metadataPath.resolve("PkgInfo"),false),new FindAndReplaceStep(getProjectFilesystem(),infoPlistInputPath,infoPlistSubstitutionTempPath,InfoPlistSubstitution.createVariableExpansionFunction(withDefaults(infoPlistSubstitutions,ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName)))),new PlistProcessStep(getProjectFilesystem(),infoPlistSubstitutionTempPath,infoPlistOutputPath,getInfoPlistAdditionalKeys(platformName,sdkName),getInfoPlistOverrideKeys(platformName),PlistProcessStep.OutputFormat.BINARY));
-  if (hasDebugSymbols) {
+  if (hasBinary) {
     stepsBuilder.add(new MkdirStep(getProjectFilesystem(),bundleRoot.resolve(this.destinations.getExecutablesPath())));
     Path bundleBinaryPath=bundleRoot.resolve(binaryPath);
     stepsBuilder.add(CopyStep.forFile(getProjectFilesystem(),binary.get().getPathToOutput(),bundleBinaryPath));
-    stepsBuilder.add(new DsymStep(getProjectFilesystem(),dsymutil.getCommandPrefix(getResolver()),bundleBinaryPath,dsymPath));
+    if (debugInfoFormat == DebugInfoFormat.DSYM) {
+      stepsBuilder.add(new DsymStep(getProjectFilesystem(),dsymutil.getCommandPrefix(getResolver()),bundleBinaryPath,dsymPath));
+    }
     stepsBuilder.add(new DefaultShellStep(getProjectFilesystem().getRootPath(),ImmutableList.<String>builder().addAll(strip.getCommandPrefix(getResolver())).add("-S").add(getProjectFilesystem().resolve(bundleBinaryPath).toString()).build()));
   }
   Path bundleDestinationPath=bundleRoot.resolve(this.destinations.getResourcesPath());
