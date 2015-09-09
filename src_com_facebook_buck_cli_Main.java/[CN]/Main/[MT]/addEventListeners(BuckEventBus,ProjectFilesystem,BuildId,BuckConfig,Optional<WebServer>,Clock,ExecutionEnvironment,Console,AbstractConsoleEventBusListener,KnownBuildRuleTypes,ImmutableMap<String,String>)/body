@@ -10,11 +10,12 @@
     eventListenersBuilder.add(webServer.get().createListener());
   }
   loadListenersFromBuckConfig(eventListenersBuilder,projectFilesystem,config);
+  ArtifactCacheBuckConfig artifactCacheConfig=new ArtifactCacheBuckConfig(config,projectFilesystem);
   Optional<URI> remoteLogUrl=config.getRemoteLogUrl();
   ImmutableMap<String,String> environmentExtraData=ImmutableMap.of();
   boolean shouldSample=config.getRemoteLogSampleRate().transform(BuildIdSampler.CREATE_FUNCTION).transform(MoreFunctions.<BuildId,Boolean>applyFunction(buildId)).or(true);
   if (remoteLogUrl.isPresent() && shouldSample) {
-    eventListenersBuilder.add(new RemoteLogUploaderEventListener(objectMapper,RemoteLoggerFactory.create(remoteLogUrl.get(),objectMapper),BuildEnvironmentDescription.of(executionEnvironment,config.getArtifactCacheModes(),environmentExtraData)));
+    eventListenersBuilder.add(new RemoteLogUploaderEventListener(objectMapper,RemoteLoggerFactory.create(remoteLogUrl.get(),objectMapper),BuildEnvironmentDescription.of(executionEnvironment,artifactCacheConfig.getArtifactCacheModes(),environmentExtraData)));
   }
   JavaBuckConfig javaBuckConfig=new JavaBuckConfig(config);
   if (!javaBuckConfig.getSkipCheckingMissingDeps()) {
