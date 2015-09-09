@@ -1,0 +1,27 @@
+{
+  T line;
+  boolean shouldContinue;
+  if (lineHandler.buffer.position() > 0) {
+    if (lineHandler.sawCarriageReturn) {
+      lineHandler.buffer.position(lineHandler.buffer.position() - 1);
+    }
+    line=bufferOperations.createSubBuffer(buffer,lineStartPos,lineEndPos);
+    appendToLineHandlerBuffer(lineHandler,bufferOperations,line);
+    lineHandler.buffer.flip();
+    shouldContinue=lineHandler.handleLine(lineHandler.buffer);
+    lineHandler.buffer.clear();
+  }
+ else {
+    if (lineHandler.sawCarriageReturn) {
+      Preconditions.checkState(lineEndPos > 0);
+      lineEndPos--;
+    }
+    int oldPosition=buffer.position();
+    int oldLimit=buffer.limit();
+    buffer.position(lineStartPos).limit(lineEndPos);
+    shouldContinue=lineHandler.handleLine(buffer);
+    buffer.position(oldPosition).limit(oldLimit);
+  }
+  lineHandler.sawCarriageReturn=false;
+  return shouldContinue;
+}

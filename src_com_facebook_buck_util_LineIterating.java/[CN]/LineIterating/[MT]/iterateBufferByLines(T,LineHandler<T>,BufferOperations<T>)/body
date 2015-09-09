@@ -1,0 +1,28 @@
+{
+  int lineStartPos=lineBuffer.position();
+  int lineEndPos;
+  boolean shouldContinue=true;
+  for (lineEndPos=0; shouldContinue && lineEndPos < lineBuffer.limit(); lineEndPos++) {
+switch (bufferOperations.scanAt(lineBuffer,lineEndPos)) {
+case NEWLINE:
+      shouldContinue=dispatchHandler(lineBuffer,lineHandler,bufferOperations,lineStartPos,lineEndPos);
+    lineStartPos=lineEndPos + 1;
+  break;
+case CARRIAGE_RETURN:
+if (lineHandler.sawCarriageReturn) {
+  shouldContinue=dispatchHandler(lineBuffer,lineHandler,bufferOperations,lineStartPos,lineEndPos);
+  lineStartPos=lineEndPos;
+}
+lineHandler.sawCarriageReturn=true;
+break;
+case OTHER:
+if (lineHandler.sawCarriageReturn) {
+shouldContinue=dispatchHandler(lineBuffer,lineHandler,bufferOperations,lineStartPos,lineEndPos);
+lineStartPos=lineEndPos;
+}
+break;
+}
+}
+appendToLineHandlerBuffer(lineHandler,bufferOperations,bufferOperations.createSubBuffer(lineBuffer,lineStartPos,lineEndPos));
+lineBuffer.position(lineBuffer.limit());
+}
