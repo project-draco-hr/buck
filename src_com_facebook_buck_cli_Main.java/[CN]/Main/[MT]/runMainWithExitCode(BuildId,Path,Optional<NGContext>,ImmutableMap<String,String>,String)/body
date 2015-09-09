@@ -82,11 +82,9 @@
     buckOutHashCache=new DefaultFileHashCache(new ProjectFilesystem(rootRepository.getFilesystem().getRootPath(),Optional.of(ImmutableSet.of(BuckConstant.BUCK_OUTPUT_PATH)),ImmutableSet.<Path>of()));
   }
   FileHashCache fileHashCache=new MultiProjectFileHashCache(ImmutableList.of(repoHashCache,buckOutHashCache,new DefaultFileHashCache(new ProjectFilesystem(rootRepository.getFilesystem().getRootPath())),new DefaultFileHashCache(new ProjectFilesystem(Paths.get("/")))));
-  @Nullable ArtifactCacheFactory artifactCacheFactory=null;
   Optional<WebServer> webServer=getWebServerIfDaemon(context,rootRepository,globHandler);
   TestConfig testConfig=new TestConfig(buckConfig);
-  try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer);TempDirectoryCreator tempDirectoryCreator=new TempDirectoryCreator(testTempDirOverride);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
-    artifactCacheFactory=new LoggingArtifactCacheFactory(executionEnvironment,buildEventBus);
+  try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer);TempDirectoryCreator tempDirectoryCreator=new TempDirectoryCreator(testTempDirOverride);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId);ArtifactCache artifactCache=ArtifactCaches.newInstance(buckConfig,buildEventBus,executionEnvironment.getWifiSsid())){
     eventListeners=addEventListeners(buildEventBus,rootRepository.getFilesystem(),buildId,rootRepository.getBuckConfig(),webServer,clock,executionEnvironment,console,consoleListener,rootRepository.getKnownBuildRuleTypes(),clientEnvironment);
     ImmutableList<String> remainingArgs=args.length > 1 ? ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length)) : ImmutableList.<String>of();
     CommandEvent.Started startedEvent=CommandEvent.started(args.length > 0 ? args[0] : "",remainingArgs,isDaemon);
@@ -114,7 +112,6 @@
       processManager=Optional.<ProcessManager>of(new PkillProcessManager(processExecutor));
     }
     Supplier<AndroidPlatformTarget> androidPlatformTargetSupplier=createAndroidPlatformTargetSupplier(rootRepository.getAndroidDirectoryResolver(),androidBuckConfig,buildEventBus);
-    ArtifactCache artifactCache=artifactCacheFactory.newInstance(buckConfig,false);
     if (command.subcommand instanceof AbstractCommand) {
       AbstractCommand subcommand=(AbstractCommand)command.subcommand;
       Optional<Path> eventsOutputPath=subcommand.getEventsOutputPath();
@@ -129,7 +126,6 @@
   }
  catch (  Throwable t) {
     LOG.debug(t,"Failing build on exception.");
-    closeCreatedArtifactCaches(artifactCacheFactory);
     flushEventListeners(console,buildId,eventListeners);
     throw t;
   }
@@ -142,7 +138,6 @@
     context.get().in.close();
     context.get().exit(exitCode);
   }
-  closeCreatedArtifactCaches(artifactCacheFactory);
   flushEventListeners(console,buildId,eventListeners);
   return exitCode;
 }
