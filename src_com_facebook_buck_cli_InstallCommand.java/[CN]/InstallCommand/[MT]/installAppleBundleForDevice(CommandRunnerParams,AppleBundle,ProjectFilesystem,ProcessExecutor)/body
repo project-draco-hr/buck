@@ -1,0 +1,67 @@
+{
+  AppleConfig appleConfig=new AppleConfig(params.getBuckConfig());
+  final Path helperPath;
+  Optional<Path> helperOverridePath=appleConfig.getAppleDeviceHelperPath();
+  if (helperOverridePath.isPresent()) {
+    helperPath=projectFilesystem.resolve(helperOverridePath.get());
+  }
+ else {
+    params.getConsole().printBuildFailure(String.format("Cannot install %s (could not find path to device install helper tool)",appleBundle.getFullyQualifiedName()));
+    return FAILURE;
+  }
+  AppleDeviceHelper helper=new AppleDeviceHelper(processExecutor,helperPath);
+  ImmutableMap<String,String> connectedDevices=helper.getConnectedDevices();
+  if (connectedDevices.size() == 0) {
+    params.getConsole().printBuildFailure(String.format("Cannot install %s (no connected devices found)",appleBundle.getFullyQualifiedName()));
+    return FAILURE;
+  }
+  String selectedUdid=null;
+  if (targetDeviceOptions().hasSerialNumber()) {
+    String udidPrefix=Assertions.assertNotNull(targetDeviceOptions().getSerialNumber()).toLowerCase();
+    for (    String udid : connectedDevices.keySet()) {
+      if (udid.startsWith(udidPrefix)) {
+        selectedUdid=udid;
+        break;
+      }
+    }
+    if (selectedUdid == null) {
+      params.getConsole().printBuildFailure(String.format("Cannot install %s to the device %s (no connected devices with that UDID/prefix)",appleBundle.getFullyQualifiedName(),udidPrefix));
+      return FAILURE;
+    }
+  }
+ else {
+    if (connectedDevices.size() > 1) {
+      LOG.warn("More than one connected device found, and no device ID specified.  A device will be" + " arbitrarily picked.");
+    }
+    selectedUdid=connectedDevices.keySet().iterator().next();
+  }
+  LOG.info("Installing " + appleBundle.getFullyQualifiedName() + " to device "+ selectedUdid+ " ("+ connectedDevices.get(selectedUdid)+ ")");
+  if (helper.installBundleOnDevice(selectedUdid,projectFilesystem.resolve(Preconditions.checkNotNull(appleBundle.getPathToOutput())))) {
+    params.getConsole().printSuccess("Installed " + appleBundle.getFullyQualifiedName() + " to device "+ selectedUdid+ " ("+ connectedDevices.get(selectedUdid)+ ")");
+    if (run) {
+      Optional<String> appleBundleId;
+      try (InputStream bundlePlistStream=projectFilesystem.getInputStreamForRelativePath(appleBundle.getInfoPlistPath())){
+        appleBundleId=AppleInfoPlistParsing.getBundleIdFromPlistStream(bundlePlistStream);
+      }
+       if (!appleBundleId.isPresent()) {
+        params.getConsole().printBuildFailure(String.format("Cannot run %s (could not get bundle ID from %s)",appleBundle.getFullyQualifiedName(),appleBundle.getInfoPlistPath()));
+        return FAILURE;
+      }
+      if (waitForDebugger) {
+        LOG.warn(WAIT_FOR_DEBUGGER_LONG_ARG + " not yet implemented for devices.");
+      }
+      if (helper.runBundleOnDevice(selectedUdid,appleBundleId.get())) {
+        return InstallResult.builder().setExitCode(0).build();
+      }
+ else {
+        return FAILURE;
+      }
+    }
+ else {
+      return InstallResult.builder().setExitCode(0).build();
+    }
+  }
+ else {
+    return FAILURE;
+  }
+}

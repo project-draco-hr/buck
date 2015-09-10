@@ -1,0 +1,27 @@
+{
+  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().setCommand(ImmutableList.of(deviceHelperPath.toString(),"-l")).build();
+  Set<ProcessExecutor.Option> options=EnumSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT);
+  ProcessExecutor.Result result;
+  try {
+    result=processExecutor.launchAndExecute(processExecutorParams,options,Optional.<String>absent(),Optional.<Long>of((long)5000),Optional.<Function<Process,Void>>absent());
+  }
+ catch (  InterruptedException|IOException e) {
+    LOG.warn("Could not execute device helper.");
+    return ImmutableMap.of();
+  }
+  if (result.isTimedOut()) {
+    throw new RuntimeException("Device helper failed: timed out");
+  }
+  if (result.getExitCode() != 0) {
+    throw new RuntimeException("Device helper failed: " + result.getStderr());
+  }
+  Matcher matcher=DEVICE_DESCRIPTION_PATTERN.matcher(result.getStdout().get());
+  ImmutableMap.Builder<String,String> builder=ImmutableMap.builder();
+  while (matcher.find()) {
+    String udid=matcher.group(1);
+    String description=matcher.group(2);
+    builder.put(udid,description);
+    LOG.debug("Found device: " + udid + ", "+ description);
+  }
+  return builder.build();
+}
