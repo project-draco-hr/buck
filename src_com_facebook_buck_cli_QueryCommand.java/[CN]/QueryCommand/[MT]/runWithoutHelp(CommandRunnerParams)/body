@@ -5,11 +5,30 @@
   }
   Set<QueryEnvironment.Setting> settings=new HashSet<>();
   BuckQueryEnvironment env=new BuckQueryEnvironment(params,settings,getEnableProfiling());
-  String queryFormat=arguments.remove(0);
-  if (queryFormat.contains("%s")) {
-    return runMultipleQuery(params,env,queryFormat,arguments,shouldGenerateJsonOutput());
-  }
+  try {
+    String queryFormat=arguments.remove(0);
+    if (queryFormat.contains("%s")) {
+      return runMultipleQuery(params,env,queryFormat,arguments,shouldGenerateJsonOutput());
+    }
  else {
-    return runSingleQuery(params,env,queryFormat);
+      return runSingleQuery(params,env,queryFormat);
+    }
+  }
+ catch (  RuntimeException e) {
+    if (e.getCause() instanceof IOException) {
+      throw (IOException)e.getCause();
+    }
+    if (e.getCause() instanceof QueryException) {
+      params.getConsole().printBuildFailureWithoutStacktrace(e);
+      return 1;
+    }
+    throw e;
+  }
+catch (  QueryException e) {
+    if (e.getCause() instanceof InterruptedException) {
+      throw (InterruptedException)e.getCause();
+    }
+    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    return 1;
   }
 }
