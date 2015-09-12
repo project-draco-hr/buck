@@ -1,0 +1,21 @@
+{
+  ProcessExecutorParams.Builder paramsBuilder=ProcessExecutorParams.builder();
+  if (Platform.detect() == Platform.WINDOWS) {
+    paramsBuilder.addCommand("cmd.exe","/c","type");
+  }
+ else {
+    paramsBuilder.addCommand("cat");
+  }
+  paramsBuilder.addCommand("hello-world.txt");
+  paramsBuilder.setDirectory(tmp.getRoot().toFile());
+  Path helloWorldPath=tmp.getRoot().resolve("hello-world.txt");
+  String fileContents="Hello, world!";
+  Files.write(helloWorldPath,fileContents.getBytes(StandardCharsets.UTF_8));
+  ListeningProcessExecutor executor=new ListeningProcessExecutor();
+  CapturingListener listener=new CapturingListener();
+  ListeningProcessExecutor.LaunchedProcess process=executor.launchProcess(paramsBuilder.build(),listener);
+  int returnCode=executor.waitForProcess(process,Long.MAX_VALUE,TimeUnit.SECONDS);
+  assertThat(returnCode,equalTo(0));
+  assertThat(listener.capturedStdout.toString("UTF-8"),equalTo(fileContents));
+  assertThat(listener.capturedStderr.toString("UTF-8"),is(emptyString()));
+}
