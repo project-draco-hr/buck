@@ -12,23 +12,45 @@
     params.getConsole().getStdErr().println("No project directory specified. Aborting quickstart.");
     return 1;
   }
-  String sdkLocation=getAndroidSdkDir(params.getAndroidPlatformTargetSupplier());
-  if (sdkLocation.isEmpty()) {
-    sdkLocation=promptForPath(params,"Enter your Android SDK's location: ");
+  Path origin=Preconditions.checkNotNull(PATHS_TO_QUICKSTART_DIR.get(type));
+switch (type) {
+case ANDROID:
+{
+      String sdkLocation=getAndroidSdkDir(params.getAndroidPlatformTargetSupplier());
+      if (sdkLocation.isEmpty()) {
+        sdkLocation=promptForPath(params,"Enter your Android SDK's location: ");
+      }
+      File sdkLocationFile=new File(sdkLocation);
+      if (!sdkLocationFile.isDirectory()) {
+        params.getConsole().getStdErr().println("WARNING: That Android SDK directory does not exist.");
+      }
+      sdkLocation=sdkLocationFile.getAbsoluteFile().toString();
+      Path destination=Paths.get(projectDir);
+      MoreFiles.copyRecursively(origin,destination);
+      File buckConfig=new File(projectDir + "/.buckconfig");
+      Files.append("[android]\n    target = " + AndroidPlatformTarget.DEFAULT_ANDROID_PLATFORM_TARGET + "\n",buckConfig,StandardCharsets.UTF_8);
+      File localProperties=new File(projectDir + "/local.properties");
+      Files.write("sdk.dir=" + sdkLocation + "\n",localProperties,StandardCharsets.UTF_8);
+      break;
+    }
+case IOS:
+{
+    ImmutableMap<AppleSdk,AppleSdkPaths> appleSdkPaths=null;
+    try (PrintStream stdout=new PrintStream(new ByteArrayOutputStream());PrintStream stderr=new PrintStream(new ByteArrayOutputStream())){
+      AppleConfig appleConfig=new AppleConfig(params.getBuckConfig());
+      appleSdkPaths=appleConfig.getAppleSdkPaths(new ProcessExecutor(new Console(Verbosity.SILENT,stdout,stderr,Ansi.withoutTty())));
+    }
+     if (appleSdkPaths == null || appleSdkPaths.isEmpty()) {
+      throw new HumanReadableException("Could not find any Apple SDK, check your Xcode installation.");
+    }
+    Path destination=Paths.get(projectDir);
+    MoreFiles.copyRecursively(origin,destination);
+    File buckConfig=new File(projectDir + "/.buckconfig");
+    Files.append("\n",buckConfig,StandardCharsets.UTF_8);
+    break;
   }
-  File sdkLocationFile=new File(sdkLocation);
-  if (!sdkLocationFile.isDirectory()) {
-    params.getConsole().getStdErr().println("WARNING: That Android SDK directory does not exist.");
-  }
-  sdkLocation=sdkLocationFile.getAbsoluteFile().toString();
-  Path origin=PATH_TO_QUICKSTART_DIR;
-  Path destination=Paths.get(projectDir);
-  MoreFiles.copyRecursively(origin,destination);
-  File buckConfig=new File(projectDir + "/.buckconfig");
-  Files.append("[android]\n    target = " + AndroidPlatformTarget.DEFAULT_ANDROID_PLATFORM_TARGET + "\n",buckConfig,StandardCharsets.UTF_8);
-  File localProperties=new File(projectDir + "/local.properties");
-  Files.write("sdk.dir=" + sdkLocation + "\n",localProperties,StandardCharsets.UTF_8);
-  params.getConsole().getStdOut().print(Files.toString(origin.resolve("README.md").toFile(),StandardCharsets.UTF_8));
-  params.getConsole().getStdOut().flush();
-  return 0;
+}
+params.getConsole().getStdOut().print(Files.toString(origin.resolve("README.md").toFile(),StandardCharsets.UTF_8));
+params.getConsole().getStdOut().flush();
+return 0;
 }
