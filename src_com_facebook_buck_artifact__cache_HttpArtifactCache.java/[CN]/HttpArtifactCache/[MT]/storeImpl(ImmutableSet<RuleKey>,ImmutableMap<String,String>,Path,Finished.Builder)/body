@@ -1,34 +1,25 @@
 {
   Request.Builder builder=new Request.Builder();
   builder.url(new URL(url,"artifacts/key"));
-  final byte[] rawKeys=createKeysHeader(ruleKeys);
-  final byte[] rawMetadata=createMetadataHeader(ruleKeys,metadata,new ByteSource(){
+  final HttpArtifactCacheBinaryProtocol.StoreRequest storeRequest=new HttpArtifactCacheBinaryProtocol.StoreRequest(ruleKeys,metadata,hashFunction,new ByteSource(){
     @Override public InputStream openStream() throws IOException {
       return projectFilesystem.newFileInputStream(file);
     }
   }
-,hashFunction);
-  final long fileSizeBytes=projectFilesystem.getFileSize(file);
-  final long contentLength=rawKeys.length + Integer.SIZE / Byte.SIZE + rawMetadata.length + fileSizeBytes;
-  eventBuilder.setArtifactSizeBytes(fileSizeBytes);
-  eventBuilder.setRequestSizeBytes(contentLength);
+);
+  eventBuilder.setRequestSizeBytes(storeRequest.getContentLength());
   builder.put(new RequestBody(){
     @Override public MediaType contentType(){
       return OCTET_STREAM;
     }
     @Override public long contentLength() throws IOException {
-      return contentLength;
+      return storeRequest.getContentLength();
     }
     @Override public void writeTo(    BufferedSink bufferedSink) throws IOException {
-      bufferedSink.write(rawKeys);
-      bufferedSink.writeInt(rawMetadata.length);
-      bufferedSink.write(rawMetadata);
-      Hasher hasher=hashFunction.newHasher();
-      try (InputStream is=new HasherInputStream(hasher,projectFilesystem.newSource(file).inputStream())){
-        ByteStreams.copy(is,bufferedSink.outputStream());
-        eventBuilder.setArtifactContentHash(hasher.hash().toString());
-      }
-     }
+      StoreWriteResult writeResult=storeRequest.write(bufferedSink.outputStream());
+      eventBuilder.setArtifactSizeBytes(writeResult.getArtifactSizeBytes());
+      eventBuilder.setArtifactContentHash(writeResult.getArtifactContentHashCode().toString());
+    }
   }
 );
   Request request=builder.build();
