@@ -35,12 +35,10 @@
   AndroidBuckConfig androidBuckConfig=new AndroidBuckConfig(buckConfig,platform);
   AndroidDirectoryResolver androidDirectoryResolver=new DefaultAndroidDirectoryResolver(filesystem,androidBuckConfig.getNdkVersion(),propertyFinder);
   ProcessExecutor processExecutor=new ProcessExecutor(console);
-  PythonBuckConfig pythonBuckConfig=new PythonBuckConfig(buckConfig,new ExecutableFinder());
   Optional<Path> testTempDirOverride=getTestTempDirOverride(buckConfig,clientEnvironment,"buck-" + buildId.toString());
   if (testTempDirOverride.isPresent()) {
     LOG.debug("Using test temp dir override %s",testTempDirOverride.get());
   }
-  KnownBuildRuleTypes buildRuleTypes=KnownBuildRuleTypes.createInstance(buckConfig,processExecutor,androidDirectoryResolver,pythonBuckConfig.getPythonEnvironment(processExecutor),testTempDirOverride);
   ParserConfig parserConfig=new ParserConfig(buckConfig);
   Watchman watchman;
   ParserConfig.GlobHandler globHandler;
@@ -58,7 +56,8 @@
     watchman=Watchman.NULL_WATCHMAN;
     globHandler=ParserConfig.GlobHandler.PYTHON;
   }
-  Repository rootRepository=new Repository(filesystem,watchman,buckConfig,buildRuleTypes,androidDirectoryResolver);
+  KnownBuildRuleTypesFactory factory=new KnownBuildRuleTypesFactory(processExecutor,androidDirectoryResolver,testTempDirOverride);
+  Repository rootRepository=new Repository(filesystem,watchman,buckConfig,factory,androidDirectoryResolver);
   int exitCode;
   ImmutableList<BuckEventListener> eventListeners=ImmutableList.of();
   Clock clock;
