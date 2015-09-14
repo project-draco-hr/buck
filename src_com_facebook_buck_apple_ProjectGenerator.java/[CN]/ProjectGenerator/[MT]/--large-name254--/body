@@ -111,20 +111,10 @@
   if (!allCxxFlags.isEmpty()) {
     appendConfigsBuilder.put("OTHER_CPLUSPLUSFLAGS",Joiner.on(' ').join(allCxxFlags));
   }
-  Optional<ImmutableSortedMap<String,ImmutableMap<String,String>>> configs=Optional.absent();
-  if (appleTargetNode.isPresent()) {
-    configs=appleTargetNode.get().getConstructorArg().configs;
-  }
- else   if (targetNode.getType().equals(CxxLibraryDescription.TYPE)) {
-    ImmutableMap<String,String> appendedConfig=appendConfigsBuilder.build();
-    ImmutableMap<String,ImmutableMap<String,String>> defaultConfig=CxxPlatformXcodeConfigGenerator.getDefaultXcodeBuildConfigurationsFromCxxPlatform(defaultCxxPlatform,appendedConfig);
-    configs=Optional.of(ImmutableSortedMap.copyOf(defaultConfig));
-  }
- else {
-    throw new HumanReadableException("config must be set for target node %@",targetNode);
-  }
+  ImmutableMap<String,String> appendedConfig=appendConfigsBuilder.build();
+  Optional<ImmutableSortedMap<String,ImmutableMap<String,String>>> configs=getXcodeBuildConfigurationsForTargetNode(targetNode,appendedConfig);
   PBXNativeTarget target=targetBuilderResult.target;
-  setTargetBuildConfigurations(getConfigurationNameToXcconfigPath(buildTarget),target,project.getMainGroup(),configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendConfigsBuilder.build());
+  setTargetBuildConfigurations(getConfigurationNameToXcconfigPath(buildTarget),target,project.getMainGroup(),configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendedConfig);
   Path headerPathPrefix=AppleDescriptions.getHeaderPathPrefix(arg,targetNode.getBuildTarget());
   createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPublicCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PUBLIC));
   createHeaderSymlinkTree(sourcePathResolver,AppleDescriptions.convertAppleHeadersToPrivateCxxHeaders(sourcePathResolver,headerPathPrefix,arg),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PRIVATE));
