@@ -1,0 +1,24 @@
+{
+  VersionControlCmdLineInterface cmdLineInterfaceMock=createMock(VersionControlCmdLineInterface.class);
+  VersionControlCmdLineInterfaceFactory factoryMock=createMock(VersionControlCmdLineInterfaceFactory.class);
+  BuckEventBus eventBus=createMock(BuckEventBus.class);
+  expect(cmdLineInterfaceMock.isSupportedVersionControlSystem()).andReturn(IS_SUPPORTED_VCS);
+  expect(cmdLineInterfaceMock.hasWorkingDirectoryChanges()).andReturn(HAS_WORKING_DIRECTORY_CHANGES);
+  expect(cmdLineInterfaceMock.currentRevisionId()).andReturn(CURRENT_REVISION_ID);
+  expect(cmdLineInterfaceMock.revisionId(MASTER_BOOKMARK)).andReturn(MASTER_REVISION_ID);
+  expect(cmdLineInterfaceMock.commonAncestor(CURRENT_REVISION_ID,MASTER_REVISION_ID)).andReturn(BRANCHED_FROM_MASTER_REVISION_ID);
+  expect(cmdLineInterfaceMock.timestampSeconds(BRANCHED_FROM_MASTER_REVISION_ID)).andReturn(BRANCHED_FROM_MASTER_TS_SECS);
+  expect(factoryMock.createCmdLineInterface()).andReturn(cmdLineInterfaceMock);
+  Capture<VersionControlStatsEvent> eventCapture=Capture.newInstance();
+  eventBus.post(capture(eventCapture));
+  expectLastCall().once();
+  replay(eventBus,cmdLineInterfaceMock,factoryMock);
+  ExecutorService executorService=sameThreadExecutorService();
+  VersionControlStatsGenerator vcStatsGenerator=new VersionControlStatsGenerator(executorService,factoryMock,eventBus);
+  vcStatsGenerator.generateStatsAsync();
+  VersionControlStats vcStats=eventCapture.getValue().getVersionControlStats();
+  assertThat(HAS_WORKING_DIRECTORY_CHANGES,is(equalTo(vcStats.workingDirectoryChanges())));
+  assertThat(CURRENT_REVISION_ID,is(equalTo(vcStats.currentRevisionId())));
+  assertThat(BRANCHED_FROM_MASTER_REVISION_ID,is(equalTo(vcStats.branchedFromMasterRevisionId())));
+  assertThat(BRANCHED_FROM_MASTER_TS_MILLIS,is(equalTo(vcStats.branchedFromMasterTsMillis())));
+}

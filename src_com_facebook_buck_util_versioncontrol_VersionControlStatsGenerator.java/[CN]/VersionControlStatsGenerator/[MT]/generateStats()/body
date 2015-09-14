@@ -1,0 +1,12 @@
+{
+  LOG.info("Starting generation of version control stats.");
+  VersionControlCmdLineInterface vcCmdLineInterface=versionControlCmdLineInterfaceFactory.createCmdLineInterface();
+  boolean workingDirectoryChanges=vcCmdLineInterface.hasWorkingDirectoryChanges();
+  String currentRevisionId=vcCmdLineInterface.currentRevisionId();
+  String latestMasterRevisionId=vcCmdLineInterface.revisionId("master");
+  String branchedFromMasterRevisionId=vcCmdLineInterface.commonAncestor(currentRevisionId,latestMasterRevisionId);
+  long branchedFromMasterTsMillis=vcCmdLineInterface.timestampSeconds(branchedFromMasterRevisionId) * 1000;
+  VersionControlStats versionControlStats=ImmutableVersionControlStats.builder().workingDirectoryChanges(workingDirectoryChanges).currentRevisionId(currentRevisionId).branchedFromMasterRevisionId(branchedFromMasterRevisionId).branchedFromMasterTsMillis(branchedFromMasterTsMillis).build();
+  LOG.info("Version control stats generated successfully. \n%s",versionControlStats);
+  buckEventBus.post(new VersionControlStatsEvent(versionControlStats));
+}
