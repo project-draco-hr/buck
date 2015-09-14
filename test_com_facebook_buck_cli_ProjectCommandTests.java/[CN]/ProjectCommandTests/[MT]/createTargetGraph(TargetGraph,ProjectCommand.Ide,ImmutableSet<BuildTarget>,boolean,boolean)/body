@@ -1,0 +1,20 @@
+{
+  ProjectPredicates projectPredicates=ProjectPredicates.forIde(targetIde);
+  ImmutableSet<BuildTarget> graphRoots;
+  if (!passedInTargetsSet.isEmpty()) {
+    ImmutableSet<BuildTarget> supplementalGraphRoots=ProjectCommand.getRootBuildTargetsForIntelliJ(targetIde,projectGraph,projectPredicates);
+    graphRoots=Sets.union(passedInTargetsSet,supplementalGraphRoots).immutableCopy();
+  }
+ else {
+    graphRoots=ProjectCommand.getRootsFromPredicate(projectGraph,projectPredicates.getProjectRootsPredicate());
+  }
+  ImmutableSet<BuildTarget> graphRootsOrSourceTargets=ProjectCommand.replaceWorkspacesWithSourceTargetsIfPossible(graphRoots,projectGraph);
+  ImmutableSet<BuildTarget> explicitTests;
+  if (withTests) {
+    explicitTests=TargetGraphAndTargets.getExplicitTestTargets(graphRootsOrSourceTargets,projectGraph,withDependenciesTests);
+  }
+ else {
+    explicitTests=ImmutableSet.of();
+  }
+  return TargetGraphAndTargets.create(graphRoots,graphRootsOrSourceTargets,projectGraph,projectPredicates.getAssociatedProjectPredicate(),withTests,withDependenciesTests,explicitTests);
+}

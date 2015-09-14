@@ -1,62 +1,7 @@
 {
-  ImmutableSet.Builder<ProjectGenerator.Option> optionsBuilder=ImmutableSet.builder();
-  if (getReadOnly(params.getBuckConfig())) {
-    optionsBuilder.add(ProjectGenerator.Option.GENERATE_READ_ONLY_FILES);
-  }
-  if (isWithTests()) {
-    optionsBuilder.add(ProjectGenerator.Option.INCLUDE_TESTS);
-  }
-  boolean combinedProject=getCombinedProject();
-  ImmutableSet<BuildTarget> targets;
-  if (passedInTargetsSet.isEmpty()) {
-    targets=FluentIterable.from(targetGraphAndTargets.getProjectRoots()).transform(HasBuildTarget.TO_TARGET).toSet();
-  }
- else {
-    targets=passedInTargetsSet;
-  }
-  if (combinedProject) {
-    optionsBuilder.addAll(ProjectGenerator.COMBINED_PROJECT_OPTIONS);
-  }
- else {
-    optionsBuilder.addAll(ProjectGenerator.SEPARATED_PROJECT_OPTIONS);
-  }
-  LOG.debug("Generating workspace for config targets %s",targets);
-  Map<Path,ProjectGenerator> projectGenerators=new HashMap<>();
-  ImmutableSet<TargetNode<?>> testTargetNodes=targetGraphAndTargets.getAssociatedTests();
-  ImmutableSet<TargetNode<AppleTestDescription.Arg>> groupableTests=getCombineTestBundles() ? AppleBuildRules.filterGroupableTests(testTargetNodes) : ImmutableSet.<TargetNode<AppleTestDescription.Arg>>of();
-  ImmutableSet.Builder<BuildTarget> requiredBuildTargetsBuilder=ImmutableSet.builder();
-  for (  final BuildTarget inputTarget : targets) {
-    TargetNode<?> inputNode=Preconditions.checkNotNull(targetGraphAndTargets.getTargetGraph().get(inputTarget));
-    XcodeWorkspaceConfigDescription.Arg workspaceArgs;
-    BuildRuleType type=inputNode.getType();
-    if (type == XcodeWorkspaceConfigDescription.TYPE) {
-      TargetNode<XcodeWorkspaceConfigDescription.Arg> castedWorkspaceNode=castToXcodeWorkspaceTargetNode(inputNode);
-      workspaceArgs=castedWorkspaceNode.getConstructorArg();
-    }
- else     if (canGenerateImplicitWorkspaceForType(type)) {
-      workspaceArgs=createImplicitWorkspaceArgs(inputNode);
-    }
- else {
-      throw new HumanReadableException("%s must be a xcode_workspace_config, apple_binary, apple_bundle, or apple_library",inputNode);
-    }
-    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(params.getRepository().getFilesystem(),new ReactNativeBuckConfig(params.getBuckConfig()),targetGraphAndTargets.getTargetGraph(),workspaceArgs,inputTarget,optionsBuilder.build(),combinedProject,buildWithBuck,super.getOptions(),!(new AppleConfig(params.getBuckConfig()).getXcodeDisableParallelizeBuild()),new ExecutableFinder(),params.getEnvironment(),params.getRepository().getKnownBuildRuleTypes().getCxxPlatforms(),params.getRepository().getKnownBuildRuleTypes().getDefaultCxxPlatforms(),new ParserConfig(params.getBuckConfig()).getBuildFileName(),new Function<TargetNode<?>,Path>(){
-      @Nullable @Override public Path apply(      TargetNode<?> input){
-        TargetGraphToActionGraph targetGraphToActionGraph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer(),params.getFileHashCache());
-        TargetGraph subgraph=targetGraphAndTargets.getTargetGraph().getSubgraph(ImmutableSet.of(input));
-        ActionGraph actionGraph=Preconditions.checkNotNull(targetGraphToActionGraph.apply(subgraph));
-        BuildRule rule=Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(input.getBuildTarget()));
-        return rule.getPathToOutput();
-      }
-    }
-);
-    generator.setGroupableTests(groupableTests);
-    generator.generateWorkspaceAndDependentProjects(projectGenerators);
-    ImmutableSet<BuildTarget> requiredBuildTargetsForWorkspace=generator.getRequiredBuildTargets();
-    LOG.debug("Required build targets for workspace %s: %s",inputTarget,requiredBuildTargetsForWorkspace);
-    requiredBuildTargetsBuilder.addAll(requiredBuildTargetsForWorkspace);
-  }
   int exitCode=0;
-  ImmutableSet<BuildTarget> requiredBuildTargets=requiredBuildTargetsBuilder.build();
+  ImmutableSet<ProjectGenerator.Option> options=buildWorkspaceGeneratorOptions(getReadOnly(params.getBuckConfig()),isWithTests(),isWithDependenciesTests(),getCombinedProject());
+  ImmutableSet<BuildTarget> requiredBuildTargets=generateWorkspacesForTargets(params,targetGraphAndTargets,passedInTargetsSet,options,super.getOptions(),new HashMap<Path,ProjectGenerator>(),getCombinedProject(),buildWithBuck,getCombineTestBundles());
   if (!requiredBuildTargets.isEmpty()) {
     BuildCommand buildCommand=new BuildCommand();
     buildCommand.setArguments(FluentIterable.from(requiredBuildTargets).transform(Functions.toStringFunction()).toList());
