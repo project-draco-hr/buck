@@ -1,0 +1,17 @@
+{
+  Path output=Paths.get("output/file");
+  final String data="test";
+  final RuleKey ruleKey=new RuleKey("00000000000000000000000000000000");
+  final ImmutableMap<String,String> metadata=ImmutableMap.of("some","metadata");
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  HttpArtifactCache cache=new HttpArtifactCache("http",null,null,new URL("http://localhost:8080"),true,filesystem,BUCK_EVENT_BUS,HASH_FUNCTION){
+    @Override protected Response fetchCall(    Request request) throws IOException {
+      return new Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(HttpURLConnection.HTTP_OK).body(createResponseBody(ImmutableSet.of(ruleKey),metadata,ByteSource.wrap(data.getBytes(Charsets.UTF_8)),data)).build();
+    }
+  }
+;
+  CacheResult result=cache.fetch(ruleKey,output);
+  assertEquals(CacheResultType.HIT,result.getType());
+  assertEquals(metadata,result.getMetadata());
+  cache.close();
+}

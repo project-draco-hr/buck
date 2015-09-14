@@ -1,0 +1,38 @@
+{
+  Path cacheDir=tmpDir.newFolder();
+  Path fileX=tmpDir.newFile("x");
+  Path fileY=tmpDir.newFile("y");
+  Path fileZ=tmpDir.newFile("z");
+  fileHashCache=new FakeFileHashCache(ImmutableMap.of(fileX,HashCode.fromInt(0),fileY,HashCode.fromInt(1),fileZ,HashCode.fromInt(2)));
+  dirArtifactCache=new DirArtifactCache("dir",new ProjectFilesystem(cacheDir),Paths.get("."),false,Optional.of(0L));
+  Files.write(fileX,"x".getBytes(UTF_8));
+  Files.write(fileY,"y".getBytes(UTF_8));
+  Files.write(fileZ,"z".getBytes(UTF_8));
+  BuildRule inputRuleX=new BuildRuleForTest(fileX);
+  BuildRule inputRuleY=new BuildRuleForTest(fileY);
+  BuildRule inputRuleZ=new BuildRuleForTest(fileZ);
+  assertFalse(inputRuleX.equals(inputRuleY));
+  assertFalse(inputRuleX.equals(inputRuleZ));
+  assertFalse(inputRuleY.equals(inputRuleZ));
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(ImmutableSet.of(inputRuleX,inputRuleY,inputRuleZ)));
+  DefaultRuleKeyBuilderFactory fakeRuleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,resolver);
+  RuleKey ruleKeyX=fakeRuleKeyBuilderFactory.newInstance(inputRuleX).build();
+  RuleKey ruleKeyY=fakeRuleKeyBuilderFactory.newInstance(inputRuleY).build();
+  RuleKey ruleKeyZ=fakeRuleKeyBuilderFactory.newInstance(inputRuleZ).build();
+  assertEquals(CacheResultType.MISS,dirArtifactCache.fetch(ruleKeyX,fileX).getType());
+  assertEquals(CacheResultType.MISS,dirArtifactCache.fetch(ruleKeyY,fileY).getType());
+  assertEquals(CacheResultType.MISS,dirArtifactCache.fetch(ruleKeyZ,fileZ).getType());
+  dirArtifactCache.store(ImmutableSet.of(ruleKeyX),ImmutableMap.<String,String>of(),fileX);
+  dirArtifactCache.store(ImmutableSet.of(ruleKeyY),ImmutableMap.<String,String>of(),fileY);
+  dirArtifactCache.store(ImmutableSet.of(ruleKeyZ),ImmutableMap.<String,String>of(),fileZ);
+  Files.delete(fileX);
+  Files.delete(fileY);
+  Files.delete(fileZ);
+  assertEquals(CacheResultType.MISS,dirArtifactCache.fetch(ruleKeyX,fileX).getType());
+  assertEquals(CacheResultType.MISS,dirArtifactCache.fetch(ruleKeyY,fileY).getType());
+  assertEquals(CacheResultType.MISS,dirArtifactCache.fetch(ruleKeyZ,fileZ).getType());
+  assertEquals(inputRuleX,new BuildRuleForTest(fileX));
+  assertEquals(inputRuleY,new BuildRuleForTest(fileY));
+  assertEquals(inputRuleZ,new BuildRuleForTest(fileZ));
+  assertEquals(0,cacheDir.toFile().listFiles().length);
+}
