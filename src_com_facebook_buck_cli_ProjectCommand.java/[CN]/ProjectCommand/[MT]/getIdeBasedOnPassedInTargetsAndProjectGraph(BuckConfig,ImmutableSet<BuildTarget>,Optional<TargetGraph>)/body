@@ -1,0 +1,32 @@
+{
+  if (ide != null) {
+    return ide;
+  }
+  Ide projectIde=getIdeFromBuckConfig(buckConfig).orNull();
+  if (projectIde == null && !passedInTargetsSet.isEmpty() && projectGraph.isPresent()) {
+    Ide guessedIde=null;
+    for (    BuildTarget buildTarget : passedInTargetsSet) {
+      TargetNode<?> node=projectGraph.get().get(buildTarget);
+      if (node == null) {
+        throw new HumanReadableException("Project graph %s doesn't contain build target " + "%s",projectGraph.get(),buildTarget);
+      }
+      BuildRuleType nodeType=node.getType();
+      boolean canGenerateXcodeProject=canGenerateImplicitWorkspaceForType(nodeType);
+      canGenerateXcodeProject|=nodeType.equals(XcodeWorkspaceConfigDescription.TYPE);
+      if (guessedIde == null && canGenerateXcodeProject) {
+        guessedIde=Ide.XCODE;
+      }
+ else       if (guessedIde == Ide.XCODE && !canGenerateXcodeProject || guessedIde == Ide.INTELLIJ && canGenerateXcodeProject) {
+        throw new HumanReadableException("Passed targets (%s) contain both Xcode and Idea " + "projects.\nCan't choose Ide from this mixed set. " + "Please pass only Xcode targets or only Idea targets.",passedInTargetsSet);
+      }
+ else {
+        guessedIde=Ide.INTELLIJ;
+      }
+    }
+    projectIde=guessedIde;
+  }
+  if (projectIde == null) {
+    throw new HumanReadableException("Please specify ide using --ide option or set ide in " + ".buckconfig");
+  }
+  return projectIde;
+}
