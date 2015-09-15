@@ -1,0 +1,13 @@
+{
+  ProjectFilesystem filesystem=getProjectFilesystem();
+  ImmutableSortedSet<Path> sourceFiles=FluentIterable.from(srcs).transform(getResolver().getResolvedPathFunction()).toSortedSet(Ordering.natural());
+  ImmutableListMultimap.Builder<Path,String> resolvedResources=ImmutableListMultimap.builder();
+  for (  Map.Entry<String,SourcePath> resource : resources.entrySet()) {
+    resolvedResources.put(getResolver().getResolvedPath(resource.getValue()),resource.getKey());
+  }
+  ImmutableList<Either<Path,String>> references=resolveReferences(refs);
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  steps.add(new MakeCleanDirectoryStep(filesystem,output.getParent()));
+  steps.add(new CSharpLibraryCompile(filesystem.resolve(output),sourceFiles,references,resolvedResources.build(),version));
+  return steps.build();
+}

@@ -1,0 +1,21 @@
+{
+  Path csc=new ExecutableFinder().getExecutable(CSC,context.getEnvironment());
+  DotNetFramework netFramework=DotNetFramework.resolveFramework(context.getEnvironment(),version);
+  ImmutableList.Builder<String> args=ImmutableList.builder();
+  args.add(csc.toAbsolutePath().toString()).add("/target:library").add("/out:" + output.toString());
+  for (  Either<Path,String> ref : references) {
+    args.add("/reference:" + resolveReference(netFramework,ref));
+  }
+  for (  Path resource : resources.keySet()) {
+    for (    String name : resources.get(resource)) {
+      args.add("/resource:" + Escaper.escapeAsShellString(resource.toString()) + ","+ name);
+    }
+  }
+  args.addAll(FluentIterable.from(srcs).transform(new Function<Path,String>(){
+    @Override public String apply(    Path input){
+      return Escaper.escapeAsShellString(input.toAbsolutePath().toString());
+    }
+  }
+).toSet());
+  return args.build();
+}
