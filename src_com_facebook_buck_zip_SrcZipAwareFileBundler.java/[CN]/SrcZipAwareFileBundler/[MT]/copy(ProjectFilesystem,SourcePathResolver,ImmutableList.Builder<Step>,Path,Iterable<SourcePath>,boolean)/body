@@ -1,0 +1,22 @@
+{
+  ImmutableMap.Builder<Path,Path> links=ImmutableMap.builder();
+  for (  SourcePath sourcePath : toCopy) {
+    Path resolved=resolver.getPath(sourcePath);
+    if (resolved.toString().endsWith(Javac.SRC_ZIP) || resolved.toString().endsWith(Javac.SRC_JAR)) {
+      steps.add(new UnzipStep(filesystem,resolved,destinationDir));
+      continue;
+    }
+    if (Files.isDirectory(resolved)) {
+      throw new HumanReadableException("Cowardly refusing to copy a directory: " + resolved);
+    }
+    Path destination;
+    if (!junkPaths && resolved.startsWith(basePath)) {
+      destination=basePath.relativize(resolved);
+    }
+ else {
+      destination=resolved.getFileName();
+    }
+    links.put(destination,resolved);
+  }
+  steps.add(new SymlinkTreeStep(filesystem,destinationDir,links.build()));
+}
