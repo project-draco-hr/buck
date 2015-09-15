@@ -12,7 +12,9 @@
     params.getConsole().getStdErr().println("No project directory specified. Aborting quickstart.");
     return 1;
   }
-  Path origin=Preconditions.checkNotNull(PATHS_TO_QUICKSTART_DIR.get(type));
+  PackagedResource resource=Preconditions.checkNotNull(PATHS_TO_QUICKSTART_DIR.get(type));
+  Path origin=resource.get();
+  final Path destination=Paths.get(projectDir);
 switch (type) {
 case ANDROID:
 {
@@ -25,7 +27,6 @@ case ANDROID:
         params.getConsole().getStdErr().println("WARNING: That Android SDK directory does not exist.");
       }
       sdkLocation=sdkLocationFile.getAbsoluteFile().toString();
-      Path destination=Paths.get(projectDir);
       MoreFiles.copyRecursively(origin,destination);
       File buckConfig=new File(projectDir + "/.buckconfig");
       Files.append("[android]\n    target = " + AndroidPlatformTarget.DEFAULT_ANDROID_PLATFORM_TARGET + "\n",buckConfig,StandardCharsets.UTF_8);
@@ -43,13 +44,23 @@ case IOS:
      if (appleSdkPaths == null || appleSdkPaths.isEmpty()) {
       throw new HumanReadableException("Could not find any Apple SDK, check your Xcode installation.");
     }
-    Path destination=Paths.get(projectDir);
     MoreFiles.copyRecursively(origin,destination);
     File buckConfig=new File(projectDir + "/.buckconfig");
     Files.append("\n",buckConfig,StandardCharsets.UTF_8);
     break;
   }
 }
+java.nio.file.Files.walkFileTree(destination,new SimpleFileVisitor<Path>(){
+@Override public FileVisitResult visitFile(Path file,BasicFileAttributes attrs) throws IOException {
+  if ("BUCK.tmpl".equals(file.getFileName().toString())) {
+    Path actualBuck=file.getParent().resolve("BUCK");
+    java.nio.file.Files.copy(file,actualBuck);
+    java.nio.file.Files.delete(file);
+  }
+  return FileVisitResult.CONTINUE;
+}
+}
+);
 params.getConsole().getStdOut().print(Files.toString(origin.resolve("README.md").toFile(),StandardCharsets.UTF_8));
 params.getConsole().getStdOut().flush();
 return 0;
