@@ -5,8 +5,15 @@
   }
   String targetPackageDir=javaPackageFinder.findJavaPackage(target);
   for (  SourcePath rawResource : resources) {
-    final Path pathToResource=resolver.getPath(rawResource);
-    String resource=MorePaths.pathWithUnixSeparators(pathToResource);
+    Optional<BuildRule> underlyingRule=resolver.getRule(rawResource);
+    Path pathToResource=resolver.getPath(rawResource);
+    String resource=null;
+    if (underlyingRule.orNull() instanceof HasOutputName) {
+      resource=MorePaths.pathWithUnixSeparators(underlyingRule.get().getBuildTarget().getBasePath().resolve(((HasOutputName)underlyingRule.get()).getOutputName()));
+    }
+    if (resource == null) {
+      resource=MorePaths.pathWithUnixSeparators(pathToResource);
+    }
     Matcher matcher;
     if ((matcher=GENERATED_FILE_PATTERN.matcher(resource)).matches()) {
       resource=matcher.group(1);

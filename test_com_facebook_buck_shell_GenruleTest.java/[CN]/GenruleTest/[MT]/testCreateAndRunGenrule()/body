@@ -3,8 +3,8 @@
   createSampleJavaBinaryRule(ruleResolver);
   BuildTarget buildTarget=BuildTarget.builder("//src/com/facebook/katana","katana_manifest").build();
   BuildRule genrule=GenruleBuilder.newGenruleBuilder(buildTarget).setCmd("python convert_to_katana.py AndroidManifest.xml > $OUT").setOut("AndroidManifest.xml").setSrcs(ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,Paths.get("src/com/facebook/katana/convert_to_katana.py")),new PathSourcePath(filesystem,Paths.get("src/com/facebook/katana/AndroidManifest.xml")))).build(ruleResolver,filesystem);
-  assertEquals(GEN_PATH.resolve("src/com/facebook/katana/AndroidManifest.xml"),genrule.getPathToOutput());
-  assertEquals(filesystem.resolve(GEN_DIR + "/src/com/facebook/katana/AndroidManifest.xml").toString(),((Genrule)genrule).getAbsoluteOutputFilePath());
+  assertEquals(GEN_PATH.resolve("src/com/facebook/katana/katana_manifest/AndroidManifest.xml"),genrule.getPathToOutput());
+  assertEquals(filesystem.resolve(GEN_DIR + "/src/com/facebook/katana/katana_manifest/AndroidManifest.xml").toString(),((Genrule)genrule).getAbsoluteOutputFilePath());
   BuildContext buildContext=null;
   ImmutableList<Path> inputsToCompareToOutputs=ImmutableList.of(Paths.get("src/com/facebook/katana/convert_to_katana.py"),Paths.get("src/com/facebook/katana/AndroidManifest.xml"));
   assertEquals(inputsToCompareToOutputs,((Genrule)genrule).getSrcs());
@@ -14,11 +14,11 @@
   assertTrue(firstStep instanceof RmStep);
   RmStep rmCommand=(RmStep)firstStep;
   ExecutionContext executionContext=newEmptyExecutionContext();
-  assertEquals("First command should delete the output file to be written by the genrule.",ImmutableList.of("rm","-r","-f","/opt/src/buck/" + GEN_DIR + "/src/com/facebook/katana/AndroidManifest.xml"),rmCommand.getShellCommand());
+  assertEquals("First command should delete the output file to be written by the genrule.",ImmutableList.of("rm","-r","-f","/opt/src/buck/" + GEN_DIR + "/src/com/facebook/katana/katana_manifest/AndroidManifest.xml"),rmCommand.getShellCommand());
   Step secondStep=steps.get(1);
   assertTrue(secondStep instanceof MkdirStep);
   MkdirStep mkdirCommand=(MkdirStep)secondStep;
-  assertEquals("Second command should make sure the output directory exists.",filesystem.resolve(GEN_DIR + "/src/com/facebook/katana"),mkdirCommand.getPath());
+  assertEquals("Second command should make sure the output directory exists.",filesystem.resolve(GEN_DIR + "/src/com/facebook/katana/katana_manifest"),mkdirCommand.getPath());
   Step mkTmpDir=steps.get(2);
   assertTrue(mkTmpDir instanceof MakeCleanDirectoryStep);
   MakeCleanDirectoryStep secondMkdirCommand=(MakeCleanDirectoryStep)mkTmpDir;
@@ -39,6 +39,6 @@
   assertTrue(sixthStep instanceof ShellStep);
   ShellStep genruleCommand=(ShellStep)sixthStep;
   assertEquals("genrule",genruleCommand.getShortName());
-  assertEquals(ImmutableMap.<String,String>builder().put("OUT",filesystem.resolve(GEN_DIR + "/src/com/facebook/katana/AndroidManifest.xml").toString()).build(),genruleCommand.getEnvironmentVariables(executionContext));
+  assertEquals(ImmutableMap.<String,String>builder().put("OUT",filesystem.resolve(GEN_DIR + "/src/com/facebook/katana/katana_manifest/AndroidManifest.xml").toString()).build(),genruleCommand.getEnvironmentVariables(executionContext));
   assertEquals(ImmutableList.of("/bin/bash","-e","-c","python convert_to_katana.py AndroidManifest.xml > $OUT"),genruleCommand.getShellCommand(executionContext));
 }
