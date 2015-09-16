@@ -1,0 +1,35 @@
+{
+  super(params,resolver);
+  this.binaryJar=binaryJar;
+  this.abiJar=abiJar;
+  this.sourceJar=sourceJar;
+  this.gwtJar=gwtJar;
+  this.javadocUrl=javadocUrl;
+  this.mavenCoords=mavenCoords;
+  this.internalAbiJar=BuildTargets.getGenPath(getBuildTarget(),"%s-abi.jar");
+  transitiveClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibrary,Path>>(){
+    @Override public ImmutableSetMultimap<JavaLibrary,Path> get(){
+      ImmutableSetMultimap.Builder<JavaLibrary,Path> classpathEntries=ImmutableSetMultimap.builder();
+      classpathEntries.put(PrebuiltJar.this,getResolver().getPath(getBinaryJar()));
+      classpathEntries.putAll(Classpaths.getClasspathEntries(PrebuiltJar.this.getDeclaredDeps()));
+      return classpathEntries.build();
+    }
+  }
+);
+  this.transitiveClasspathDepsSupplier=Suppliers.memoize(new Supplier<ImmutableSet<JavaLibrary>>(){
+    @Override public ImmutableSet<JavaLibrary> get(){
+      return ImmutableSet.<JavaLibrary>builder().add(PrebuiltJar.this).addAll(Classpaths.getClasspathDeps(PrebuiltJar.this.getDeclaredDeps())).build();
+    }
+  }
+);
+  declaredClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibrary,Path>>(){
+    @Override public ImmutableSetMultimap<JavaLibrary,Path> get(){
+      ImmutableSetMultimap.Builder<JavaLibrary,Path> classpathEntries=ImmutableSetMultimap.builder();
+      classpathEntries.put(PrebuiltJar.this,getResolver().getPath(getBinaryJar()));
+      return classpathEntries.build();
+    }
+  }
+);
+  copiedBinaryJar=BuildTargets.getGenPath(getBuildTarget(),"%s.jar");
+  buildOutputInitializer=new BuildOutputInitializer<>(params.getBuildTarget(),this);
+}

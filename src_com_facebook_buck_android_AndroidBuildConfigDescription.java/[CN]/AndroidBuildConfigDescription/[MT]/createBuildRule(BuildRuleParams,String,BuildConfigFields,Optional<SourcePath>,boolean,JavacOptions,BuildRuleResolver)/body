@@ -12,6 +12,9 @@
   BuildRuleParams buildConfigParams=params.copyWithChanges(buildConfigBuildTarget,params.getDeclaredDeps(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getExtraDeps().get()).addAll(pathResolver.filterBuildRuleInputs(valuesFile.asSet())).build()));
   AndroidBuildConfig androidBuildConfig=new AndroidBuildConfig(buildConfigParams,pathResolver,javaPackage,values,valuesFile,useConstantExpressions);
   ruleResolver.addToIndex(androidBuildConfig);
+  BuildTarget abiJarTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(CalculateAbi.FLAVOR).build();
   BuildRuleParams javaLibraryParams=params.copyWithChanges(params.getBuildTarget(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(androidBuildConfig)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
-  return new AndroidBuildConfigJavaLibrary(javaLibraryParams,pathResolver,javacOptions,androidBuildConfig);
+  AndroidBuildConfigJavaLibrary library=ruleResolver.addToIndex(new AndroidBuildConfigJavaLibrary(javaLibraryParams,pathResolver,javacOptions,new BuildTargetSourcePath(abiJarTarget),androidBuildConfig));
+  ruleResolver.addToIndex(CalculateAbi.of(abiJarTarget,pathResolver,params,new BuildTargetSourcePath(library.getBuildTarget())));
+  return library;
 }
