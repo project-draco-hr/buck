@@ -2,7 +2,7 @@
   ListeningExecutorService service=listeningDecorator(Executors.newFixedThreadPool(2));
   BuildRuleResolver resolver=new BuildRuleResolver();
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  FakeProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
+  ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
   DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   InMemoryArtifactCache cache=new InMemoryArtifactCache();
   BuildContext buildContext=FakeBuildContext.newBuilder().setArtifactCache(cache).setKeepGoing(true).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
@@ -11,7 +11,7 @@
   BuildRule dep3=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:dep3")).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new SleepStep(300)),null);
   BuildRule dep4=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:dep4")).setDeps(ImmutableSortedSet.of(dep3)).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new SleepStep(300)),null);
   BuildRule rule=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:rule")).setDeps(ImmutableSortedSet.of(dep2,dep4)).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new SleepStep(1000)),null);
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(service,fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,new SourcePathResolver(new BuildRuleResolver()));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(service,fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,ImmutableMap.of(filesystem,new BuildRuleResolver()));
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertTrue(service.shutdownNow().isEmpty());
   assertThat(result.getStatus(),equalTo(BuildRuleStatus.CANCELED));
