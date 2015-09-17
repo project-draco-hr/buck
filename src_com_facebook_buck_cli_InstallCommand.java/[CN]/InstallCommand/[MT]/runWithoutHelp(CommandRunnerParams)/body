@@ -3,7 +3,28 @@
     params.getConsole().getStdErr().println("Must specify exactly one rule.");
     return 1;
   }
-  int exitCode=super.runWithoutHelp(params);
+  Optional<String> helperTarget=Optional.absent();
+  try {
+    TargetNodeSpec spec=parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getRepository().getFilesystem().getIgnorePaths(),getArguments()).get(0);
+    BuildTarget target=params.getParser().resolveTargetSpec(spec,new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling()).iterator().next();
+    TargetNode<?> node=params.getParser().getTargetNode(target);
+    if (node != null && node.getDescription().getBuildRuleType().equals(AppleBundleDescription.TYPE)) {
+      for (      Flavor flavor : node.getBuildTarget().getFlavors()) {
+        if (ApplePlatform.needsInstallHelper(flavor.getName())) {
+          AppleConfig appleConfig=new AppleConfig(params.getBuckConfig());
+          Optional<BuildTarget> deviceHelperTarget=appleConfig.getAppleDeviceHelperTarget();
+          if (deviceHelperTarget.isPresent()) {
+            helperTarget=Optional.of(deviceHelperTarget.get().toString());
+          }
+        }
+      }
+    }
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    return 1;
+  }
+  int exitCode=super.run(params,helperTarget);
   if (exitCode != 0) {
     return exitCode;
   }

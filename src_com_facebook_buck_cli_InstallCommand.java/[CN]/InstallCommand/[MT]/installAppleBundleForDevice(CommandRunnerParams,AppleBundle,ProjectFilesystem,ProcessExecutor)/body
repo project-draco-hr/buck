@@ -1,13 +1,31 @@
 {
   AppleConfig appleConfig=new AppleConfig(params.getBuckConfig());
   final Path helperPath;
-  Optional<Path> helperOverridePath=appleConfig.getAppleDeviceHelperPath();
-  if (helperOverridePath.isPresent()) {
-    helperPath=projectFilesystem.resolve(helperOverridePath.get());
+  Optional<BuildTarget> helperTarget=appleConfig.getAppleDeviceHelperTarget();
+  if (helperTarget.isPresent()) {
+    Build build=super.getBuild();
+    ActionGraph graph=build.getActionGraph();
+    BuildRule buildRule=graph.findBuildRuleByTarget(helperTarget.get());
+    if (buildRule == null) {
+      params.getConsole().printBuildFailure(String.format("Cannot install %s (could not resolve build rule for device helper target %s)",appleBundle.getFullyQualifiedName(),helperTarget.get().getBaseName()));
+      return FAILURE;
+    }
+    Path buildRuleOutputPath=buildRule.getPathToOutput();
+    if (buildRuleOutputPath == null) {
+      params.getConsole().printBuildFailure(String.format("Cannot install %s (device helper target %s does not specify an output)",appleBundle.getFullyQualifiedName(),helperTarget.get().getBaseName()));
+      return FAILURE;
+    }
+    helperPath=projectFilesystem.resolve(buildRuleOutputPath);
   }
  else {
-    params.getConsole().printBuildFailure(String.format("Cannot install %s (could not find path to device install helper tool)",appleBundle.getFullyQualifiedName()));
-    return FAILURE;
+    Optional<Path> helperOverridePath=appleConfig.getAppleDeviceHelperPath();
+    if (helperOverridePath.isPresent()) {
+      helperPath=projectFilesystem.resolve(helperOverridePath.get());
+    }
+ else {
+      params.getConsole().printBuildFailure(String.format("Cannot install %s (could not find path to device install helper tool)",appleBundle.getFullyQualifiedName()));
+      return FAILURE;
+    }
   }
   AppleDeviceHelper helper=new AppleDeviceHelper(processExecutor,helperPath);
   ImmutableMap<String,String> connectedDevices=helper.getConnectedDevices();
