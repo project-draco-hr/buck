@@ -1,9 +1,12 @@
 {
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   final RuleKey ruleKey=new RuleKey("00000000000000000000000000000000");
+  final List<Response> responseList=Lists.newArrayList();
   HttpArtifactCache cache=new HttpArtifactCache("http",null,null,new URL("http://localhost:8080"),true,filesystem,BUCK_EVENT_BUS){
     @Override protected Response fetchCall(    Request request) throws IOException {
-      return new Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(HttpURLConnection.HTTP_OK).body(createResponseBody(ImmutableSet.of(ruleKey),ImmutableMap.<String,String>of(),ByteSource.wrap(new byte[0]),"data")).build();
+      Response response=new Response.Builder().request(request).protocol(Protocol.HTTP_1_1).code(HttpURLConnection.HTTP_OK).body(createResponseBody(ImmutableSet.of(ruleKey),ImmutableMap.<String,String>of(),ByteSource.wrap(new byte[0]),"data")).build();
+      responseList.add(response);
+      return response;
     }
   }
 ;
@@ -11,5 +14,6 @@
   CacheResult result=cache.fetch(ruleKey,output);
   assertEquals(CacheResultType.ERROR,result.getType());
   assertEquals(Optional.<String>absent(),filesystem.readFileIfItExists(output));
+  assertTrue("response wasn't fully read!",responseList.get(0).body().source().exhausted());
   cache.close();
 }

@@ -2,38 +2,40 @@
   Request request=new Request.Builder().url(new URL(url,"artifacts/key/" + ruleKey.toString())).get().build();
   Response response=fetchCall(request);
   eventBuilder.setResponseSizeBytes(response.body().contentLength());
-  if (response.code() == HttpURLConnection.HTTP_NOT_FOUND) {
-    LOGGER.info("fetch(%s, %s): cache miss",url,ruleKey);
-    return CacheResult.miss();
+  try (DataInputStream input=new DataInputStream(new FullyReadOnCloseInputStream(response.body().byteStream()))){
+    if (response.code() == HttpURLConnection.HTTP_NOT_FOUND) {
+      LOGGER.info("fetch(%s, %s): cache miss",url,ruleKey);
+      return CacheResult.miss();
+    }
+    if (response.code() != HttpURLConnection.HTTP_OK) {
+      String msg=String.format("unexpected response: %d",response.code());
+      reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
+      eventBuilder.setErrorMessage(msg);
+      return CacheResult.error(name,msg);
+    }
+    projectFilesystem.createParentDirs(file);
+    Path temp=projectFilesystem.createTempFile(file.getParent(),file.getFileName().toString(),".tmp");
+    FetchResponseReadResult fetchedData;
+    try (OutputStream tempFileOutputStream=projectFilesystem.newFileOutputStream(temp)){
+      fetchedData=HttpArtifactCacheBinaryProtocol.readFetchResponse(input,tempFileOutputStream);
+    }
+     eventBuilder.setResponseSizeBytes(fetchedData.getResponseSizeBytes());
+    eventBuilder.setArtifactContentHash(fetchedData.getArtifactOnlyHashCode().toString());
+    if (!fetchedData.getRuleKeys().contains(ruleKey)) {
+      String msg="incorrect key name";
+      reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
+      eventBuilder.setErrorMessage(msg);
+      return CacheResult.error(name,msg);
+    }
+    if (!fetchedData.getExpectedHashCode().equals(fetchedData.getActualHashCode())) {
+      String msg="artifact had invalid checksum";
+      reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
+      projectFilesystem.deleteFileAtPath(temp);
+      eventBuilder.setErrorMessage(msg);
+      return CacheResult.error(name,msg);
+    }
+    projectFilesystem.move(temp,file,StandardCopyOption.REPLACE_EXISTING);
+    LOGGER.info("fetch(%s, %s): cache hit",url,ruleKey);
+    return CacheResult.hit(name,fetchedData.getMetadata());
   }
-  if (response.code() != HttpURLConnection.HTTP_OK) {
-    String msg=String.format("unexpected response: %d",response.code());
-    reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
-    eventBuilder.setErrorMessage(msg);
-    return CacheResult.error(name,msg);
-  }
-  projectFilesystem.createParentDirs(file);
-  Path temp=projectFilesystem.createTempFile(file.getParent(),file.getFileName().toString(),".tmp");
-  FetchResponseReadResult fetchedData;
-  try (OutputStream tempFileOutputStream=projectFilesystem.newFileOutputStream(temp)){
-    fetchedData=HttpArtifactCacheBinaryProtocol.readFetchResponse(new FullyReadOnCloseInputStream(response.body().byteStream()),tempFileOutputStream);
-  }
-   eventBuilder.setResponseSizeBytes(fetchedData.getResponseSizeBytes());
-  eventBuilder.setArtifactContentHash(fetchedData.getArtifactOnlyHashCode().toString());
-  if (!fetchedData.getRuleKeys().contains(ruleKey)) {
-    String msg="incorrect key name";
-    reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
-    eventBuilder.setErrorMessage(msg);
-    return CacheResult.error(name,msg);
-  }
-  if (!fetchedData.getExpectedHashCode().equals(fetchedData.getActualHashCode())) {
-    String msg="artifact had invalid checksum";
-    reportFailure("fetch(%s, %s): %s",url,ruleKey,msg);
-    projectFilesystem.deleteFileAtPath(temp);
-    eventBuilder.setErrorMessage(msg);
-    return CacheResult.error(name,msg);
-  }
-  projectFilesystem.move(temp,file,StandardCopyOption.REPLACE_EXISTING);
-  LOGGER.info("fetch(%s, %s): cache hit",url,ruleKey);
-  return CacheResult.hit(name,fetchedData.getMetadata());
-}
+ }
