@@ -2,7 +2,9 @@
   try {
     String watchman=exeFinder.getExecutable(WATCHMAN,env).toAbsolutePath().toString();
     Optional<Map<String,String>> result;
-    result=execute(executor,watchman,"version");
+    long remainingTimeNanos=TIMEOUT_NANOS;
+    long startTimeNanos=clock.nanoTime();
+    result=execute(executor,console,clock,remainingTimeNanos,watchman,"version");
     if (!result.isPresent()) {
       return NULL_WATCHMAN;
     }
@@ -12,16 +14,17 @@
     }
     LOG.debug("Discovered watchman version: %s",rawVersion.get());
     ImmutableSet<Capability> capabilities=deriveCapabilities(rawVersion.get());
-    console.getStdErr().getRawStream().format("Adding watchman root: %s\n",rootPath);
-    LOG.info("Adding watchman root: %s",rootPath);
-    long start=System.currentTimeMillis();
+    Path absoluteRootPath=rootPath.toAbsolutePath();
+    LOG.info("Adding watchman root: %s",absoluteRootPath);
+    long watchStartTimeNanos=clock.nanoTime();
+    remainingTimeNanos-=(watchStartTimeNanos - startTimeNanos);
     if (capabilities.contains(Capability.SUPPORTS_PROJECT_WATCH)) {
-      result=execute(executor,watchman,"watch-project",rootPath.toAbsolutePath().toString());
+      result=execute(executor,console,clock,remainingTimeNanos,watchman,"watch-project",absoluteRootPath.toString());
     }
  else {
-      result=execute(executor,watchman,"watch",rootPath.toAbsolutePath().toString());
+      result=execute(executor,console,clock,remainingTimeNanos,watchman,"watch",absoluteRootPath.toString());
     }
-    LOG.info("Took %d ms to add root %s",(System.currentTimeMillis() - start),rootPath);
+    LOG.info("Took %d ms to add root %s",TimeUnit.NANOSECONDS.toMillis(clock.nanoTime() - watchStartTimeNanos),absoluteRootPath);
     if (!result.isPresent()) {
       return NULL_WATCHMAN;
     }
