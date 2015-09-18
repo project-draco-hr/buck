@@ -1,0 +1,63 @@
+def append_recursive(self, val):
+    if isinstance(val, bool):
+        needed = 1
+        self.ensure_size(needed)
+        if val:
+            to_encode = BSER_TRUE
+        else:
+            to_encode = BSER_FALSE
+        struct.pack_into('=c', self.buf, self.wpos, to_encode)
+        self.wpos += needed
+    elif (val is None):
+        needed = 1
+        self.ensure_size(needed)
+        struct.pack_into('=c', self.buf, self.wpos, BSER_NULL)
+        self.wpos += needed
+    elif isinstance(val, (int, long)):
+        self.append_long(val)
+    elif isinstance(val, (str, unicode)):
+        self.append_string(val)
+    elif isinstance(val, float):
+        needed = 9
+        self.ensure_size(needed)
+        struct.pack_into('=cd', self.buf, self.wpos, BSER_REAL, val)
+        self.wpos += needed
+    elif (isinstance(val, collections.Mapping) and isinstance(val, collections.Sized)):
+        val_len = len(val)
+        size = _int_size(val_len)
+        needed = (2 + size)
+        self.ensure_size(needed)
+        if (size == 1):
+            struct.pack_into('=ccb', self.buf, self.wpos, BSER_OBJECT, BSER_INT8, val_len)
+        elif (size == 2):
+            struct.pack_into('=cch', self.buf, self.wpos, BSER_OBJECT, BSER_INT16, val_len)
+        elif (size == 4):
+            struct.pack_into('=cci', self.buf, self.wpos, BSER_OBJECT, BSER_INT32, val_len)
+        elif (size == 8):
+            struct.pack_into('=ccq', self.buf, self.wpos, BSER_OBJECT, BSER_INT64, val_len)
+        else:
+            raise RuntimeError('Cannot represent this mapping value')
+        self.wpos += needed
+        for (k, v) in val.iteritems():
+            self.append_string(k)
+            self.append_recursive(v)
+    elif (isinstance(val, collections.Iterable) and isinstance(val, collections.Sized)):
+        val_len = len(val)
+        size = _int_size(val_len)
+        needed = (2 + size)
+        self.ensure_size(needed)
+        if (size == 1):
+            struct.pack_into('=ccb', self.buf, self.wpos, BSER_ARRAY, BSER_INT8, val_len)
+        elif (size == 2):
+            struct.pack_into('=cch', self.buf, self.wpos, BSER_ARRAY, BSER_INT16, val_len)
+        elif (size == 4):
+            struct.pack_into('=cci', self.buf, self.wpos, BSER_ARRAY, BSER_INT32, val_len)
+        elif (size == 8):
+            struct.pack_into('=ccq', self.buf, self.wpos, BSER_ARRAY, BSER_INT64, val_len)
+        else:
+            raise RuntimeError('Cannot represent this sequence value')
+        self.wpos += needed
+        for v in val:
+            self.append_recursive(v)
+    else:
+        raise RuntimeError('Cannot represent unknown value type')
