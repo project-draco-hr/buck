@@ -1,0 +1,63 @@
+{
+  processingStates=true;
+  boolean result=true;
+switch (state.getType()) {
+case EXPECT_STDIN:
+    if (stdinClosed) {
+      throw new RuntimeException("stdin is closed");
+    }
+  if (!wantsWrite) {
+    result=false;
+    break;
+  }
+while (wantsWrite) {
+  wantsWrite=listener.onStdinReady(stdinBuffer);
+  try {
+    stdinBytesChannel.write(stdinBuffer);
+  }
+ catch (  IOException e) {
+    throw new RuntimeException(e);
+  }
+  stdinBuffer.clear();
+}
+if (!ByteBuffer.wrap(stdinBytes.toByteArray()).equals(state.getExpectedStdin().get())) {
+throw new RuntimeException("Did not reach expected stdin state");
+}
+stdinBytes=new ByteArrayOutputStream();
+stdinBytesChannel=Channels.newChannel(stdinBytes);
+break;
+case EXPECT_STDIN_CLOSED:
+if (!stdinClosed) {
+result=false;
+break;
+}
+break;
+case STDOUT:
+while (state.getStdout().get().hasRemaining()) {
+listener.onStdout(state.getStdout().get(),false);
+}
+break;
+case STDERR:
+while (state.getStderr().get().hasRemaining()) {
+listener.onStderr(state.getStderr().get(),false);
+}
+break;
+case WAIT:
+long stateWaitTime=state.getWaitNanos().get();
+if (clock.nanoTime() < startTimeNanos + processTimeNanos + stateWaitTime) {
+result=false;
+break;
+}
+processTimeNanos+=stateWaitTime;
+break;
+case EXIT:
+exitCode=state.getExitCode().get();
+ByteBuffer empty=ByteBuffer.allocate(0);
+listener.onStdout(empty,true);
+listener.onStderr(empty,true);
+listener.onExit(exitCode);
+break;
+}
+processingStates=false;
+return result;
+}

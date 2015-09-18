@@ -1,0 +1,11 @@
+{
+  ProcessExecutorParams params=ProcessExecutorParams.ofCommand("cat");
+  FakeListeningProcessExecutor executor=new FakeListeningProcessExecutor(ImmutableMultimap.<ProcessExecutorParams,FakeListeningProcessState>builder().putAll(params,FakeListeningProcessState.ofExpectedStdin("Meow\n"),FakeListeningProcessState.ofExpectStdinClosed(),FakeListeningProcessState.ofStdout("Meow\n"),FakeListeningProcessState.ofExit(0)).build());
+  StdinWritingListener listener=new StdinWritingListener("Meow\n");
+  ListeningProcessExecutor.LaunchedProcess process=executor.launchProcess(params,listener);
+  process.wantWrite();
+  int returnCode=executor.waitForProcess(process,Long.MAX_VALUE,TimeUnit.SECONDS);
+  assertThat(returnCode,equalTo(0));
+  assertThat(listener.capturedStdout.toString("UTF-8"),equalTo("Meow\n"));
+  assertThat(listener.capturedStderr.toString("UTF-8"),is(emptyString()));
+}
