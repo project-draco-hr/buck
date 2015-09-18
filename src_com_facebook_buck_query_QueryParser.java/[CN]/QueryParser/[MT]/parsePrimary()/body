@@ -1,0 +1,63 @@
+{
+switch (token.kind) {
+case WORD:
+{
+      String word=consume(TokenKind.WORD);
+      if (token.kind == TokenKind.LPAREN) {
+        QueryFunction function=functions.get(word);
+        if (function == null) {
+          throw syntaxError(token);
+        }
+        ImmutableList.Builder<Argument> argsBuilder=ImmutableList.builder();
+        TokenKind tokenKind=TokenKind.LPAREN;
+        int argsSeen=0;
+        for (        ArgumentType type : function.getArgumentTypes()) {
+          if (token.kind == TokenKind.RPAREN && argsSeen >= function.getMandatoryArguments()) {
+            break;
+          }
+          consume(tokenKind);
+          tokenKind=TokenKind.COMMA;
+switch (type) {
+case EXPRESSION:
+            argsBuilder.add(Argument.of(parseExpression()));
+          break;
+case WORD:
+        argsBuilder.add(Argument.of(Preconditions.checkNotNull(consume(TokenKind.WORD))));
+      break;
+case INTEGER:
+    argsBuilder.add(Argument.of(consumeIntLiteral()));
+  break;
+default :
+throw new IllegalStateException();
+}
+argsSeen++;
+}
+consume(TokenKind.RPAREN);
+return new FunctionExpression(function,argsBuilder.build());
+}
+ else {
+return new TargetLiteral(Preconditions.checkNotNull(word));
+}
+}
+case LPAREN:
+{
+consume(TokenKind.LPAREN);
+QueryExpression expr=parseExpression();
+consume(TokenKind.RPAREN);
+return expr;
+}
+case SET:
+{
+nextToken();
+consume(TokenKind.LPAREN);
+ImmutableList.Builder<TargetLiteral> wordsBuilder=ImmutableList.builder();
+while (token.kind == TokenKind.WORD) {
+wordsBuilder.add(new TargetLiteral(Preconditions.checkNotNull(consume(TokenKind.WORD))));
+}
+consume(TokenKind.RPAREN);
+return new SetExpression(wordsBuilder.build());
+}
+default :
+throw syntaxError(token);
+}
+}
