@@ -1,33 +1,40 @@
 {
   ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().setCommand(command).setDirectory(filesystem.getRootPath().toAbsolutePath().toFile()).setRedirectOutput(ProcessBuilder.Redirect.PIPE).build();
+  final AtomicBoolean stutterLockIsNotified=new AtomicBoolean(false);
   try {
     LOG.debug("Running command: %s",processExecutorParams);
-    ProcessExecutor.LaunchedProcess launchedProcess=context.getProcessExecutor().launchProcess(processExecutorParams);
-    int exitCode;
-    try (OutputStream outputStream=filesystem.newFileOutputStream(outputPath);TeeInputStream stdoutWrapperStream=new TeeInputStream(launchedProcess.getInputStream(),outputStream)){
-      if (stdoutReadingCallback.isPresent()) {
-        stdoutReadingCallback.get().readStdout(stdoutWrapperStream);
-      }
+    try {
+      acquireStutterLock(stutterLockIsNotified);
+      ProcessExecutor.LaunchedProcess launchedProcess=context.getProcessExecutor().launchProcess(processExecutorParams);
+      int exitCode;
+      try (OutputStream outputStream=filesystem.newFileOutputStream(outputPath);TeeInputStream stdoutWrapperStream=new TeeInputStream(launchedProcess.getInputStream(),outputStream)){
+        if (stdoutReadingCallback.isPresent()) {
+          stdoutReadingCallback.get().readStdout(stdoutWrapperStream);
+        }
  else {
-        stdoutWrapperStream.close();
-        ByteStreams.copy(launchedProcess.getInputStream(),outputStream);
+          stdoutWrapperStream.close();
+          ByteStreams.copy(launchedProcess.getInputStream(),outputStream);
+        }
+        exitCode=waitForProcessAndGetExitCode(context.getProcessExecutor(),launchedProcess);
+        LOG.debug("Finished running command, exit code %d",exitCode);
       }
-      exitCode=waitForProcessAndGetExitCode(context.getProcessExecutor(),launchedProcess);
-      LOG.debug("Finished running command, exit code %d",exitCode);
-    }
   finally {
-      context.getProcessExecutor().destroyLaunchedProcess(launchedProcess);
-      context.getProcessExecutor().waitForLaunchedProcess(launchedProcess);
+        context.getProcessExecutor().destroyLaunchedProcess(launchedProcess);
+        context.getProcessExecutor().waitForLaunchedProcess(launchedProcess);
+      }
+      if (exitCode != 0) {
+        LOG.warn("%s exited with error %d",command,exitCode);
+      }
+      return exitCode;
     }
-    if (exitCode != 0) {
-      LOG.warn("%s exited with error %d",command,exitCode);
+ catch (    Exception e) {
+      LOG.error(e,"Exception while running %s",command);
+      MoreThrowables.propagateIfInterrupt(e);
+      context.getConsole().printBuildFailureWithStacktrace(e);
+      return 1;
     }
-    return exitCode;
   }
- catch (  Exception e) {
-    LOG.error(e,"Exception while running %s",command);
-    MoreThrowables.propagateIfInterrupt(e);
-    context.getConsole().printBuildFailureWithStacktrace(e);
-    return 1;
+  finally {
+    releaseStutterLock(stutterLockIsNotified);
   }
 }
