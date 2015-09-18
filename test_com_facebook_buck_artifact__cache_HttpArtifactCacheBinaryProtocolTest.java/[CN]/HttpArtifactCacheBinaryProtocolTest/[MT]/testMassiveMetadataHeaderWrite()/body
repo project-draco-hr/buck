@@ -1,0 +1,18 @@
+{
+  ImmutableMap.Builder<String,String> metadataBuilder=ImmutableMap.builder();
+  long metadataSize=65 * 1024 * 1024;
+  StringBuilder valueBuilder=new StringBuilder();
+  for (int i=0; i < 16384; ++i) {
+    valueBuilder.append('x');
+  }
+  final String value=valueBuilder.toString();
+  final long valueLength=value.getBytes(Charsets.UTF_8).length;
+  while (metadataSize > 0) {
+    String key="key" + Long.toString(metadataSize);
+    metadataSize-=key.getBytes(Charsets.UTF_8).length + valueLength;
+    metadataBuilder.put(key,value);
+  }
+  thrown.expect(IOException.class);
+  thrown.expectMessage(Matchers.containsString("too big"));
+  HttpArtifactCacheBinaryProtocol.createMetadataHeader(ImmutableSet.of(new RuleKey("0000")),metadataBuilder.build(),ByteSource.wrap("wsad".getBytes(Charsets.UTF_8)));
+}

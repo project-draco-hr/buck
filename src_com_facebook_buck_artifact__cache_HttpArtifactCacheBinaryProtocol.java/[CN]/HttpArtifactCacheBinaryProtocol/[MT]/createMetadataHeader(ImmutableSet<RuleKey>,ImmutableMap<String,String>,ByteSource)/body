@@ -12,9 +12,16 @@
       byte[] val=ent.getValue().getBytes(Charsets.UTF_8);
       out.writeInt(val.length);
       out.write(val);
+      if (out.size() > MAX_METADATA_HEADER_SIZE) {
+        throw new IOException("Metadata header too big.");
+      }
     }
   }
    data.copyTo(new HasherOutputStream(hasher,ByteStreams.nullOutputStream()));
   rawOut.write(hasher.hash().asBytes());
-  return rawOut.toByteArray();
+  byte[] bytes=rawOut.toByteArray();
+  if (bytes.length > MAX_METADATA_HEADER_SIZE) {
+    throw new IOException("Metadata header too big.");
+  }
+  return bytes;
 }
