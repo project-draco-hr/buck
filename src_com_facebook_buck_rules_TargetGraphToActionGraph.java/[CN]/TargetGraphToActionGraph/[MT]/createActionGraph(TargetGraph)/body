@@ -1,40 +1,39 @@
 {
   ActionGraphEvent.Started started=ActionGraphEvent.started();
   eventBus.post(started);
-  final LoadingCache<ProjectFilesystem,RepoSpecificData> mappedRepos=CacheBuilder.newBuilder().build(new CacheLoader<ProjectFilesystem,RepoSpecificData>(){
-    @Override public RepoSpecificData load(    ProjectFilesystem filesystem){
-      return new RepoSpecificData(fileHashCache);
+  final LoadingCache<CellFilesystemResolver,Pair<BuildRuleResolver,RuleKeyBuilderFactory>> cellSpecificData=CacheBuilder.newBuilder().build(new CacheLoader<CellFilesystemResolver,Pair<BuildRuleResolver,RuleKeyBuilderFactory>>(){
+    @Override public Pair<BuildRuleResolver,RuleKeyBuilderFactory> load(    CellFilesystemResolver cellNameResolver) throws Exception {
+      BuildRuleResolver ruleResolver=new BuildRuleResolverView(cellNameResolver);
+      StackedFileHashCache cellHashCache=new StackedFileHashCache(ImmutableList.of(fileHashCache,new DefaultFileHashCache(cellNameResolver.getFilesystem())));
+      RuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(cellHashCache,new SourcePathResolver(ruleResolver));
+      return new Pair<>(ruleResolver,factory);
     }
   }
 );
   AbstractBottomUpTraversal<TargetNode<?>,ActionGraph> bottomUpTraversal=new AbstractBottomUpTraversal<TargetNode<?>,ActionGraph>(targetGraph){
     @Override public void visit(    TargetNode<?> node){
-      ProjectFilesystem filesystem=node.getRuleFactoryParams().getProjectFilesystem();
-      RepoSpecificData data=mappedRepos.getUnchecked(filesystem);
+      Pair<BuildRuleResolver,RuleKeyBuilderFactory> data=cellSpecificData.getUnchecked(node.getCellFilesystemResolver());
       BuildRule rule;
       try {
-        rule=buildRuleGenerator.transform(targetGraph,data.ruleResolver,node,data.ruleKeyBuilderFactory);
+        rule=buildRuleGenerator.transform(targetGraph,data.getFirst(),node,data.getSecond());
       }
  catch (      NoSuchBuildTargetException e) {
         throw new HumanReadableException(e);
       }
-      Optional<BuildRule> existingRule=data.ruleResolver.getRuleOptional(rule.getBuildTarget());
+      BuildRuleResolver ruleResolver=data.getFirst();
+      Optional<BuildRule> existingRule=ruleResolver.getRuleOptional(rule.getBuildTarget());
       Preconditions.checkState(!existingRule.isPresent() || existingRule.get().equals(rule));
       if (!existingRule.isPresent()) {
-        data.ruleResolver.addToIndex(rule);
+        ruleResolver.addToIndex(rule);
       }
     }
   }
 ;
   bottomUpTraversal.traverse();
-  ImmutableMap.Builder<ProjectFilesystem,BuildRuleResolver> resolvers=ImmutableMap.builder();
   ImmutableSet.Builder<BuildRule> allRules=ImmutableSet.builder();
-  for (  Map.Entry<ProjectFilesystem,RepoSpecificData> entry : mappedRepos.asMap().entrySet()) {
-    BuildRuleResolver ruleResolver=entry.getValue().ruleResolver;
-    resolvers.put(entry.getKey(),ruleResolver);
-    allRules.addAll(ruleResolver.getBuildRules());
+  for (  BuildRuleResolver resolver : ruleResolvers.asMap().values()) {
+    allRules.addAll(resolver.getBuildRules());
   }
-  ruleResolvers=resolvers.build();
   ActionGraph result=new ActionGraph(allRules.build());
   eventBus.post(ActionGraphEvent.finished(started));
   return result;

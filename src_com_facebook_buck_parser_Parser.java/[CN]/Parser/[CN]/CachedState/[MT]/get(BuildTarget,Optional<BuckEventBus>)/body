@@ -3,13 +3,9 @@
   if (toReturn != null) {
     return toReturn;
   }
-  if (buildTarget.getRepository().isPresent()) {
-    throw new HumanReadableException("Buck does not currently support multiple repos: %d",buildTarget);
-  }
-  Repository targetRepo=repository;
   Path buildFilePath;
   try {
-    buildFilePath=targetRepo.getAbsolutePathToBuildFile(buildTarget);
+    buildFilePath=repository.getAbsolutePathToBuildFile(buildTarget);
   }
  catch (  Repository.MissingBuildFileException e) {
     throw new HumanReadableException(e);
@@ -38,7 +34,8 @@
       }
     }
     this.pathsToBuildTargets.put(buildFilePath,buildTarget);
-    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetRepo.getFilesystem(),buildTarget,buildFileTreeCache.get(),targetRepo.isEnforcingBuckPackageBoundaries());
+    Repository targetRepo=Parser.this.repository.getRepository(buildTarget.getRepository());
+    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetRepo.getFilesystem(),buildTarget.withoutRepository(),buildFileTreeCache.get(),targetRepo.isEnforcingBuckPackageBoundaries());
     Object constructorArg=description.createUnpopulatedConstructorArg();
     TargetNode<?> targetNode;
     try {
