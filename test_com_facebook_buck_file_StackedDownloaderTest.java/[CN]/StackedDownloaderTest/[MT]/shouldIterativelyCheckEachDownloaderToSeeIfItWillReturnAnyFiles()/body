@@ -1,0 +1,17 @@
+{
+  Downloader noMatch=EasyMock.createNiceMock("noMatch",Downloader.class);
+  Downloader exceptional=EasyMock.createNiceMock("exceptional",Downloader.class);
+  Downloader works=EasyMock.createNiceMock("works",Downloader.class);
+  Downloader neverCalled=EasyMock.createStrictMock("neverCalled",Downloader.class);
+  BuckEventBus eventBus=BuckEventBusFactory.newInstance();
+  URI uri=new URI("http://example.com/cheese/peas");
+  Path output=Paths.get("never used");
+  EasyMock.expect(noMatch.fetch(eventBus,uri,output)).andReturn(false);
+  EasyMock.expect(exceptional.fetch(eventBus,uri,output)).andThrow(new IOException(""));
+  EasyMock.expect(works.fetch(eventBus,uri,output)).andReturn(true);
+  EasyMock.replay(noMatch,exceptional,works,neverCalled);
+  StackedDownloader downloader=new StackedDownloader(ImmutableList.of(noMatch,exceptional,works,neverCalled));
+  boolean result=downloader.fetch(eventBus,uri,output);
+  assertTrue(result);
+  EasyMock.verify(noMatch,exceptional,works,neverCalled);
+}

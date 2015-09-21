@@ -1,0 +1,39 @@
+{
+  ImmutableList.Builder<Downloader> downloaders=ImmutableList.builder();
+  DownloadConfig downloadConfig=new DownloadConfig(config);
+  Optional<Proxy> proxy=downloadConfig.getProxy();
+  for (  String repo : downloadConfig.getAllMavenRepos()) {
+    if (repo.startsWith("http:") || repo.startsWith("https://")) {
+      downloaders.add(new RemoteMavenDownloader(proxy,repo));
+    }
+ else     if (repo.startsWith("file:")) {
+      try {
+        URL url=new URL(repo);
+        Preconditions.checkNotNull(url.getPath());
+        downloaders.add(new OnDiskMavenDownloader(config.resolvePathThatMayBeOutsideTheProjectFilesystem(Paths.get(url.getPath()))));
+      }
+ catch (      MalformedURLException e) {
+        throw new HumanReadableException("Unable to determine path from %s",repo);
+      }
+    }
+ else {
+      downloaders.add(new OnDiskMavenDownloader(config.resolvePathThatMayBeOutsideTheProjectFilesystem(Paths.get(repo))));
+    }
+  }
+  if (androidSdkRoot.isPresent()) {
+    Path androidMavenRepo=androidSdkRoot.get().resolve("extras/android/m2repository");
+    if (Files.exists(androidMavenRepo)) {
+      downloaders.add(new OnDiskMavenDownloader(androidMavenRepo));
+    }
+    Path googleMavenRepo=androidSdkRoot.get().resolve("extras/google/m2repository");
+    if (Files.exists(googleMavenRepo)) {
+      downloaders.add(new OnDiskMavenDownloader(googleMavenRepo));
+    }
+  }
+  Optional<String> defaultMavenRepo=downloadConfig.getMavenRepo();
+  if (defaultMavenRepo.isPresent()) {
+    LOG.warn("Please configure maven repos by adding them to a 'maven_repositories' " + "section in your buckconfig");
+  }
+  downloaders.add(new HttpDownloader(proxy));
+  return new StackedDownloader(downloaders.build());
+}

@@ -1,0 +1,20 @@
+{
+  if (!"mvn".equals(uri.getScheme())) {
+    return false;
+  }
+  uri=MavenUrlDecoder.toHttpUrl(SPOOF_MAVEN_REPO,uri);
+  uri=root.resolve(uri.getPath()).toUri();
+  Path target=root.resolve(uri.getPath().substring(1));
+  if (!Files.exists(target)) {
+    throw new IOException(String.format("Unable to download %s (derived from %s)",target,uri));
+  }
+  DownloadEvent.Started started=DownloadEvent.started(uri);
+  eventBus.post(started);
+  try (InputStream is=new BufferedInputStream(Files.newInputStream(target))){
+    Files.copy(is,output);
+  }
+  finally {
+    eventBus.post(DownloadEvent.finished(started));
+  }
+  return true;
+}

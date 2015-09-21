@@ -1,0 +1,22 @@
+{
+  Downloader downloader=StackedDownloader.createFromConfig(new FakeBuckConfig(),Optional.<Path>absent());
+  List<Downloader> downloaders=unpackDownloaders(downloader);
+  for (  Downloader seen : downloaders) {
+    assertFalse(seen instanceof OnDiskMavenDownloader);
+  }
+  FileSystem vfs=Jimfs.newFileSystem(Configuration.unix());
+  Path sdkRoot=vfs.getPath("/opt/android_sdk");
+  Path androidM2=sdkRoot.resolve("extras/android/m2repository");
+  Path googleM2=sdkRoot.resolve("extras/google/m2repository");
+  Files.createDirectories(androidM2);
+  Files.createDirectories(googleM2);
+  downloader=StackedDownloader.createFromConfig(new FakeBuckConfig(),Optional.of(sdkRoot));
+  downloaders=unpackDownloaders(downloader);
+  int count=0;
+  for (  Downloader seen : downloaders) {
+    if (seen instanceof OnDiskMavenDownloader) {
+      count++;
+    }
+  }
+  assertEquals(2,count);
+}

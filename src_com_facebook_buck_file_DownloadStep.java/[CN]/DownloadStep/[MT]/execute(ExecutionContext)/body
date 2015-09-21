@@ -2,7 +2,10 @@
   BuckEventBus eventBus=context.getBuckEventBus();
   try {
     Path resolved=filesystem.resolve(output);
-    downloader.fetch(eventBus,url,resolved);
+    boolean success=downloader.fetch(eventBus,url,resolved);
+    if (!success) {
+      return reportFailedDownload(eventBus);
+    }
     HashCode readHash=Files.asByteSource(resolved.toFile()).hash(Hashing.sha1());
     if (!sha1.equals(readHash)) {
       eventBus.post(ConsoleEvent.severe("Unable to download %s (hashes do not match. Expected %s, saw %s)",url,sha1,readHash));
@@ -10,8 +13,7 @@
     }
   }
  catch (  IOException e) {
-    eventBus.post(ConsoleEvent.severe("Unable to download: %s",url));
-    return -1;
+    return reportFailedDownload(eventBus);
   }
 catch (  HumanReadableException e) {
     eventBus.post(ConsoleEvent.severe(e.getHumanReadableErrorMessage(),e));
