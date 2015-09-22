@@ -22,5 +22,11 @@
   BuildRuleParams binaryParams=params.copyWithChanges(getBinaryBuildTarget(params.getBuildTarget()),Suppliers.ofInstance(PythonUtil.getDepsFromComponents(pathResolver,allComponents)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   PythonBinary binary=binaryDescription.createPackageRule(binaryParams,resolver,pathResolver,cxxPlatform,PythonUtil.toModuleName(params.getBuildTarget(),getTestMainName().toString()),allComponents,args.buildArgs.or(ImmutableList.<String>of()));
   resolver.addToIndex(binary);
-  return new PythonTest(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps().get()).add(binary).build()),params.getExtraDeps()),pathResolver,binary,ImmutableSortedSet.copyOf(Sets.difference(params.getDeps(),binaryParams.getDeps())),resolver.getAllRules(args.sourceUnderTest.or(ImmutableSortedSet.<BuildTarget>of())),args.labels.or(ImmutableSet.<Label>of()),args.contacts.or(ImmutableSet.<String>of()));
+  Supplier<ImmutableMap<String,String>> testEnv=new Supplier<ImmutableMap<String,String>>(){
+    @Override public ImmutableMap<String,String> get(){
+      return ImmutableMap.copyOf(Maps.transformValues(args.env.or(ImmutableMap.<String,String>of()),MACRO_HANDLER.getExpander(params.getBuildTarget(),resolver,params.getProjectFilesystem())));
+    }
+  }
+;
+  return new PythonTest(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps().get()).add(binary).build()),params.getExtraDeps()),pathResolver,testEnv,binary,ImmutableSortedSet.copyOf(Sets.difference(params.getDeps(),binaryParams.getDeps())),resolver.getAllRules(args.sourceUnderTest.or(ImmutableSortedSet.<BuildTarget>of())),args.labels.or(ImmutableSet.<Label>of()),args.contacts.or(ImmutableSet.<String>of()));
 }
