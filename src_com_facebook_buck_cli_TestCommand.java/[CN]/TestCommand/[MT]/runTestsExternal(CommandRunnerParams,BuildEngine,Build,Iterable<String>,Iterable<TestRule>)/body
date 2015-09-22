@@ -6,7 +6,7 @@
       return 1;
     }
     RuleKey ruleKey=buildEngine.getRuleKey(testRule.getBuildTarget());
-    Path infoFile=((BuildRule)testRule).getProjectFilesystem().resolve(testRule.getPathToTestOutputDirectory().resolve(String.format("external_runner.%s.json",ruleKey)));
+    Path infoFile=params.getCell().getFilesystem().resolve(testRule.getPathToTestOutputDirectory().resolve(String.format("external_runner.%s.json",ruleKey)));
     if (!Files.exists(infoFile) || !isResultsCacheEnabled(params.getBuckConfig())) {
       Files.createDirectories(infoFile.getParent());
       ExternalTestRunnerRule rule=(ExternalTestRunnerRule)testRule;
@@ -15,7 +15,7 @@
     infoFileArgs.add(infoFile.toString());
   }
   ListeningProcessExecutor processExecutor=new ListeningProcessExecutor();
-  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().addAllCommand(command).addAllCommand(infoFileArgs).build();
+  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().addAllCommand(command).addAllCommand(infoFileArgs).setDirectory(params.getCell().getFilesystem().getRootPath().toFile()).build();
   final WritableByteChannel stdout=Channels.newChannel(params.getConsole().getStdOut());
   final WritableByteChannel stderr=Channels.newChannel(params.getConsole().getStdErr());
   ListeningProcessExecutor.ProcessListener processListener=new ListeningProcessExecutor.ProcessListener(){
