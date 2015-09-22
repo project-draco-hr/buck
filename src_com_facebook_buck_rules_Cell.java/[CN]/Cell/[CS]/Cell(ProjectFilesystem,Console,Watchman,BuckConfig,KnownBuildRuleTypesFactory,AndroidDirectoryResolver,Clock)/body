@@ -1,0 +1,37 @@
+{
+  this.filesystem=filesystem;
+  this.watchman=watchman;
+  this.config=config;
+  this.directoryResolver=directoryResolver;
+  ParserConfig parserConfig=new ParserConfig(config);
+  this.buildFileName=parserConfig.getBuildFileName();
+  this.enforceBuckPackageBoundaries=parserConfig.getEnforceBuckPackageBoundary();
+  this.tempFilePatterns=parserConfig.getTempFilePatterns();
+  PythonBuckConfig pythonConfig=new PythonBuckConfig(config,new ExecutableFinder());
+  this.pythonInterpreter=pythonConfig.getPythonInterpreter();
+  this.knownBuildRuleTypes=knownBuildRuleTypesFactory.create(config);
+  this.cells=CacheBuilder.newBuilder().build(new CacheLoader<String,Cell>(){
+    @Override public Cell load(    String cellName) throws Exception {
+      Optional<Path> root=getBuckConfig().getPath("repositories",cellName,false);
+      if (!root.isPresent()) {
+        throw new HumanReadableException("Unable to find repository named '%s' in repo rooted at %s",cellName,getFilesystem().getRootPath());
+      }
+      ImmutableMap<String,ImmutableMap<String,String>> sections=ImmutableMap.of();
+      Config config=Config.createDefaultConfig(root.get(),sections);
+      ProjectFilesystem cellFilesystem=new ProjectFilesystem(root.get(),config);
+      Cell parent=Cell.this;
+      BuckConfig parentConfig=parent.getBuckConfig();
+      BuckConfig buckConfig=new BuckConfig(config,cellFilesystem,parentConfig.getPlatform(),parentConfig.getEnvironment());
+      Watchman.build(root.get(),parentConfig.getEnvironment(),console,clock);
+      return new Cell(cellFilesystem,console,watchman,buckConfig,knownBuildRuleTypesFactory,directoryResolver,clock);
+    }
+  }
+);
+  Function<Optional<String>,ProjectFilesystem> cellFilesystemAliases=new Function<Optional<String>,ProjectFilesystem>(){
+    @Override public ProjectFilesystem apply(    Optional<String> cellName){
+      return getCell(cellName).getFilesystem();
+    }
+  }
+;
+  this.cellFilesystemResolver=new CellFilesystemResolver(getFilesystem(),cellFilesystemAliases);
+}

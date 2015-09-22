@@ -5,9 +5,9 @@
   }
   Path buildFilePath;
   try {
-    buildFilePath=repository.getAbsolutePathToBuildFile(buildTarget);
+    buildFilePath=cell.getAbsolutePathToBuildFile(buildTarget);
   }
- catch (  Repository.MissingBuildFileException e) {
+ catch (  Cell.MissingBuildFileException e) {
     throw new HumanReadableException(e);
   }
   UnflavoredBuildTarget unflavored=buildTarget.getUnflavoredBuildTarget();
@@ -18,7 +18,7 @@
     }
     BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(map);
     targetsToFile.put(BuildTarget.of(unflavored),normalize(Paths.get((String)map.get("buck.base_path"))).resolve(buildFile).toAbsolutePath());
-    Description<?> description=repository.getDescription(buildRuleType);
+    Description<?> description=cell.getDescription(buildRuleType);
     if (description == null) {
       throw new HumanReadableException("Unrecognized rule %s while parsing %s%s.",buildRuleType,UnflavoredBuildTarget.BUILD_TARGET_PREFIX,MorePaths.pathWithUnixSeparators(unflavored.getBasePath().resolve(buildFile)));
     }
@@ -34,8 +34,8 @@
       }
     }
     this.pathsToBuildTargets.put(buildFilePath,buildTarget);
-    Repository targetRepo=Parser.this.repository.getRepository(buildTarget.getRepository());
-    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetRepo.getFilesystem(),buildTarget.withoutRepository(),buildFileTreeCache.get(),targetRepo.isEnforcingBuckPackageBoundaries());
+    Cell targetRepo=Parser.this.cell.getCell(buildTarget.getCell());
+    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetRepo.getFilesystem(),buildTarget.withoutCell(),buildFileTreeCache.get(),targetRepo.isEnforcingBuckPackageBoundaries());
     Object constructorArg=description.createUnpopulatedConstructorArg();
     TargetNode<?> targetNode;
     try {
@@ -45,7 +45,7 @@
         marshaller.populate(targetRepo.getFilesystem(),factoryParams,constructorArg,declaredDeps,visibilityPatterns,map);
       }
        try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,PerfEventId.of("CreatedTargetNode"),"target",buildTarget)){
-        targetNode=new TargetNode(description,constructorArg,factoryParams,declaredDeps.build(),visibilityPatterns.build(),targetRepo.getRepositoryAliases());
+        targetNode=new TargetNode(description,constructorArg,factoryParams,declaredDeps.build(),visibilityPatterns.build(),targetRepo.getCellAliases());
       }
      }
  catch (    NoSuchBuildTargetException|TargetNode.InvalidSourcePathInputException e) {
