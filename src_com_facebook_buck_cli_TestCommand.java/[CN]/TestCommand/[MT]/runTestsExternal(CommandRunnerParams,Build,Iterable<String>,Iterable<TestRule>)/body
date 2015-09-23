@@ -1,21 +1,20 @@
 {
-  List<String> infoFileArgs=Lists.newArrayList();
+  TestRunningOptions options=getTestRunningOptions(params);
+  List<ExternalTestRunnerTestSpec> specs=Lists.newArrayList();
   for (  TestRule testRule : testRules) {
     if (!(testRule instanceof ExternalTestRunnerRule)) {
       params.getBuckEventBus().post(ConsoleEvent.severe(String.format("Test %s does not support external test running",testRule.getBuildTarget())));
       return 1;
     }
-    RuleKey ruleKey=buildEngine.getRuleKey(testRule.getBuildTarget());
-    Path infoFile=params.getCell().getFilesystem().resolve(testRule.getPathToTestOutputDirectory().resolve(String.format("external_runner.%s.json",ruleKey)));
-    if (!Files.exists(infoFile) || !isResultsCacheEnabled(params.getBuckConfig())) {
-      Files.createDirectories(infoFile.getParent());
-      ExternalTestRunnerRule rule=(ExternalTestRunnerRule)testRule;
-      params.getObjectMapper().writeValue(infoFile.toFile(),rule.getExternalTestRunnerSpec(build.getExecutionContext(),getTestRunningOptions(params)));
-    }
-    infoFileArgs.add(infoFile.toString());
+    ExternalTestRunnerRule rule=(ExternalTestRunnerRule)testRule;
+    specs.add(rule.getExternalTestRunnerSpec(build.getExecutionContext(),options));
   }
+  Path infoFile=params.getCell().getFilesystem().resolve(BuckConstant.SCRATCH_PATH.resolve("external_runner_specs.json"));
+  Files.createDirectories(infoFile.getParent());
+  Files.deleteIfExists(infoFile);
+  params.getObjectMapper().writerWithDefaultPrettyPrinter().writeValue(infoFile.toFile(),specs);
   ListeningProcessExecutor processExecutor=new ListeningProcessExecutor();
-  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().addAllCommand(command).addAllCommand(infoFileArgs).setDirectory(params.getCell().getFilesystem().getRootPath().toFile()).build();
+  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().addAllCommand(command).addCommand("--buck-test-info",infoFile.toString()).setDirectory(params.getCell().getFilesystem().getRootPath().toFile()).build();
   final WritableByteChannel stdout=Channels.newChannel(params.getConsole().getStdOut());
   final WritableByteChannel stderr=Channels.newChannel(params.getConsole().getStdErr());
   ListeningProcessExecutor.ProcessListener processListener=new ListeningProcessExecutor.ProcessListener(){
