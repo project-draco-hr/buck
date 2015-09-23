@@ -1,5 +1,6 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  ExternalTestRunnerTestSpec.Builder externalSpec=ExternalTestRunnerTestSpec.builder().setTarget(getBuildTarget().toString()).setLabels(getLabels()).setContacts(getContacts());
   Path resolvedTestBundleDirectory=getProjectFilesystem().resolve(Preconditions.checkNotNull(testBundle.getPathToOutput()));
   Path pathToTestOutput=getProjectFilesystem().resolve(getPathToTestOutputDirectory());
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),pathToTestOutput));
@@ -44,7 +45,10 @@
  else {
       destinationSpecifierArg=defaultDestinationSpecifier;
     }
-    steps.add(new XctoolRunTestsStep(getProjectFilesystem(),xctoolBinaryPath,xctoolStutterTimeout,platformName,destinationSpecifierArg,logicTestPathsBuilder.build(),appTestPathsToHostAppsBuilder.build(),resolvedTestOutputPath,xctoolStdoutReader));
+    XctoolRunTestsStep xctoolStep=new XctoolRunTestsStep(getProjectFilesystem(),xctoolBinaryPath,xctoolStutterTimeout,platformName,destinationSpecifierArg,logicTestPathsBuilder.build(),appTestPathsToHostAppsBuilder.build(),resolvedTestOutputPath,xctoolStdoutReader);
+    steps.add(xctoolStep);
+    externalSpec.setType("xctool");
+    externalSpec.setCommand(xctoolStep.getCommand());
   }
  else {
     Tool testRunningTool;
@@ -57,7 +61,11 @@
  else {
       throw new HumanReadableException("Cannot run non-xctest bundle type %s (otest not present)",testBundleExtension);
     }
-    steps.add(new XctestRunTestsStep(getProjectFilesystem(),testRunningTool.getCommandPrefix(getResolver()),(testBundleExtension.equals("xctest") ? "-XCTest" : "-SenTest"),resolvedTestBundleDirectory,resolvedTestOutputPath));
+    XctestRunTestsStep xctestStep=new XctestRunTestsStep(getProjectFilesystem(),testRunningTool.getCommandPrefix(getResolver()),(testBundleExtension.equals("xctest") ? "-XCTest" : "-SenTest"),resolvedTestBundleDirectory,resolvedTestOutputPath);
+    steps.add(xctestStep);
+    externalSpec.setType("xctest");
+    externalSpec.setCommand(xctestStep.getCommand());
+    externalSpec.setEnv(xctestStep.getEnv(context));
   }
-  return steps.build();
+  return new Pair<>(steps.build(),externalSpec.build());
 }
