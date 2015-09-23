@@ -70,18 +70,19 @@
   int exitCode;
   ImmutableList<BuckEventListener> eventListeners=ImmutableList.of();
   ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(processExecutor,clientEnvironment,System.getProperties());
+  ParserConfig.AllowSymlinks allowSymlinks=parserConfig.getAllowSymlinks();
   ProjectFileHashCache cellHashCache;
   ProjectFileHashCache buckOutHashCache;
   if (isDaemon) {
-    cellHashCache=getFileHashCacheFromDaemon(rootCell,globHandler);
-    buckOutHashCache=getBuckOutFileHashCacheFromDaemon(rootCell,globHandler);
+    cellHashCache=getFileHashCacheFromDaemon(rootCell,globHandler,allowSymlinks);
+    buckOutHashCache=getBuckOutFileHashCacheFromDaemon(rootCell,globHandler,allowSymlinks);
   }
  else {
     cellHashCache=new DefaultFileHashCache(rootCell.getFilesystem());
     buckOutHashCache=new DefaultFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath(),Optional.of(ImmutableSet.of(BuckConstant.BUCK_OUTPUT_PATH)),ImmutableSet.<Path>of()));
   }
   FileHashCache fileHashCache=new StackedFileHashCache(ImmutableList.of(cellHashCache,buckOutHashCache,new DefaultFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath())),new DefaultFileHashCache(new ProjectFilesystem(Paths.get("/")))));
-  Optional<WebServer> webServer=getWebServerIfDaemon(context,rootCell,globHandler);
+  Optional<WebServer> webServer=getWebServerIfDaemon(context,rootCell,globHandler,allowSymlinks);
   TestConfig testConfig=new TestConfig(buckConfig);
   ArtifactCacheBuckConfig cacheBuckConfig=new ArtifactCacheBuckConfig(buckConfig);
   ExecutorService vcStatsExecutorService=MoreExecutors.newSingleThreadExecutor("VC Stats");
@@ -99,16 +100,16 @@
     Parser parser=null;
     if (isDaemon && watchman != Watchman.NULL_WATCHMAN) {
       try {
-        Daemon daemon=getDaemon(rootCell,globHandler);
+        Daemon daemon=getDaemon(rootCell,globHandler,allowSymlinks);
         WatchmanWatcher watchmanWatcher=new WatchmanWatcher(watchman.getWatchRoot().or(canonicalRootPath.toString()),daemon.getFileEventBus(),clock,objectMapper,processExecutor,filesystem.getIgnorePaths(),DEFAULT_IGNORE_GLOBS,watchman,daemon.getWatchmanQueryUUID());
-        parser=getParserFromDaemon(context,rootCell,startedEvent,buildEventBus,watchmanWatcher,globHandler);
+        parser=getParserFromDaemon(context,rootCell,startedEvent,buildEventBus,watchmanWatcher,globHandler,allowSymlinks);
       }
  catch (      WatchmanWatcherException|IOException e) {
         buildEventBus.post(ConsoleEvent.warning("Watchman threw an exception while parsing file changes.\n%s",e.getMessage()));
       }
     }
     if (parser == null) {
-      parser=Parser.createBuildFileParser(rootCell,globHandler == ParserConfig.GlobHandler.WATCHMAN);
+      parser=Parser.createBuildFileParser(rootCell,globHandler == ParserConfig.GlobHandler.WATCHMAN,allowSymlinks);
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootCell.getFilesystem());
     Optional<ProcessManager> processManager;

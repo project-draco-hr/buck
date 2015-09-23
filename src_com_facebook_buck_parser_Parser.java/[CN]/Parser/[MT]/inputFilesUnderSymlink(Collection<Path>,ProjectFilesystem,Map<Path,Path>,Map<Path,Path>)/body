@@ -5,22 +5,16 @@
       Path subpath=input.subpath(0,i);
       Path resolvedSymlink=symlinkExistenceCache.get(subpath);
       if (resolvedSymlink != null) {
+        LOG.debug("Detected cached symlink %s -> %s",subpath,resolvedSymlink);
         newSymlinksEncountered.put(subpath,resolvedSymlink);
         result=true;
       }
  else       if (projectFilesystem.isSymLink(subpath)) {
-        try {
-          resolvedSymlink=projectFilesystem.getRootPath().relativize(subpath.toRealPath());
-          LOG.debug("Detected symbolic link %s -> %s",subpath,resolvedSymlink);
-          newSymlinksEncountered.put(subpath,resolvedSymlink);
-          symlinkExistenceCache.put(subpath,resolvedSymlink);
-        }
- catch (        NoSuchFileException e) {
-          LOG.verbose(e,"No such file detecting symlink at %s",subpath);
-        }
-catch (        IOException e) {
-          LOG.error(e,"Couldn't detect symbolic link at %s",subpath);
-        }
+        Path symlinkTarget=projectFilesystem.resolve(subpath).toRealPath();
+        Path relativeSymlinkTarget=projectFilesystem.getPathRelativeToProjectRoot(symlinkTarget).or(symlinkTarget);
+        LOG.debug("Detected symbolic link %s -> %s",subpath,relativeSymlinkTarget);
+        newSymlinksEncountered.put(subpath,relativeSymlinkTarget);
+        symlinkExistenceCache.put(subpath,relativeSymlinkTarget);
         result=true;
       }
     }
