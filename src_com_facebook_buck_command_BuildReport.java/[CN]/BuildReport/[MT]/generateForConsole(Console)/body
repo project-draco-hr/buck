@@ -1,4 +1,6 @@
 {
+  Ansi ansi=console.getAnsi();
+  Map<BuildRule,Optional<BuildResult>> ruleToResult=buildExecutionResult.getResults();
   StringBuilder report=new StringBuilder();
   for (  Map.Entry<BuildRule,Optional<BuildResult>> entry : ruleToResult.entrySet()) {
     BuildRule rule=entry.getKey();
@@ -21,6 +23,13 @@
       outputFile=null;
     }
     report.append(String.format("%s %s%s%s\n",successIndicator,rule.getBuildTarget(),successType != null ? " " + successType : "",outputFile != null ? " " + outputFile : ""));
+  }
+  if (!buildExecutionResult.getFailures().isEmpty() && console.getVerbosity().shouldPrintCommand()) {
+    report.append("\n ** Summary of failures encountered during the build **\n");
+    for (    BuildResult failureResult : buildExecutionResult.getFailures()) {
+      Throwable failure=Preconditions.checkNotNull(failureResult.getFailure());
+      report.append(String.format("Rule %s FAILED because %s.\n",failureResult.getRule().getFullyQualifiedName(),failure.getMessage()));
+    }
   }
   return report.toString();
 }

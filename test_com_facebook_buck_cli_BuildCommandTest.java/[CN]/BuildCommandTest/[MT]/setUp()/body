@@ -1,7 +1,7 @@
 {
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
   SourcePathResolver resolver=new SourcePathResolver(ruleResolver);
-  ruleToResult=new LinkedHashMap<>();
+  LinkedHashMap<BuildRule,Optional<BuildResult>> ruleToResult=new LinkedHashMap<>();
   BuildRule rule1=new FakeBuildRule(BuildTargetFactory.newInstance("//fake:rule1"),resolver){
     @Override @Nullable public Path getPathToOutput(){
       return Paths.get("buck-out/gen/fake/rule1.txt");
@@ -10,9 +10,11 @@
 ;
   ruleToResult.put(rule1,Optional.of(BuildResult.success(rule1,BUILT_LOCALLY,CacheResult.skip())));
   BuildRule rule2=new FakeBuildRule(BuildTargetFactory.newInstance("//fake:rule2"),resolver);
-  ruleToResult.put(rule2,Optional.of(BuildResult.failure(rule2,new RuntimeException("some"))));
+  BuildResult rule2Failure=BuildResult.failure(rule2,new RuntimeException("some"));
+  ruleToResult.put(rule2,Optional.of(rule2Failure));
   BuildRule rule3=new FakeBuildRule(BuildTargetFactory.newInstance("//fake:rule3"),resolver);
   ruleToResult.put(rule3,Optional.of(BuildResult.success(rule3,FETCHED_FROM_CACHE,CacheResult.hit("dir"))));
   BuildRule rule4=new FakeBuildRule(BuildTargetFactory.newInstance("//fake:rule4"),resolver);
   ruleToResult.put(rule4,Optional.<BuildResult>absent());
+  buildExecutionResult=BuildExecutionResult.builder().setResults(ruleToResult).setFailures(ImmutableSet.of(rule2Failure)).build();
 }
