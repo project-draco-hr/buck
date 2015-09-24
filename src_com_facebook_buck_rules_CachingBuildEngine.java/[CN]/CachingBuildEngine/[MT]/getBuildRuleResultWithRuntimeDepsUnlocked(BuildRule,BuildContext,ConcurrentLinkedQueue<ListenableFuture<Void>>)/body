@@ -1,0 +1,25 @@
+{
+  ListenableFuture<BuildResult> existingResult=results.get(rule.getBuildTarget());
+  if (existingResult != null) {
+    return existingResult;
+  }
+  ListenableFuture<RuleKey> ruleKey=calculateRuleKey(rule,context);
+  ListenableFuture<BuildResult> result=Futures.transform(ruleKey,new AsyncFunction<RuleKey,BuildResult>(){
+    @Override public ListenableFuture<BuildResult> apply(    @Nonnull RuleKey input) throws Exception {
+      return processBuildRule(rule,context,asyncCallbacks);
+    }
+  }
+,service);
+  if (!(rule instanceof HasRuntimeDeps)) {
+    results.put(rule.getBuildTarget(),result);
+    return result;
+  }
+  ImmutableSortedSet<BuildRule> runtimeDeps=((HasRuntimeDeps)rule).getRuntimeDeps();
+  List<ListenableFuture<BuildResult>> runtimeDepResults=Lists.newArrayListWithExpectedSize(runtimeDeps.size());
+  for (  BuildRule dep : runtimeDeps) {
+    runtimeDepResults.add(getBuildRuleResultWithRuntimeDepsUnlocked(dep,context,asyncCallbacks));
+  }
+  result=MoreFutures.chainExceptions(Futures.allAsList(runtimeDepResults),result);
+  results.put(rule.getBuildTarget(),result);
+  return result;
+}

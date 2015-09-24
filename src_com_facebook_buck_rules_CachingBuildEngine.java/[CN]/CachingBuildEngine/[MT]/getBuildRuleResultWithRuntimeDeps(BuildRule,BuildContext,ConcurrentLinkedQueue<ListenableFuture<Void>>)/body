@@ -1,12 +1,9 @@
 {
-  final ListenableFuture<BuildResult> result=getBuildRuleResult(rule,context,asyncCallbacks);
-  if (!(rule instanceof HasRuntimeDeps)) {
-    return result;
+  ListenableFuture<BuildResult> existingResult=results.get(rule.getBuildTarget());
+  if (existingResult != null) {
+    return existingResult;
   }
-  ImmutableSortedSet<BuildRule> runtimeDeps=((HasRuntimeDeps)rule).getRuntimeDeps();
-  List<ListenableFuture<BuildResult>> runtimeDepResults=Lists.newArrayListWithExpectedSize(runtimeDeps.size());
-  for (  BuildRule dep : runtimeDeps) {
-    runtimeDepResults.add(getBuildRuleResultWithRuntimeDeps(dep,context,asyncCallbacks));
+synchronized (results) {
+    return getBuildRuleResultWithRuntimeDepsUnlocked(rule,context,asyncCallbacks);
   }
-  return MoreFutures.chainExceptions(Futures.allAsList(runtimeDepResults),result);
 }
