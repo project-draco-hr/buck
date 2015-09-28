@@ -1,10 +1,10 @@
 {
   ImmutableList.Builder<String> lines=ImmutableList.builder();
   if (parseStarted == null && parseFinished == null) {
-    logEventPair("PARSING BUCK FILES",Optional.<String>absent(),currentTimeMillis,0L,projectBuildFileParseStarted,projectBuildFileParseFinished,lines);
+    logEventPair("PARSING BUCK FILES",Optional.<String>absent(),currentTimeMillis,0L,projectBuildFileParseStarted,projectBuildFileParseFinished,getEstimatedProgressOfProcessingBuckFiles(),lines);
   }
-  long parseTime=logEventPair("PROCESSING BUCK FILES",Optional.<String>absent(),currentTimeMillis,0L,parseStarted,actionGraphFinished,lines);
-  logEventPair("GENERATING PROJECT",Optional.<String>absent(),currentTimeMillis,0L,projectGenerationStarted,projectGenerationFinished,lines);
+  long parseTime=logEventPair("PROCESSING BUCK FILES",Optional.<String>absent(),currentTimeMillis,0L,parseStarted,actionGraphFinished,getEstimatedProgressOfProcessingBuckFiles(),lines);
+  logEventPair("GENERATING PROJECT",Optional.<String>absent(),currentTimeMillis,0L,projectGenerationStarted,projectGenerationFinished,getEstimatedProgressOfGeneratingProjectFiles(),lines);
   if (parseTime != UNFINISHED_EVENT_PAIR) {
     String jobSummary=null;
     if (ruleCount.isPresent()) {
@@ -28,15 +28,15 @@
     }
     String suffix=Joiner.on(" ").join(FluentIterable.of(new String[]{jobSummary,buildTrace}).filter(Predicates.notNull()));
     Optional<String> suffixOptional=suffix.isEmpty() ? Optional.<String>absent() : Optional.of(suffix);
-    long buildTime=logEventPair("BUILDING",suffixOptional,currentTimeMillis,parseTime,buildStarted,buildFinished,lines);
+    long buildTime=logEventPair("BUILDING",suffixOptional,currentTimeMillis,parseTime,buildStarted,buildFinished,getApproximateBuildProgress(),lines);
     if (buildTime == UNFINISHED_EVENT_PAIR) {
       renderRules(currentTimeMillis,lines);
     }
-    long testRunTime=logEventPair("TESTING",renderTestSuffix(),currentTimeMillis,0,testRunStarted.get(),testRunFinished.get(),lines);
+    long testRunTime=logEventPair("TESTING",renderTestSuffix(),currentTimeMillis,0,testRunStarted.get(),testRunFinished.get(),Optional.<Double>absent(),lines);
     if (testRunTime == UNFINISHED_EVENT_PAIR) {
       renderTestRun(currentTimeMillis,lines);
     }
-    logEventPair("INSTALLING",Optional.<String>absent(),currentTimeMillis,0L,installStarted,installFinished,lines);
+    logEventPair("INSTALLING",Optional.<String>absent(),currentTimeMillis,0L,installStarted,installFinished,Optional.<Double>absent(),lines);
   }
   return lines.build();
 }
