@@ -1,0 +1,13 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildRule fatBinaryRule=AppleBinaryBuilder.createBuilder(BuildTarget.builder("//foo","xctest").addFlavors(ImmutableFlavor.of("iphoneos-i386"),ImmutableFlavor.of("iphoneos-x86_64")).build()).build(resolver,filesystem);
+  assertThat(fatBinaryRule,instanceOf(FatBinary.class));
+  ImmutableList<Step> steps=fatBinaryRule.getBuildSteps(FakeBuildContext.NOOP_CONTEXT,new FakeBuildableContext());
+  assertThat(steps,hasSize(1));
+  Step step=Iterables.getLast(steps);
+  ExecutionContext executionContext=TestExecutionContext.newInstance();
+  assertThat(step,instanceOf(ShellStep.class));
+  ImmutableList<String> command=((ShellStep)step).getShellCommand(executionContext);
+  assertThat(command,Matchers.contains(endsWith("lipo"),equalTo("-create"),equalTo("-output"),endsWith("foo/xctest#iphoneos-i386,iphoneos-x86_64"),endsWith("/xctest#iphoneos-i386"),endsWith("/xctest#iphoneos-x86_64")));
+}
