@@ -1,0 +1,20 @@
+{
+  Path storagePath=getStorageForTest();
+  ProgressEstimator estimator=new ProgressEstimator(storagePath.getParent().getParent());
+  estimator.setCurrentCommand("project",ImmutableList.<String>of("arg1","arg2"));
+  estimator.didParseBuckRules(10);
+  estimator.didParseBuckRules(20);
+  estimator.didParseBuckRules(15);
+  estimator.didParseBuckRules(2);
+  estimator.didFinishParsing();
+  estimator.didGenerateProjectForTarget();
+  estimator.didGenerateProjectForTarget();
+  estimator.didFinishProjectGeneration();
+  Map<String,Map<String,Number>> jsonObject=new ObjectMapper().readValue(Files.readAllBytes(storagePath),new TypeReference<HashMap<String,Map<String,Number>>>(){
+  }
+);
+  Map<String,Number> storedValues=jsonObject.get("project arg1 arg2");
+  assertThat(storedValues.get(ProgressEstimator.EXPECTED_NUMBER_OF_GENERATED_PROJECT_FILES).intValue(),Matchers.equalTo(2));
+  assertThat(storedValues.get(ProgressEstimator.EXPECTED_NUMBER_OF_PARSED_BUCK_FILES).intValue(),Matchers.equalTo(4));
+  assertThat(storedValues.get(ProgressEstimator.EXPECTED_NUMBER_OF_PARSED_RULES).intValue(),Matchers.equalTo(47));
+}
