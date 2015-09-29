@@ -5,6 +5,7 @@
     try (PrintWriter writer=new PrintWriter(filesystem.newFileOutputStream(outputFile))){
       writer.format("package %s;\n\n",rDotJavaPackage);
       writer.println("public class R {\n");
+      ImmutableList.Builder<String> customDrawablesBuilder=ImmutableList.builder();
       RDotTxtEntry.RType lastType=null;
       for (      RDotTxtEntry res : packageToResources.get(rDotJavaPackage)) {
         RDotTxtEntry.RType type=res.type;
@@ -16,9 +17,18 @@
           lastType=type;
         }
         writer.format("    public static%s%s %s=%s;\n",uberRDotTxt.isPresent() ? " final " : " ",res.idType,res.name,res.idValue);
+        if (type == RDotTxtEntry.RType.DRAWABLE && res.custom) {
+          customDrawablesBuilder.add(res.idValue);
+        }
       }
       if (lastType != null) {
         writer.println("  }\n");
+      }
+      ImmutableList<String> customDrawables=customDrawablesBuilder.build();
+      if (customDrawables.size() > 0) {
+        writer.format("  public static final int[] custom_drawables = ");
+        writer.format("{ %s };\n",Joiner.on(",").join(customDrawables));
+        writer.format("\n");
       }
       writer.println("}");
     }
