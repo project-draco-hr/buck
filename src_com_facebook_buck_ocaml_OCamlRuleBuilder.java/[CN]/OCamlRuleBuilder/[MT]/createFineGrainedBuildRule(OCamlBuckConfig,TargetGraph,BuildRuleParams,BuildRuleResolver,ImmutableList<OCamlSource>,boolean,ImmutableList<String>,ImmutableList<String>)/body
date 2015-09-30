@@ -9,9 +9,10 @@
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   ImmutableList<String> includes=FluentIterable.from(params.getDeps()).transformAndConcat(getLibInclude(false)).toList();
   ImmutableList<String> bytecodeIncludes=FluentIterable.from(params.getDeps()).transformAndConcat(getLibInclude(true)).toList();
-  NativeLinkableInput linkableInput=NativeLinkables.getTransitiveNativeLinkableInput(targetGraph,ocamlBuckConfig.getCxxPlatform(),params.getDeps(),Linker.LinkableDepType.STATIC,ImmutableSet.<BuildRule>of(),false);
+  NativeLinkableInput linkableInput=getLinkableInput(params.getDeps());
+  NativeLinkableInput nativeLinkableInput=getNativeLinkableInput(targetGraph,ocamlBuckConfig.getCxxPlatform(),params.getDeps());
   ImmutableList<OCamlLibrary> ocamlInput=OCamlUtil.getTransitiveOCamlInput(params.getDeps());
-  ImmutableList<SourcePath> allInputs=ImmutableList.<SourcePath>builder().addAll(getInput(srcs)).addAll(linkableInput.getInputs()).build();
+  ImmutableList<SourcePath> allInputs=ImmutableList.<SourcePath>builder().addAll(getInput(srcs)).addAll(linkableInput.getInputs()).addAll(nativeLinkableInput.getInputs()).build();
   BuildTarget buildTarget=isLibrary ? createStaticLibraryBuildTarget(params.getBuildTarget()) : createOCamlLinkTarget(params.getBuildTarget());
   final BuildRuleParams compileParams=params.copyWithChanges(buildTarget,Suppliers.ofInstance(ImmutableSortedSet.copyOf(pathResolver.filterBuildRuleInputs(allInputs))),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   ImmutableList.Builder<String> flagsBuilder=ImmutableList.builder();
@@ -24,7 +25,7 @@
     bytecodeCompileDepsBuilder.addAll(library.getBytecodeCompileDeps());
     bytecodeLinkDepsBuilder.addAll(library.getBytecodeLinkDeps());
   }
-  OCamlBuildContext ocamlContext=OCamlBuildContext.builder(ocamlBuckConfig).setFlags(flagsBuilder.build()).setIncludes(includes).setBytecodeIncludes(bytecodeIncludes).setOCamlInput(ocamlInput).setLinkableInput(linkableInput).setBuildTarget(buildTarget).setLibrary(isLibrary).setCxxPreprocessorInput(cxxPreprocessorInputFromDeps).setInput(pathResolver.getAllPaths(getInput(srcs))).setCompileDeps(compileDepsBuilder.build()).setBytecodeCompileDeps(bytecodeCompileDepsBuilder.build()).setBytecodeLinkDeps(bytecodeLinkDepsBuilder.build()).build();
+  OCamlBuildContext ocamlContext=OCamlBuildContext.builder(ocamlBuckConfig).setFlags(flagsBuilder.build()).setIncludes(includes).setBytecodeIncludes(bytecodeIncludes).setOCamlInput(ocamlInput).setLinkableInput(linkableInput).setNativeLinkableInput(nativeLinkableInput).setBuildTarget(buildTarget).setLibrary(isLibrary).setCxxPreprocessorInput(cxxPreprocessorInputFromDeps).setInput(pathResolver.getAllPaths(getInput(srcs))).setCompileDeps(compileDepsBuilder.build()).setBytecodeCompileDeps(bytecodeCompileDepsBuilder.build()).setBytecodeLinkDeps(bytecodeLinkDepsBuilder.build()).build();
   Path baseDir=params.getProjectFilesystem().getRootPath().toAbsolutePath();
   ImmutableMap<Path,ImmutableList<Path>> mlInput=getMLInputWithDeps(baseDir,ocamlContext);
   ImmutableList<SourcePath> cInput=getCInput(pathResolver,getInput(srcs));
