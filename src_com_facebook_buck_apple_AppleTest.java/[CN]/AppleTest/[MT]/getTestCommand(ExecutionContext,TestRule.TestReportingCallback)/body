@@ -11,7 +11,7 @@
     testHostAppPath=Optional.of(resolvedTestHostAppDirectory.resolve(testHostApp.get().getUnzippedOutputFilePathToBinary()));
   }
   if (!useXctest) {
-    if (!xctoolPath.isPresent() && !xctoolZipRule.isPresent()) {
+    if (!xctool.isPresent()) {
       throw new HumanReadableException("Set xctool_path = /path/to/xctool or xctool_zip_target = //path/to:xctool-zip " + "in the [apple] section of .buckconfig to run this test");
     }
     ImmutableSet.Builder<Path> logicTestPathsBuilder=ImmutableSet.builder();
@@ -21,16 +21,6 @@
     }
  else {
       logicTestPathsBuilder.add(resolvedTestBundleDirectory);
-    }
-    Path xctoolBinaryPath;
-    if (xctoolZipRule.isPresent()) {
-      Path resolvedXctoolUnzipDirectory=getProjectFilesystem().resolve(xctoolUnzipDirectory);
-      steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),resolvedXctoolUnzipDirectory));
-      steps.add(new UnzipStep(getProjectFilesystem(),Preconditions.checkNotNull(xctoolZipRule.get().getPathToOutput()),resolvedXctoolUnzipDirectory));
-      xctoolBinaryPath=resolvedXctoolUnzipDirectory.resolve("bin/xctool");
-    }
- else {
-      xctoolBinaryPath=xctoolPath.get();
     }
     xctoolStdoutReader=Optional.of(new AppleTestXctoolStdoutReader(testReportingCallback));
     Optional<String> destinationSpecifierArg;
@@ -45,7 +35,7 @@
  else {
       destinationSpecifierArg=defaultDestinationSpecifier;
     }
-    XctoolRunTestsStep xctoolStep=new XctoolRunTestsStep(getProjectFilesystem(),xctoolBinaryPath,xctoolStutterTimeout,platformName,destinationSpecifierArg,logicTestPathsBuilder.build(),appTestPathsToHostAppsBuilder.build(),resolvedTestOutputPath,xctoolStdoutReader);
+    XctoolRunTestsStep xctoolStep=new XctoolRunTestsStep(getProjectFilesystem(),getResolver().getResolvedPath(xctool.get()),xctoolStutterTimeout,platformName,destinationSpecifierArg,logicTestPathsBuilder.build(),appTestPathsToHostAppsBuilder.build(),resolvedTestOutputPath,xctoolStdoutReader);
     steps.add(xctoolStep);
     externalSpec.setType("xctool-" + (testHostApp.isPresent() ? "application" : "logic"));
     externalSpec.setCommand(xctoolStep.getCommand());
