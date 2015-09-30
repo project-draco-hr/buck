@@ -1,8 +1,9 @@
 {
   Path rootPath=cell.getFilesystem().getRootPath();
+  Optional<WebServer> webServer=Optional.<WebServer>absent();
   if (daemon == null) {
     LOG.debug("Starting up daemon for project root [%s]",rootPath);
-    daemon=new Daemon(cell,globHandler,allowSymlinks,objectMapper);
+    daemon=new Daemon(cell,globHandler,allowSymlinks,objectMapper,webServer);
   }
  else {
     Path parserRoot=cell.getFilesystem().getRootPath();
@@ -11,8 +12,14 @@
     }
     if (!daemon.cell.equals(cell)) {
       LOG.info("Shutting down and restarting daemon on config or directory resolver change.");
-      daemon.close();
-      daemon=new Daemon(cell,globHandler,allowSymlinks,objectMapper);
+      if (shouldReuseWebServer(cell)) {
+        webServer=daemon.getWebServer();
+        LOG.info("Reusing web server");
+      }
+ else {
+        daemon.close();
+      }
+      daemon=new Daemon(cell,globHandler,allowSymlinks,objectMapper,webServer);
     }
   }
   return daemon;
