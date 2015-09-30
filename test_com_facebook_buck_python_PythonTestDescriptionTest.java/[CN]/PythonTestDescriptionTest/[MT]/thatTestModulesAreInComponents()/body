@@ -1,22 +1,9 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver();
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:bin")).build();
-  PythonTestDescription desc=new PythonTestDescription(new PythonBinaryDescription(PYTHON_BUCK_CONFIG,PythonTestUtils.PYTHON_PLATFORMS,CXX_PLATFORM,CXX_PLATFORMS),PYTHON_BUCK_CONFIG,PythonTestUtils.PYTHON_PLATFORMS,CXX_PLATFORM,CXX_PLATFORMS);
-  PythonTestDescription.Arg arg=desc.createUnpopulatedConstructorArg();
-  arg.deps=Optional.of(ImmutableSortedSet.<BuildTarget>of());
-  arg.srcs=Optional.of(SourceList.ofUnnamedSources(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("blah.py"))));
-  arg.resources=Optional.absent();
-  arg.baseModule=Optional.absent();
-  arg.contacts=Optional.absent();
-  arg.labels=Optional.absent();
-  arg.sourceUnderTest=Optional.absent();
-  arg.zipSafe=Optional.absent();
-  arg.buildArgs=Optional.absent();
-  PythonTest testRule=desc.createBuildRule(TargetGraph.EMPTY,params,resolver,arg);
-  PythonBinary binRule=(PythonBinary)resolver.getRule(desc.getBinaryBuildTarget(testRule.getBuildTarget()));
-  assertNotNull(binRule);
+  PythonTest testRule=(PythonTest)PythonTestBuilder.create(BuildTargetFactory.newInstance("//:bin")).setSrcs(SourceList.ofUnnamedSources(ImmutableSortedSet.<SourcePath>of(new TestSourcePath("blah.py")))).build(resolver);
+  PythonBinary binRule=testRule.getBinary();
   PythonPackageComponents components=binRule.getComponents();
-  assertTrue(components.getModules().containsKey(desc.getTestModulesListName()));
-  assertTrue(components.getModules().containsKey(desc.getTestMainName()));
-  assertEquals(binRule.getMainModule(),PythonUtil.toModuleName(params.getBuildTarget(),desc.getTestMainName().toString()));
+  assertThat(components.getModules().keySet(),Matchers.hasItem(PythonTestDescription.getTestModulesListName()));
+  assertThat(components.getModules().keySet(),Matchers.hasItem(PythonTestDescription.getTestMainName()));
+  assertThat(binRule.getMainModule(),Matchers.equalTo(PythonUtil.toModuleName(testRule.getBuildTarget(),PythonTestDescription.getTestMainName().toString())));
 }

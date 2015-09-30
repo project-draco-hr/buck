@@ -1,18 +1,10 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
   BuildTarget target=BuildTargetFactory.newInstance("//foo:lib");
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
   String sourceName="main.py";
   SourcePath source=new TestSourcePath("foo/" + sourceName);
-  PythonLibraryDescription desc=new PythonLibraryDescription();
-  PythonLibraryDescription.Arg arg=desc.createUnpopulatedConstructorArg();
-  arg.deps=Optional.absent();
-  arg.resources=Optional.absent();
-  arg.srcs=Optional.of(SourceList.ofUnnamedSources(ImmutableSortedSet.of(source)));
-  arg.baseModule=Optional.absent();
-  PythonLibrary normalRule=desc.createBuildRule(TargetGraph.EMPTY,params,resolver,arg);
-  assertEquals(ImmutableMap.of(target.getBasePath().resolve(sourceName),source),normalRule.getSrcs());
-  arg.baseModule=Optional.of("blah");
-  PythonLibrary baseModuleRule=desc.createBuildRule(TargetGraph.EMPTY,params,resolver,arg);
-  assertEquals(ImmutableMap.of(Paths.get(arg.baseModule.get()).resolve(sourceName),source),baseModuleRule.getSrcs());
+  PythonLibrary normal=(PythonLibrary)new PythonLibraryBuilder(target).setSrcs(SourceList.ofUnnamedSources(ImmutableSortedSet.of(source))).build(new BuildRuleResolver());
+  assertEquals(ImmutableMap.of(target.getBasePath().resolve(sourceName),source),normal.getSrcs(PythonTestUtils.PYTHON_PLATFORM));
+  String baseModule="blah";
+  PythonLibrary withBaseModule=(PythonLibrary)new PythonLibraryBuilder(target).setSrcs(SourceList.ofUnnamedSources(ImmutableSortedSet.of(source))).setBaseModule("blah").build(new BuildRuleResolver());
+  assertEquals(ImmutableMap.of(Paths.get(baseModule).resolve(sourceName),source),withBaseModule.getSrcs(PythonTestUtils.PYTHON_PLATFORM));
 }
