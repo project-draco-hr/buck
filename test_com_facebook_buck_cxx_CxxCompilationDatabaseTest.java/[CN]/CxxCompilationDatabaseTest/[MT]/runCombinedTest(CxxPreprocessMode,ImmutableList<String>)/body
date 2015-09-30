@@ -35,7 +35,7 @@ default :
 throw new RuntimeException("Invalid strategy");
 }
 rules.add(new CxxPreprocessAndCompile(compileBuildRuleParams,testSourcePathResolver,operation,Optional.<Preprocessor>of(new DefaultPreprocessor(new HashedFileTool(Paths.get("preprocessor")))),Optional.of(ImmutableList.<String>of()),Optional.of(ImmutableList.<String>of()),Optional.<Compiler>of(new DefaultCompiler(new HashedFileTool(Paths.get("compiler")))),Optional.of(ImmutableList.<String>of()),Optional.of(ImmutableList.<String>of()),Paths.get("test.o"),new TestSourcePath("test.cpp"),CxxSource.Type.CXX,ImmutableSet.of(Paths.get("foo/bar"),Paths.get("test")),ImmutableSet.<Path>of(),ImmutableSet.<Path>of(),ImmutableSet.<Path>of(),Optional.<SourcePath>absent(),ImmutableList.<CxxHeaders>of(),CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER));
-CxxCompilationDatabase compilationDatabase=CxxCompilationDatabase.createCompilationDatabase(testBuildRuleParams,testSourcePathResolver,strategy,rules.build());
+CxxCompilationDatabase compilationDatabase=CxxCompilationDatabase.createCompilationDatabase(testBuildRuleParams,testSourcePathResolver,strategy,rules.build(),CxxCompilationDatabaseFormat.CLANG);
 assertEquals("getPathToOutput() should be a function of the build target.",Paths.get("buck-out/gen/foo/__baz#compilation-database.json"),compilationDatabase.getPathToOutput());
 BuildContext buildContext=FakeBuildContext.NOOP_CONTEXT;
 BuildableContext buildableContext=new FakeBuildableContext();
@@ -45,6 +45,6 @@ assertTrue(buildSteps.get(0) instanceof MkdirStep);
 assertTrue(buildSteps.get(1) instanceof CxxCompilationDatabase.GenerateCompilationCommandsJson);
 CxxCompilationDatabase.GenerateCompilationCommandsJson step=(CxxCompilationDatabase.GenerateCompilationCommandsJson)buildSteps.get(1);
 Iterable<CxxCompilationDatabaseEntry> observedEntries=step.createEntries();
-Iterable<CxxCompilationDatabaseEntry> expectedEntries=ImmutableList.of(new CxxCompilationDatabaseEntry(root + "/foo",root + "/test.cpp",expectedArguments));
+Iterable<ClangCxxCompilationDatabaseEntry> expectedEntries=ImmutableList.of(ClangCxxCompilationDatabaseEntry.of(root + "/foo",root + "/test.cpp",expectedArguments));
 MoreAsserts.assertIterablesEquals(expectedEntries,observedEntries);
 }
