@@ -1,4 +1,11 @@
 {
+  PythonPlatform pythonPlatform;
+  try {
+    pythonPlatform=pythonPlatforms.getValue(params.getBuildTarget().getFlavors()).or(pythonPlatforms.getValues().asList().get(0));
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+  }
   CxxPlatform cxxPlatform;
   try {
     cxxPlatform=cxxPlatforms.getValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors())).or(defaultCxxPlatform);
@@ -18,9 +25,9 @@
   BuildRule testModulesBuildRule=createTestModulesSourceBuildRule(params,resolver,getTestModulesListPath(params.getBuildTarget()),testModules);
   resolver.addToIndex(testModulesBuildRule);
   PythonPackageComponents testComponents=PythonPackageComponents.of(ImmutableMap.<Path,SourcePath>builder().put(getTestModulesListName(),new BuildTargetSourcePath(testModulesBuildRule.getBuildTarget())).put(getTestMainName(),new PathSourcePath(params.getProjectFilesystem(),pythonBuckConfig.getPathToTestMain())).putAll(srcs).build(),resources,ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),args.zipSafe);
-  PythonPackageComponents allComponents=PythonUtil.getAllComponents(targetGraph,params,testComponents,cxxPlatform);
+  PythonPackageComponents allComponents=PythonUtil.getAllComponents(targetGraph,params,testComponents,pythonPlatform,cxxPlatform);
   BuildRuleParams binaryParams=params.copyWithChanges(getBinaryBuildTarget(params.getBuildTarget()),Suppliers.ofInstance(PythonUtil.getDepsFromComponents(pathResolver,allComponents)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
-  PythonBinary binary=binaryDescription.createPackageRule(binaryParams,resolver,pathResolver,cxxPlatform,PythonUtil.toModuleName(params.getBuildTarget(),getTestMainName().toString()),allComponents,args.buildArgs.or(ImmutableList.<String>of()));
+  PythonBinary binary=binaryDescription.createPackageRule(binaryParams,resolver,pathResolver,pythonPlatform,cxxPlatform,PythonUtil.toModuleName(params.getBuildTarget(),getTestMainName().toString()),allComponents,args.buildArgs.or(ImmutableList.<String>of()));
   resolver.addToIndex(binary);
   Supplier<ImmutableMap<String,String>> testEnv=new Supplier<ImmutableMap<String,String>>(){
     @Override public ImmutableMap<String,String> get(){

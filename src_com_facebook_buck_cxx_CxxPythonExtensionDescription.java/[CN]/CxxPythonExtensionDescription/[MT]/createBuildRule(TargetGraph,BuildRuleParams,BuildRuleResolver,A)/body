@@ -1,17 +1,34 @@
 {
-  Optional<Map.Entry<Flavor,Type>> type;
+  final Optional<Map.Entry<Flavor,Type>> type;
   Optional<Map.Entry<Flavor,CxxPlatform>> platform;
+  final Optional<Map.Entry<Flavor,PythonPlatform>> pythonPlatform;
   try {
     type=LIBRARY_TYPE.getFlavorAndValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors()));
     platform=cxxPlatforms.getFlavorAndValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors()));
+    pythonPlatform=pythonPlatforms.getFlavorAndValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors()));
   }
  catch (  FlavorDomainException e) {
     throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
   }
-  if (type.isPresent()) {
+  if (type.isPresent() && platform.isPresent() && pythonPlatform.isPresent()) {
     Preconditions.checkState(type.get().getValue() == Type.EXTENSION);
-    Preconditions.checkState(platform.isPresent());
-    return createExtensionBuildRule(targetGraph,params,ruleResolver,platform.get().getValue(),args);
+    return createExtensionBuildRule(targetGraph,params.copyWithExtraDeps(new Supplier<ImmutableSortedSet<BuildRule>>(){
+      @Override public ImmutableSortedSet<BuildRule> get(){
+        BuildRule relevantCxxLibrary=ruleResolver.getRule(pythonPlatform.get().getValue().getCxxLibrary().get());
+        Set<BuildRule> extraDeps=Sets.newHashSet(params.getExtraDeps().get());
+        for (        PythonPlatform python : pythonPlatforms.getValues()) {
+          Optional<BuildTarget> cxxLibraryTarget=python.getCxxLibrary();
+          if (cxxLibraryTarget.isPresent()) {
+            Optional<BuildRule> cxxLibrary=ruleResolver.getRuleOptional(cxxLibraryTarget.get());
+            if (cxxLibrary.isPresent() && !cxxLibrary.get().equals(relevantCxxLibrary)) {
+              extraDeps.remove(cxxLibrary.get());
+            }
+          }
+        }
+        return ImmutableSortedSet.copyOf(extraDeps);
+      }
+    }
+),ruleResolver,pythonPlatform.get().getValue(),platform.get().getValue(),args);
   }
   SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
   Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);

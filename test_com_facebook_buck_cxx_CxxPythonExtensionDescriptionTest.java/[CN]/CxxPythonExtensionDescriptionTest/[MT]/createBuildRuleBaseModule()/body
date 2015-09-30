@@ -1,22 +1,15 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
-  CxxPlatform cxxPlatform=CxxPythonExtensionBuilder.createDefaultPlatform();
-  GenruleBuilder pyDepBuilder=GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).setOut("out");
-  pyDepBuilder.build(resolver);
+  Set<TargetNode<?>> targetNodes=Sets.newHashSet();
+  BuildRuleResolver resolver=new BuildRuleResolver();
   BuildTarget target=BuildTargetFactory.newInstance("//:target");
-  CxxPythonExtensionBuilder normalBuilder=getBuilder(target);
-  CxxPythonExtensionDescription desc=(CxxPythonExtensionDescription)normalBuilder.build().getDescription();
-  TargetGraph targetGraph1=TargetGraphFactory.newInstance(normalBuilder.build(),pyDepBuilder.build());
-  CxxPythonExtension normal=(CxxPythonExtension)normalBuilder.build(resolver,filesystem,targetGraph1);
-  PythonPackageComponents normalComps=normal.getPythonPackageComponents(targetGraph1,cxxPlatform);
-  assertEquals(ImmutableSet.of(target.getBasePath().resolve(desc.getExtensionName(target))),normalComps.getModules().keySet());
-  BuildTarget target2=BuildTargetFactory.newInstance("//:target2");
+  CxxPythonExtension normal=(CxxPythonExtension)createBuilder(resolver,filesystem,targetNodes,target).build(resolver,filesystem,targetNodes);
+  PythonPackageComponents normalComps=normal.getPythonPackageComponents(TargetGraphFactory.newInstance(ImmutableSet.copyOf(targetNodes)),PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
+  assertEquals(ImmutableSet.of(target.getBasePath().resolve(CxxPythonExtensionDescription.getExtensionName(target))),normalComps.getModules().keySet());
+  resolver=new BuildRuleResolver();
+  BuildTarget target2=BuildTargetFactory.newInstance("//:target2#py2");
   String name="blah";
-  CxxPythonExtensionBuilder baseModuleBuilder=getBuilder(target2).setBaseModule(name);
-  desc=(CxxPythonExtensionDescription)baseModuleBuilder.build().getDescription();
-  TargetGraph targetGraph2=TargetGraphFactory.newInstance(baseModuleBuilder.build(),GenruleBuilder.newGenruleBuilder(PYTHON_DEP_TARGET).build());
-  CxxPythonExtension baseModule=(CxxPythonExtension)baseModuleBuilder.build(resolver,filesystem,targetGraph2);
-  PythonPackageComponents baseModuleComps=baseModule.getPythonPackageComponents(targetGraph2,cxxPlatform);
-  assertEquals(ImmutableSet.of(Paths.get(name).resolve(desc.getExtensionName(target2))),baseModuleComps.getModules().keySet());
+  CxxPythonExtension baseModule=(CxxPythonExtension)createBuilder(resolver,filesystem,targetNodes,target2).setBaseModule(name).build(resolver,filesystem,targetNodes);
+  PythonPackageComponents baseModuleComps=baseModule.getPythonPackageComponents(TargetGraphFactory.newInstance(ImmutableSet.copyOf(targetNodes)),PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
+  assertEquals(ImmutableSet.of(Paths.get(name).resolve(CxxPythonExtensionDescription.getExtensionName(target2))),baseModuleComps.getModules().keySet());
 }
