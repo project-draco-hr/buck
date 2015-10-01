@@ -1,0 +1,25 @@
+{
+  ImmutableMap.Builder<BuildTarget,BuildLogEntry> builder=ImmutableMap.builder();
+  for (  String line : logContents) {
+    Matcher matcher=BUILD_LOG_FINISHED_RULE_REGEX.matcher(line);
+    if (!matcher.matches()) {
+      continue;
+    }
+    String buildTargetRaw=matcher.group("BuildTarget");
+    BuildTarget buildTarget=BuildTargetFactory.newInstance(root,buildTargetRaw);
+    String statusRaw=matcher.group("Status");
+    BuildRuleStatus status=BuildRuleStatus.valueOf(statusRaw);
+    String ruleKeyRaw=matcher.group("RuleKey");
+    Sha1HashCode ruleKey=Sha1HashCode.of(ruleKeyRaw);
+    CacheResult cacheResult=null;
+    BuildRuleSuccessType successType=null;
+    if (status == BuildRuleStatus.SUCCESS) {
+      String cacheResultRaw=matcher.group("CacheResult");
+      cacheResult=CacheResult.valueOf(cacheResultRaw);
+      String successTypeRaw=matcher.group("SuccessType");
+      successType=BuildRuleSuccessType.valueOf(successTypeRaw);
+    }
+    builder.put(buildTarget,new BuildLogEntry(status,Optional.fromNullable(successType),Optional.fromNullable(cacheResult),ruleKey));
+  }
+  return new BuckBuildLog(root,builder.build());
+}

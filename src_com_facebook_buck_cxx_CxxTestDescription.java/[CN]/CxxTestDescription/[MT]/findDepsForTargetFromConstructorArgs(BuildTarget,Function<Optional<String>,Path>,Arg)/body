@@ -1,0 +1,36 @@
+{
+  ImmutableSet.Builder<BuildTarget> deps=ImmutableSet.builder();
+  if (!constructorArg.lexSrcs.get().isEmpty()) {
+    deps.add(cxxBuckConfig.getLexDep());
+  }
+  for (  String part : Iterables.concat(constructorArg.args.or(ImmutableList.<String>of()),constructorArg.env.or(ImmutableMap.<String,String>of()).values())) {
+    try {
+      deps.addAll(MACRO_HANDLER.extractParseTimeDeps(buildTarget,cellRoots,part));
+    }
+ catch (    MacroException e) {
+      throw new HumanReadableException(e,"%s: %s",buildTarget,e.getMessage());
+    }
+  }
+  CxxTestType type=constructorArg.framework.or(getDefaultTestType());
+switch (type) {
+case GTEST:
+{
+      deps.add(cxxBuckConfig.getGtestDep());
+      boolean useDefaultTestMain=constructorArg.useDefaultTestMain.or(true);
+      if (useDefaultTestMain) {
+        deps.add(cxxBuckConfig.getGtestDefaultTestMainDep());
+      }
+      break;
+    }
+case BOOST:
+{
+    deps.add(cxxBuckConfig.getBoostTestDep());
+    break;
+  }
+default :
+{
+  break;
+}
+}
+return deps.build();
+}

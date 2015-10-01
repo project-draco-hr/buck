@@ -34,18 +34,18 @@
       }
     }
     this.pathsToBuildTargets.put(buildFilePath,buildTarget);
-    Cell targetRepo=Parser.this.cell.getCell(buildTarget.getCell());
-    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetRepo.getFilesystem(),buildTarget.withoutCell(),buildFileTreeCache.get(),targetRepo.isEnforcingBuckPackageBoundaries());
+    Cell targetCell=Parser.this.cell.getCell(buildTarget.getCell());
+    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetCell.getFilesystem(),buildTarget.withoutCell(),buildFileTreeCache.get(),targetCell.isEnforcingBuckPackageBoundaries());
     Object constructorArg=description.createUnpopulatedConstructorArg();
     TargetNode<?> targetNode;
     try {
       ImmutableSet.Builder<BuildTarget> declaredDeps=ImmutableSet.builder();
       ImmutableSet.Builder<BuildTargetPattern> visibilityPatterns=ImmutableSet.builder();
       try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,PerfEventId.of("MarshalledConstructorArg"),"target",buildTarget)){
-        marshaller.populate(targetRepo.getFilesystem(),factoryParams,constructorArg,declaredDeps,visibilityPatterns,map);
+        marshaller.populate(targetCell.getCellRoots(),targetCell.getFilesystem(),factoryParams,constructorArg,declaredDeps,visibilityPatterns,map);
       }
        try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,PerfEventId.of("CreatedTargetNode"),"target",buildTarget)){
-        targetNode=new TargetNode(description,constructorArg,factoryParams,declaredDeps.build(),visibilityPatterns.build(),targetRepo.getCellAliases());
+        targetNode=new TargetNode(description,constructorArg,factoryParams,declaredDeps.build(),visibilityPatterns.build(),targetCell.getCellRoots(),targetCell.getCellAliases());
       }
      }
  catch (    NoSuchBuildTargetException|TargetNode.InvalidSourcePathInputException e) {
@@ -55,7 +55,7 @@ catch (    ConstructorArgMarshalException e) {
       throw new HumanReadableException("%s: %s",buildTarget,e.getMessage());
     }
     Map<Path,Path> newSymlinksEncountered=Maps.newHashMap();
-    if (inputFilesUnderSymlink(targetNode.getInputs(),targetRepo.getFilesystem(),symlinkExistenceCache,newSymlinksEncountered)) {
+    if (inputFilesUnderSymlink(targetNode.getInputs(),targetCell.getFilesystem(),symlinkExistenceCache,newSymlinksEncountered)) {
       if (allowSymlinks == ParserConfig.AllowSymlinks.FORBID) {
         throw new HumanReadableException("Target %s contains input files under a path which contains a symbolic link " + "(%s). To resolve this, use separate rules and declare dependencies instead of " + "using symbolic links.",targetNode.getBuildTarget(),newSymlinksEncountered);
       }

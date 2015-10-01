@@ -1,17 +1,17 @@
 {
-  File tempDir=tmp.getRoot();
-  File fooBuck=new File(tempDir,"foo/BUCK");
-  File fooBarBuck=new File(tempDir,"foo/bar/BUCK");
-  File fooBazBuck=new File(tempDir,"foo/baz/BUCK");
-  Files.createParentDirs(fooBarBuck);
-  Files.createParentDirs(fooBazBuck);
-  Files.touch(fooBuck);
-  Files.touch(fooBarBuck);
-  Files.touch(fooBazBuck);
+  Path tempDir=tmp.getRoot();
+  Path fooBuck=tempDir.resolve("foo/BUCK");
+  Path fooBarBuck=tempDir.resolve("foo/bar/BUCK");
+  Path fooBazBuck=tempDir.resolve("foo/baz/BUCK");
+  Files.createDirectories(fooBarBuck.getParent());
+  Files.createDirectories(fooBazBuck.getParent());
+  touch(fooBuck);
+  touch(fooBarBuck);
+  touch(fooBazBuck);
   ImmutableSet<Path> ignoredPaths=ImmutableSet.of(Paths.get("foo/bar"));
-  ProjectFilesystem filesystem=new ProjectFilesystem(tempDir.toPath(),ignoredPaths);
+  ProjectFilesystem filesystem=new ProjectFilesystem(tempDir,ignoredPaths);
   BuildFileTree buildFiles=new FilesystemBackedBuildFileTree(filesystem,"BUCK");
-  Collection<Path> children=buildFiles.getChildPaths(BuildTarget.builder("//foo","foo").build());
+  Collection<Path> children=buildFiles.getChildPaths(BuildTarget.builder(tempDir,"//foo","foo").build());
   assertEquals(ImmutableSet.of(Paths.get("baz")),children);
   Path ancestor=buildFiles.getBasePathOfAncestorTarget(Paths.get("foo/bar/xyzzy")).get();
   assertEquals(Paths.get("foo"),ancestor);
