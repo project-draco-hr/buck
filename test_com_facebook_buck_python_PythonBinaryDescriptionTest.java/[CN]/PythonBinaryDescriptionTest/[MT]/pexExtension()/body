@@ -1,16 +1,8 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver();
   BuildTarget target=BuildTargetFactory.newInstance("//foo:bin");
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
+  BuildRuleResolver resolver=new BuildRuleResolver();
   PythonBuckConfig config=new PythonBuckConfig(new FakeBuckConfig(ImmutableMap.of("python",ImmutableMap.of("pex_extension",".different_extension"))),new AlwaysFoundExecutableFinder());
-  PythonBinaryDescription desc=new PythonBinaryDescription(config,PythonTestUtils.PYTHON_PLATFORMS,CXX_PLATFORM,CXX_PLATFORMS);
-  PythonBinaryDescription.Arg arg=desc.createUnpopulatedConstructorArg();
-  arg.deps=Optional.of(ImmutableSortedSet.<BuildTarget>of());
-  arg.mainModule=Optional.of("main");
-  arg.main=Optional.absent();
-  arg.baseModule=Optional.absent();
-  arg.zipSafe=Optional.absent();
-  arg.buildArgs=Optional.absent();
-  PythonBinary rule=desc.createBuildRule(TargetGraph.EMPTY,params,resolver,arg);
-  assertThat(Preconditions.checkNotNull(rule.getPathToOutput()).toString(),Matchers.endsWith(".different_extension"));
+  PythonBinaryBuilder builder=new PythonBinaryBuilder(target,config,PythonTestUtils.PYTHON_PLATFORMS,CxxPlatformUtils.DEFAULT_PLATFORM,CxxPlatformUtils.DEFAULT_PLATFORMS);
+  PythonBinary binary=(PythonBinary)builder.setMainModule("main").build(resolver);
+  assertThat(Preconditions.checkNotNull(binary.getPathToOutput()).toString(),Matchers.endsWith(".different_extension"));
 }
