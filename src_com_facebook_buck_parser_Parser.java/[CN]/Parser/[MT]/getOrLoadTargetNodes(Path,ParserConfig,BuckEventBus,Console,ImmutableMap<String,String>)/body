@@ -1,0 +1,20 @@
+{
+  Preconditions.checkState(!buildFilePath.isAbsolute());
+  Path normalizedBuildFilePath=normalize(buildFilePath);
+  List<Map<String,Object>> buildFileTargets=state.parsedBuildFiles.get(normalizedBuildFilePath);
+  if (!state.isParsed(buildFilePath)) {
+    buildFileTargets=parseBuildFile(cell.getFilesystem().getRootPath(),normalizedBuildFilePath,parserConfig,environment,console,eventBus);
+  }
+  ImmutableList.Builder<TargetNode<?>> builder=ImmutableList.builder();
+  for (  Map<String,Object> buildFileTarget : buildFileTargets) {
+    if (!buildFileTarget.containsKey("name")) {
+      continue;
+    }
+    Optional<Path> basePath=buildFileTreeCache.get().getBasePathOfAncestorTarget(buildFilePath);
+    Preconditions.checkState(basePath.isPresent());
+    Path targetBasePath=MorePaths.relativize(cell.getFilesystem().getRootPath(),cell.getFilesystem().resolve(basePath.get()));
+    BuildTarget target=BuildTarget.builder(cell.getFilesystem().getRootPath(),"//" + MorePaths.pathWithUnixSeparators(targetBasePath),(String)buildFileTarget.get("name")).build();
+    builder.add(Preconditions.checkNotNull(getTargetNode(target)));
+  }
+  return builder.build();
+}
