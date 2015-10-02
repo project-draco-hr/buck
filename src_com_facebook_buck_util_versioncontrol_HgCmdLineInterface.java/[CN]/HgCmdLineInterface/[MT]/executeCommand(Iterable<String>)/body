@@ -4,9 +4,13 @@
   String commandString=commandAsString(command);
   LOG.debug("Executing command: " + commandString);
   try {
-    Optional<String> resultString=processExecutor.launchAndExecute(processExecutorParams,ImmutableSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT),Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent()).getStdout();
+    ProcessExecutor.Result result=processExecutor.launchAndExecute(processExecutorParams,ImmutableSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT),Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
+    Optional<String> resultString=result.getStdout();
     if (!resultString.isPresent()) {
       throw new VersionControlCommandFailedException("Received no output from launched process for command: " + commandString);
+    }
+    if (result.getExitCode() != 0) {
+      throw new VersionControlCommandFailedException("Received non-zero exit for for command:" + commandString);
     }
     return cleanResultString(resultString.get());
   }
