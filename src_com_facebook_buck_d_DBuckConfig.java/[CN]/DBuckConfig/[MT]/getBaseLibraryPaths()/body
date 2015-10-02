@@ -1,0 +1,32 @@
+{
+  Optional<ImmutableList<String>> configuredPaths=delegate.getOptionalListWithoutComments("d","library_path");
+  if (configuredPaths.isPresent()) {
+    return FluentIterable.from(configuredPaths.get()).transform(new Function<String,Path>(){
+      @Override public Path apply(      String input){
+        return Paths.get(input);
+      }
+    }
+);
+  }
+  Path compilerPath=getDCompilerPath();
+  try {
+    compilerPath=compilerPath.toRealPath();
+  }
+ catch (  IOException e) {
+    LOG.debug("Could not resolve " + compilerPath + " to real path (likely cause: it does not exist)");
+  }
+  Path usrLib=Paths.get("/usr","lib");
+  Path usrLocalLib=Paths.get("/usr","local","lib");
+  String platformName=delegate.getArchitecture().toString() + "-" + delegate.getPlatform().getAutoconfName();
+  String platformNameGnu=platformName + "-gnu";
+  for (  Path libDir : ImmutableList.of(compilerPath.getParent().resolve(Paths.get("..","lib")).normalize(),usrLocalLib,usrLib,usrLocalLib.resolve(platformName),usrLocalLib.resolve(platformNameGnu),usrLib.resolve(platformName),usrLib.resolve(platformNameGnu))) {
+    for (    String libName : ImmutableList.of("libphobos2.a","libphobos2.so")) {
+      Path phobosPath=libDir.resolve(libName);
+      if (Files.exists(phobosPath)) {
+        LOG.debug("Detected path to Phobos: " + phobosPath);
+        return ImmutableList.of(libDir);
+      }
+    }
+  }
+  throw new HumanReadableException("D standard library not found, and not configured using d.library_path");
+}
