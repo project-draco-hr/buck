@@ -1,8 +1,7 @@
 {
   Verbosity verbosity=VerbosityParser.parse(args);
   Optional<String> color;
-  final boolean isDaemon=context.isPresent();
-  if (isDaemon && (context.get().getEnv() != null)) {
+  if (context.isPresent() && (context.get().getEnv() != null)) {
     String colorString=context.get().getEnv().getProperty(BUCKD_COLOR_DEFAULT_ENV_VAR);
     color=Optional.fromNullable(colorString);
   }
@@ -65,6 +64,7 @@
     watchman=Watchman.NULL_WATCHMAN;
     globHandler=ParserConfig.GlobHandler.PYTHON;
   }
+  final boolean isDaemon=context.isPresent() && (watchman != Watchman.NULL_WATCHMAN);
   KnownBuildRuleTypesFactory factory=new KnownBuildRuleTypesFactory(processExecutor,androidDirectoryResolver,testTempDirOverride);
   Cell rootCell=new Cell(filesystem,console,watchman,buckConfig,factory,androidDirectoryResolver,clock);
   int exitCode;
@@ -145,7 +145,7 @@
       commandSemaphore.release();
     }
   }
-  if (isDaemon && !rootCell.getBuckConfig().getFlushEventsBeforeExit()) {
+  if (context.isPresent() && !rootCell.getBuckConfig().getFlushEventsBeforeExit()) {
     context.get().in.close();
     context.get().exit(exitCode);
   }
