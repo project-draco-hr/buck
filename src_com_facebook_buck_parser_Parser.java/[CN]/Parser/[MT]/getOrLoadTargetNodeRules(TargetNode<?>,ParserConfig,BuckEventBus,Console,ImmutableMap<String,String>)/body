@@ -1,12 +1,17 @@
 {
   BuildTarget buildTarget=targetNode.getBuildTarget();
+  Path buildFile=cell.getAbsolutePathToBuildFile(buildTarget);
   List<Map<String,Object>> rules;
-  try {
-    Path buildFile=params.getCell().getAbsolutePathToBuildFile(buildTarget);
-    rules=params.getParser().parseBuildFile(params.getCell().getFilesystem().getRootPath(),buildFile,parserConfig,params.getEnvironment(),params.getConsole(),params.getBuckEventBus());
+  if (state.isParsed(buildFile)) {
+    rules=state.getRawRules(buildFile);
   }
- catch (  BuildTargetException e) {
-    return null;
+ else {
+    try {
+      rules=parseBuildFile(cell.getFilesystem().getRootPath(),buildFile,parserConfig,environment,console,eventBus);
+    }
+ catch (    BuildTargetException e) {
+      return null;
+    }
   }
   Map<String,Object> targetRule=null;
   for (  Map<String,Object> rule : rules) {
