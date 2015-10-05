@@ -7,7 +7,9 @@
       Path tmp=filesystem.createTempFile(filesystem.resolve(cacheDir),"artifact",".tmp");
       try {
         filesystem.copyFile(output,tmp);
-        filesystem.move(tmp,cacheDir.resolve(ruleKey.toString()));
+        Path artifactPath=cacheDir.resolve(ruleKey.toString());
+        filesystem.move(tmp,artifactPath);
+        bytesSinceLastDeleteOldFiles+=filesystem.getFileSize(artifactPath);
       }
   finally {
         filesystem.deleteFileAtPathIfExists(tmp);
@@ -23,7 +25,9 @@
             out.write(val);
           }
         }
-         filesystem.move(tmp,cacheDir.resolve(ruleKey.toString() + ".metadata"));
+         Path metadataPath=cacheDir.resolve(ruleKey.toString() + ".metadata");
+        filesystem.move(tmp,metadataPath);
+        bytesSinceLastDeleteOldFiles+=filesystem.getFileSize(metadataPath);
       }
   finally {
         filesystem.deleteFileAtPathIfExists(tmp);
@@ -32,5 +36,9 @@
   }
  catch (  IOException e) {
     LOG.warn(e,"Artifact store(%s, %s) error",ruleKeys,output);
+  }
+  if (maxCacheSizeBytes.isPresent() && bytesSinceLastDeleteOldFiles > (maxCacheSizeBytes.get() * STORED_TO_MAX_BYTES_RATIO_TRIM_TRIGGER)) {
+    bytesSinceLastDeleteOldFiles=0L;
+    deleteOldFiles();
   }
 }

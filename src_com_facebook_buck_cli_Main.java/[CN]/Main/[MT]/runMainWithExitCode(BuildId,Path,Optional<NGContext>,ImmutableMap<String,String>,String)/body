@@ -85,15 +85,16 @@
   Optional<WebServer> webServer=getWebServerIfDaemon(context,rootCell,globHandler,allowSymlinks);
   TestConfig testConfig=new TestConfig(buckConfig);
   ArtifactCacheBuckConfig cacheBuckConfig=new ArtifactCacheBuckConfig(buckConfig);
-  ExecutorService vcStatsExecutorService=MoreExecutors.newSingleThreadExecutor("VC Stats");
+  ExecutorService diskIoExecutorService=MoreExecutors.newSingleThreadExecutor("Disk I/O");
   VersionControlStatsGenerator vcStatsGenerator=null;
-  try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer);TempDirectoryCreator tempDirectoryCreator=new TempDirectoryCreator(testTempDirOverride);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId);ArtifactCache artifactCache=ArtifactCaches.newInstance(cacheBuckConfig,buildEventBus,filesystem,executionEnvironment.getWifiSsid())){
+  try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer);TempDirectoryCreator tempDirectoryCreator=new TempDirectoryCreator(testTempDirOverride);AsyncCloseable asyncCloseable=new AsyncCloseable(diskIoExecutorService);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
+    ArtifactCache artifactCache=asyncCloseable.closeAsync(ArtifactCaches.newInstance(cacheBuckConfig,buildEventBus,filesystem,executionEnvironment.getWifiSsid()));
     ProgressEstimator progressEstimator=new ProgressEstimator(filesystem.getRootPath(),buildEventBus);
     consoleListener.setProgressEstimator(progressEstimator);
     eventListeners=addEventListeners(buildEventBus,rootCell.getFilesystem(),buildId,rootCell.getBuckConfig(),webServer,clock,executionEnvironment,console,consoleListener,rootCell.getKnownBuildRuleTypes(),clientEnvironment);
     VersionControlBuckConfig vcBuckConfig=new VersionControlBuckConfig(buckConfig);
     if (vcBuckConfig.shouldGenerateStatistics()) {
-      vcStatsGenerator=new VersionControlStatsGenerator(vcStatsExecutorService,new DefaultVersionControlCmdLineInterfaceFactory(rootCell.getFilesystem().getRootPath(),processExecutor,vcBuckConfig),buildEventBus);
+      vcStatsGenerator=new VersionControlStatsGenerator(diskIoExecutorService,new DefaultVersionControlCmdLineInterfaceFactory(rootCell.getFilesystem().getRootPath(),processExecutor,vcBuckConfig),buildEventBus);
       vcStatsGenerator.generateStatsAsync();
     }
     ImmutableList<String> remainingArgs=args.length > 1 ? ImmutableList.copyOf(Arrays.copyOfRange(args,1,args.length)) : ImmutableList.<String>of();
@@ -136,7 +137,7 @@
   }
  catch (  Throwable t) {
     LOG.debug(t,"Failing build on exception.");
-    closeVcStatsGenerator(vcStatsExecutorService,vcStatsGenerator);
+    closeDiskIoExecutorService(diskIoExecutorService);
     flushEventListeners(console,buildId,eventListeners);
     throw t;
   }
@@ -149,7 +150,7 @@
     context.get().in.close();
     context.get().exit(exitCode);
   }
-  closeVcStatsGenerator(vcStatsExecutorService,vcStatsGenerator);
+  closeDiskIoExecutorService(diskIoExecutorService);
   flushEventListeners(console,buildId,eventListeners);
   return exitCode;
 }
