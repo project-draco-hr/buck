@@ -22,7 +22,7 @@
   }
   Optional<AppleBundle> testHostApp;
   Optional<SourcePath> testHostAppBinarySourcePath;
-  ImmutableSet<BuildRule> blacklist;
+  ImmutableSet<BuildTarget> blacklist;
   if (args.testHostApp.isPresent()) {
     TargetNode<?> testHostAppNode=targetGraph.get(args.testHostApp.get());
     Preconditions.checkNotNull(testHostAppNode);
@@ -33,7 +33,7 @@
     testHostApp=Optional.of(appleBundleDescription.createBuildRule(targetGraph,params.copyWithChanges(BuildTarget.builder(args.testHostApp.get()).addAllFlavors(nonLibraryFlavors).build(),Suppliers.ofInstance(BuildRules.toBuildRulesFor(args.testHostApp.get(),resolver,testHostAppNode.getDeclaredDeps())),Suppliers.ofInstance(BuildRules.toBuildRulesFor(args.testHostApp.get(),resolver,testHostAppNode.getExtraDeps()))),resolver,testHostAppDescription));
     testHostAppBinarySourcePath=Optional.<SourcePath>of(new BuildTargetSourcePath(testHostAppDescription.binary));
     Pair<MutableDirectedGraph<BuildRule>,Map<BuildTarget,Linker.LinkableDepType>> transitiveDependencies=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,testHostApp.get().getBinary().get().getDeps(),Linker.LinkableDepType.STATIC,Predicates.alwaysTrue());
-    blacklist=ImmutableSet.copyOf(transitiveDependencies.getFirst().getNodes());
+    blacklist=FluentIterable.from(transitiveDependencies.getFirst().getNodes()).transform(HasBuildTarget.TO_TARGET).toSet();
   }
  else {
     testHostApp=Optional.absent();
