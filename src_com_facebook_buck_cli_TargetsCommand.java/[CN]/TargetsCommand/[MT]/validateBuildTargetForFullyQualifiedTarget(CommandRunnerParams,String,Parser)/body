@@ -6,16 +6,16 @@
  catch (  NoSuchBuildTargetException e) {
     return null;
   }
-  List<Map<String,Object>> ruleObjects;
+  ImmutableList<BuildTarget> targetsInFile;
   try {
-    ruleObjects=parser.parseBuildFile(params.getCell().getFilesystem().getRootPath(),params.getCell().getAbsolutePathToBuildFile(buildTarget),new ParserConfig(params.getBuckConfig()),params.getEnvironment(),params.getConsole(),params.getBuckEventBus());
+    ParserConfig config=new ParserConfig(params.getBuckConfig());
+    targetsInFile=parser.getOrLoadBuildTargets(buildTarget.getBasePath().resolve(config.getBuildFileName()),config,params.getBuckEventBus(),params.getConsole(),params.getEnvironment());
   }
  catch (  BuildTargetException|BuildFileParseException e) {
     return null;
   }
-  for (  Map<String,Object> rule : ruleObjects) {
-    String name=(String)Preconditions.checkNotNull(rule.get("name"));
-    if (name.equals(buildTarget.getShortNameAndFlavorPostfix())) {
+  for (  BuildTarget candidate : targetsInFile) {
+    if (candidate.equals(buildTarget)) {
       return buildTarget.getFullyQualifiedName();
     }
   }
