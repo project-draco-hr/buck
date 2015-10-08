@@ -35,17 +35,11 @@
  else {
       destinationSpecifierArg=defaultDestinationSpecifier;
     }
-    XctoolRunTestsStep xctoolStep=new XctoolRunTestsStep(getProjectFilesystem(),getResolver().getResolvedPath(xctool.get()),xctoolStutterTimeout,platformName,destinationSpecifierArg,logicTestPathsBuilder.build(),appTestPathsToHostAppsBuilder.build(),resolvedTestOutputPath,xctoolStdoutReader);
+    XctoolRunTestsStep xctoolStep=new XctoolRunTestsStep(getProjectFilesystem(),getResolver().getResolvedPath(xctool.get()),xctoolStutterTimeout,platformName,destinationSpecifierArg,logicTestPathsBuilder.build(),appTestPathsToHostAppsBuilder.build(),resolvedTestOutputPath,xctoolStdoutReader,xcodeDeveloperDirSupplier);
     steps.add(xctoolStep);
     externalSpec.setType("xctool-" + (testHostApp.isPresent() ? "application" : "logic"));
     externalSpec.setCommand(xctoolStep.getCommand());
-    Optional<Path> xcodeDeveloperDir=xcodeDeveloperDirSupplier.get();
-    if (xcodeDeveloperDir.isPresent()) {
-      externalSpec.setEnv(ImmutableMap.of("DEVELOPER_DIR",xcodeDeveloperDir.get().toString()));
-    }
- else {
-      throw new HumanReadableException("Cannot determine xcode developer dir");
-    }
+    externalSpec.setEnv(xctoolStep.getEnv(context));
   }
  else {
     Tool testRunningTool;
@@ -58,7 +52,7 @@
  else {
       throw new HumanReadableException("Cannot run non-xctest bundle type %s (otest not present)",testBundleExtension);
     }
-    XctestRunTestsStep xctestStep=new XctestRunTestsStep(getProjectFilesystem(),testRunningTool.getCommandPrefix(getResolver()),(testBundleExtension.equals("xctest") ? "-XCTest" : "-SenTest"),resolvedTestBundleDirectory,resolvedTestOutputPath);
+    XctestRunTestsStep xctestStep=new XctestRunTestsStep(getProjectFilesystem(),testRunningTool.getCommandPrefix(getResolver()),(testBundleExtension.equals("xctest") ? "-XCTest" : "-SenTest"),resolvedTestBundleDirectory,resolvedTestOutputPath,xcodeDeveloperDirSupplier);
     steps.add(xctestStep);
     externalSpec.setType("xctest");
     externalSpec.setCommand(xctestStep.getCommand());
