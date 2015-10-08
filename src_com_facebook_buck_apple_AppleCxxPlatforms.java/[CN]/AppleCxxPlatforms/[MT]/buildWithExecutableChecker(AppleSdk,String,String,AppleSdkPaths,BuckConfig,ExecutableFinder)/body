@@ -47,6 +47,16 @@ Tool xctest=new VersionedTool(getToolPath("xctest",toolSearchPaths,executableFin
 Optional<Tool> otest=getOptionalTool("otest",toolSearchPaths,executableFinder,version);
 Tool dsymutil=new VersionedTool(getToolPath("dsymutil",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-dsymutil",version);
 Tool lipo=new VersionedTool(getToolPath("lipo",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-lipo",version);
+Optional<Path> stubBinaryPath;
+switch (targetSdk.getApplePlatform().getName()) {
+case ApplePlatform.Name.WATCHOS:
+case ApplePlatform.Name.WATCHSIMULATOR:
+stubBinaryPath=Optional.of(sdkPaths.getSdkPath().resolve("Library/Application Support/WatchKit/WK"));
+break;
+default :
+stubBinaryPath=Optional.absent();
+break;
+}
 CxxBuckConfig config=new CxxBuckConfig(buckConfig);
 ImmutableFlavor targetFlavor=ImmutableFlavor.of(ImmutableFlavor.replaceInvalidCharacters(targetSdk.getName() + "-" + targetArchitecture));
 ImmutableBiMap.Builder<Path,Path> sanitizerPaths=ImmutableBiMap.builder();
@@ -65,5 +75,5 @@ macrosBuilder.put("DEVELOPER_DIR",sdkPaths.getDeveloperPath().get().toString());
 }
 ImmutableMap<String,String> macros=macrosBuilder.build();
 CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,config,clangPath,new ClangPreprocessor(clangPath),new ClangCompiler(clangPath),new ClangCompiler(clangXxPath),new ClangPreprocessor(clangPath),new ClangPreprocessor(clangXxPath),new DarwinLinker(clangXxPath),ImmutableList.<String>builder().addAll(cflags).addAll(ldflags).build(),strip,new BsdArchiver(ar),asflags,ImmutableList.<String>of(),cflags,ImmutableList.<String>of(),getOptionalTool("lex",toolSearchPaths,executableFinder,version),getOptionalTool("yacc",toolSearchPaths,executableFinder,version),"dylib",Optional.of(debugPathSanitizer),macros);
-return AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setActool(actool).setIbtool(ibtool).setXctest(xctest).setOtest(otest).setDsymutil(dsymutil).setLipo(lipo).build();
+return AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setActool(actool).setIbtool(ibtool).setXctest(xctest).setOtest(otest).setDsymutil(dsymutil).setLipo(lipo).setStubBinary(stubBinaryPath).build();
 }
