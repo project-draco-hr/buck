@@ -81,7 +81,14 @@
     cellHashCache=new DefaultFileHashCache(rootCell.getFilesystem());
     buckOutHashCache=new DefaultFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath(),Optional.of(ImmutableSet.of(BuckConstant.BUCK_OUTPUT_PATH)),ImmutableSet.<Path>of()));
   }
-  FileHashCache fileHashCache=new StackedFileHashCache(ImmutableList.of(cellHashCache,buckOutHashCache,new DefaultFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath())),new DefaultFileHashCache(new ProjectFilesystem(Paths.get("/")))));
+  ImmutableList.Builder<FileHashCache> allCaches=ImmutableList.builder();
+  allCaches.add(cellHashCache);
+  allCaches.add(buckOutHashCache);
+  allCaches.add(new DefaultFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath())));
+  for (  Path root : FileSystems.getDefault().getRootDirectories()) {
+    allCaches.add(new DefaultFileHashCache(new ProjectFilesystem(root)));
+  }
+  FileHashCache fileHashCache=new StackedFileHashCache(allCaches.build());
   Optional<WebServer> webServer=getWebServerIfDaemon(context,rootCell,globHandler,allowSymlinks);
   TestConfig testConfig=new TestConfig(buckConfig);
   ArtifactCacheBuckConfig cacheBuckConfig=new ArtifactCacheBuckConfig(buckConfig);
