@@ -17,11 +17,11 @@
   steps.add(writeFromResource(fatJarSource,FAT_JAR_SRC_RESOURCE));
   Path fatJarMainSource=outputDir.resolve(Paths.get(FAT_JAR_MAIN_SRC_RESOURCE).getFileName());
   steps.add(writeFromResource(fatJarMainSource,FAT_JAR_MAIN_SRC_RESOURCE));
-  steps.add(new JavacStep(fatJarDir,Optional.<Path>absent(),ImmutableSet.of(fatJarSource,fatJarMainSource),Optional.<Path>absent(),ImmutableSet.<Path>of(),javacOptions,getBuildTarget(),Optional.<JavacStep.SuggestBuildRules>absent(),getResolver(),getProjectFilesystem()));
   steps.add(new MkdirStep(getProjectFilesystem(),fatJarDir.resolve(FAT_JAR_INNER_JAR).getParent()));
   steps.add(new SymlinkFileStep(getProjectFilesystem(),getResolver().getPath(innerJar),fatJarDir.resolve(FAT_JAR_INNER_JAR),false));
   Path zipped=outputDir.resolve("contents.zip");
-  steps.add(new ZipStep(getProjectFilesystem(),zipped,ImmutableSet.<Path>of(),false,0,fatJarDir));
-  steps.add(new JarDirectoryStep(getProjectFilesystem(),getOutputPath(),ImmutableSet.of(zipped),FatJarMain.class.getName(),null));
+  Step zipStep=new ZipStep(getProjectFilesystem(),zipped,ImmutableSet.<Path>of(),false,0,fatJarDir);
+  JavacToJarStepFactory javacToJarStepFactory=new JavacToJarStepFactory(fatJarDir,Optional.<Path>absent(),ImmutableSet.of(fatJarSource,fatJarMainSource),Optional.<Path>absent(),ImmutableSet.<Path>of(),javacOptions,getBuildTarget(),Optional.<JavacStep.SuggestBuildRules>absent(),getResolver(),getProjectFilesystem(),getOutputPath(),ImmutableSet.of(zipped),FatJarMain.class.getName(),null,ImmutableList.of(zipStep));
+  javacToJarStepFactory.getJavacToJarStep(steps);
   return steps.build();
 }
