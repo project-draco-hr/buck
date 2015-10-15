@@ -1,10 +1,18 @@
 {
   assertTrue("setUp() must be run before this method is invoked",isSetUp);
   CapturingPrintStream stdout=new CapturingPrintStream();
-  CapturingPrintStream stderr=new CapturingPrintStream();
+  final CapturingPrintStream stderr=new CapturingPrintStream();
   final ImmutableList.Builder<BuckEvent> capturedEventsListBuilder=new ImmutableList.Builder<>();
   BuckEventListener capturingEventListener=new BuckEventListener(){
     @Subscribe public void captureEvent(    BuckEvent event){
+      if (event instanceof ConsoleEvent) {
+        try {
+          stderr.write(((ConsoleEvent)event).getMessage().getBytes(Charsets.UTF_8));
+        }
+ catch (        IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
       capturedEventsListBuilder.add(event);
     }
     @Override public void outputTrace(    BuildId buildId) throws InterruptedException {

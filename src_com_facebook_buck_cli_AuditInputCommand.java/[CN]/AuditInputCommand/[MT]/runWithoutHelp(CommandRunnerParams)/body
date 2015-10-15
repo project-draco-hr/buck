@@ -1,7 +1,7 @@
 {
   final ImmutableSet<String> fullyQualifiedBuildTargets=ImmutableSet.copyOf(getArgumentsFormattedAsBuildTargets(params.getBuckConfig()));
   if (fullyQualifiedBuildTargets.isEmpty()) {
-    params.getConsole().printBuildFailure("Please specify at least one build target.");
+    params.getBuckEventBus().post(ConsoleEvent.severe("Please specify at least one build target."));
     return 1;
   }
   ImmutableSet<BuildTarget> targets=FluentIterable.from(getArgumentsFormattedAsBuildTargets(params.getBuckConfig())).transform(new Function<String,BuildTarget>(){
@@ -16,7 +16,7 @@
     graph=params.getParser().buildTargetGraphForBuildTargets(targets,new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
   }
  catch (  BuildTargetException|BuildFileParseException e) {
-    params.getConsole().printBuildFailureWithoutStacktrace(e);
+    params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
     return 1;
   }
   if (shouldGenerateJsonOutput()) {
