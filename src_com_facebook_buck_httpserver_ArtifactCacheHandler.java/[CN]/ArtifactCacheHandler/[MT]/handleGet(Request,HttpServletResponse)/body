@@ -1,0 +1,45 @@
+{
+  if (!artifactCache.isPresent()) {
+    response.getWriter().write("Serving local cache is disabled for this instance.");
+    return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+  }
+  String path=baseRequest.getUri().getPath();
+  String[] pathElements=path.split("/");
+  if (pathElements.length != 4 || !pathElements[2].equals("key")) {
+    response.getWriter().write("Incorrect url format.");
+    return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+  }
+  RuleKey ruleKey=RuleKey.TO_RULE_KEY.apply(pathElements[3]);
+  Path temp=null;
+  try {
+    temp=projectFilesystem.createTempFile(BuckConstant.SCRATCH_PATH,"outgoing_rulekey",".tmp");
+    projectFilesystem.createParentDirs(temp);
+    CacheResult fetchResult;
+    try {
+      fetchResult=artifactCache.get().fetch(ruleKey,temp);
+    }
+ catch (    InterruptedException e) {
+      LOG.error(e,"Interrupted when fetching from local cache.");
+      e.printStackTrace(response.getWriter());
+      return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+    }
+    if (!fetchResult.getType().isSuccess()) {
+      return HttpServletResponse.SC_NOT_FOUND;
+    }
+    final Path tempFinal=temp;
+    HttpArtifactCacheBinaryProtocol.FetchResponse fetchResponse=new HttpArtifactCacheBinaryProtocol.FetchResponse(ImmutableSet.of(ruleKey),fetchResult.getMetadata(),new ByteSource(){
+      @Override public InputStream openStream() throws IOException {
+        return projectFilesystem.newFileInputStream(tempFinal);
+      }
+    }
+);
+    fetchResponse.write(response.getOutputStream());
+    response.setContentLengthLong(fetchResponse.getContentLength());
+    return HttpServletResponse.SC_OK;
+  }
+  finally {
+    if (temp != null) {
+      projectFilesystem.deleteFileAtPathIfExists(temp);
+    }
+  }
+}

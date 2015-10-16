@@ -1,0 +1,22 @@
+{
+  ProjectFilesystem throwingStreamFilesystem=new ProjectFilesystem(tmpDir.getRoot()){
+    private boolean throwingStreamServed=false;
+    @Override public InputStream newFileInputStream(    Path pathRelativeToProjectRoot) throws IOException {
+      InputStream inputStream=super.newFileInputStream(pathRelativeToProjectRoot);
+      if (!throwingStreamServed && pathRelativeToProjectRoot.toString().contains("outgoing_rulekey")) {
+        throwingStreamServed=true;
+        return new ThrowAfterXBytesStream(inputStream,10L);
+      }
+      return inputStream;
+    }
+  }
+;
+  webServer=new WebServer(0,throwingStreamFilesystem,"/static/",new ObjectMapper());
+  webServer.updateAndStartIfNeeded(Optional.of(dirCache));
+  ArtifactCache serverBackedCache=ArtifactCaches.newInstance(createMockLocalHttpCacheConfig(webServer.getPort().get()),buckEventBus,projectFilesystem,Optional.<String>absent());
+  Path fetchedContents=tmpDir.newFile();
+  CacheResult cacheResult=serverBackedCache.fetch(A_FILE_RULE_KEY,fetchedContents);
+  assertThat(cacheResult.getType(),Matchers.equalTo(CacheResultType.ERROR));
+  cacheResult=serverBackedCache.fetch(A_FILE_RULE_KEY,fetchedContents);
+  assertThat(cacheResult.getType(),Matchers.equalTo(CacheResultType.HIT));
+}
