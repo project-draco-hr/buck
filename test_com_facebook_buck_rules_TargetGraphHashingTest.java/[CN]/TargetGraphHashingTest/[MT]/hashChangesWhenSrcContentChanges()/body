@@ -1,7 +1,14 @@
 {
   FakeProjectFilesystem projectFilesystem=new FakeProjectFilesystem();
-  TargetNode<?> node=createJavaLibraryTargetNodeWithSrcs(projectFilesystem,BuildTargetFactory.newInstance("//foo:lib"),HashCode.fromLong(64738),ImmutableMap.of(Paths.get("foo/FooLib.java"),"Goodbye world"));
+  TargetNode<?> node=createJavaLibraryTargetNodeWithSrcs(BuildTargetFactory.newInstance("//foo:lib"),HashCode.fromLong(64738),ImmutableSet.of(Paths.get("foo/FooLib.java")));
   TargetGraph targetGraph=TargetGraphFactory.newInstance(node);
-  ImmutableMap<BuildTarget,HashCode> expectedTargetHashes=ImmutableMap.of(BuildTargetFactory.newInstance("//foo:lib"),HashCode.fromString("6cb8ac509e591d722c2902a08be8738649a620b9"));
-  assertThat(TargetGraphHashing.hashTargetGraph(projectFilesystem,targetGraph,ImmutableList.of(node.getBuildTarget())),equalTo(expectedTargetHashes));
+  FileHashCache baseCache=new FakeFileHashCache(ImmutableMap.of(Paths.get("foo/FooLib.java"),HashCode.fromString("abcdef")));
+  FileHashCache modifiedCache=new FakeFileHashCache(ImmutableMap.of(Paths.get("foo/FooLib.java"),HashCode.fromString("abc1ef")));
+  Map<BuildTarget,HashCode> baseResult=TargetGraphHashing.hashTargetGraph(projectFilesystem,targetGraph,baseCache,ImmutableList.of(node.getBuildTarget()));
+  Map<BuildTarget,HashCode> modifiedResult=TargetGraphHashing.hashTargetGraph(projectFilesystem,targetGraph,modifiedCache,ImmutableList.of(node.getBuildTarget()));
+  assertThat(baseResult,aMapWithSize(1));
+  assertThat(baseResult,hasKey(node.getBuildTarget()));
+  assertThat(modifiedResult,aMapWithSize(1));
+  assertThat(modifiedResult,hasKey(node.getBuildTarget()));
+  assertThat(modifiedResult.get(node.getBuildTarget()),not(equalTo(baseResult.get(node.getBuildTarget()))));
 }
