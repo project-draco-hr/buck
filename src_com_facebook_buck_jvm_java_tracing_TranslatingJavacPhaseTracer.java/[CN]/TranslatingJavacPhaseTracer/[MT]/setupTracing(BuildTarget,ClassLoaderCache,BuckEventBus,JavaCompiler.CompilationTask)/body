@@ -1,0 +1,15 @@
+{
+  if (JAVAC_TRACING_JAR_URL == null) {
+    return;
+  }
+  try {
+    final ClassLoader compilerClassLoader=task.getClass().getClassLoader();
+    final ClassLoader tracingTaskListenerClassLoader=classLoaderCache.getClassLoaderForClassPath(compilerClassLoader,ImmutableList.of(JAVAC_TRACING_JAR_URL));
+    final Class<?> tracingTaskListenerClass=Class.forName("com.facebook.buck.jvm.java.tracing.TracingTaskListener",false,tracingTaskListenerClassLoader);
+    final Method setupTracingMethod=tracingTaskListenerClass.getMethod("setupTracing",JavaCompiler.CompilationTask.class,JavacPhaseTracer.class);
+    setupTracingMethod.invoke(null,task,new TranslatingJavacPhaseTracer(new JavacPhaseEventLogger(invokingTarget,buckEventBus)));
+  }
+ catch (  ReflectiveOperationException e) {
+    LOG.warn(e,"Failed loading TracingTaskListener. " + "Perhaps using a compiler that doesn't support com.sun.source.util.JavaTask?");
+  }
+}
