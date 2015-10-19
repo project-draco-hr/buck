@@ -1,17 +1,18 @@
 {
   final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   ImmutableSortedSet.Builder<BuildRule> sourceZipsBuilder=ImmutableSortedSet.naturalOrder();
+  UnflavoredBuildTarget unflavoredBuildTarget=params.getBuildTarget().getUnflavoredBuildTarget();
   for (  ImmutableMap.Entry<String,ThriftSource> ent : sources.entrySet()) {
     String name=ent.getKey();
     BuildRule compilerRule=ent.getValue().getCompileRule();
     Path sourceDirectory=ent.getValue().getOutputDir().resolve("gen-java");
-    BuildTarget sourceZipTarget=getSourceZipBuildTarget(params.getBuildTarget(),name);
-    Path sourceZip=getSourceZipOutputPath(params.getBuildTarget(),name);
+    BuildTarget sourceZipTarget=getSourceZipBuildTarget(unflavoredBuildTarget,name);
+    Path sourceZip=getSourceZipOutputPath(unflavoredBuildTarget,name);
     sourceZipsBuilder.add(new SrcZip(params.copyWithChanges(sourceZipTarget,Suppliers.ofInstance(ImmutableSortedSet.of(compilerRule)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,sourceZip,sourceDirectory));
   }
   ImmutableSortedSet<BuildRule> sourceZips=sourceZipsBuilder.build();
   resolver.addAllToIndex(sourceZips);
-  BuildRuleParams javaParams=params.copyWithChanges(BuildTargets.createFlavoredBuildTarget(params.getBuildTarget().getUnflavoredBuildTarget(),getFlavor()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(sourceZips).addAll(deps).addAll(BuildRules.getExportedRules(deps)).addAll(pathResolver.filterBuildRuleInputs(templateOptions.getInputs(pathResolver))).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  BuildRuleParams javaParams=params.copyWithChanges(BuildTargets.createFlavoredBuildTarget(unflavoredBuildTarget,getFlavor()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(sourceZips).addAll(deps).addAll(BuildRules.getExportedRules(deps)).addAll(pathResolver.filterBuildRuleInputs(templateOptions.getInputs(pathResolver))).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   BuildTarget abiJarTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(CalculateAbi.FLAVOR).build();
   DefaultJavaLibrary library=resolver.addToIndex(new DefaultJavaLibrary(javaParams,pathResolver,FluentIterable.from(sourceZips).transform(SourcePaths.getToBuildTargetSourcePath()).toSortedSet(Ordering.natural()),ImmutableSet.<SourcePath>of(),Optional.<SourcePath>absent(),ImmutableList.<String>of(),ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of(),new BuildTargetSourcePath(abiJarTarget),ImmutableSet.<Path>of(),templateOptions,Optional.<Path>absent(),Optional.<String>absent(),ImmutableSortedSet.<BuildTarget>of()));
   resolver.addToIndex(CalculateAbi.of(abiJarTarget,pathResolver,params,new BuildTargetSourcePath(library.getBuildTarget())));
