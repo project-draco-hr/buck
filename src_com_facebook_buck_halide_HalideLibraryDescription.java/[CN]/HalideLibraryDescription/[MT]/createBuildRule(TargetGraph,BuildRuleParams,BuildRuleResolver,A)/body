@@ -9,25 +9,34 @@
  catch (  FlavorDomainException e) {
     throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
   }
-  if (type.isPresent() && type.get().getValue() == Type.EXPORTED_HEADERS) {
-    Preconditions.checkState(cxxPlatform.isPresent());
-    ImmutableMap.Builder<Path,SourcePath> headersBuilder=ImmutableMap.builder();
-    BuildTarget unflavoredTarget=BuildTarget.builder(target.getUnflavoredBuildTarget()).build();
-    String headerName=unflavoredTarget.getShortName() + ".h";
-    Path outputPath=BuildTargets.getGenPath(unflavoredTarget,"%s/" + headerName);
-    headersBuilder.put(Paths.get(headerName),new BuildTargetSourcePath(unflavoredTarget,outputPath));
-    return CxxDescriptionEnhancer.createHeaderSymlinkTree(params,resolver,new SourcePathResolver(resolver),cxxPlatform.get().getValue(),false,ImmutableMap.<String,SourcePath>of(),ImmutableMap.<String,SourcePath>of(),headersBuilder.build(),HeaderVisibility.PUBLIC);
-  }
-  CxxPlatform hostCxxPlatform;
-  try {
-    hostCxxPlatform=cxxPlatforms.getValue(ImmutableFlavor.of("default"));
-  }
- catch (  FlavorDomainException e) {
-    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
-  }
-  Preconditions.checkState(args.srcs.isPresent());
   final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  final ImmutableSortedSet<BuildTarget> compilerDeps=args.compilerDeps.or(ImmutableSortedSet.<BuildTarget>of());
-  CxxBinary halideCompiler=requireHalideCompiler(targetGraph,params.copyWithDeps(Suppliers.ofInstance(resolver.getAllRules(compilerDeps)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),resolver,pathResolver,hostCxxPlatform,args.srcs.get(),args.compilerFlags,args.platformCompilerFlags,args.linkerFlags,args.platformLinkerFlags);
-  return new HalideLibrary(params.copyWithExtraDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(halideCompiler))),resolver,pathResolver,args.srcs.get(),halideCompiler.getExecutableCommand(),BuildTargets.getGenPath(params.getBuildTarget(),"%s"));
+  if (type.isPresent()) {
+    if (type.get().getValue() == Type.EXPORTED_HEADERS) {
+      Preconditions.checkState(cxxPlatform.isPresent());
+      ImmutableMap.Builder<Path,SourcePath> headersBuilder=ImmutableMap.builder();
+      BuildTarget unflavoredTarget=BuildTarget.builder(target.getUnflavoredBuildTarget()).build();
+      String headerName=unflavoredTarget.getShortName() + ".h";
+      Path outputPath=BuildTargets.getGenPath(unflavoredTarget,"%s/" + headerName);
+      headersBuilder.put(Paths.get(headerName),new BuildTargetSourcePath(unflavoredTarget,outputPath));
+      return CxxDescriptionEnhancer.createHeaderSymlinkTree(params,resolver,new SourcePathResolver(resolver),cxxPlatform.get().getValue(),false,ImmutableMap.<String,SourcePath>of(),ImmutableMap.<String,SourcePath>of(),headersBuilder.build(),HeaderVisibility.PUBLIC);
+    }
+ else     if (type.get().getValue() == Type.HALIDE_COMPILER) {
+      CxxPlatform hostCxxPlatform;
+      try {
+        hostCxxPlatform=cxxPlatforms.getValue(ImmutableFlavor.of("default"));
+      }
+ catch (      FlavorDomainException e) {
+        throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+      }
+      Preconditions.checkState(args.srcs.isPresent());
+      final ImmutableSortedSet<BuildTarget> compilerDeps=args.compilerDeps.or(ImmutableSortedSet.<BuildTarget>of());
+      CxxBinary halideCompiler=requireHalideCompiler(targetGraph,params.copyWithDeps(Suppliers.ofInstance(resolver.getAllRules(compilerDeps)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),resolver,pathResolver,hostCxxPlatform,args.srcs.get(),args.compilerFlags,args.platformCompilerFlags,args.linkerFlags,args.platformLinkerFlags);
+      return halideCompiler;
+    }
+  }
+  BuildTarget compilerTarget=createHalideCompilerBuildTarget(target);
+  Optional<BuildRule> rule=resolver.getRuleOptional(compilerTarget);
+  Preconditions.checkState(rule.isPresent());
+  CxxBinary halideCompiler=(CxxBinary)rule.get();
+  return new HalideLibrary(params,resolver,pathResolver,args.srcs.get(),halideCompiler.getExecutableCommand(),BuildTargets.getGenPath(params.getBuildTarget(),"%s"));
 }
