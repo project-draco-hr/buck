@@ -1,0 +1,28 @@
+{
+  BuildTarget compilerTarget=BuildTargetFactory.newInstance("//:rule").withFlavors(HalideLibraryDescription.HALIDE_COMPILER_FLAVOR);
+  BuildTarget libTarget=BuildTargetFactory.newInstance("//:rule");
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  HalideLibraryBuilder compilerBuilder=new HalideLibraryBuilder(compilerTarget);
+  compilerBuilder.setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new TestSourcePath("main.cpp"))));
+  HalideLibraryBuilder libBuilder=new HalideLibraryBuilder(libTarget);
+  TargetGraph targetGraph=TargetGraphFactory.newInstance(compilerBuilder.build(),libBuilder.build());
+  CxxBinary compiler=(CxxBinary)compilerBuilder.build(resolver,filesystem,targetGraph);
+  HalideLibrary lib=(HalideLibrary)libBuilder.build(resolver,filesystem,targetGraph);
+  assertEquals(lib.getDeps(),ImmutableSortedSet.<BuildRule>of(compiler));
+  CxxPlatform cxxPlatform=CxxLibraryBuilder.createDefaultPlatform();
+  String headerName="rule.h";
+  Path headerPath=BuildTargets.getGenPath(libTarget,"%s/" + headerName);
+  Path headerRoot=CxxDescriptionEnhancer.getHeaderSymlinkTreePath(libTarget,cxxPlatform.getFlavor(),HeaderVisibility.PUBLIC);
+  assertEquals(CxxPreprocessorInput.builder().addRules(CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(libTarget,cxxPlatform.getFlavor(),HeaderVisibility.PUBLIC)).setIncludes(CxxHeaders.builder().putNameToPathMap(Paths.get(headerName),new BuildTargetSourcePath(libTarget,headerPath)).putFullNameToPathMap(headerRoot.resolve(headerName),new BuildTargetSourcePath(libTarget,headerPath)).build()).addSystemIncludeRoots(headerRoot).build(),lib.getCxxPreprocessorInput(targetGraph,cxxPlatform,HeaderVisibility.PUBLIC));
+  String objectName="rule.o";
+  Path objPath=BuildTargets.getGenPath(libTarget,"%s/" + objectName);
+  NativeLinkableInput input=lib.getNativeLinkableInput(targetGraph,cxxPlatform,Linker.LinkableDepType.STATIC);
+  ImmutableList<SourcePath> inputs=ImmutableList.copyOf(input.getInputs());
+  assertEquals(1,inputs.size());
+  SourcePath srcPath=inputs.get(0);
+  assertTrue(srcPath instanceof BuildTargetSourcePath);
+  assertEquals(objPath,((BuildTargetSourcePath)srcPath).getResolvedPath().get());
+  BuildRule buildRule=new SourcePathResolver(resolver).getRule(srcPath).get();
+  assertTrue(buildRule instanceof HalideLibrary);
+}
