@@ -1,12 +1,10 @@
 {
   ActionGraphEvent.Started started=ActionGraphEvent.started();
   eventBus.post(started);
-  final LoadingCache<CellFilesystemResolver,Pair<BuildRuleResolver,RuleKeyBuilderFactory>> cellSpecificData=CacheBuilder.newBuilder().build(new CacheLoader<CellFilesystemResolver,Pair<BuildRuleResolver,RuleKeyBuilderFactory>>(){
-    @Override public Pair<BuildRuleResolver,RuleKeyBuilderFactory> load(    CellFilesystemResolver cellNameResolver) throws Exception {
-      BuildRuleResolver ruleResolver=new BuildRuleResolverView(cellNameResolver);
-      StackedFileHashCache cellHashCache=new StackedFileHashCache(ImmutableList.of(fileHashCache,new DefaultFileHashCache(cellNameResolver.getFilesystem())));
-      RuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(cellHashCache,new SourcePathResolver(ruleResolver));
-      return new Pair<>(ruleResolver,factory);
+  final LoadingCache<ProjectFilesystem,RuleKeyBuilderFactory> ruleKeyBuilderFactories=CacheBuilder.newBuilder().build(new CacheLoader<ProjectFilesystem,RuleKeyBuilderFactory>(){
+    @Override public RuleKeyBuilderFactory load(    ProjectFilesystem filesystem) throws Exception {
+      StackedFileHashCache cellHashCache=new StackedFileHashCache(ImmutableList.of(fileHashCache,new DefaultFileHashCache(filesystem)));
+      return new DefaultRuleKeyBuilderFactory(cellHashCache,new SourcePathResolver(resolver));
     }
   }
 );
@@ -14,30 +12,25 @@
   final AtomicInteger processedNodes=new AtomicInteger(0);
   AbstractBottomUpTraversal<TargetNode<?>,ActionGraph> bottomUpTraversal=new AbstractBottomUpTraversal<TargetNode<?>,ActionGraph>(targetGraph){
     @Override public void visit(    TargetNode<?> node){
-      Pair<BuildRuleResolver,RuleKeyBuilderFactory> data=cellSpecificData.getUnchecked(node.getCellFilesystemResolver());
+      RuleKeyBuilderFactory data=ruleKeyBuilderFactories.getUnchecked(node.getRuleFactoryParams().getProjectFilesystem());
       BuildRule rule;
       try {
-        rule=buildRuleGenerator.transform(targetGraph,data.getFirst(),node,data.getSecond());
+        rule=buildRuleGenerator.transform(targetGraph,resolver,node,data);
       }
  catch (      NoSuchBuildTargetException e) {
         throw new HumanReadableException(e);
       }
-      BuildRuleResolver ruleResolver=data.getFirst();
-      Optional<BuildRule> existingRule=ruleResolver.getRuleOptional(rule.getBuildTarget());
+      Optional<BuildRule> existingRule=resolver.getRuleOptional(rule.getBuildTarget());
       Preconditions.checkState(!existingRule.isPresent() || existingRule.get().equals(rule));
       if (!existingRule.isPresent()) {
-        ruleResolver.addToIndex(rule);
+        resolver.addToIndex(rule);
       }
       eventBus.post(ActionGraphEvent.processed(processedNodes.incrementAndGet(),numberOfNodes));
     }
   }
 ;
   bottomUpTraversal.traverse();
-  ImmutableSet.Builder<BuildRule> allRules=ImmutableSet.builder();
-  for (  BuildRuleResolver resolver : ruleResolvers.asMap().values()) {
-    allRules.addAll(resolver.getBuildRules());
-  }
-  ActionGraph result=new ActionGraph(allRules.build());
+  ActionGraph result=new ActionGraph(resolver.getBuildRules());
   eventBus.post(ActionGraphEvent.finished(started));
   return result;
 }

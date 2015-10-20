@@ -10,13 +10,23 @@
   PythonBuckConfig pythonConfig=new PythonBuckConfig(config,new ExecutableFinder());
   this.pythonInterpreter=pythonConfig.getPythonInterpreter();
   this.knownBuildRuleTypes=knownBuildRuleTypesFactory.create(config);
-  this.cells=CacheBuilder.newBuilder().build(new CacheLoader<String,Cell>(){
-    @Override public Cell load(    String cellName) throws Exception {
-      Optional<Path> maybeRoot=getBuckConfig().getPath("repositories",cellName,false);
-      if (!maybeRoot.isPresent()) {
-        throw new HumanReadableException("Unable to find repository named '%s' in repo rooted at %s",cellName,getFilesystem().getRootPath());
+  this.cells=CacheBuilder.newBuilder().build(new CacheLoader<Path,Cell>(){
+    @Override public Cell load(    Path cellPath) throws Exception {
+      cellPath=cellPath.toRealPath();
+      ImmutableMap<String,String> allCells=getBuckConfig().getEntriesForSection("repositories");
+      Path root=null;
+      Set<Path> knownRoots=new TreeSet<>();
+      for (      String path : allCells.values()) {
+        Path cellRoot=Preconditions.checkNotNull(getBuckConfig().resolvePathThatMayBeOutsideTheProjectFilesystem(Paths.get(path)));
+        if (cellPath.equals(cellRoot)) {
+          root=cellRoot;
+          break;
+        }
+        knownRoots.add(cellRoot);
       }
-      Path root=Preconditions.checkNotNull(getBuckConfig().resolvePathThatMayBeOutsideTheProjectFilesystem(maybeRoot.get()));
+      if (root == null) {
+        throw new HumanReadableException("Unable to find repository rooted at %s. Known roots are:\n  %s",getFilesystem().getRootPath(),Joiner.on(",\n  ").join(knownRoots));
+      }
       ImmutableMap<String,ImmutableMap<String,String>> sections=ImmutableMap.of();
       Config config=Config.createDefaultConfig(root,sections);
       ProjectFilesystem cellFilesystem=new ProjectFilesystem(root,config);
@@ -28,11 +38,5 @@
     }
   }
 );
-  Function<Optional<String>,ProjectFilesystem> cellFilesystemAliases=new Function<Optional<String>,ProjectFilesystem>(){
-    @Override public ProjectFilesystem apply(    Optional<String> cellName){
-      return getCell(cellName).getFilesystem();
-    }
-  }
-;
-  this.cellFilesystemResolver=new CellFilesystemResolver(getFilesystem(),cellFilesystemAliases);
+  cells.put(getFilesystem().getRootPath(),this);
 }
