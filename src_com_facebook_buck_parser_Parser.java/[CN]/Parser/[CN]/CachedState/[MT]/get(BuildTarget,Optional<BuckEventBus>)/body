@@ -10,17 +10,15 @@
  catch (  Cell.MissingBuildFileException e) {
     throw new HumanReadableException(e);
   }
-  UnflavoredBuildTarget unflavored=buildTarget.getUnflavoredBuildTarget();
   List<Map<String,Object>> rules=state.getRawRules(buildFilePath);
   for (  Map<String,Object> map : rules) {
     if (!buildTarget.getShortName().equals(map.get("name"))) {
       continue;
     }
     BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(map);
-    targetsToFile.put(BuildTarget.of(unflavored),normalize(Paths.get((String)map.get("buck.base_path"))).resolve(buildFile).toAbsolutePath());
     Description<?> description=cell.getDescription(buildRuleType);
     if (description == null) {
-      throw new HumanReadableException("Unrecognized rule %s while parsing %s%s.",buildRuleType,UnflavoredBuildTarget.BUILD_TARGET_PREFIX,MorePaths.pathWithUnixSeparators(unflavored.getBasePath().resolve(buildFile)));
+      throw new HumanReadableException("Unrecognized rule %s while parsing %s%s.",buildRuleType,UnflavoredBuildTarget.BUILD_TARGET_PREFIX,MorePaths.pathWithUnixSeparators(buildTarget.getBasePath().resolve(buildFile)));
     }
     if (buildTarget.isFlavored()) {
       if (description instanceof Flavored) {
@@ -67,7 +65,7 @@ catch (    ConstructorArgMarshalException e) {
     }
 synchronized (memoizedTargetNodes) {
       if (memoizedTargetNodes.getIfPresent(buildTarget) != null) {
-        throw new HumanReadableException("Duplicate definition for " + unflavored);
+        throw new HumanReadableException("Duplicate definition for " + buildTarget.getUnflavoredBuildTarget());
       }
       memoizedTargetNodes.put(buildTarget,targetNode);
     }
