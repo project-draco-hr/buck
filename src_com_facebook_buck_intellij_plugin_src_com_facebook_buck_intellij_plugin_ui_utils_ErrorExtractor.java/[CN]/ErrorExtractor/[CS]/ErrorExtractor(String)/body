@@ -1,0 +1,30 @@
+{
+  Matcher matcher=MAIN_PATTERN.matcher(errorMessage);
+  ImmutableList.Builder<CompilerErrorItem> builder=new ImmutableList.Builder<CompilerErrorItem>();
+  CompilerErrorItem currentError=null;
+  int lastMatchEnd=-1;
+  while (matcher.find()) {
+    if (currentError != null) {
+      String currentErrorMessage=errorMessage.substring(lastMatchEnd,matcher.start()).trim();
+      currentError.setError(currentErrorMessage);
+      currentError.setColumn(findColumn(currentErrorMessage));
+      builder.add(currentError);
+    }
+    currentError=new CompilerErrorItem(matcher.group(1),Integer.parseInt(matcher.group(2)),matcher.group(3).equalsIgnoreCase("error") ? CompilerErrorItem.Type.ERROR : CompilerErrorItem.Type.WARNING);
+    lastMatchEnd=matcher.end();
+  }
+  if (currentError != null) {
+    Matcher matchEnd=EOM_PATTERN.matcher(errorMessage);
+    String currentErrorMessage="";
+    if (matchEnd.find(lastMatchEnd)) {
+      currentErrorMessage=errorMessage.substring(lastMatchEnd,matchEnd.start()).trim();
+    }
+ else {
+      currentErrorMessage=errorMessage.substring(lastMatchEnd).trim();
+    }
+    currentError.setError(currentErrorMessage);
+    currentError.setColumn(findColumn(currentErrorMessage));
+    builder.add(currentError);
+  }
+  mErrors=builder.build();
+}
