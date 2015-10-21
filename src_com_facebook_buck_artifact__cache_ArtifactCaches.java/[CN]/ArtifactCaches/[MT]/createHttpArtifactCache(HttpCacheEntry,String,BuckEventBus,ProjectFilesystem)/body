@@ -1,0 +1,23 @@
+{
+  String cacheName=cacheDescription.getName().transform(new Function<String,String>(){
+    @Override public String apply(    String input){
+      return "http-" + input;
+    }
+  }
+).or("http");
+  URI url=cacheDescription.getUrl();
+  int timeoutSeconds=cacheDescription.getTimeoutSeconds();
+  boolean doStore=cacheDescription.getCacheReadMode().isDoStore();
+  OkHttpClient client=new OkHttpClient();
+  client.networkInterceptors().add(new Interceptor(){
+    @Override public Response intercept(    Chain chain) throws IOException {
+      return chain.proceed(chain.request().newBuilder().addHeader("X-BuckCache-User",System.getProperty("user.name","<unknown>")).addHeader("X-BuckCache-Host",hostToReportToRemote).build());
+    }
+  }
+);
+  client.setConnectTimeout(timeoutSeconds,TimeUnit.SECONDS);
+  client.setConnectionPool(new ConnectionPool(200,TimeUnit.MINUTES.toMillis(5)));
+  OkHttpClient fetchClient=client.clone();
+  fetchClient.setReadTimeout(timeoutSeconds,TimeUnit.SECONDS);
+  return new HttpArtifactCache(cacheName,fetchClient,client,url,doStore,projectFilesystem,buckEventBus);
+}

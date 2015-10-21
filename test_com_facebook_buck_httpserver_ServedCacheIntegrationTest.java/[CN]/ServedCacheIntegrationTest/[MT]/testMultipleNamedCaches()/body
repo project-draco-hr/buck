@@ -1,0 +1,41 @@
+{
+  Path fetchedContents=tmpDir.newFile();
+  final RuleKey bFileRuleKey=new RuleKey("baadbeef");
+  webServer=new WebServer(0,projectFilesystem,"/static/",new ObjectMapper());
+  webServer.updateAndStartIfNeeded(Optional.of(dirCache));
+  ArtifactCache secondCache=new ArtifactCache(){
+    @Override public CacheResult fetch(    RuleKey ruleKey,    Path output) throws InterruptedException {
+      if (ruleKey.equals(bFileRuleKey)) {
+        try {
+          projectFilesystem.writeContentsToPath("second",output);
+        }
+ catch (        IOException e) {
+          throw new RuntimeException(e);
+        }
+        return CacheResult.hit("secondCache");
+      }
+      return CacheResult.miss();
+    }
+    @Override public void store(    ImmutableSet<RuleKey> ruleKeys,    ImmutableMap<String,String> metadata,    Path output) throws InterruptedException {
+    }
+    @Override public boolean isStoreSupported(){
+      return true;
+    }
+    @Override public void close(){
+    }
+  }
+;
+  assertThat(secondCache.fetch(A_FILE_RULE_KEY,fetchedContents).getType(),Matchers.equalTo(CacheResultType.MISS));
+  assertThat(secondCache.fetch(bFileRuleKey,fetchedContents).getType(),Matchers.equalTo(CacheResultType.HIT));
+  WebServer secondWebServer=new WebServer(0,projectFilesystem,"/static/",new ObjectMapper());
+  try {
+    secondWebServer.updateAndStartIfNeeded(Optional.of(secondCache));
+    ArtifactCacheBuckConfig mutltiCacheConfig=createMockLocalConfig("[cache]","mode = http","http_cache_names = one, two","[cache#two]",String.format("http_url = http://127.0.0.1:%d/",secondWebServer.getPort().get()),"[cache#one]",String.format("http_url = http://127.0.0.1:%d/",webServer.getPort().get()));
+    ArtifactCache serverBackedCache=ArtifactCaches.newInstance(mutltiCacheConfig,buckEventBus,projectFilesystem,Optional.<String>absent());
+    assertThat(serverBackedCache.fetch(A_FILE_RULE_KEY,fetchedContents).getType(),Matchers.equalTo(CacheResultType.HIT));
+    assertThat(serverBackedCache.fetch(bFileRuleKey,fetchedContents).getType(),Matchers.equalTo(CacheResultType.HIT));
+  }
+  finally {
+    secondWebServer.stop();
+  }
+}
