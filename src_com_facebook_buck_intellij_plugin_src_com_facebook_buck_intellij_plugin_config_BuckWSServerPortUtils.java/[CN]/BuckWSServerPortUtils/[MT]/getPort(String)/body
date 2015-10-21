@@ -1,0 +1,34 @@
+{
+  String exec=BuckSettingsProvider.getInstance().getState().buckExecutable;
+  GeneralCommandLine commandLine=new GeneralCommandLine();
+  commandLine.setExePath(exec);
+  commandLine.withWorkDirectory(runInPath);
+  commandLine.addParameter("server");
+  commandLine.addParameter("status");
+  commandLine.addParameter("--http-port");
+  commandLine.setRedirectErrorStream(true);
+  try {
+    Process p=null;
+    p=commandLine.createProcess();
+    BufferedReader reader=new BufferedReader(new InputStreamReader(p.getInputStream()));
+    String line="";
+    while ((line=reader.readLine()) != null) {
+      if (line.startsWith(BuckWSServerPortUtils.SEARCH_FOR)) {
+        try {
+          mPort=Integer.parseInt(line.replace(BuckWSServerPortUtils.SEARCH_FOR,""));
+          return mPort;
+        }
+ catch (        java.lang.NumberFormatException ex) {
+          mPort=-1;
+        }
+      }
+    }
+  }
+ catch (  ExecutionException e) {
+    mPort=-1;
+  }
+catch (  java.io.IOException e) {
+    mPort=-1;
+  }
+  return mPort;
+}
