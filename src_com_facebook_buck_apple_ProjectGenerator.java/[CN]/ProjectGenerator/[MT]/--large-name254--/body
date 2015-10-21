@@ -2,12 +2,11 @@
   LOG.debug("Generating binary target for node %s",targetNode);
   TargetNode<?> buildTargetNode=bundle.isPresent() ? bundle.get() : targetNode;
   final BuildTarget buildTarget=buildTargetNode.getBuildTarget();
-  String productName=getProductName(buildTarget);
   CxxLibraryDescription.Arg arg=targetNode.getConstructorArg();
   NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver);
   ImmutableSet<SourcePath> exportedHeaders=ImmutableSet.copyOf(getHeaderSourcePaths(arg.exportedHeaders));
   ImmutableSet<SourcePath> headers=ImmutableSet.copyOf(getHeaderSourcePaths(arg.headers));
-  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName))).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setPrefixHeader(arg.prefixHeader).setRecursiveResources(recursiveResources).setDirectResources(directResources);
+  mutator.setTargetName(getXcodeTargetName(buildTarget)).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setPrefixHeader(arg.prefixHeader).setRecursiveResources(recursiveResources).setDirectResources(directResources);
   if (bundle.isPresent()) {
     HasAppleBundleFields bundleArg=bundle.get().getConstructorArg();
     mutator.setInfoPlist(Optional.of(bundleArg.getInfoPlist()));
@@ -47,22 +46,11 @@
   }
   mutator.setPostBuildRunScriptPhasesFromTargetNodes(postScriptPhases.build());
   mutator.skipReactNativeBundle(skipRNBundle);
-  NewNativeTargetProjectMutator.Result targetBuilderResult;
-  try {
-    targetBuilderResult=mutator.buildTargetAndAddToProject(project);
-  }
- catch (  NoSuchBuildTargetException e) {
-    throw new HumanReadableException(e);
-  }
-  PBXGroup targetGroup=targetBuilderResult.targetGroup;
-  SourceTreePath buckFilePath=new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputPathToBuildTargetPath(buildTarget).resolve(buildFileName),Optional.<String>absent());
-  PBXFileReference buckReference=targetGroup.getOrCreateFileReferenceBySourceTreePath(buckFilePath);
-  buckReference.setExplicitFileType(Optional.of("text.script.python"));
   ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
-  extraSettingsBuilder.put("TARGET_NAME",getProductName(buildTarget)).put("SRCROOT",pathRelativizer.outputPathToBuildTargetPath(buildTarget).toString());
+  extraSettingsBuilder.put("SRCROOT",pathRelativizer.outputPathToBuildTargetPath(buildTarget).toString());
   if (bundleLoaderNode.isPresent()) {
     TargetNode<AppleBundleDescription.Arg> bundleLoader=bundleLoaderNode.get();
-    String bundleLoaderProductName=getProductName(bundleLoader.getBuildTarget());
+    String bundleLoaderProductName=getProductNameForBuildTarget(bundleLoader.getBuildTarget());
     String bundleName=bundleLoaderProductName + "." + getExtensionString(bundleLoader.getConstructorArg().getExtension());
     String bundleLoaderOutputPath=Joiner.on('/').join(getTargetOutputPath(bundleLoader),bundleName,bundleLoaderProductName);
     extraSettingsBuilder.put("BUNDLE_LOADER",bundleLoaderOutputPath).put("TEST_HOST","$(BUNDLE_LOADER)");
@@ -81,7 +69,7 @@
   extraSettingsBuilder.put("USE_HEADERMAP","NO");
   ImmutableMap.Builder<String,String> defaultSettingsBuilder=ImmutableMap.builder();
   defaultSettingsBuilder.put("REPO_ROOT",projectFilesystem.getRootPath().toAbsolutePath().normalize().toString());
-  defaultSettingsBuilder.put("PRODUCT_NAME",getProductName(buildTarget));
+  extraSettingsBuilder.put("TARGET_NAME",getProductNameForBuildTarget(buildTarget));
   if (bundle.isPresent()) {
     defaultSettingsBuilder.put("WRAPPER_EXTENSION",getExtensionString(bundle.get().getConstructorArg().getExtension()));
   }
@@ -114,6 +102,20 @@
   }
   ImmutableMap<String,String> appendedConfig=appendConfigsBuilder.build();
   Optional<ImmutableSortedMap<String,ImmutableMap<String,String>>> configs=getXcodeBuildConfigurationsForTargetNode(targetNode,appendedConfig);
+  String productName=getProductName(buildTargetNode,buildTarget,configs);
+  mutator.setProduct(productType,productName,Paths.get(String.format(productOutputFormat,productName)));
+  defaultSettingsBuilder.put(PRODUCT_NAME,productName);
+  NewNativeTargetProjectMutator.Result targetBuilderResult;
+  try {
+    targetBuilderResult=mutator.buildTargetAndAddToProject(project);
+  }
+ catch (  NoSuchBuildTargetException e) {
+    throw new HumanReadableException(e);
+  }
+  PBXGroup targetGroup=targetBuilderResult.targetGroup;
+  SourceTreePath buckFilePath=new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputPathToBuildTargetPath(buildTarget).resolve(buildFileName),Optional.<String>absent());
+  PBXFileReference buckReference=targetGroup.getOrCreateFileReferenceBySourceTreePath(buckFilePath);
+  buckReference.setExplicitFileType(Optional.of("text.script.python"));
   PBXNativeTarget target=targetBuilderResult.target;
   setTargetBuildConfigurations(getConfigurationNameToXcconfigPath(buildTarget),target,project.getMainGroup(),configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendedConfig);
   Path headerPathPrefix=AppleDescriptions.getHeaderPathPrefix(arg,targetNode.getBuildTarget());

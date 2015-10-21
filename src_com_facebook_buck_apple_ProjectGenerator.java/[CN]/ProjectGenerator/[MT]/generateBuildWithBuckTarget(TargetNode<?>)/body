@@ -8,10 +8,11 @@
     throw new HumanReadableException("%s: %s",targetNode.getBuildTarget(),e.getMessage());
   }
   final BuildTarget buildTarget=targetNode.getBuildTarget();
-  String productName=getXcodeTargetName(buildTarget) + BUILD_WITH_BUCK_POSTFIX;
-  String binaryName=AppleBundle.getBinaryName(targetToBuildWithBuck.get());
-  Path bundleDestination=getScratchPathForAppBundle(targetToBuildWithBuck.get());
-  Path dsymDestination=getScratchPathForDsymBundle(targetToBuildWithBuck.get());
+  String buckTargetProductName=getXcodeTargetName(buildTarget) + BUILD_WITH_BUCK_POSTFIX;
+  Optional<String> productName=getProductNameForTargetNode(targetNode);
+  String binaryName=AppleBundle.getBinaryName(targetToBuildWithBuck.get(),productName);
+  Path bundleDestination=getScratchPathForAppBundle(targetToBuildWithBuck.get(),binaryName);
+  Path dsymDestination=getScratchPathForDsymBundle(targetToBuildWithBuck.get(),binaryName);
   PBXShellScriptBuildPhase shellScriptBuildPhase=new PBXShellScriptBuildPhase();
   ST template=new ST(Resources.toString(Resources.getResource(ProjectGenerator.class,BUILD_WITH_BUCK_TEMPLATE),Charsets.UTF_8));
   Path pathToBuck=executableFinder.getExecutable(Paths.get("buck"),environment);
@@ -19,8 +20,8 @@
   String sourceDir=Strings.padStart(":" + projectFilesystem.getRootPath().toString(),compDir.length(),'f');
   String buildFlags=getBuildFlags();
   String escapedBuildTarget=Escaper.escapeAsBashString(buildTarget.getFullyQualifiedName());
-  Path resolvedBundleSource=projectFilesystem.resolve(AppleBundle.getBundleRoot(targetToBuildWithBuck.get(),"app"));
-  Path resolvedDsymSource=projectFilesystem.resolve(AppleBundle.getBundleRoot(targetToBuildWithBuck.get(),"dSYM"));
+  Path resolvedBundleSource=projectFilesystem.resolve(AppleBundle.getBundleRoot(targetToBuildWithBuck.get(),binaryName,"app"));
+  Path resolvedDsymSource=projectFilesystem.resolve(AppleBundle.getBundleRoot(targetToBuildWithBuck.get(),binaryName,"dSYM"));
   Path resolvedBundleDestination=projectFilesystem.resolve(bundleDestination);
   Path resolvedDsymDestination=projectFilesystem.resolve(dsymDestination);
   template.add("repo_root",projectFilesystem.getRootPath());
@@ -49,8 +50,8 @@
     inlineSettings.put("FRAMEWORK_SEARCH_PATHS","");
     configuration.setBuildSettings(inlineSettings);
   }
-  PBXAggregateTarget buildWithBuckTarget=new PBXAggregateTarget(productName);
-  buildWithBuckTarget.setProductName(productName);
+  PBXAggregateTarget buildWithBuckTarget=new PBXAggregateTarget(buckTargetProductName);
+  buildWithBuckTarget.setProductName(buckTargetProductName);
   buildWithBuckTarget.getBuildPhases().add(shellScriptBuildPhase);
   buildWithBuckTarget.setBuildConfigurationList(configurationList);
   project.getTargets().add(buildWithBuckTarget);
