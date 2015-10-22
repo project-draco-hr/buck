@@ -1,0 +1,21 @@
+{
+  tempDir.newFolder("java","com","facebook");
+  defaultIncludeFile=tempDir.newFile("java/com/facebook/defaultIncludeFile").toRealPath();
+  Files.write(defaultIncludeFile,"\n".getBytes(UTF_8));
+  includedByIncludeFile=tempDir.newFile("java/com/facebook/includedByIncludeFile").toRealPath();
+  Files.write(includedByIncludeFile,"\n".getBytes(UTF_8));
+  includedByBuildFile=tempDir.newFile("java/com/facebook/includedByBuildFile").toRealPath();
+  Files.write(includedByBuildFile,"include_defs('//java/com/facebook/includedByIncludeFile')\n".getBytes(UTF_8));
+  testBuildFile=tempDir.newFile("java/com/facebook/BUCK").toRealPath();
+  Files.write(testBuildFile,("include_defs('//java/com/facebook/includedByBuildFile')\n" + "java_library(name = 'foo')\n" + "java_library(name = 'bar')\n"+ "genrule(name = 'baz', out = '')\n").getBytes(UTF_8));
+  tempDir.newFile("bar.py");
+  Path root=tempDir.getRoot().toRealPath();
+  filesystem=new ProjectFilesystem(root);
+  cellRoot=filesystem.getRootPath();
+  eventBus=BuckEventBusFactory.newInstance();
+  BuckConfig config=FakeBuckConfig.builder().setFilesystem(filesystem).setSections("[buildfile]","includes = //java/com/facebook/defaultIncludeFile","[project]","temp_files = .*\\.swp$").build();
+  cell=new TestCellBuilder().setFilesystem(filesystem).setBuckConfig(config).build();
+  parser=new ParserNg(false);
+  counter=new ParseEventStartedCounter();
+  eventBus.register(counter);
+}

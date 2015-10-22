@@ -7,33 +7,30 @@
   this.buildFileName=parserConfig.getBuildFileName();
   this.enforceBuckPackageBoundaries=parserConfig.getEnforceBuckPackageBoundary();
   this.tempFilePatterns=parserConfig.getTempFilePatterns();
+  ImmutableMap<String,String> allCells=getBuckConfig().getEntriesForSection("repositories");
+  ImmutableSet.Builder<Path> roots=ImmutableSet.builder();
+  roots.add(filesystem.getRootPath());
+  for (  String path : allCells.values()) {
+    Path cellRoot=Preconditions.checkNotNull(getBuckConfig().resolvePathThatMayBeOutsideTheProjectFilesystem(Paths.get(path)));
+    roots.add(cellRoot);
+  }
+  this.knownRoots=roots.build();
   PythonBuckConfig pythonConfig=new PythonBuckConfig(config,new ExecutableFinder());
   this.pythonInterpreter=pythonConfig.getPythonInterpreter();
   this.knownBuildRuleTypes=knownBuildRuleTypesFactory.create(config);
   this.cells=CacheBuilder.newBuilder().build(new CacheLoader<Path,Cell>(){
     @Override public Cell load(    Path cellPath) throws Exception {
       cellPath=cellPath.toRealPath();
-      ImmutableMap<String,String> allCells=getBuckConfig().getEntriesForSection("repositories");
-      Path root=null;
-      Set<Path> knownRoots=new TreeSet<>();
-      for (      String path : allCells.values()) {
-        Path cellRoot=Preconditions.checkNotNull(getBuckConfig().resolvePathThatMayBeOutsideTheProjectFilesystem(Paths.get(path)));
-        if (cellPath.equals(cellRoot)) {
-          root=cellRoot;
-          break;
-        }
-        knownRoots.add(cellRoot);
-      }
-      if (root == null) {
+      if (!knownRoots.contains(cellPath)) {
         throw new HumanReadableException("Unable to find repository rooted at %s. Known roots are:\n  %s",getFilesystem().getRootPath(),Joiner.on(",\n  ").join(knownRoots));
       }
       ImmutableMap<String,ImmutableMap<String,String>> sections=ImmutableMap.of();
-      Config config=Config.createDefaultConfig(root,sections);
-      ProjectFilesystem cellFilesystem=new ProjectFilesystem(root,config);
+      Config config=Config.createDefaultConfig(cellPath,sections);
+      ProjectFilesystem cellFilesystem=new ProjectFilesystem(cellPath,config);
       Cell parent=Cell.this;
       BuckConfig parentConfig=parent.getBuckConfig();
       BuckConfig buckConfig=new BuckConfig(config,cellFilesystem,parentConfig.getArchitecture(),parentConfig.getPlatform(),parentConfig.getEnvironment());
-      Watchman.build(root,parentConfig.getEnvironment(),console,clock);
+      Watchman.build(cellPath,parentConfig.getEnvironment(),console,clock);
       return new Cell(cellFilesystem,console,watchman,buckConfig,knownBuildRuleTypesFactory,directoryResolver,clock);
     }
   }

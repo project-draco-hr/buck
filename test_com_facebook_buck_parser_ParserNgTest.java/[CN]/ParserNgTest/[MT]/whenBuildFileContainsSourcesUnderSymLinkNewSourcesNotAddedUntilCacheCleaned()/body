@@ -1,0 +1,27 @@
+{
+  assumeTrue(Platform.detect() != Platform.WINDOWS);
+  tempDir.newFolder("bar");
+  tempDir.newFile("bar/Bar.java");
+  tempDir.newFolder("foo");
+  Path rootPath=tempDir.getRoot().toRealPath();
+  Files.createSymbolicLink(rootPath.resolve("foo/bar"),rootPath.resolve("bar"));
+  Path testBuckFile=rootPath.resolve("foo").resolve("BUCK");
+  Files.write(testBuckFile,"java_library(name = 'lib', srcs=glob(['bar/*.java']))\n".getBytes(UTF_8));
+  BuildTarget libTarget=BuildTarget.builder(cellRoot,"//foo","lib").build();
+  Iterable<BuildTarget> buildTargets=ImmutableList.of(libTarget);
+{
+    TargetGraph targetGraph=parser.buildTargetGraph(eventBus,cell,false,buildTargets);
+    ActionGraph graph=buildActionGraph(eventBus,targetGraph);
+    JavaLibrary libRule=(JavaLibrary)graph.findBuildRuleByTarget(libTarget);
+    assertEquals(ImmutableSet.of(Paths.get("foo/bar/Bar.java")),libRule.getJavaSrcs());
+  }
+  tempDir.newFile("bar/Baz.java");
+  WatchEvent<Path> createEvent=createPathEvent(Paths.get("bar/Baz.java"),StandardWatchEventKinds.ENTRY_CREATE);
+  parser.onFileSystemChange(createEvent);
+{
+    TargetGraph targetGraph=parser.buildTargetGraph(eventBus,cell,false,buildTargets);
+    ActionGraph graph=buildActionGraph(eventBus,targetGraph);
+    JavaLibrary libRule=(JavaLibrary)graph.findBuildRuleByTarget(libTarget);
+    assertEquals(ImmutableSet.of(Paths.get("foo/bar/Bar.java"),Paths.get("foo/bar/Baz.java")),libRule.getJavaSrcs());
+  }
+}

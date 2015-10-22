@@ -1,0 +1,17 @@
+{
+  Preconditions.checkState(buildFile.isAbsolute());
+  invalidateIfProjectBuildFileParserStateChanged(cell);
+  try {
+    List<Map<String,Object>> allRawNodes=loadRawNodes(cell,buildFile,parser);
+    ImmutableSet.Builder<TargetNode<?>> nodes=ImmutableSet.builder();
+    for (    Map<String,Object> rawNode : allRawNodes) {
+      UnflavoredBuildTarget unflavored=parseBuildTargetFromRawRule(cell.getRoot(),rawNode);
+      BuildTarget target=BuildTarget.of(unflavored);
+      nodes.add(createTargetNode(eventBus,cell,target,rawNode));
+    }
+    return nodes.build();
+  }
+ catch (  UncheckedExecutionException|ExecutionException e) {
+    throw propagate(e);
+  }
+}
