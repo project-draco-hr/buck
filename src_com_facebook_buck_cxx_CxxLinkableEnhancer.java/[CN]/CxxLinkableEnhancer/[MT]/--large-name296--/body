@@ -1,0 +1,34 @@
+{
+  Preconditions.checkState(!soname.isPresent() || SONAME_REQUIRED_LINK_TYPES.contains(linkType));
+  Preconditions.checkState(!bundleLoader.isPresent() || linkType == Linker.LinkType.MACH_O_BUNDLE);
+  Linker linker=cxxPlatform.getLd();
+  NativeLinkableInput linkableInput=NativeLinkables.getTransitiveNativeLinkableInput(targetGraph,cxxPlatform,nativeLinkableDeps,depType,blacklist,true);
+  ImmutableList.Builder<Arg> argsBuilder=ImmutableList.builder();
+  argsBuilder.addAll(SanitizedArg.from(cxxPlatform.getDebugPathSanitizer().sanitize(Optional.<Path>absent()),cxxPlatform.getLdflags()));
+  if (linkType == Linker.LinkType.SHARED) {
+    argsBuilder.add(new StringArg("-shared"));
+  }
+ else   if (linkType == Linker.LinkType.MACH_O_BUNDLE) {
+    argsBuilder.add(new StringArg("-bundle"));
+    if (bundleLoader.isPresent()) {
+      argsBuilder.add(new StringArg("-bundle_loader"),new SourcePathArg(resolver,bundleLoader.get()));
+    }
+  }
+  if (soname.isPresent()) {
+    argsBuilder.addAll(StringArg.from(linker.soname(soname.get())));
+  }
+  argsBuilder.addAll(args);
+  argsBuilder.addAll(linkableInput.getArgs());
+  Linker.LinkableDepType runtimeDepType=depType;
+  if (cxxRuntimeType.or(Linker.CxxRuntimeType.DYNAMIC) == Linker.CxxRuntimeType.STATIC) {
+    runtimeDepType=Linker.LinkableDepType.STATIC;
+  }
+  argsBuilder.addAll(StringArg.from(cxxPlatform.getRuntimeLdflags().get(runtimeDepType)));
+  final ImmutableList<Arg> allArgs=argsBuilder.build();
+  return new CxxLink(params.copyWithChanges(target,new Supplier<ImmutableSortedSet<BuildRule>>(){
+    @Override public ImmutableSortedSet<BuildRule> get(){
+      return FluentIterable.from(allArgs).transformAndConcat(Arg.getDepsFunction(resolver)).toSortedSet(Ordering.natural());
+    }
+  }
+,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),resolver,cxxPlatform.getLd(),output,allArgs,CxxDescriptionEnhancer.getFrameworkSearchPaths(Optional.of(ImmutableSortedSet.copyOf(linkableInput.getFrameworks())),cxxPlatform,resolver),CxxDescriptionEnhancer.getFrameworkSearchPaths(Optional.of(ImmutableSortedSet.copyOf(linkableInput.getLibraries())),cxxPlatform,resolver),cxxPlatform.getDebugPathSanitizer());
+}

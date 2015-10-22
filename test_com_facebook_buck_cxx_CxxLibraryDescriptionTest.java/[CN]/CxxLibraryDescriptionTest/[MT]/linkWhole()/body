@@ -1,17 +1,19 @@
 {
+  BuildRuleResolver resolver=new BuildRuleResolver();
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   CxxPlatform cxxPlatform=CxxLibraryBuilder.createDefaultPlatform();
   BuildTarget target=BuildTargetFactory.newInstance("//:test");
-  Path staticLib=CxxDescriptionEnhancer.getStaticLibraryPath(target,cxxPlatform.getFlavor(),CxxSourceRuleFactory.PicType.PDC);
   Linker linker=cxxPlatform.getLd();
-  Set<String> linkWholeFlags=Sets.newHashSet(linker.linkWhole(staticLib.toString()));
-  linkWholeFlags.remove(staticLib.toString());
+  ImmutableList<String> linkWholeFlags=FluentIterable.from(linker.linkWhole(new StringArg("sentinel"))).transform(Arg.stringifyFunction()).filter(Predicates.not(Predicates.equalTo("sentinel"))).toList();
   CxxLibraryBuilder normalBuilder=new CxxLibraryBuilder(target);
   TargetGraph normalGraph=TargetGraphFactory.newInstance(normalBuilder.build());
-  CxxLibrary normal=(CxxLibrary)normalBuilder.build(new BuildRuleResolver(),filesystem,normalGraph);
-  assertNotContains(normal.getNativeLinkableInput(normalGraph,cxxPlatform,Linker.LinkableDepType.STATIC).getArgs(),linkWholeFlags);
+  CxxLibrary normal=(CxxLibrary)normalBuilder.setSrcs(ImmutableSortedSet.<SourceWithFlags>of(SourceWithFlags.of(new TestSourcePath("test.cpp")))).build(resolver,filesystem,normalGraph);
+  NativeLinkableInput input=normal.getNativeLinkableInput(normalGraph,cxxPlatform,Linker.LinkableDepType.STATIC);
+  assertThat(FluentIterable.from(input.getArgs()).transform(Arg.stringifyFunction()).toList(),Matchers.not(Matchers.hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()]))));
   AbstractCxxSourceBuilder<CxxLibraryDescription.Arg> linkWholeBuilder=new CxxLibraryBuilder(target).setLinkWhole(true).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new TestSourcePath("foo.cpp"))));
   TargetGraph linkWholeGraph=TargetGraphFactory.newInstance(linkWholeBuilder.build());
-  CxxLibrary linkWhole=(CxxLibrary)linkWholeBuilder.build(new BuildRuleResolver(),filesystem,linkWholeGraph);
-  assertContains(linkWhole.getNativeLinkableInput(linkWholeGraph,cxxPlatform,Linker.LinkableDepType.STATIC).getArgs(),linkWholeFlags);
+  resolver=new BuildRuleResolver();
+  CxxLibrary linkWhole=(CxxLibrary)linkWholeBuilder.setSrcs(ImmutableSortedSet.<SourceWithFlags>of(SourceWithFlags.of(new TestSourcePath("test.cpp")))).build(resolver,filesystem,linkWholeGraph);
+  NativeLinkableInput linkWholeInput=linkWhole.getNativeLinkableInput(normalGraph,cxxPlatform,Linker.LinkableDepType.STATIC);
+  assertThat(FluentIterable.from(linkWholeInput.getArgs()).transform(Arg.stringifyFunction()).toList(),Matchers.hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()])));
 }

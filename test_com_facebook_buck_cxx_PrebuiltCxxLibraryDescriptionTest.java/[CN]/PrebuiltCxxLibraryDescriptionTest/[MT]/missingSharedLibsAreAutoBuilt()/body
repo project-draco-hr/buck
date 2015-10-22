@@ -1,11 +1,11 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
   PrebuiltCxxLibraryBuilder libBuilder=new PrebuiltCxxLibraryBuilder(TARGET);
   TargetGraph targetGraph=TargetGraphFactory.newInstance(libBuilder.build());
   PrebuiltCxxLibrary lib=(PrebuiltCxxLibrary)libBuilder.build(resolver,filesystem,targetGraph);
   NativeLinkableInput nativeLinkableInput=lib.getNativeLinkableInput(targetGraph,CXX_PLATFORM,Linker.LinkableDepType.SHARED);
-  SourcePath input=nativeLinkableInput.getInputs().get(0);
-  assertTrue(input instanceof BuildTargetSourcePath);
-  assertTrue(new SourcePathResolver(resolver).getRule(input).get() instanceof CxxLink);
+  BuildRule rule=FluentIterable.from(nativeLinkableInput.getArgs()).transformAndConcat(Arg.getDepsFunction(pathResolver)).toList().get(0);
+  assertTrue(rule instanceof CxxLink);
 }

@@ -1,5 +1,6 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   ProjectFilesystem filesystem=new AllExistingProjectFilesystem();
   PrebuiltCxxLibraryBuilder libBuilder=new PrebuiltCxxLibraryBuilder(TARGET).setProvided(true);
   TargetGraph targetGraph=TargetGraphFactory.newInstance(libBuilder.build());
@@ -7,7 +8,7 @@
   PrebuiltCxxLibraryDescription.Arg arg=libBuilder.build().getConstructorArg();
   CxxPreprocessorInput expectedCxxPreprocessorInput=CxxPreprocessorInput.builder().addAllSystemIncludeRoots(getIncludeRoots(lib)).addAllSystemIncludeRoots(getIncludeDirs(arg)).setRules(getInputRules(lib)).build();
   assertThat(lib.getCxxPreprocessorInput(targetGraph,CXX_PLATFORM,HeaderVisibility.PUBLIC),Matchers.equalTo(expectedCxxPreprocessorInput));
-  NativeLinkableInput expectedSharedLinkableInput=NativeLinkableInput.of(ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,getSharedLibraryPath(arg))),ImmutableList.of(getSharedLibraryPath(arg).toString()),ImmutableSet.<FrameworkPath>of(),ImmutableSet.<FrameworkPath>of());
+  NativeLinkableInput expectedSharedLinkableInput=NativeLinkableInput.of(ImmutableList.<Arg>of(new SourcePathArg(pathResolver,new PathSourcePath(filesystem,getSharedLibraryPath(arg)))),ImmutableSet.<FrameworkPath>of(),ImmutableSet.<FrameworkPath>of());
   assertEquals(expectedSharedLinkableInput,lib.getNativeLinkableInput(targetGraph,CXX_PLATFORM,Linker.LinkableDepType.SHARED));
   PythonPackageComponents expectedComponents=PythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),Optional.<Boolean>absent());
   assertEquals(expectedComponents,lib.getPythonPackageComponents(targetGraph,PythonTestUtils.PYTHON_PLATFORM,CXX_PLATFORM));

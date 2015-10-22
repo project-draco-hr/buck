@@ -12,9 +12,8 @@
   NativeLinkableInput linkableInput=getLinkableInput(params.getDeps());
   NativeLinkableInput nativeLinkableInput=getNativeLinkableInput(targetGraph,ocamlBuckConfig.getCxxPlatform(),params.getDeps());
   ImmutableList<OCamlLibrary> ocamlInput=OCamlUtil.getTransitiveOCamlInput(params.getDeps());
-  ImmutableList<SourcePath> allInputs=ImmutableList.<SourcePath>builder().addAll(getInput(srcs)).addAll(linkableInput.getInputs()).addAll(nativeLinkableInput.getInputs()).build();
   BuildTarget buildTarget=isLibrary ? createStaticLibraryBuildTarget(params.getBuildTarget()) : createOCamlLinkTarget(params.getBuildTarget());
-  final BuildRuleParams compileParams=params.copyWithChanges(buildTarget,Suppliers.ofInstance(ImmutableSortedSet.copyOf(pathResolver.filterBuildRuleInputs(allInputs))),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  final BuildRuleParams compileParams=params.copyWithChanges(buildTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(getInput(srcs))).addAll(FluentIterable.from(linkableInput.getArgs()).transformAndConcat(Arg.getDepsFunction(pathResolver))).addAll(FluentIterable.from(nativeLinkableInput.getArgs()).transformAndConcat(Arg.getDepsFunction(pathResolver))).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   ImmutableList.Builder<String> flagsBuilder=ImmutableList.builder();
   flagsBuilder.addAll(argFlags);
   ImmutableSortedSet.Builder<BuildRule> compileDepsBuilder=ImmutableSortedSet.naturalOrder();

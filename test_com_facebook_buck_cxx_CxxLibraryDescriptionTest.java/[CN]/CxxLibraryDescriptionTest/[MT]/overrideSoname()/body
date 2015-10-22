@@ -3,19 +3,11 @@
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   CxxPlatform cxxPlatform=CxxLibraryBuilder.createDefaultPlatform();
   String soname="test_soname";
-  BuildTarget target=BuildTargetFactory.newInstance("//:rule");
+  BuildTarget target=BuildTargetFactory.newInstance(String.format("//:rule#shared,%s",CxxPlatformUtils.DEFAULT_PLATFORM.getFlavor()));
   AbstractCxxSourceBuilder<CxxLibraryDescription.Arg> ruleBuilder=new CxxLibraryBuilder(target).setSoname(soname).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new TestSourcePath("foo.cpp"))));
   TargetGraph targetGraph=TargetGraphFactory.newInstance(ruleBuilder.build());
-  CxxLibrary rule=(CxxLibrary)ruleBuilder.build(resolver,filesystem,targetGraph);
+  CxxLink rule=(CxxLink)ruleBuilder.build(resolver,filesystem,targetGraph);
   Linker linker=cxxPlatform.getLd();
-  NativeLinkableInput input=rule.getNativeLinkableInput(targetGraph,cxxPlatform,Linker.LinkableDepType.SHARED);
-  ImmutableList<SourcePath> inputs=ImmutableList.copyOf(input.getInputs());
-  assertEquals(inputs.size(),1);
-  SourcePath sourcePath=inputs.get(0);
-  assertTrue(sourcePath instanceof BuildTargetSourcePath);
-  BuildRule buildRule=new SourcePathResolver(resolver).getRule(sourcePath).get();
-  assertTrue(buildRule instanceof CxxLink);
-  CxxLink cxxLink=(CxxLink)buildRule;
-  ImmutableList<String> args=cxxLink.getArgs();
-  assertNotEquals(-1,Collections.indexOfSubList(args,ImmutableList.copyOf(linker.soname(soname))));
+  ImmutableList<String> sonameArgs=ImmutableList.copyOf(linker.soname(soname));
+  assertThat(rule.getArgs(),Matchers.hasItems(sonameArgs.toArray(new String[sonameArgs.size()])));
 }

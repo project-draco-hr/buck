@@ -3,29 +3,25 @@
     return NativeLinkableInput.of();
   }
   if (headerOnly.apply(cxxPlatform)) {
-    return NativeLinkableInput.of(ImmutableList.<SourcePath>of(),ImmutableList.<String>of(),Preconditions.checkNotNull(frameworks),ImmutableSet.<FrameworkPath>of());
+    return NativeLinkableInput.of(ImmutableList.<Arg>of(),Preconditions.checkNotNull(frameworks),ImmutableSet.<FrameworkPath>of());
   }
-  final Pair<ImmutableList<String>,ImmutableSet<SourcePath>> flagsAndBuildInputs=exportedLinkerFlags.apply(cxxPlatform);
-  ImmutableList.Builder<String> linkerArgsBuilder=ImmutableList.builder();
-  linkerArgsBuilder.addAll(flagsAndBuildInputs.getFirst());
-  final BuildRule libraryRule;
+  ImmutableList.Builder<Arg> linkerArgsBuilder=ImmutableList.builder();
+  linkerArgsBuilder.addAll(Preconditions.checkNotNull(exportedLinkerFlags.apply(cxxPlatform)));
   if (type != Linker.LinkableDepType.SHARED || linkage == Linkage.STATIC) {
-    libraryRule=requireBuildRule(targetGraph,cxxPlatform.getFlavor(),type == Linker.LinkableDepType.STATIC ? CxxDescriptionEnhancer.STATIC_FLAVOR : CxxDescriptionEnhancer.STATIC_PIC_FLAVOR);
-    Path staticLibraryPath=CxxDescriptionEnhancer.getStaticLibraryPath(getBuildTarget(),cxxPlatform.getFlavor(),type == Linker.LinkableDepType.STATIC ? CxxSourceRuleFactory.PicType.PDC : CxxSourceRuleFactory.PicType.PIC);
+    BuildRule rule=requireBuildRule(targetGraph,cxxPlatform.getFlavor(),type == Linker.LinkableDepType.STATIC ? CxxDescriptionEnhancer.STATIC_FLAVOR : CxxDescriptionEnhancer.STATIC_PIC_FLAVOR);
+    Arg library=new SourcePathArg(getResolver(),new BuildTargetSourcePath(rule.getBuildTarget()));
     if (linkWhole) {
       Linker linker=cxxPlatform.getLd();
-      linkerArgsBuilder.addAll(linker.linkWhole(staticLibraryPath.toString()));
+      linkerArgsBuilder.addAll(linker.linkWhole(library));
     }
  else {
-      linkerArgsBuilder.add(staticLibraryPath.toString());
+      linkerArgsBuilder.add(library);
     }
   }
  else {
-    String sharedLibrarySoname=soname.or(CxxDescriptionEnhancer.getDefaultSharedLibrarySoname(params.getBuildTarget(),cxxPlatform));
-    Path sharedLibraryPath=CxxDescriptionEnhancer.getSharedLibraryPath(getBuildTarget(),sharedLibrarySoname,cxxPlatform);
-    libraryRule=requireBuildRule(targetGraph,cxxPlatform.getFlavor(),CxxDescriptionEnhancer.SHARED_FLAVOR);
-    linkerArgsBuilder.add(sharedLibraryPath.toString());
+    BuildRule rule=requireBuildRule(targetGraph,cxxPlatform.getFlavor(),CxxDescriptionEnhancer.SHARED_FLAVOR);
+    linkerArgsBuilder.add(new SourcePathArg(getResolver(),new BuildTargetSourcePath(rule.getBuildTarget())));
   }
-  final ImmutableList<String> linkerArgs=linkerArgsBuilder.build();
-  return NativeLinkableInput.of(ImmutableList.<SourcePath>builder().add(new BuildTargetSourcePath(libraryRule.getBuildTarget())).addAll(flagsAndBuildInputs.getSecond()).build(),linkerArgs,Preconditions.checkNotNull(frameworks),Preconditions.checkNotNull(libraries));
+  final ImmutableList<Arg> linkerArgs=linkerArgsBuilder.build();
+  return NativeLinkableInput.of(linkerArgs,Preconditions.checkNotNull(frameworks),Preconditions.checkNotNull(libraries));
 }

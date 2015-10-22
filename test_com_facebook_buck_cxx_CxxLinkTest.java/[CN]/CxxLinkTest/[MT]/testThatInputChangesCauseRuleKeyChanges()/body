@@ -3,17 +3,15 @@
   BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
   RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(FakeFileHashCache.createFromStrings(ImmutableMap.of("ld",Strings.repeat("0",40),"a.o",Strings.repeat("a",40),"b.o",Strings.repeat("b",40),"libc.a",Strings.repeat("c",40),"different",Strings.repeat("d",40))),pathResolver);
-  RuleKey defaultRuleKey=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,DEFAULT_OUTPUT,DEFAULT_INPUTS,DEFAULT_ARGS,DEFAULT_FRAMEWORK_ROOTS,DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
-  RuleKey linkerChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,new GnuLinker(new HashedFileTool(Paths.get("different"))),DEFAULT_OUTPUT,DEFAULT_INPUTS,DEFAULT_ARGS,DEFAULT_FRAMEWORK_ROOTS,DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
+  RuleKey defaultRuleKey=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,DEFAULT_OUTPUT,DEFAULT_ARGS,DEFAULT_FRAMEWORK_ROOTS,DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
+  RuleKey linkerChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,new GnuLinker(new HashedFileTool(Paths.get("different"))),DEFAULT_OUTPUT,DEFAULT_ARGS,DEFAULT_FRAMEWORK_ROOTS,DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
   assertNotEquals(defaultRuleKey,linkerChange);
-  RuleKey outputChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,Paths.get("different"),DEFAULT_INPUTS,DEFAULT_ARGS,DEFAULT_FRAMEWORK_ROOTS,DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
+  RuleKey outputChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,Paths.get("different"),DEFAULT_ARGS,DEFAULT_FRAMEWORK_ROOTS,DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
   assertNotEquals(defaultRuleKey,outputChange);
-  RuleKey inputChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,DEFAULT_OUTPUT,ImmutableList.<SourcePath>of(new TestSourcePath("different")),DEFAULT_ARGS,DEFAULT_FRAMEWORK_ROOTS,DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
-  assertNotEquals(defaultRuleKey,inputChange);
-  RuleKey flagsChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,DEFAULT_OUTPUT,DEFAULT_INPUTS,ImmutableList.of("-different"),DEFAULT_FRAMEWORK_ROOTS,DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
+  RuleKey flagsChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,DEFAULT_OUTPUT,ImmutableList.<Arg>of(new SourcePathArg(new SourcePathResolver(new BuildRuleResolver()),new TestSourcePath("different"))),DEFAULT_FRAMEWORK_ROOTS,DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
   assertNotEquals(defaultRuleKey,flagsChange);
-  RuleKey frameworkRootsChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,DEFAULT_OUTPUT,DEFAULT_INPUTS,DEFAULT_ARGS,ImmutableSet.of(Paths.get("/System/DifferentFrameworks")),DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
+  RuleKey frameworkRootsChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,DEFAULT_OUTPUT,DEFAULT_ARGS,ImmutableSet.of(Paths.get("/System/DifferentFrameworks")),DEFAULT_LIBRARIES,DEFAULT_SANITIZER));
   assertNotEquals(defaultRuleKey,frameworkRootsChange);
-  RuleKey librariesRootsChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,DEFAULT_OUTPUT,DEFAULT_INPUTS,DEFAULT_ARGS,DEFAULT_FRAMEWORK_ROOTS,ImmutableSet.of(Paths.get("/System/Libraries/libx.dynlib")),DEFAULT_SANITIZER));
+  RuleKey librariesRootsChange=generateRuleKey(ruleKeyBuilderFactory,new CxxLink(params,pathResolver,DEFAULT_LINKER,DEFAULT_OUTPUT,DEFAULT_ARGS,DEFAULT_FRAMEWORK_ROOTS,ImmutableSet.of(Paths.get("/System/Libraries/libx.dynlib")),DEFAULT_SANITIZER));
   assertNotEquals(defaultRuleKey,librariesRootsChange);
 }
