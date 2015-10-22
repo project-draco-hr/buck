@@ -1,17 +1,11 @@
 {
   Set<Flavor> flavors=Sets.newHashSet();
   for (  FlavorDomain<?> domain : domains) {
-    Optional<Flavor> flavor;
-    try {
-      flavor=domain.getFlavor(ImmutableSet.copyOf(target.getFlavors()));
-    }
- catch (    FlavorDomainException e) {
-      throw new HumanReadableException("%s: %s",target,e.getMessage());
-    }
-    if (!flavor.isPresent()) {
+    ImmutableSet<Flavor> flavorSet=Sets.intersection(domain.getFlavors(),target.getFlavors()).immutableCopy();
+    if (flavorSet.isEmpty()) {
       throw new HumanReadableException("%s: no flavor for \"%s\"",target,domain.getName());
     }
-    flavors.add(flavor.get());
+    flavors.addAll(flavorSet);
     for (    BuildTarget dep : deps) {
       Optional<Flavor> depFlavor;
       try {
@@ -21,7 +15,7 @@
         throw new HumanReadableException("%s: dep %s: %s",target,dep,e.getMessage());
       }
       if (depFlavor.isPresent()) {
-        throw new HumanReadableException("%s: dep %s already has flavor for \"%s\" : %s",target,dep,domain.getName(),flavor.get());
+        throw new HumanReadableException("%s: dep %s already has flavor for \"%s\" : %s",target,dep,domain.getName(),flavorSet.toString());
       }
     }
   }

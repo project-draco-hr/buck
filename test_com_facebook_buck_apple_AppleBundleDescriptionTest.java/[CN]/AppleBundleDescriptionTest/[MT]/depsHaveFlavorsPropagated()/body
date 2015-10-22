@@ -1,0 +1,15 @@
+{
+  BuildTarget bundleTarget=BuildTargetFactory.newInstance("//bar:bundle#iphoneos-x86_64");
+  BuildTarget unflavoredDep=BuildTargetFactory.newInstance("//bar:dep1");
+  BuildTarget unflavoredDepAfterPropagation=BuildTargetFactory.newInstance("//bar:dep1#iphoneos-x86_64");
+  BuildTarget flavoredDep=BuildTargetFactory.newInstance("//bar:dep2#iphoneos-x86_64,iphoneos-i386");
+  BuildTarget flavoredDepNotInDomain=BuildTargetFactory.newInstance("//bar:dep3#otherflavor");
+  BuildTarget flavoredDepNotInDomainAfterPropagation=BuildTargetFactory.newInstance("//bar:dep3#iphoneos-x86_64,otherflavor");
+  BuildTarget binary=BuildTargetFactory.newInstance("//bar:binary");
+  AppleBundleDescription desc=FakeAppleRuleDescriptions.BUNDLE_DESCRIPTION;
+  AppleBundleDescription.Arg constructorArg=desc.createUnpopulatedConstructorArg();
+  constructorArg.binary=binary;
+  constructorArg.deps=Optional.of(ImmutableSortedSet.of(binary,unflavoredDep,flavoredDep,flavoredDepNotInDomain));
+  Iterable<BuildTarget> results=desc.findDepsForTargetFromConstructorArgs(bundleTarget,createCellRoots(filesystem),constructorArg);
+  assertEquals(ImmutableSet.<BuildTarget>builder().add(unflavoredDepAfterPropagation).add(flavoredDep).add(flavoredDepNotInDomainAfterPropagation).build(),ImmutableSet.copyOf(results));
+}

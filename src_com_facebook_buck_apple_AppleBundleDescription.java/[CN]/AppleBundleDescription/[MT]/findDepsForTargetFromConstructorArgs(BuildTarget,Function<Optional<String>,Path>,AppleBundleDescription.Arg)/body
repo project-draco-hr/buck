@@ -1,0 +1,12 @@
+{
+  if (!constructorArg.deps.isPresent()) {
+    return ImmutableSet.of();
+  }
+  if (!cxxPlatformFlavorDomain.containsAnyOf(buildTarget.getFlavors())) {
+    buildTarget=BuildTarget.builder(buildTarget).addAllFlavors(ImmutableSet.of(defaultCxxPlatform.getFlavor())).build();
+  }
+  FluentIterable<BuildTarget> depsExcludingBinary=FluentIterable.from(constructorArg.deps.get()).filter(Predicates.not(Predicates.equalTo(constructorArg.binary)));
+  FluentIterable<BuildTarget> targetsWithFlavors=depsExcludingBinary.filter(BuildTargets.containsFlavors(cxxPlatformFlavorDomain));
+  FluentIterable<BuildTarget> targetsWithoutFlavors=depsExcludingBinary.filter(Predicates.not(BuildTargets.containsFlavors(cxxPlatformFlavorDomain)));
+  return ImmutableSet.<BuildTarget>builder().addAll(targetsWithFlavors).addAll(BuildTargets.propagateFlavorDomains(buildTarget,ImmutableSet.<FlavorDomain<?>>of(cxxPlatformFlavorDomain),targetsWithoutFlavors)).build();
+}
