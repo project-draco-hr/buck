@@ -19,12 +19,12 @@
   ImmutableMap<BuildTarget,HashCode> buildTargetHashes=TargetGraphHashing.hashTargetGraph(params.getCell().getFilesystem(),projectGraphWithTests,params.getFileHashCache(),matchingBuildTargetsWithTests);
   for (  BuildTarget target : matchingBuildTargets) {
     TargetNode<?> targetNode=Preconditions.checkNotNull(projectGraphWithTests.get(target),"Could not find target %s in project graph",target);
-    TargetGraph subGraph=projectGraphWithTests.getSubgraph(ImmutableSet.of(targetNode));
+    ImmutableSet<TargetNode<?>> dependencyClosure=getDependencyClosure(projectGraphWithTests,targetNode);
     Hasher hasher=Hashing.sha1().newHasher();
     ImmutableSortedSet.Builder<TargetNode<?>> nodesWithDepsAndTests=ImmutableSortedSet.naturalOrder();
-    nodesWithDepsAndTests.addAll(subGraph.getNodes());
+    nodesWithDepsAndTests.addAll(dependencyClosure);
     if (isDetectTestChanges()) {
-      nodesWithDepsAndTests.addAll(FluentIterable.from(subGraph.getNodes()).transformAndConcat(new Function<TargetNode<?>,Iterable<TargetNode<?>>>(){
+      nodesWithDepsAndTests.addAll(FluentIterable.from(dependencyClosure).transformAndConcat(new Function<TargetNode<?>,Iterable<TargetNode<?>>>(){
         @Override public Iterable<TargetNode<?>> apply(        TargetNode<?> node){
           return projectGraphWithTests.getAll(TargetNodes.getTestTargetsForNode(node));
         }
