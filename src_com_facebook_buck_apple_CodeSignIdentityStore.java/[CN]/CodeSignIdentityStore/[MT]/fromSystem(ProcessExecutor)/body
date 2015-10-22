@@ -1,6 +1,6 @@
 {
-  return Suppliers.memoize(new Supplier<ImmutableSet<CodeSignIdentity>>(){
-    @Override public ImmutableSet<CodeSignIdentity> get(){
+  return new CodeSignIdentityStore(Suppliers.memoize(new Supplier<ImmutableList<CodeSignIdentity>>(){
+    @Override public ImmutableList<CodeSignIdentity> get(){
       ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().setCommand(ImmutableList.of("security","find-identity","-v","-p","codesigning")).build();
       Set<ProcessExecutor.Option> options=EnumSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT);
       ProcessExecutor.Result result;
@@ -9,29 +9,29 @@
       }
  catch (      InterruptedException|IOException e) {
         LOG.warn("Could not execute security, continuing without codesign identity.");
-        return ImmutableSet.of();
+        return ImmutableList.of();
       }
       if (result.getExitCode() != 0) {
         throw new RuntimeException("security -v -p codesigning failed: " + result.getStderr());
       }
       Matcher matcher=CODE_SIGN_IDENTITY_PATTERN.matcher(result.getStdout().get());
-      ImmutableSet.Builder<CodeSignIdentity> builder=ImmutableSet.builder();
+      ImmutableList.Builder<CodeSignIdentity> builder=ImmutableList.builder();
       while (matcher.find()) {
         String hash=matcher.group(1);
-        String fullName=matcher.group(2);
-        CodeSignIdentity identity=CodeSignIdentity.builder().setHash(hash).setFullName(fullName).build();
+        String subjectCommonName=matcher.group(2);
+        CodeSignIdentity identity=CodeSignIdentity.builder().setFingerprint(hash).setSubjectCommonName(subjectCommonName).build();
         builder.add(identity);
         LOG.debug("Found code signing identity: " + identity.toString());
       }
-      ImmutableSet<CodeSignIdentity> allValidIdentities=builder.build();
+      ImmutableList<CodeSignIdentity> allValidIdentities=builder.build();
       if (allValidIdentities.isEmpty()) {
         LOG.warn("No valid code signing identities found.  Device build/install won't work.");
       }
  else       if (allValidIdentities.size() > 1) {
-        LOG.info("More than 1 valid identity found.  This could potentially  cause the wrong one to" + " be used unless explicitly specified via CODE_SIGN_IDENTITY.");
+        LOG.info("Multiple valid identity found.  This could potentially cause the wrong one to" + " be used unless explicitly specified via CODE_SIGN_IDENTITY.");
       }
       return allValidIdentities;
     }
   }
-);
+));
 }
