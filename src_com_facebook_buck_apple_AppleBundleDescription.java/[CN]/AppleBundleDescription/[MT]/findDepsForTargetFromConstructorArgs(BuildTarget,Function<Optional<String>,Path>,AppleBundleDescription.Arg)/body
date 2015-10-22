@@ -5,8 +5,35 @@
   if (!cxxPlatformFlavorDomain.containsAnyOf(buildTarget.getFlavors())) {
     buildTarget=BuildTarget.builder(buildTarget).addAllFlavors(ImmutableSet.of(defaultCxxPlatform.getFlavor())).build();
   }
+  Optional<FatBinaryInfo> fatBinaryInfo=FatBinaryInfo.create(platformFlavorsToAppleCxxPlatforms,buildTarget);
+  CxxPlatform cxxPlatform;
+  if (fatBinaryInfo.isPresent()) {
+    AppleCxxPlatform appleCxxPlatform=fatBinaryInfo.get().getRepresentativePlatform();
+    cxxPlatform=appleCxxPlatform.getCxxPlatform();
+  }
+ else {
+    cxxPlatform=getCxxPlatformForBuildTarget(buildTarget);
+  }
+  String platformName=cxxPlatform.getFlavor().getName();
+  final Flavor actualWatchFlavor;
+  if (ApplePlatform.isSimulator(platformName)) {
+    actualWatchFlavor=ImmutableFlavor.builder().name("watchsimulator-i386").build();
+  }
+ else   if (platformName.startsWith(ApplePlatform.Name.IPHONEOS) || platformName.startsWith(ApplePlatform.Name.WATCHOS)) {
+    actualWatchFlavor=ImmutableFlavor.builder().name("watchos-armv7k").build();
+  }
+ else {
+    actualWatchFlavor=ImmutableFlavor.builder().name(platformName).build();
+  }
   FluentIterable<BuildTarget> depsExcludingBinary=FluentIterable.from(constructorArg.deps.get()).filter(Predicates.not(Predicates.equalTo(constructorArg.binary)));
-  FluentIterable<BuildTarget> targetsWithFlavors=depsExcludingBinary.filter(BuildTargets.containsFlavors(cxxPlatformFlavorDomain));
-  FluentIterable<BuildTarget> targetsWithoutFlavors=depsExcludingBinary.filter(Predicates.not(BuildTargets.containsFlavors(cxxPlatformFlavorDomain)));
-  return ImmutableSet.<BuildTarget>builder().addAll(targetsWithFlavors).addAll(BuildTargets.propagateFlavorDomains(buildTarget,ImmutableSet.<FlavorDomain<?>>of(cxxPlatformFlavorDomain),targetsWithoutFlavors)).build();
+  FluentIterable<BuildTarget> targetsWithPlatformFlavors=depsExcludingBinary.filter(BuildTargets.containsFlavors(cxxPlatformFlavorDomain));
+  FluentIterable<BuildTarget> targetsWithoutPlatformFlavors=depsExcludingBinary.filter(Predicates.not(BuildTargets.containsFlavors(cxxPlatformFlavorDomain)));
+  FluentIterable<BuildTarget> watchTargets=targetsWithoutPlatformFlavors.filter(BuildTargets.containsFlavor(WATCH)).transform(new Function<BuildTarget,BuildTarget>(){
+    @Override public BuildTarget apply(    BuildTarget input){
+      return BuildTarget.builder(input.withoutFlavors(ImmutableSet.of(WATCH))).addFlavors(actualWatchFlavor).build();
+    }
+  }
+);
+  targetsWithoutPlatformFlavors=targetsWithoutPlatformFlavors.filter(Predicates.not(BuildTargets.containsFlavor(WATCH)));
+  return ImmutableSet.<BuildTarget>builder().addAll(targetsWithPlatformFlavors).addAll(watchTargets).addAll(BuildTargets.propagateFlavorDomains(buildTarget,ImmutableSet.<FlavorDomain<?>>of(cxxPlatformFlavorDomain),targetsWithoutPlatformFlavors)).build();
 }
