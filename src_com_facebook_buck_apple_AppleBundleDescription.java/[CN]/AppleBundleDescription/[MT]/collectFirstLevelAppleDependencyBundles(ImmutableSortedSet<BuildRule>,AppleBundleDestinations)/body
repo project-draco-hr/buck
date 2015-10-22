@@ -1,0 +1,22 @@
+{
+  ImmutableMap.Builder<SourcePath,String> extensionBundlePaths=ImmutableMap.builder();
+  for (  BuildRule rule : deps) {
+    if (rule instanceof AppleBundle) {
+      AppleBundle appleBundle=(AppleBundle)rule;
+      if (AppleBundleExtension.APPEX.toFileExtension().equals(appleBundle.getExtension()) || AppleBundleExtension.APP.toFileExtension().equals(appleBundle.getExtension())) {
+        Path outputPath=Preconditions.checkNotNull(appleBundle.getPathToOutput(),"Path cannot be null for AppleBundle [%s].",appleBundle);
+        SourcePath sourcePath=new BuildTargetSourcePath(appleBundle.getBuildTarget(),outputPath);
+        Path destinationPath;
+        String platformName=appleBundle.getPlatformName();
+        if ((platformName.equals(ApplePlatform.Name.WATCHOS) || platformName.equals(ApplePlatform.Name.WATCHSIMULATOR)) && appleBundle.getExtension().equals(AppleBundleExtension.APP.toFileExtension())) {
+          destinationPath=destinations.getWatchAppPath();
+        }
+ else {
+          destinationPath=destinations.getPlugInsPath();
+        }
+        extensionBundlePaths.put(sourcePath,destinationPath.toString());
+      }
+    }
+  }
+  return extensionBundlePaths.build();
+}
