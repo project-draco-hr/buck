@@ -1,0 +1,12 @@
+{
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  Set<TargetNode<?>> targetNodes=Sets.newTreeSet();
+  Genrule dep=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:dep")).setOut("out").build(resolver);
+  CxxTestBuilder builder=(CxxTestBuilder)createTestBuilder(resolver,filesystem,targetNodes).setPlatformLinkerFlags(new PatternMatchedCollection.Builder<ImmutableList<String>>().add(Pattern.compile(Pattern.quote(CxxPlatformUtils.DEFAULT_PLATFORM.getFlavor().toString())),ImmutableList.of("--linker-script=$(location //:dep)")).build());
+  assertThat(builder.findImplicitDeps(),Matchers.hasItem(dep.getBuildTarget()));
+  CxxTest test=(CxxTest)builder.build(resolver);
+  CxxLink binary=(CxxLink)resolver.getRule(CxxDescriptionEnhancer.createCxxLinkTarget(test.getBuildTarget()));
+  assertThat(binary.getArgs(),Matchers.hasItem(String.format("--linker-script=%s",dep.getAbsoluteOutputFilePath())));
+  assertThat(binary.getDeps(),Matchers.hasItem(dep));
+}

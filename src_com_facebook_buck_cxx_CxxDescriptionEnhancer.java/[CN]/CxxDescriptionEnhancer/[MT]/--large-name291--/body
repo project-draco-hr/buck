@@ -8,7 +8,8 @@
   ImmutableList<CxxPreprocessorInput> cxxPreprocessorInput=collectCxxPreprocessorInput(targetGraph,params,cxxPlatform,CxxFlags.getLanguageFlags(preprocessorFlags,platformPreprocessorFlags,langPreprocessorFlags,cxxPlatform),ImmutableList.of(headerSymlinkTree),getFrameworkSearchPaths(frameworks,cxxPlatform,new SourcePathResolver(resolver)),CxxPreprocessables.getTransitiveCxxPreprocessorInput(targetGraph,cxxPlatform,FluentIterable.from(params.getDeps()).filter(Predicates.instanceOf(CxxPreprocessorDep.class))));
   ImmutableMap<String,CxxSource> sources=ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build();
   ImmutableMap<CxxPreprocessAndCompile,SourcePath> objects=CxxSourceRuleFactory.requirePreprocessAndCompileRules(params,resolver,sourcePathResolver,cxxPlatform,cxxPreprocessorInput,CxxFlags.getFlags(compilerFlags,platformCompilerFlags,cxxPlatform),prefixHeader,preprocessMode,sources,linkStyle == Linker.LinkableDepType.STATIC ? CxxSourceRuleFactory.PicType.PDC : CxxSourceRuleFactory.PicType.PIC);
-  argsBuilder.addAll(StringArg.from(CxxFlags.getFlags(linkerFlags,platformLinkerFlags,cxxPlatform)));
+  ImmutableList<String> resolvedLinkerFlags=CxxFlags.getFlags(linkerFlags,platformLinkerFlags,cxxPlatform);
+  argsBuilder.addAll(FluentIterable.from(resolvedLinkerFlags).transform(MacroArg.toMacroArgFunction(MACRO_HANDLER,params.getBuildTarget(),params.getCellRoots(),resolver,params.getProjectFilesystem())));
   if (linkStyle == Linker.LinkableDepType.SHARED) {
     SymlinkTree sharedLibraries=resolver.addToIndex(createSharedLibrarySymlinkTree(targetGraph,params,sourcePathResolver,cxxPlatform,Predicates.instanceOf(NativeLinkable.class)));
     argsBuilder.addAll(StringArg.from(Linkers.iXlinker("-rpath",String.format("%s/%s",cxxPlatform.getLd().origin(),linkOutput.getParent().relativize(sharedLibraries.getRoot()).toString()))));
