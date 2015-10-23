@@ -1,0 +1,27 @@
+{
+  int bestMatchLength=-1;
+  Optional<ProvisioningProfileMetadata> bestMatch=Optional.absent();
+  for (  ProvisioningProfileMetadata profile : getProvisioningProfiles()) {
+    if (profile.getExpirationDate().after(new Date())) {
+      Pair<String,String> appID=profile.getAppID();
+      LOG.debug("Looking at provisioning profile " + profile.getUUID() + ","+ appID.toString());
+      if (!prefix.isPresent() || prefix.get().equals(appID.getFirst())) {
+        String profileBundleID=appID.getSecond();
+        boolean match;
+        if (profileBundleID.endsWith("*")) {
+          profileBundleID=profileBundleID.substring(0,profileBundleID.length() - 1);
+          match=bundleID.startsWith(profileBundleID);
+        }
+ else {
+          match=(bundleID.equals(profileBundleID));
+        }
+        if (match && profileBundleID.length() > bestMatchLength) {
+          bestMatchLength=profileBundleID.length();
+          bestMatch=Optional.of(profile);
+        }
+      }
+    }
+  }
+  LOG.debug("Found provisioning profile " + bestMatch.toString());
+  return bestMatch;
+}

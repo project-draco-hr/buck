@@ -48,7 +48,7 @@
     Path bundleDir=assetCatalog.get().getOutputDir();
     stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),bundleDir,bundleRoot,CopyStep.DirectoryMode.CONTENTS_ONLY));
   }
-  if (provisioningProfiles.isPresent()) {
+  if (codeSignIdentity.isPresent()) {
     Optional<Path> entitlementsPlist=Optional.absent();
     final Path srcRoot=getProjectFilesystem().getRootPath().resolve(getBuildTarget().getBasePath());
     Optional<String> entitlementsPlistString=InfoPlistSubstitution.getVariableExpansionForPlatform(CODE_SIGN_ENTITLEMENTS,platformName,withDefaults(infoPlistSubstitutions,ImmutableMap.of("SOURCE_ROOT",srcRoot.toString(),"SRCROOT",srcRoot.toString())));
@@ -56,7 +56,7 @@
       entitlementsPlist=Optional.of(srcRoot.resolve(Paths.get(entitlementsPlistString.get())));
     }
     final Path signingEntitlementsTempPath=BuildTargets.getScratchPath(getBuildTarget(),"%s.xcent");
-    stepsBuilder.add(new ProvisioningProfileCopyStep(getProjectFilesystem(),infoPlistOutputPath,Optional.<String>absent(),entitlementsPlist,provisioningProfiles.get(),bundleDestinationPath.resolve("embedded.mobileprovision"),signingEntitlementsTempPath));
+    stepsBuilder.add(new ProvisioningProfileCopyStep(getProjectFilesystem(),infoPlistOutputPath,Optional.<String>absent(),entitlementsPlist,provisioningProfileStore,bundleDestinationPath.resolve("embedded.mobileprovision"),signingEntitlementsTempPath));
     stepsBuilder.add(new CodeSignStep(getProjectFilesystem().getRootPath(),bundleDestinationPath,signingEntitlementsTempPath,codeSignIdentity.get().getFingerprint()));
   }
   buildableContext.recordArtifact(getPathToOutput());
