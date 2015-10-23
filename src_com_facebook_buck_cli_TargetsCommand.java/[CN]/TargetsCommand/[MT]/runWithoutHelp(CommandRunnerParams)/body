@@ -19,16 +19,15 @@
       return 1;
     }
   }
-  ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
   ImmutableSet<BuildTarget> matchingBuildTargets;
   TargetGraph graph;
   try {
     if (getArguments().isEmpty() || isDetectTestChanges()) {
       matchingBuildTargets=ImmutableSet.of();
-      graph=params.getParser().buildTargetGraphForTargetNodeSpecs(ImmutableList.of(TargetNodePredicateSpec.of(Predicates.<TargetNode<?>>alwaysTrue(),BuildFileSpec.fromRecursivePath(Paths.get(""),params.getCell().getFilesystem().getIgnorePaths()))),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling()).getSecond();
+      graph=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),ImmutableList.of(TargetNodePredicateSpec.of(Predicates.<TargetNode<?>>alwaysTrue(),BuildFileSpec.fromRecursivePath(Paths.get(""),params.getCell().getFilesystem().getIgnorePaths())))).getSecond();
     }
  else {
-      Pair<ImmutableSet<BuildTarget>,TargetGraph> results=params.getParser().buildTargetGraphForTargetNodeSpecs(parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getCell().getFilesystem().getIgnorePaths(),getArguments()),parserConfig,params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
+      Pair<ImmutableSet<BuildTarget>,TargetGraph> results=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getCell().getFilesystem().getIgnorePaths(),getArguments()));
       matchingBuildTargets=results.getFirst();
       graph=results.getSecond();
     }
@@ -44,11 +43,12 @@
   }
  else {
     ImmutableSet<BuildRuleType> buildRuleTypes=buildRuleTypesBuilder.build();
+    ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
     matchingNodes=getMatchingNodes(graph,referencedFiles.relativePathsUnderProjectRoot.isEmpty() ? Optional.<ImmutableSet<Path>>absent() : Optional.of(referencedFiles.relativePathsUnderProjectRoot),matchingBuildTargets.isEmpty() ? Optional.<ImmutableSet<BuildTarget>>absent() : Optional.of(matchingBuildTargets),buildRuleTypes.isEmpty() ? Optional.<ImmutableSet<BuildRuleType>>absent() : Optional.of(buildRuleTypes),isDetectTestChanges(),parserConfig.getBuildFileName());
   }
   if (getPrintJson()) {
     try {
-      printJsonForTargets(params,matchingNodes,new ParserConfig(params.getBuckConfig()));
+      printJsonForTargets(params,matchingNodes);
     }
  catch (    BuildFileParseException e) {
       params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));

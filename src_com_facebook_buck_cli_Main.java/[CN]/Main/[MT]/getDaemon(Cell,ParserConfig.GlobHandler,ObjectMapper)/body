@@ -1,0 +1,26 @@
+{
+  Path rootPath=cell.getFilesystem().getRootPath();
+  Optional<WebServer> webServer=Optional.<WebServer>absent();
+  if (daemon == null) {
+    LOG.debug("Starting up daemon for project root [%s]",rootPath);
+    daemon=new Daemon(cell,globHandler,objectMapper,webServer);
+  }
+ else {
+    Path parserRoot=cell.getFilesystem().getRootPath();
+    if (!rootPath.equals(parserRoot)) {
+      throw new HumanReadableException(String.format("Unsupported root path change from %s to %s",rootPath,parserRoot));
+    }
+    if (!daemon.cell.equals(cell)) {
+      LOG.info("Shutting down and restarting daemon on config or directory resolver change.");
+      if (shouldReuseWebServer(cell)) {
+        webServer=daemon.getWebServer();
+        LOG.info("Reusing web server");
+      }
+ else {
+        daemon.close();
+      }
+      daemon=new Daemon(cell,globHandler,objectMapper,webServer);
+    }
+  }
+  return daemon;
+}

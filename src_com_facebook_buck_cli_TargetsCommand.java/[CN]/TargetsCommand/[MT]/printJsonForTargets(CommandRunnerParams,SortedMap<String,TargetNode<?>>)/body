@@ -1,0 +1,27 @@
+{
+  params.getConsole().getStdOut().println("[");
+  ObjectMapper mapper=params.getObjectMapper();
+  Iterator<TargetNode<?>> valueIterator=buildIndex.values().iterator();
+  while (valueIterator.hasNext()) {
+    TargetNode<?> targetNode=valueIterator.next();
+    SortedMap<String,Object> sortedTargetRule=null;
+    sortedTargetRule=params.getParser().getRawTargetNode(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),targetNode);
+    if (sortedTargetRule == null) {
+      params.getConsole().printErrorText("unable to find rule for target " + targetNode.getBuildTarget().getFullyQualifiedName());
+      continue;
+    }
+    StringWriter stringWriter=new StringWriter();
+    try {
+      mapper.writerWithDefaultPrettyPrinter().writeValue(stringWriter,sortedTargetRule);
+    }
+ catch (    IOException e) {
+      throw Throwables.propagate(e);
+    }
+    String output=stringWriter.getBuffer().toString();
+    if (valueIterator.hasNext()) {
+      output+=",";
+    }
+    params.getConsole().getStdOut().println(output);
+  }
+  params.getConsole().getStdOut().println("]");
+}
