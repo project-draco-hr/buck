@@ -21,14 +21,12 @@
  else {
     params.getBuckEventBus().post(started);
   }
-  ActionGraph actionGraph;
-  BuildRuleResolver resolver;
+  Pair<ActionGraph,BuildRuleResolver> actionGraphAndResolver;
   try {
     Pair<ImmutableSet<BuildTarget>,TargetGraph> result=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getCell().getFilesystem().getIgnorePaths(),getArguments()));
     buildTargets=result.getFirst();
     TargetGraphToActionGraph targetGraphToActionGraph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer(),params.getFileHashCache());
-    actionGraph=targetGraphToActionGraph.apply(result.getSecond());
-    resolver=targetGraphToActionGraph.getRuleResolver();
+    actionGraphAndResolver=Preconditions.checkNotNull(targetGraphToActionGraph.apply(result.getSecond()));
   }
  catch (  BuildTargetException|BuildFileParseException e) {
     params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
@@ -36,7 +34,7 @@
   }
   if (justBuildTarget != null) {
     BuildTarget explicitTarget=BuildTargetParser.INSTANCE.parse(justBuildTarget,BuildTargetPatternParser.fullyQualified(),params.getCell().getCellRoots());
-    Iterable<BuildRule> actionGraphRules=Preconditions.checkNotNull(actionGraph.getNodes());
+    Iterable<BuildRule> actionGraphRules=Preconditions.checkNotNull(actionGraphAndResolver.getFirst().getNodes());
     ImmutableSet<BuildTarget> actionGraphTargets=ImmutableSet.copyOf(Iterables.transform(actionGraphRules,HasBuildTarget.TO_TARGET));
     if (!actionGraphTargets.contains(explicitTarget)) {
       params.getBuckEventBus().post(ConsoleEvent.severe("Targets specified via `--just-build` must be a subset of action graph."));
@@ -44,7 +42,7 @@
     }
     buildTargets=ImmutableSet.of(explicitTarget);
   }
-  try (CommandThreadManager pool=new CommandThreadManager("Build",getConcurrencyLimit(params.getBuckConfig()));Build build=createBuild(params.getBuckConfig(),actionGraph,params.getAndroidPlatformTargetSupplier(),new CachingBuildEngine(pool.getExecutor(),params.getFileHashCache(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),params.getBuckConfig().getBuildDepFiles(),resolver),artifactCache,params.getConsole(),params.getBuckEventBus(),Optional.<TargetDevice>absent(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock(),Optional.<AdbOptions>absent(),Optional.<TargetDeviceOptions>absent())){
+  try (CommandThreadManager pool=new CommandThreadManager("Build",getConcurrencyLimit(params.getBuckConfig()));Build build=createBuild(params.getBuckConfig(),actionGraphAndResolver.getFirst(),params.getAndroidPlatformTargetSupplier(),new CachingBuildEngine(pool.getExecutor(),params.getFileHashCache(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),params.getBuckConfig().getBuildDepFiles(),actionGraphAndResolver.getSecond()),artifactCache,params.getConsole(),params.getBuckEventBus(),Optional.<TargetDevice>absent(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock(),Optional.<AdbOptions>absent(),Optional.<TargetDeviceOptions>absent())){
     lastBuild=build;
     int exitCode=build.executeAndPrintFailuresToEventBus(buildTargets,isKeepGoing(),params.getBuckEventBus(),params.getConsole(),getPathToBuildReport(params.getBuckConfig()));
     params.getBuckEventBus().post(BuildEvent.finished(started,exitCode));
