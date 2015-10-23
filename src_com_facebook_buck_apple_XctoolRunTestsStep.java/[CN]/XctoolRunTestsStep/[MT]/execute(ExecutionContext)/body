@@ -1,5 +1,22 @@
 {
-  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().setCommand(command).setDirectory(filesystem.getRootPath().toAbsolutePath().toFile()).setRedirectOutput(ProcessBuilder.Redirect.PIPE).setEnvironment(getEnv(context)).build();
+  ImmutableMap<String,String> env=getEnv(context);
+  ProcessExecutorParams.Builder processExecutorParamsBuilder=ProcessExecutorParams.builder().addAllCommand(command).setDirectory(filesystem.getRootPath().toAbsolutePath().toFile()).setRedirectOutput(ProcessBuilder.Redirect.PIPE).setEnvironment(env);
+  if (!testSelectorList.isEmpty()) {
+    try {
+      List<String> xctoolFilterParams=listAndFilterTestsThenFormatXctoolParams(context.getProcessExecutor(),testSelectorList,ProcessExecutorParams.builder().from(processExecutorParamsBuilder.build()).addCommand("-listTestsOnly").build());
+      if (xctoolFilterParams.isEmpty()) {
+        context.getConsole().printBuildFailure(String.format("No tests found matching specified filter (%s)",testSelectorList.getExplanation()));
+        return 1;
+      }
+      processExecutorParamsBuilder.addAllCommand(xctoolFilterParams);
+    }
+ catch (    IOException e) {
+      context.getConsole().printErrorText("Failed to get list of tests from test bundle");
+      context.getConsole().printBuildFailureWithStacktrace(e);
+      return 1;
+    }
+  }
+  ProcessExecutorParams processExecutorParams=processExecutorParamsBuilder.build();
   final AtomicBoolean stutterLockIsNotified=new AtomicBoolean(false);
   try {
     LOG.debug("Running command: %s",processExecutorParams);
@@ -28,7 +45,7 @@
       return exitCode;
     }
  catch (    Exception e) {
-      LOG.error(e,"Exception while running %s",command);
+      LOG.error(e,"Exception while running %s",processExecutorParams.getCommand());
       MoreThrowables.propagateIfInterrupt(e);
       context.getConsole().printBuildFailureWithStacktrace(e);
       return 1;

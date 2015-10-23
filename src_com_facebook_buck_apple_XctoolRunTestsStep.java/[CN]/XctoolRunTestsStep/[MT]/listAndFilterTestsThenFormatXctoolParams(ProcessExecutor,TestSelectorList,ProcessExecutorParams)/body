@@ -1,0 +1,15 @@
+{
+  Preconditions.checkArgument(!testSelectorList.isEmpty());
+  LOG.debug("Filtering tests with selector list: %s",testSelectorList.getExplanation());
+  LOG.debug("Listing tests with command: %s",listTestsOnlyParams);
+  ProcessExecutor.LaunchedProcess launchedProcess=processExecutor.launchProcess(listTestsOnlyParams);
+  ListTestsOnlyHandler listTestsOnlyHandler=new ListTestsOnlyHandler();
+  try (InputStreamReader isr=new InputStreamReader(launchedProcess.getInputStream(),StandardCharsets.UTF_8);BufferedReader br=new BufferedReader(isr)){
+    XctoolOutputParsing.streamOutputFromReader(br,listTestsOnlyHandler);
+  }
+   int listTestsResult=processExecutor.waitForLaunchedProcess(launchedProcess);
+  if (listTestsResult != 0) {
+    throw new IOException(String.format("Process %s exited with error %d",listTestsOnlyParams.getCommand(),listTestsResult));
+  }
+  return formatXctoolFilterParams(testSelectorList,listTestsOnlyHandler.testTargetsToDescriptions);
+}
