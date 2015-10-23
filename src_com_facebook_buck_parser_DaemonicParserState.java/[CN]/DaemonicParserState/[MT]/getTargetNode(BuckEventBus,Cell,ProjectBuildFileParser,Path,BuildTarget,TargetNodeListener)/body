@@ -1,0 +1,22 @@
+{
+  Preconditions.checkState(buildFile.isAbsolute());
+  invalidateIfProjectBuildFileParserStateChanged(cell);
+  try {
+    return allTargetNodes.get(target,new Callable<TargetNode<?>>(){
+      @Override public TargetNode<?> call() throws Exception {
+        List<Map<String,Object>> rawNodes=loadRawNodes(cell,buildFile,parser);
+        for (        Map<String,Object> rawNode : rawNodes) {
+          Object shortName=rawNode.get("name");
+          if (target.getShortName().equals(shortName)) {
+            return createTargetNode(eventBus,cell,buildFile,target,rawNode,nodeListener);
+          }
+        }
+        throw new HumanReadableException(NoSuchBuildTargetException.createForMissingBuildRule(target,BuildTargetPatternParser.forBaseName(target.getBaseName()),cell.getBuildFileName(),"Defined in file: " + buildFile));
+      }
+    }
+);
+  }
+ catch (  UncheckedExecutionException|ExecutionException e) {
+    throw propagate(e);
+  }
+}
