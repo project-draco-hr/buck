@@ -1,14 +1,13 @@
 {
   final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  Function<String,com.facebook.buck.rules.args.Arg> macroArgFunction=MacroArg.toMacroArgFunction(MACRO_HANDLER,params.getBuildTarget(),params.getCellRoots(),resolver,params.getProjectFilesystem());
+  final Optional<com.facebook.buck.rules.args.Arg> cmd=args.cmd.transform(macroArgFunction);
+  final Optional<com.facebook.buck.rules.args.Arg> bash=args.bash.transform(macroArgFunction);
+  final Optional<com.facebook.buck.rules.args.Arg> cmdExe=args.cmdExe.transform(macroArgFunction);
   return createBuildRule(params.copyWithExtraDeps(new Supplier<ImmutableSortedSet<BuildRule>>(){
     @Override public ImmutableSortedSet<BuildRule> get(){
-      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(args.srcs.get())).addAll(findExtraDepsFromArgs(params.getBuildTarget(),params.getCellRoots(),resolver,args)).build();
+      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(args.srcs.get())).addAll(FluentIterable.from(Optional.presentInstances(ImmutableList.of(cmd,bash,cmdExe))).transformAndConcat(com.facebook.buck.rules.args.Arg.getDepsFunction(pathResolver))).build();
     }
   }
-),resolver,args,args.srcs.get(),MACRO_HANDLER.getExpander(params.getBuildTarget(),params.getCellRoots(),resolver,params.getProjectFilesystem()),args.cmd,args.bash,args.cmdExe,args.out,params.getProjectFilesystem().getAbsolutifier(),new Supplier<ImmutableList<Object>>(){
-    @Override public ImmutableList<Object> get(){
-      return findRuleKeyAppendables(params.getBuildTarget(),params.getCellRoots(),resolver,args);
-    }
-  }
-);
+),resolver,args,args.srcs.get(),cmd,bash,cmdExe,args.out,params.getProjectFilesystem().getAbsolutifier());
 }
