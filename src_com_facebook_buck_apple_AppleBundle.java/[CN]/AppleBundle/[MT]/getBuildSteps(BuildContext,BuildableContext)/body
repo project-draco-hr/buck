@@ -1,7 +1,7 @@
 {
   ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
   Path metadataPath=getMetadataPath();
-  Path infoPlistInputPath=getResolver().getPath(infoPlist);
+  Path infoPlistInputPath=getResolver().deprecatedGetPath(infoPlist);
   Path infoPlistSubstitutionTempPath=BuildTargets.getScratchPath(getBuildTarget(),"%s.plist");
   Path infoPlistOutputPath=metadataPath.resolve("Info.plist");
   stepsBuilder.add(new MakeCleanDirectoryStep(getProjectFilesystem(),bundleRoot),new MkdirStep(getProjectFilesystem(),metadataPath),new WriteFileStep(getProjectFilesystem(),"APPLWRUN",metadataPath.resolve("PkgInfo"),false),new MkdirStep(getProjectFilesystem(),infoPlistSubstitutionTempPath.getParent()),new FindAndReplaceStep(getProjectFilesystem(),infoPlistInputPath,infoPlistSubstitutionTempPath,InfoPlistSubstitution.createVariableExpansionFunction(withDefaults(infoPlistSubstitutions,ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName)))),new PlistProcessStep(getProjectFilesystem(),infoPlistSubstitutionTempPath,infoPlistOutputPath,getInfoPlistAdditionalKeys(platformName,sdkName),getInfoPlistOverrideKeys(platformName),PlistProcessStep.OutputFormat.BINARY));
@@ -18,22 +18,22 @@
   Path bundleDestinationPath=bundleRoot.resolve(this.destinations.getResourcesPath());
   for (  SourcePath dir : resourceDirs) {
     stepsBuilder.add(new MkdirStep(getProjectFilesystem(),bundleDestinationPath));
-    stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),getResolver().getPath(dir),bundleDestinationPath,CopyStep.DirectoryMode.DIRECTORY_AND_CONTENTS));
+    stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),getResolver().deprecatedGetPath(dir),bundleDestinationPath,CopyStep.DirectoryMode.DIRECTORY_AND_CONTENTS));
   }
   for (  SourcePath dir : dirsContainingResourceDirs) {
     stepsBuilder.add(new MkdirStep(getProjectFilesystem(),bundleDestinationPath));
-    stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),getResolver().getPath(dir),bundleDestinationPath,CopyStep.DirectoryMode.CONTENTS_ONLY));
+    stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),getResolver().deprecatedGetPath(dir),bundleDestinationPath,CopyStep.DirectoryMode.CONTENTS_ONLY));
   }
   for (  SourcePath file : resourceFiles) {
     stepsBuilder.add(new MkdirStep(getProjectFilesystem(),bundleDestinationPath));
-    Path resolvedFilePath=getResolver().getPath(file);
+    Path resolvedFilePath=getResolver().deprecatedGetPath(file);
     Path destinationPath=bundleDestinationPath.resolve(resolvedFilePath.getFileName());
     addResourceProcessingSteps(resolvedFilePath,destinationPath,stepsBuilder);
   }
   addStepsToCopyExtensionBundlesDependencies(stepsBuilder);
   if (resourceVariantFiles.isPresent()) {
     for (    SourcePath variantSourcePath : resourceVariantFiles.get()) {
-      Path variantFilePath=getResolver().getPath(variantSourcePath);
+      Path variantFilePath=getResolver().deprecatedGetPath(variantSourcePath);
       Path variantDirectory=variantFilePath.getParent();
       if (variantDirectory == null || !variantDirectory.toString().endsWith(".lproj")) {
         throw new HumanReadableException("Variant files have to be in a directory with name ending in '.lproj', " + "but '%s' is not.",variantFilePath);
