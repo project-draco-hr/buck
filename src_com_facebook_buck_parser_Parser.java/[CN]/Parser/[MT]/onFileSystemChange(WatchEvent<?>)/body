@@ -1,0 +1,23 @@
+{
+  if (LOG.isVerboseEnabled()) {
+    LOG.verbose("Parser watched event %s %s",event.kind(),WatchEvents.createContextString(event));
+  }
+  if (WatchEvents.isPathChangeEvent(event)) {
+    Path path=(Path)event.context();
+    if (WatchEvents.isPathCreateOrDeleteEvent(event)) {
+      if (path.endsWith(new ParserConfig(cell.getBuckConfig()).getBuildFileName())) {
+        buildFileTreeCache.invalidateIfStale();
+      }
+      if (!isTempFile(path)) {
+        invalidateContainingBuildFile(path);
+      }
+    }
+    LOG.verbose("Invalidating dependents for path %s, cache state %s",path,state);
+    state.invalidateDependents(path);
+  }
+ else {
+    LOG.debug("Parser invalidating entire cache on overflow.");
+    buildFileTreeCache.invalidateIfStale();
+    invalidateCache();
+  }
+}

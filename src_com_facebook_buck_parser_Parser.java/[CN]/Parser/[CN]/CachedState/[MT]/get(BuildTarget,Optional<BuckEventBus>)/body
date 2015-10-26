@@ -1,0 +1,74 @@
+{
+  TargetNode<?> toReturn=memoizedTargetNodes.getIfPresent(buildTarget);
+  if (toReturn != null) {
+    return toReturn;
+  }
+  Path buildFilePath;
+  try {
+    buildFilePath=cell.getAbsolutePathToBuildFile(buildTarget);
+  }
+ catch (  Cell.MissingBuildFileException e) {
+    throw new HumanReadableException(e);
+  }
+  List<Map<String,Object>> rules=state.getRawRules(buildFilePath);
+  for (  Map<String,Object> map : rules) {
+    if (!buildTarget.getShortName().equals(map.get("name"))) {
+      continue;
+    }
+    BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(map);
+    Description<?> description=cell.getDescription(buildRuleType);
+    if (description == null) {
+      throw new HumanReadableException("Unrecognized rule %s while parsing %s%s.",buildRuleType,UnflavoredBuildTarget.BUILD_TARGET_PREFIX,MorePaths.pathWithUnixSeparators(buildTarget.getBasePath().resolve(buildFile)));
+    }
+    if (buildTarget.isFlavored()) {
+      if (description instanceof Flavored) {
+        if (!((Flavored)description).hasFlavors(ImmutableSet.copyOf(buildTarget.getFlavors()))) {
+          throw new HumanReadableException("Unrecognized flavor in target %s while parsing %s%s.",buildTarget,UnflavoredBuildTarget.BUILD_TARGET_PREFIX,MorePaths.pathWithUnixSeparators(buildTarget.getBasePath().resolve(buildFile)));
+        }
+      }
+ else {
+        LOG.warn("Target %s (type %s) must implement the Flavored interface " + "before we can check if it supports flavors: %s",buildTarget.getUnflavoredBuildTarget(),buildRuleType,buildTarget.getFlavors());
+        throw new HumanReadableException("Target %s (type %s) does not currently support flavors (tried %s)",buildTarget.getUnflavoredBuildTarget(),buildRuleType,buildTarget.getFlavors());
+      }
+    }
+    this.pathsToBuildTargets.put(buildFilePath,buildTarget);
+    Cell targetCell=Parser.this.cell.getCell(buildTarget);
+    BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetCell.getFilesystem(),buildTarget.withoutCell(),buildFileTreeCache.get(),targetCell.isEnforcingBuckPackageBoundaries());
+    Object constructorArg=description.createUnpopulatedConstructorArg();
+    TargetNode<?> targetNode;
+    try {
+      ImmutableSet.Builder<BuildTarget> declaredDeps=ImmutableSet.builder();
+      ImmutableSet.Builder<BuildTargetPattern> visibilityPatterns=ImmutableSet.builder();
+      try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,PerfEventId.of("MarshalledConstructorArg"),"target",buildTarget)){
+        marshaller.populate(targetCell.getCellRoots(),targetCell.getFilesystem(),factoryParams,constructorArg,declaredDeps,visibilityPatterns,map);
+      }
+       try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,PerfEventId.of("CreatedTargetNode"),"target",buildTarget)){
+        Hasher hasher=Hashing.sha1().newHasher();
+        hasher.putString(BuckVersion.getVersion(),UTF_8);
+        JsonObjectHashing.hashJsonObject(hasher,map);
+        targetNode=new TargetNode(hasher.hash(),description,constructorArg,factoryParams,declaredDeps.build(),visibilityPatterns.build(),targetCell.getCellRoots());
+      }
+     }
+ catch (    NoSuchBuildTargetException|TargetNode.InvalidSourcePathInputException e) {
+      throw new HumanReadableException(e);
+    }
+catch (    ConstructorArgMarshalException e) {
+      throw new HumanReadableException("%s: %s",buildTarget,e.getMessage());
+    }
+    Map<Path,Path> newSymlinksEncountered=Maps.newHashMap();
+    if (inputFilesUnderSymlink(targetNode.getInputs(),targetCell.getFilesystem(),symlinkExistenceCache,newSymlinksEncountered)) {
+      if (allowSymlinks == ParserConfig.AllowSymlinks.FORBID) {
+        throw new HumanReadableException("Target %s contains input files under a path which contains a symbolic link " + "(%s). To resolve this, use separate rules and declare dependencies instead of " + "using symbolic links.",targetNode.getBuildTarget(),newSymlinksEncountered);
+      }
+      LOG.warn("Disabling caching for target %s, because one or more input files are under a " + "symbolic link (%s). This will severely impact performance! To resolve this, use " + "separate rules and declare dependencies instead of using symbolic links.",targetNode.getBuildTarget(),newSymlinksEncountered);
+      buildInputPathsUnderSymlink.add(buildFilePath);
+    }
+synchronized (memoizedTargetNodes) {
+      if (memoizedTargetNodes.getIfPresent(buildTarget) != null) {
+        throw new HumanReadableException("Duplicate definition for " + buildTarget.getUnflavoredBuildTarget());
+      }
+      memoizedTargetNodes.put(buildTarget,targetNode);
+    }
+  }
+  return memoizedTargetNodes.getIfPresent(buildTarget);
+}

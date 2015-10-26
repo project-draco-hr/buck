@@ -1,0 +1,14 @@
+{
+  List<Path> packageBuildFiles=Lists.newArrayList();
+  Optional<Path> packageBuildFile=buildFileTreeCache.get().getBasePathOfAncestorTarget(path);
+  packageBuildFiles.addAll(packageBuildFile.asSet());
+  if (!cell.isEnforcingBuckPackageBoundaries()) {
+    while (packageBuildFile.isPresent() && packageBuildFile.get().getParent() != null) {
+      packageBuildFile=buildFileTreeCache.get().getBasePathOfAncestorTarget(packageBuildFile.get().getParent());
+      packageBuildFiles.addAll(packageBuildFile.asSet());
+    }
+  }
+  for (  Path buildFile : packageBuildFiles) {
+    state.invalidateDependents(cell.getFilesystem().getPathForRelativePath(buildFile.resolve(new ParserConfig(cell.getBuckConfig()).getBuildFileName())));
+  }
+}

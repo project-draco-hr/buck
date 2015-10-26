@@ -1,0 +1,20 @@
+{
+  this.cell=cell;
+  this.hashCache=new WatchedFileHashCache(cell.getFilesystem());
+  this.buckOutHashCache=new DefaultFileHashCache(new ProjectFilesystem(cell.getFilesystem().getRootPath(),Optional.of(ImmutableSet.of(BuckConstant.BUCK_OUTPUT_PATH)),ImmutableSet.<Path>of()));
+  this.fileEventBus=new EventBus("file-change-events");
+  this.parser=Parser.createBuildFileParser(cell,globHandler == ParserConfig.GlobHandler.WATCHMAN,allowSymlinks);
+  fileEventBus.register(parser);
+  fileEventBus.register(hashCache);
+  if (webServerToReuse.isPresent()) {
+    webServer=webServerToReuse;
+  }
+ else {
+    webServer=createWebServer(cell.getBuckConfig(),cell.getFilesystem(),objectMapper);
+  }
+  if (!initWebServer()) {
+    LOG.warn("Can't start web server");
+  }
+  watchmanQueryUUID=UUID.randomUUID();
+  JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(cell.getFilesystem());
+}
