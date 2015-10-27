@@ -14,13 +14,21 @@
     NSDictionary plist=(NSDictionary)PropertyListParser.parse(result.getStdout().get().getBytes());
     Date expirationDate=((NSDate)plist.get("ExpirationDate")).getDate();
     String uuid=((NSString)plist.get("UUID")).getContent();
-    ImmutableMap.Builder<String,NSObject> builder=ImmutableMap.<String,NSObject>builder();
+    ImmutableSet.Builder<HashCode> certificateFingerprints=ImmutableSet.builder();
+    NSArray certificates=(NSArray)plist.get("DeveloperCertificates");
+    HashFunction hasher=Hashing.sha1();
+    if (certificates != null) {
+      for (      NSObject item : certificates.getArray()) {
+        certificateFingerprints.add(hasher.hashBytes(((NSData)item).bytes()));
+      }
+    }
+    ImmutableMap.Builder<String,NSObject> builder=ImmutableMap.builder();
     NSDictionary entitlements=((NSDictionary)plist.get("Entitlements"));
     for (    String key : entitlements.keySet()) {
       builder=builder.put(key,entitlements.objectForKey(key));
     }
     String appID=entitlements.get("application-identifier").toString();
-    return ProvisioningProfileMetadata.builder().setAppID(ProvisioningProfileMetadata.splitAppID(appID)).setExpirationDate(expirationDate).setUUID(uuid).setProfilePath(Optional.<Path>of(profilePath)).setEntitlements(builder.build()).build();
+    return ProvisioningProfileMetadata.builder().setAppID(ProvisioningProfileMetadata.splitAppID(appID)).setExpirationDate(expirationDate).setUUID(uuid).setProfilePath(Optional.of(profilePath)).setEntitlements(builder.build()).setDeveloperCertificateFingerprints(certificateFingerprints.build()).build();
   }
  catch (  Exception e) {
     throw new IllegalArgumentException("Malformed embedded plist: " + e);
