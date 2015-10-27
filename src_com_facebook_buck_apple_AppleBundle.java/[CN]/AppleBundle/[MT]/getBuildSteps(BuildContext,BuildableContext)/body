@@ -7,13 +7,31 @@
   stepsBuilder.add(new MakeCleanDirectoryStep(getProjectFilesystem(),bundleRoot),new MkdirStep(getProjectFilesystem(),metadataPath),new WriteFileStep(getProjectFilesystem(),"APPLWRUN",metadataPath.resolve("PkgInfo"),false),new MkdirStep(getProjectFilesystem(),infoPlistSubstitutionTempPath.getParent()),new FindAndReplaceStep(getProjectFilesystem(),infoPlistInputPath,infoPlistSubstitutionTempPath,InfoPlistSubstitution.createVariableExpansionFunction(withDefaults(infoPlistSubstitutions,ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName)))),new PlistProcessStep(getProjectFilesystem(),infoPlistSubstitutionTempPath,infoPlistOutputPath,getInfoPlistAdditionalKeys(platformName,sdkName),getInfoPlistOverrideKeys(platformName),PlistProcessStep.OutputFormat.BINARY));
   if (hasBinary) {
     stepsBuilder.add(new MkdirStep(getProjectFilesystem(),bundleRoot.resolve(this.destinations.getExecutablesPath())));
-    Path bundleBinaryPath=bundleRoot.resolve(binaryPath);
-    stepsBuilder.add(CopyStep.forFile(getProjectFilesystem(),binary.get().getPathToOutput(),bundleBinaryPath));
+    Path binaryOutputPath=binary.get().getPathToOutput();
+    Preconditions.checkNotNull(binaryOutputPath);
+    stepsBuilder.add(CopyStep.forFile(getProjectFilesystem(),binaryOutputPath,bundleBinaryPath));
     if (debugInfoFormat == DebugInfoFormat.DSYM) {
       buildableContext.recordArtifact(dsymPath);
       stepsBuilder.add(new DsymStep(getProjectFilesystem(),dsymutil.getCommandPrefix(getResolver()),bundleBinaryPath,dsymPath));
     }
-    stepsBuilder.add(new DefaultShellStep(getProjectFilesystem().getRootPath(),ImmutableList.<String>builder().addAll(strip.getCommandPrefix(getResolver())).add("-S").add(getProjectFilesystem().resolve(bundleBinaryPath).toString()).build()));
+    stepsBuilder.add(new Step(){
+      @Override public int execute(      ExecutionContext context) throws IOException, InterruptedException {
+        if (!CodeSigning.hasValidSignature(context.getProcessExecutor(),bundleBinaryPath)) {
+          return (new DefaultShellStep(getProjectFilesystem().getRootPath(),ImmutableList.<String>builder().addAll(strip.getCommandPrefix(getResolver())).add("-S").add(getProjectFilesystem().resolve(bundleBinaryPath).toString()).build())).execute(context);
+        }
+ else {
+          LOG.info("Not stripping code-signed binary.");
+          return 0;
+        }
+      }
+      @Override public String getShortName(){
+        return "strip binary";
+      }
+      @Override public String getDescription(      ExecutionContext context){
+        return String.format("strip debug symbols from binary '%s'",bundleRoot);
+      }
+    }
+);
   }
   Path bundleDestinationPath=bundleRoot.resolve(this.destinations.getResourcesPath());
   for (  SourcePath dir : resourceDirs) {
