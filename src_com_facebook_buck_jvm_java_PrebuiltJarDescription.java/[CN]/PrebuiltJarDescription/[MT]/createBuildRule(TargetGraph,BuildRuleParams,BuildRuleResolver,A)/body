@@ -2,5 +2,11 @@
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   BuildTarget abiJarTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(CalculateAbi.FLAVOR).build();
   resolver.addToIndex(CalculateAbi.of(abiJarTarget,pathResolver,params,args.binaryJar));
-  return new PrebuiltJar(params,pathResolver,args.binaryJar,new BuildTargetSourcePath(abiJarTarget),args.sourceJar,args.gwtJar,args.javadocUrl,args.mavenCoords);
+  BuildRule prebuilt=new PrebuiltJar(params,pathResolver,args.binaryJar,new BuildTargetSourcePath(abiJarTarget),args.sourceJar,args.gwtJar,args.javadocUrl,args.mavenCoords);
+  UnflavoredBuildTarget prebuiltJarBuildTarget=params.getBuildTarget().checkUnflavored();
+  BuildTarget flavoredBuildTarget=BuildTargets.createFlavoredBuildTarget(prebuiltJarBuildTarget,JavaLibrary.GWT_MODULE_FLAVOR);
+  BuildRuleParams gwtParams=params.copyWithChanges(flavoredBuildTarget,Suppliers.ofInstance(ImmutableSortedSet.of(prebuilt)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  BuildRule gwtModule=createGwtModule(gwtParams,pathResolver,args);
+  resolver.addToIndex(gwtModule);
+  return prebuilt;
 }

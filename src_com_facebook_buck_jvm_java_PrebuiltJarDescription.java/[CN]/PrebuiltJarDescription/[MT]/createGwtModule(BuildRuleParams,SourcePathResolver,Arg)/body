@@ -1,30 +1,33 @@
 {
-  final SourcePath inputToCompareToOutput;
+  final SourcePath input;
   if (arg.gwtJar.isPresent()) {
-    inputToCompareToOutput=arg.gwtJar.get();
+    input=arg.gwtJar.get();
   }
  else   if (arg.sourceJar.isPresent()) {
-    inputToCompareToOutput=arg.sourceJar.get();
+    input=arg.sourceJar.get();
   }
  else {
-    inputToCompareToOutput=arg.binaryJar;
+    input=arg.binaryJar;
   }
-  ImmutableCollection<SourcePath> inputsToCompareToOutput=ImmutableSet.of(inputToCompareToOutput);
-  final Path pathToExistingJarFile=resolver.deprecatedGetPath(inputToCompareToOutput);
 class ExistingOuputs extends AbstractBuildRule {
-    @AddToRuleKey private final ImmutableCollection<SourcePath> inputs;
-    protected ExistingOuputs(    BuildRuleParams buildRuleParams,    SourcePathResolver resolver,    ImmutableCollection<SourcePath> inputs){
-      super(buildRuleParams,resolver);
-      this.inputs=inputs;
+    @AddToRuleKey private final SourcePath source;
+    private final Path output;
+    protected ExistingOuputs(    BuildRuleParams params,    SourcePathResolver resolver,    SourcePath source){
+      super(params,resolver);
+      this.source=source;
+      BuildTarget target=params.getBuildTarget();
+      this.output=BuildTargets.getGenPath(target,String.format("%s/%%s-gwt.jar",target.getShortName()));
     }
     @Override public ImmutableList<Step> getBuildSteps(    BuildContext context,    BuildableContext buildableContext){
       buildableContext.recordArtifact(getPathToOutput());
-      return ImmutableList.of();
+      ImmutableList.Builder<Step> steps=ImmutableList.builder();
+      steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),output.getParent()));
+      steps.add(CopyStep.forFile(getProjectFilesystem(),getResolver().getAbsolutePath(source),output));
+      return steps.build();
     }
     @Override public Path getPathToOutput(){
-      return pathToExistingJarFile;
+      return output;
     }
   }
-  ;
-  return new ExistingOuputs(params,resolver,inputsToCompareToOutput);
+  return new ExistingOuputs(params,resolver,input);
 }
