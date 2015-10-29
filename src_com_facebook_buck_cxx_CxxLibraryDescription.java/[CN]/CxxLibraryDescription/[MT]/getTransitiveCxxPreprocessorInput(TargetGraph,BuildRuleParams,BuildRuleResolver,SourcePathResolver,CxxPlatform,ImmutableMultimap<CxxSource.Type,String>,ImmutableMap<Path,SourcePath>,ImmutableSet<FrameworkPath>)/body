@@ -1,0 +1,17 @@
+{
+  BuildTarget rawTarget=params.getBuildTarget().withoutFlavors(ImmutableSet.<Flavor>builder().addAll(LIBRARY_TYPE.getFlavors()).add(cxxPlatform.getFlavor()).build());
+  Optional<BuildRule> rawRule=ruleResolver.getRuleOptional(rawTarget);
+  if (rawRule.isPresent()) {
+    CxxLibrary rule=(CxxLibrary)rawRule.get();
+    return rule.getTransitiveCxxPreprocessorInput(targetGraph,cxxPlatform,HeaderVisibility.PUBLIC).values();
+  }
+  HeaderSymlinkTree symlinkTree=CxxDescriptionEnhancer.requireHeaderSymlinkTree(params,ruleResolver,pathResolver,cxxPlatform,false,ImmutableMap.<String,SourcePath>of(),ImmutableMap.<String,SourcePath>of(),exportedHeaders,HeaderVisibility.PUBLIC);
+  Map<BuildTarget,CxxPreprocessorInput> input=Maps.newLinkedHashMap();
+  input.put(params.getBuildTarget(),CxxPreprocessorInput.builder().addRules(symlinkTree.getBuildTarget()).putAllPreprocessorFlags(exportedPreprocessorFlags).setIncludes(CxxHeaders.builder().putAllNameToPathMap(symlinkTree.getLinks()).putAllFullNameToPathMap(symlinkTree.getFullLinks()).build()).addIncludeRoots(symlinkTree.getIncludePath()).addAllHeaderMaps(symlinkTree.getHeaderMap().asSet()).addAllFrameworks(frameworks).build());
+  for (  BuildRule rule : params.getDeps()) {
+    if (rule instanceof CxxPreprocessorDep) {
+      input.putAll(((CxxPreprocessorDep)rule).getTransitiveCxxPreprocessorInput(targetGraph,cxxPlatform,HeaderVisibility.PUBLIC));
+    }
+  }
+  return ImmutableList.copyOf(input.values());
+}
