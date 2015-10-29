@@ -1,3 +1,10 @@
 {
-  return new ShTest(params,new SourcePathResolver(resolver),args.test,args.args.get(),args.labels.get());
+  final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  final ImmutableList<com.facebook.buck.rules.args.Arg> testArgs=FluentIterable.from(args.args.or(ImmutableList.<String>of())).transform(MacroArg.toMacroArgFunction(MACRO_HANDLER,params.getBuildTarget(),params.getCellRoots(),resolver,params.getProjectFilesystem())).toList();
+  return new ShTest(params.appendExtraDeps(new Supplier<Iterable<? extends BuildRule>>(){
+    @Override public Iterable<? extends BuildRule> get(){
+      return FluentIterable.from(testArgs).transformAndConcat(com.facebook.buck.rules.args.Arg.getDepsFunction(pathResolver));
+    }
+  }
+),pathResolver,args.test,testArgs,args.labels.get());
 }
