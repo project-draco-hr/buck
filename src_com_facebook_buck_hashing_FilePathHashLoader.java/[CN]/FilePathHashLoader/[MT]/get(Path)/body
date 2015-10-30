@@ -1,0 +1,19 @@
+{
+  final ImmutableSortedSet.Builder<Path> files=ImmutableSortedSet.naturalOrder();
+  Files.walkFileTree(defaultCellRoot.resolve(root),ImmutableSet.of(FileVisitOption.FOLLOW_LINKS),Integer.MAX_VALUE,new SimpleFileVisitor<Path>(){
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs){
+      files.add(file);
+      return FileVisitResult.CONTINUE;
+    }
+  }
+);
+  Hasher hasher=Hashing.sha1().newHasher();
+  for (  Path file : files.build()) {
+    file=defaultCellRoot.resolve(file).toRealPath();
+    boolean assumeModified=assumeModifiedFiles.contains(file);
+    Path relativePath=MorePaths.relativize(defaultCellRoot,file);
+    StringHashing.hashStringAndLength(hasher,relativePath.toString());
+    hasher.putBoolean(assumeModified);
+  }
+  return hasher.hash();
+}
