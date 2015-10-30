@@ -10,22 +10,16 @@
   buckPyStdinWriter.write(buildFileString);
   buckPyStdinWriter.newLine();
   buckPyStdinWriter.flush();
-  LOG.debug("Parsing output of process %s using format %s...",buckPyProcess,buckPyOutputFormat);
+  LOG.debug("Parsing output of process %s...",buckPyProcess);
   List<Map<String,Object>> result;
-  if (buckPyOutputFormat == BuckPyOutputFormat.BSER) {
-    try {
-      Object deserializedValue=bserDeserializer.deserializeBserValue(buckPyProcess.getInputStream());
-      Preconditions.checkState(deserializedValue instanceof List<?>);
-      result=(List<Map<String,Object>>)deserializedValue;
-    }
- catch (    BserDeserializer.BserEofException e) {
-      LOG.warn(e,"Parser exited while decoding BSER data");
-      throw new IOException("Parser exited unexpectedly",e);
-    }
+  try {
+    Object deserializedValue=bserDeserializer.deserializeBserValue(buckPyProcess.getInputStream());
+    Preconditions.checkState(deserializedValue instanceof List<?>);
+    result=(List<Map<String,Object>>)deserializedValue;
   }
- else {
-    Preconditions.checkNotNull(buckPyStdoutParser);
-    result=buckPyStdoutParser.nextRules();
+ catch (  BserDeserializer.BserEofException e) {
+    LOG.warn(e,"Parser exited while decoding BSER data");
+    throw new IOException("Parser exited unexpectedly",e);
   }
   LOG.verbose("Got rules: %s",result);
   int numRules=result.size();
