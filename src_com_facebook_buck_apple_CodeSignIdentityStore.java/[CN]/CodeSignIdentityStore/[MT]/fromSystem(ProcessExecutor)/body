@@ -17,9 +17,13 @@
       Matcher matcher=CODE_SIGN_IDENTITY_PATTERN.matcher(result.getStdout().get());
       ImmutableList.Builder<CodeSignIdentity> builder=ImmutableList.builder();
       while (matcher.find()) {
-        String hash=matcher.group(1);
+        Optional<HashCode> fingerprint=CodeSignIdentity.toFingerprint(matcher.group(1));
+        if (!fingerprint.isPresent()) {
+          LOG.warn("Code sign identity fingerprint is invalid, ignored: " + matcher.group(1));
+          break;
+        }
         String subjectCommonName=matcher.group(2);
-        CodeSignIdentity identity=CodeSignIdentity.builder().setFingerprint(hash).setSubjectCommonName(subjectCommonName).build();
+        CodeSignIdentity identity=CodeSignIdentity.builder().setFingerprint(fingerprint).setSubjectCommonName(subjectCommonName).build();
         builder.add(identity);
         LOG.debug("Found code signing identity: " + identity.toString());
       }
