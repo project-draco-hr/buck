@@ -2,13 +2,9 @@
   SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
   ImmutableMap<String,CxxSource> srcs=CxxDescriptionEnhancer.parseCxxSources(params,ruleResolver,cxxPlatform,args);
   ImmutableMap<Path,SourcePath> headers=CxxDescriptionEnhancer.parseHeaders(params,ruleResolver,cxxPlatform,args);
-  ImmutableMap<String,SourcePath> lexSrcs=CxxDescriptionEnhancer.parseLexSources(params,ruleResolver,args);
-  ImmutableMap<String,SourcePath> yaccSrcs=CxxDescriptionEnhancer.parseYaccSources(params,ruleResolver,args);
-  CxxHeaderSourceSpec lexYaccSources=CxxDescriptionEnhancer.createLexYaccBuildRules(params,ruleResolver,cxxPlatform,ImmutableList.<String>of(),lexSrcs,ImmutableList.<String>of(),yaccSrcs);
-  HeaderSymlinkTree headerSymlinkTree=CxxDescriptionEnhancer.requireHeaderSymlinkTree(params,ruleResolver,new SourcePathResolver(ruleResolver),cxxPlatform,true,lexSrcs,yaccSrcs,headers,HeaderVisibility.PRIVATE);
+  HeaderSymlinkTree headerSymlinkTree=CxxDescriptionEnhancer.requireHeaderSymlinkTree(params,ruleResolver,new SourcePathResolver(ruleResolver),cxxPlatform,headers,HeaderVisibility.PRIVATE);
   ImmutableList<CxxPreprocessorInput> cxxPreprocessorInput=CxxDescriptionEnhancer.collectCxxPreprocessorInput(targetGraph,params,cxxPlatform,CxxFlags.getLanguageFlags(args.preprocessorFlags,args.platformPreprocessorFlags,args.langPreprocessorFlags,cxxPlatform),ImmutableList.of(headerSymlinkTree),ImmutableSet.<FrameworkPath>of(),CxxPreprocessables.getTransitiveCxxPreprocessorInput(targetGraph,cxxPlatform,params.getDeps()));
-  ImmutableMap<String,CxxSource> allSources=ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build();
-  ImmutableMap<CxxPreprocessAndCompile,SourcePath> picObjects=CxxSourceRuleFactory.requirePreprocessAndCompileRules(params,ruleResolver,pathResolver,cxxPlatform,cxxPreprocessorInput,CxxFlags.getFlags(args.compilerFlags,args.platformCompilerFlags,cxxPlatform),args.prefixHeader,cxxBuckConfig.getPreprocessMode(),allSources,CxxSourceRuleFactory.PicType.PIC);
+  ImmutableMap<CxxPreprocessAndCompile,SourcePath> picObjects=CxxSourceRuleFactory.requirePreprocessAndCompileRules(params,ruleResolver,pathResolver,cxxPlatform,cxxPreprocessorInput,CxxFlags.getFlags(args.compilerFlags,args.platformCompilerFlags,cxxPlatform),args.prefixHeader,cxxBuckConfig.getPreprocessMode(),srcs,CxxSourceRuleFactory.PicType.PIC);
   ImmutableList.Builder<com.facebook.buck.rules.args.Arg> argsBuilder=ImmutableList.builder();
   argsBuilder.addAll(StringArg.from(CxxFlags.getFlags(args.linkerFlags,args.platformLinkerFlags,cxxPlatform)));
   argsBuilder.addAll(StringArg.from(Linkers.iXlinker("-rpath",String.format("%s/",cxxPlatform.getLd().libOrigin()))));

@@ -1,0 +1,22 @@
+{
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
+  Path linkOutput=getLinkOutputPath(params.getBuildTarget());
+  ImmutableList.Builder<Arg> argsBuilder=ImmutableList.builder();
+  CommandTool.Builder executableBuilder=new CommandTool.Builder();
+  HeaderSymlinkTree headerSymlinkTree=requireHeaderSymlinkTree(params,resolver,sourcePathResolver,cxxPlatform,headers,HeaderVisibility.PRIVATE);
+  ImmutableList<CxxPreprocessorInput> cxxPreprocessorInput=collectCxxPreprocessorInput(targetGraph,params,cxxPlatform,CxxFlags.getLanguageFlags(preprocessorFlags,platformPreprocessorFlags,langPreprocessorFlags,cxxPlatform),ImmutableList.of(headerSymlinkTree),frameworks.get(),CxxPreprocessables.getTransitiveCxxPreprocessorInput(targetGraph,cxxPlatform,FluentIterable.from(params.getDeps()).filter(Predicates.instanceOf(CxxPreprocessorDep.class))));
+  ImmutableMap<CxxPreprocessAndCompile,SourcePath> objects=CxxSourceRuleFactory.requirePreprocessAndCompileRules(params,resolver,sourcePathResolver,cxxPlatform,cxxPreprocessorInput,CxxFlags.getFlags(compilerFlags,platformCompilerFlags,cxxPlatform),prefixHeader,preprocessMode,srcs,linkStyle == Linker.LinkableDepType.STATIC ? CxxSourceRuleFactory.PicType.PDC : CxxSourceRuleFactory.PicType.PIC);
+  ImmutableList<String> resolvedLinkerFlags=CxxFlags.getFlags(linkerFlags,platformLinkerFlags,cxxPlatform);
+  argsBuilder.addAll(FluentIterable.from(resolvedLinkerFlags).transform(MacroArg.toMacroArgFunction(MACRO_HANDLER,params.getBuildTarget(),params.getCellRoots(),resolver,params.getProjectFilesystem())));
+  if (linkStyle == Linker.LinkableDepType.SHARED) {
+    SymlinkTree sharedLibraries=resolver.addToIndex(createSharedLibrarySymlinkTree(targetGraph,params,sourcePathResolver,cxxPlatform,Predicates.instanceOf(NativeLinkable.class)));
+    argsBuilder.addAll(StringArg.from(Linkers.iXlinker("-rpath",String.format("%s/%s",cxxPlatform.getLd().origin(),linkOutput.getParent().relativize(sharedLibraries.getRoot()).toString()))));
+    executableBuilder.addDep(sharedLibraries);
+    executableBuilder.addInputs(sharedLibraries.getLinks().values());
+  }
+  argsBuilder.addAll(SourcePathArg.from(sourcePathResolver,objects.values()));
+  CxxLink cxxLink=CxxLinkableEnhancer.createCxxLinkableBuildRule(targetGraph,cxxPlatform,params,sourcePathResolver,createCxxLinkTarget(params.getBuildTarget()),Linker.LinkType.EXECUTABLE,Optional.<String>absent(),linkOutput,argsBuilder.build(),linkStyle,params.getDeps(),cxxRuntimeType,Optional.<SourcePath>absent(),ImmutableSet.<BuildTarget>of(),frameworks.or(ImmutableSortedSet.<FrameworkPath>of()));
+  resolver.addToIndex(cxxLink);
+  executableBuilder.addArg(new BuildTargetSourcePath(cxxLink.getBuildTarget()));
+  return new CxxLinkAndCompileRules(cxxLink,ImmutableSortedSet.copyOf(objects.keySet()),executableBuilder.build());
+}

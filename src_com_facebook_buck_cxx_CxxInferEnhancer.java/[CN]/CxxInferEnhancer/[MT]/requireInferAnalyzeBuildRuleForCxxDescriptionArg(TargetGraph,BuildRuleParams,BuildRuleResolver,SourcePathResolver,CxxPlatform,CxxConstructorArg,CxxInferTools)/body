@@ -6,9 +6,7 @@
   }
   BuildRuleParams paramsWithoutInferFlavor=params.withoutFlavor(INFER_ANALYZE);
   ImmutableMap<Path,SourcePath> headers=CxxDescriptionEnhancer.parseHeaders(paramsWithoutInferFlavor,resolver,cxxPlatform,args);
-  ImmutableMap<String,SourcePath> lexSrcs=CxxDescriptionEnhancer.parseLexSources(paramsWithoutInferFlavor,resolver,args);
-  ImmutableMap<String,SourcePath> yaccSrcs=CxxDescriptionEnhancer.parseYaccSources(paramsWithoutInferFlavor,resolver,args);
-  HeaderSymlinkTree headerSymlinkTree=CxxDescriptionEnhancer.requireHeaderSymlinkTree(paramsWithoutInferFlavor,resolver,pathResolver,cxxPlatform,true,lexSrcs,yaccSrcs,headers,HeaderVisibility.PRIVATE);
+  HeaderSymlinkTree headerSymlinkTree=CxxDescriptionEnhancer.requireHeaderSymlinkTree(paramsWithoutInferFlavor,resolver,pathResolver,cxxPlatform,headers,HeaderVisibility.PRIVATE);
   ImmutableList<CxxPreprocessorInput> preprocessorInputs;
   if (args instanceof CxxBinaryDescription.Arg) {
     preprocessorInputs=computePreprocessorInputForCxxBinaryDescriptionArg(targetGraph,paramsWithoutInferFlavor,cxxPlatform,(CxxBinaryDescription.Arg)args,headerSymlinkTree);
@@ -20,9 +18,7 @@
     throw new IllegalStateException("Only Binary and Library args supported.");
   }
   ImmutableSet<CxxInferAnalyze> transitiveDepsLibraryRules=requireTransitiveDependentLibraries(targetGraph,cxxPlatform,paramsWithoutInferFlavor.getDeps());
-  CxxHeaderSourceSpec lexYaccSources=CxxDescriptionEnhancer.requireLexYaccSources(paramsWithoutInferFlavor,resolver,pathResolver,cxxPlatform,lexSrcs,yaccSrcs);
   ImmutableMap<String,CxxSource> srcs=CxxDescriptionEnhancer.parseCxxSources(paramsWithoutInferFlavor,resolver,cxxPlatform,args);
-  ImmutableMap<String,CxxSource> sources=ImmutableMap.<String,CxxSource>builder().putAll(srcs).putAll(lexYaccSources.getCxxSources()).build();
-  CxxInferCaptureAndAnalyzeRules cxxInferCaptureAndAnalyzeRules=new CxxInferCaptureAndAnalyzeRules(createInferCaptureBuildRules(paramsWithoutInferFlavor,resolver,cxxPlatform,sources,CxxSourceRuleFactory.PicType.PDC,inferTools,preprocessorInputs,CxxFlags.getFlags(args.compilerFlags,args.platformCompilerFlags,cxxPlatform),args.prefixHeader),transitiveDepsLibraryRules);
+  CxxInferCaptureAndAnalyzeRules cxxInferCaptureAndAnalyzeRules=new CxxInferCaptureAndAnalyzeRules(createInferCaptureBuildRules(paramsWithoutInferFlavor,resolver,cxxPlatform,srcs,CxxSourceRuleFactory.PicType.PDC,inferTools,preprocessorInputs,CxxFlags.getFlags(args.compilerFlags,args.platformCompilerFlags,cxxPlatform),args.prefixHeader),transitiveDepsLibraryRules);
   return createInferAnalyzeRule(params,resolver,inferAnalyzeBuildTarget,pathResolver,inferTools,cxxInferCaptureAndAnalyzeRules);
 }
