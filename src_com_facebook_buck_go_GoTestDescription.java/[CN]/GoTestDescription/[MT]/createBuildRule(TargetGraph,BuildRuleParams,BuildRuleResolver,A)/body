@@ -1,0 +1,11 @@
+{
+  BuildTarget libraryTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(ImmutableFlavor.of("test-library")).build();
+  Path defaultPackageName=params.getBuildTarget().getBasePath();
+  defaultPackageName=defaultPackageName.resolveSibling(defaultPackageName.getFileName() + "_test");
+  GoLibrary lib=GoDescriptors.createGoLibraryRule(params.copyWithBuildTarget(libraryTarget),resolver,goBuckConfig,args.packageName.transform(MorePaths.TO_PATH).or(defaultPackageName),args.srcs,args.compilerFlags.or(ImmutableList.<String>of()),ImmutableSortedSet.<BuildTarget>of());
+  resolver.addToIndex(lib);
+  GoTestMain generatedTestMain=requireTestMainGenRule(params,resolver,args.srcs,lib.getGoPackageName());
+  GoBinary testMain=GoDescriptors.createGoBinaryRule(params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addFlavors(ImmutableFlavor.of("test-main")).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(lib)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(generatedTestMain))),resolver,goBuckConfig,cxxPlatform,ImmutableSet.<SourcePath>of(new BuildTargetSourcePath(generatedTestMain.getBuildTarget())),args.compilerFlags.or(ImmutableList.<String>of()),args.linkerFlags.or(ImmutableList.<String>of()));
+  resolver.addToIndex(testMain);
+  return new GoTest(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(testMain)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),new SourcePathResolver(resolver),testMain,args.labels.get(),args.contacts.get(),args.runTestSeparately.or(false));
+}

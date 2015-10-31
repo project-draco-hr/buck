@@ -1,0 +1,18 @@
+{
+  super(buildRuleParams,resolver);
+  this.root=BuildTargets.getScratchPath(getBuildTarget(),"__%s__tree");
+  ImmutableMap.Builder<Path,Path> mapBuilder=ImmutableMap.builder();
+  for (  BuildRule rule : getDeclaredDeps()) {
+    if (!(rule instanceof GoLinkable)) {
+      throw new HumanReadableException("%s (dep of %s) is not an instance of go_library!",rule.getBuildTarget().getFullyQualifiedName(),getBuildTarget().getFullyQualifiedName());
+    }
+    GoLinkable goRule=(GoLinkable)rule;
+    mapBuilder.put(goRule.getPathInSymlinkTree(),getProjectFilesystem().resolve(goRule.getPathToOutput()));
+  }
+  try {
+    this.symlinkMap=mapBuilder.build();
+  }
+ catch (  IllegalArgumentException ex) {
+    throw new HumanReadableException("Multiple go targets have the same package name: " + ex.getMessage());
+  }
+}
