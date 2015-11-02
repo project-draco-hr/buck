@@ -1,0 +1,60 @@
+{
+  if (value instanceof Boolean) {
+    buffer=increaseBufferCapacityIfNeeded(buffer,1);
+    buffer.put(((boolean)value) ? BSER_TRUE : BSER_FALSE);
+  }
+ else   if (value == null) {
+    buffer=increaseBufferCapacityIfNeeded(buffer,1);
+    buffer.put(BSER_NULL);
+  }
+ else   if (value instanceof String) {
+    buffer=appendString(buffer,(String)value,utf8Encoder);
+  }
+ else   if (value instanceof Double || value instanceof Float) {
+    buffer=increaseBufferCapacityIfNeeded(buffer,9);
+    buffer.put(BSER_REAL);
+    buffer.putDouble((double)value);
+  }
+ else   if (value instanceof Long) {
+    buffer=appendLong(buffer,(long)value);
+  }
+ else   if (value instanceof Integer) {
+    buffer=appendLong(buffer,(int)value);
+  }
+ else   if (value instanceof Short) {
+    buffer=appendLong(buffer,(short)value);
+  }
+ else   if (value instanceof Byte) {
+    buffer=appendLong(buffer,(byte)value);
+  }
+ else   if (value instanceof Map<?,?>) {
+    Map<Object,Object> map=(Map<Object,Object>)value;
+    int mapLen=map.size();
+    BserIntegralEncodedSize encodedSize=getEncodedSize(mapLen);
+    buffer=increaseBufferCapacityIfNeeded(buffer,2 + encodedSize.size);
+    buffer.put(BSER_OBJECT);
+    buffer=appendLongWithSize(buffer,mapLen,encodedSize);
+    for (    Map.Entry<Object,Object> entry : map.entrySet()) {
+      if (!(entry.getKey() instanceof String)) {
+        throw new IOException(String.format("Unrecognized map key type %s, expected string",entry.getKey().getClass()));
+      }
+      buffer=appendString(buffer,(String)entry.getKey(),utf8Encoder);
+      buffer=appendRecursive(buffer,entry.getValue(),utf8Encoder);
+    }
+  }
+ else   if (value instanceof List<?>) {
+    List<Object> list=(List<Object>)value;
+    int listLen=list.size();
+    BserIntegralEncodedSize encodedSize=getEncodedSize(listLen);
+    buffer=increaseBufferCapacityIfNeeded(buffer,2 + encodedSize.size);
+    buffer.put(BSER_ARRAY);
+    buffer=appendLongWithSize(buffer,listLen,encodedSize);
+    for (    Object obj : list) {
+      buffer=appendRecursive(buffer,obj,utf8Encoder);
+    }
+  }
+ else {
+    throw new RuntimeException("Cannot encode object: " + value);
+  }
+  return buffer;
+}
