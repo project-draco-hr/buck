@@ -1,0 +1,18 @@
+{
+  assumeTrue(Platform.detect() != Platform.WINDOWS);
+  TestProjectBuildFileParserFactory buildFileParserFactory=new TestProjectBuildFileParserFactory(cell.getRoot(),cell.getKnownBuildRuleTypes());
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance(new FakeClock(0));
+  final List<ConsoleEvent> consoleEvents=new ArrayList<>();
+class EventListener {
+    @Subscribe public void onConsoleEvent(    ConsoleEvent consoleEvent){
+      consoleEvents.add(consoleEvent);
+    }
+  }
+  EventListener eventListener=new EventListener();
+  buckEventBus.register(eventListener);
+  try (ProjectBuildFileParser buildFileParser=buildFileParserFactory.createNoopParserThatAlwaysReturnsSuccessWithError(buckEventBus,"This is an error")){
+    buildFileParser.initIfNeeded();
+    buildFileParser.getAllRulesAndMetaRules(Paths.get("foo"));
+  }
+   assertThat(consoleEvents,Matchers.contains(Matchers.hasToString("Error raised by BUCK file parser: This is an error")));
+}

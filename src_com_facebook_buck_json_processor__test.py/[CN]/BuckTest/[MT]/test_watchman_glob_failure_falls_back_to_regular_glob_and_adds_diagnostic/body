@@ -1,4 +1,4 @@
-def test_watchman_glob_failure_falls_back_to_regular_glob(self):
+def test_watchman_glob_failure_falls_back_to_regular_glob_and_adds_diagnostic(self):
 
 
     class FakeWatchmanError(Exception):
@@ -23,6 +23,8 @@ def test_watchman_glob_failure_falls_back_to_regular_glob(self):
     self.write_files(build_file, java_file)
     build_file_processor = self.create_build_file_processor(extra_funcs=[foo_rule])
     build_file_processor.install_builtins(__builtin__.__dict__)
-    rules = build_file_processor.process(build_file.path)
+    diagnostics = set()
+    rules = build_file_processor.process(build_file.path, diagnostics)
     self.assertTrue(self.watchman_client.query_invoked)
     self.assertEqual(['Foo.java'], rules[0]['srcs'])
+    self.assertEqual(set([DiagnosticMessageAndLevel('Watchman error, falling back to slow glob: whoops', 'error')]), diagnostics)
