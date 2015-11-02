@@ -1,3 +1,8 @@
 {
-  return GoDescriptors.createGoBinaryRule(params,resolver,goBuckConfig,cxxPlatform,args.srcs,args.compilerFlags.or(ImmutableList.<String>of()),args.linkerFlags.or(ImmutableList.<String>of()));
+  BuildTarget libraryTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(ImmutableFlavor.of("compile")).build();
+  GoLibrary library=GoDescriptors.createGoLibraryRule(params.copyWithBuildTarget(libraryTarget),resolver,goBuckConfig,Paths.get("main"),args.srcs,args.compilerFlags.or(ImmutableList.<String>of()));
+  resolver.addToIndex(library);
+  BuildRuleParams binaryParams=params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(library)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  GoSymlinkTree symlinkTree=GoDescriptors.requireTransitiveSymlinkTreeRule(binaryParams,resolver);
+  return new GoBinary(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(symlinkTree,library)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),new SourcePathResolver(resolver),cxxPlatform.getLd(),symlinkTree,library,goBuckConfig.getGoLinker().get(),ImmutableList.<String>builder().addAll(goBuckConfig.getLinkerFlags()).addAll(args.linkerFlags.or(ImmutableList.<String>of())).build());
 }
