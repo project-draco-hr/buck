@@ -1,0 +1,14 @@
+def process_with_diagnostics(build_file, build_file_processor, to_parent):
+    build_file = cygwin_adjusted_path(build_file)
+    diagnostics = set()
+    values = []
+    try:
+        try:
+            values = build_file_processor.process(build_file.rstrip(), diagnostics=diagnostics)
+        except Exception as e:
+            if (not ((e is KeyboardInterrupt) or (e is SystemExit))):
+                diagnostics.add(DiagnosticMessageAndLevel(message=format_traceback_and_exception(), level='fatal'))
+            raise e
+    finally:
+        to_parent.write(encode_result(values, diagnostics))
+        to_parent.flush()

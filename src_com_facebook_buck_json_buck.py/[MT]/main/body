@@ -10,6 +10,7 @@ def main():
     parser.add_option('--watchman_project_prefix', action='store', type='string', dest='watchman_project_prefix', help='Relative project prefix as returned by `watchman watch-project`.')
     parser.add_option('--watchman_query_timeout_ms', action='store', type='int', dest='watchman_query_timeout_ms', help='Maximum time in milliseconds to wait for watchman query to respond.')
     parser.add_option('--include', action='append', dest='include')
+    parser.add_option('--quiet', action='store_true', dest='quiet', help='Stifles exception backtraces printed to stderr during parsing.')
     (options, args) = parser.parse_args()
     options.project_root = cygwin_adjusted_path(options.project_root)
     project_root = os.path.abspath(options.project_root)
@@ -24,18 +25,16 @@ def main():
         watchman_error = pywatchman.WatchmanError
     buildFileProcessor = BuildFileProcessor(project_root, options.watchman_watch_root, options.watchman_project_prefix, options.build_file_name, options.allow_empty_globs, watchman_client, watchman_error, implicit_includes=(options.include or []))
     buildFileProcessor.install_builtins(__builtin__.__dict__)
+    orig_excepthook = None
+    if options.quiet:
+        orig_excepthook = sys.excepthook
+        sys.excepthook = silent_excepthook
     for build_file in args:
-        build_file = cygwin_adjusted_path(build_file)
-        diagnostics = set()
-        values = buildFileProcessor.process(build_file, diagnostics=diagnostics)
-        to_parent.write(encode_result(values, diagnostics))
-        to_parent.flush()
+        process_with_diagnostics(build_file, buildFileProcessor, to_parent)
     for build_file in iter(sys.stdin.readline, ''):
-        build_file = cygwin_adjusted_path(build_file)
-        diagnostics = set()
-        values = buildFileProcessor.process(build_file.rstrip(), diagnostics=diagnostics)
-        to_parent.write(encode_result(values, diagnostics))
-        to_parent.flush()
+        process_with_diagnostics(build_file, buildFileProcessor, to_parent)
+    if options.quiet:
+        sys.excepthook = orig_excepthook
     try:
         to_parent.close()
     except IOError:
