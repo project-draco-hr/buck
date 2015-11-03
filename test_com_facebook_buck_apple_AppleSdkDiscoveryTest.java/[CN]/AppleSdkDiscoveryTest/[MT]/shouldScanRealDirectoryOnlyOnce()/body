@@ -1,0 +1,14 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"sdk-discovery-symlink",temp);
+  workspace.setUp();
+  Path root=workspace.getPath("");
+  FileSystem fileSystem=root.getFileSystem();
+  Path actualSdkPath=root.resolve("MacOSX10.9.sdk");
+  Path sdksDir=root.resolve("Platforms/MacOSX.platform/Developer/SDKs");
+  Files.createDirectories(sdksDir);
+  Files.createSymbolicLink(sdksDir.resolve("MacOSX10.9.sdk"),fileSystem.getPath("MacOSX.sdk"));
+  Files.createSymbolicLink(sdksDir.resolve("MacOSX.sdk"),actualSdkPath);
+  ImmutableMap<String,AppleToolchain> toolchains=ImmutableMap.of("com.apple.dt.toolchain.XcodeDefault",getDefaultToolchain(root));
+  ImmutableMap<AppleSdk,AppleSdkPaths> actual=AppleSdkDiscovery.discoverAppleSdkPaths(Optional.of(root),ImmutableList.of(root),toolchains);
+  assertThat(actual.size(),is(2));
+}

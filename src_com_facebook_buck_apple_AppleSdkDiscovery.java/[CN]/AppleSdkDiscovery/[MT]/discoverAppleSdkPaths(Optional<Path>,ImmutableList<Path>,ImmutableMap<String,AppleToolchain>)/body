@@ -18,9 +18,12 @@
       for (      Path platformDir : platformStream) {
         Path developerSdksPath=platformDir.resolve("Developer/SDKs");
         try (DirectoryStream<Path> sdkStream=Files.newDirectoryStream(developerSdksPath,"*.sdk")){
+          Set<Path> scannedSdkDirs=new HashSet<>();
           for (          Path sdkDir : sdkStream) {
             LOG.debug("Fetching SDK name for %s",sdkDir);
-            if (Files.isSymbolicLink(sdkDir)) {
+            sdkDir=sdkDir.toRealPath();
+            if (scannedSdkDirs.contains(sdkDir)) {
+              LOG.debug("Skipping already scanned SDK directory %s",sdkDir);
               continue;
             }
             AppleSdk.Builder sdkBuilder=AppleSdk.builder();
@@ -35,6 +38,7 @@
               appleSdkPathsBuilder.put(sdk,xcodePaths);
               orderedSdksForPlatform.put(sdk.getApplePlatform(),sdk);
             }
+            scannedSdkDirs.add(sdkDir);
           }
         }
  catch (        NoSuchFileException e) {
