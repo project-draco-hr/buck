@@ -21,11 +21,17 @@
  finally {
     eventBus.post(ArtifactCompressionEvent.finished(started));
   }
-  artifactCache.store(ruleKeys,buildMetadata,zip);
-  try {
-    Files.delete(zip);
+  final Path finalZip=zip;
+  ListenableFuture<Void> storeFuture=artifactCache.store(ruleKeys,buildMetadata,zip);
+  storeFuture.addListener(new Runnable(){
+    @Override public void run(){
+      try {
+        Files.delete(finalZip);
+      }
+ catch (      IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
   }
- catch (  IOException e) {
-    throw new RuntimeException(e);
-  }
+,directExecutor());
 }

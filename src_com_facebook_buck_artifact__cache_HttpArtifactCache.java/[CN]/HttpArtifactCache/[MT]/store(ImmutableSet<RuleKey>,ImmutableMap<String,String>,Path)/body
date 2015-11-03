@@ -1,16 +1,23 @@
 {
   if (!isStoreSupported()) {
-    return;
+    return Futures.immediateFuture(null);
   }
-  Started startedEvent=HttpArtifactCacheEvent.newStoreStartedEvent(ruleKeys);
-  buckEventBus.post(startedEvent);
-  Finished.Builder finishedEventBuilder=HttpArtifactCacheEvent.newFinishedEventBuilder(startedEvent).setRuleKeys(ruleKeys);
-  try {
-    storeImpl(ruleKeys,metadata,output,finishedEventBuilder);
-    buckEventBus.post(finishedEventBuilder.build());
+  final HttpArtifactCacheEvent.Scheduled scheduled=HttpArtifactCacheEvent.newStoreScheduledEvent(ArtifactCacheEvent.getTarget(metadata),ruleKeys);
+  buckEventBus.post(scheduled);
+  return httpWriteExecutorService.submit(new Runnable(){
+    @Override public void run(){
+      Started startedEvent=HttpArtifactCacheEvent.newStoreStartedEvent(scheduled);
+      buckEventBus.post(startedEvent);
+      Finished.Builder finishedEventBuilder=HttpArtifactCacheEvent.newFinishedEventBuilder(startedEvent).setRuleKeys(ruleKeys);
+      try {
+        storeImpl(ruleKeys,metadata,output,finishedEventBuilder);
+        buckEventBus.post(finishedEventBuilder.build());
+      }
+ catch (      IOException e) {
+        reportFailure(e,"store(%s, %s): %s: %s",uri,ruleKeys,e.getClass().getName(),e.getMessage());
+        buckEventBus.post(finishedEventBuilder.setWasUploadSuccessful(false).setErrorMessage(e.toString()).build());
+      }
+    }
   }
- catch (  IOException e) {
-    reportFailure(e,"store(%s, %s): %s: %s",uri,ruleKeys,e.getClass().getName(),e.getMessage());
-    buckEventBus.post(finishedEventBuilder.setWasUploadSuccessful(false).setErrorMessage(e.toString()).build());
-  }
+,null);
 }

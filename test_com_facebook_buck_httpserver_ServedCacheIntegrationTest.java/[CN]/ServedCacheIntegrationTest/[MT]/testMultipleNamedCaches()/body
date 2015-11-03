@@ -16,7 +16,8 @@
       }
       return CacheResult.miss();
     }
-    @Override public void store(    ImmutableSet<RuleKey> ruleKeys,    ImmutableMap<String,String> metadata,    Path output) throws InterruptedException {
+    @Override public ListenableFuture<Void> store(    ImmutableSet<RuleKey> ruleKeys,    ImmutableMap<String,String> metadata,    Path output){
+      return Futures.immediateFuture(null);
     }
     @Override public boolean isStoreSupported(){
       return true;
@@ -31,7 +32,7 @@
   try {
     secondWebServer.updateAndStartIfNeeded(Optional.of(secondCache));
     ArtifactCacheBuckConfig mutltiCacheConfig=createMockLocalConfig("[cache]","mode = http","http_cache_names = one, two","[cache#two]",String.format("http_url = http://127.0.0.1:%d/",secondWebServer.getPort().get()),"[cache#one]",String.format("http_url = http://127.0.0.1:%d/",webServer.getPort().get()));
-    ArtifactCache serverBackedCache=ArtifactCaches.newInstance(mutltiCacheConfig,buckEventBus,projectFilesystem,Optional.<String>absent());
+    ArtifactCache serverBackedCache=ArtifactCaches.newInstance(mutltiCacheConfig,buckEventBus,projectFilesystem,Optional.<String>absent(),DIRECT_EXECUTOR_SERVICE);
     assertThat(serverBackedCache.fetch(A_FILE_RULE_KEY,fetchedContents).getType(),Matchers.equalTo(CacheResultType.HIT));
     assertThat(serverBackedCache.fetch(bFileRuleKey,fetchedContents).getType(),Matchers.equalTo(CacheResultType.HIT));
   }
