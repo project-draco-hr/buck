@@ -1,24 +1,18 @@
 {
   this.delegate=delegate;
+  goRootSupplier=Suppliers.memoize(new Supplier<Path>(){
+    @Override public Path get(){
+      Optional<Path> configValue=delegate.getPath("go","root");
+      if (configValue.isPresent()) {
+        return configValue.get();
+      }
+      return Paths.get(getGoEnvFromTool(processExecutor,"GOROOT"));
+    }
+  }
+);
   goToolDirSupplier=Suppliers.memoize(new Supplier<Path>(){
     @Override public Path get(){
-      Path goTool=getGoToolPath();
-      try {
-        ProcessExecutor.Result goToolResult=processExecutor.launchAndExecute(ProcessExecutorParams.builder().addCommand(goTool.toString(),"env","GOTOOLDIR").build(),EnumSet.of(ProcessExecutor.Option.EXPECTING_STD_ERR),Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
-        if (goToolResult.getExitCode() == 0) {
-          Path toolDir=Paths.get(CharMatcher.WHITESPACE.trimFrom(goToolResult.getStdout().get()));
-          return toolDir;
-        }
- else {
-          throw new HumanReadableException(goToolResult.getStderr().get());
-        }
-      }
- catch (      InterruptedException e) {
-        throw Throwables.propagate(e);
-      }
-catch (      IOException e) {
-        throw new HumanReadableException(e,"Could not run \"%s env GOTOOLDIR\": %s",goTool);
-      }
+      return Paths.get(getGoEnvFromTool(processExecutor,"GOTOOLDIR"));
     }
   }
 );

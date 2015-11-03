@@ -1,0 +1,24 @@
+{
+  Path goTool=getGoToolPath();
+  Optional<Map<String,String>> goRootEnv=delegate.getPath("go","root").transform(new Function<Path,Map<String,String>>(){
+    @Override public Map<String,String> apply(    Path input){
+      return ImmutableMap.of("GOROOT",input.toString());
+    }
+  }
+);
+  try {
+    ProcessExecutor.Result goToolResult=processExecutor.launchAndExecute(ProcessExecutorParams.builder().addCommand(goTool.toString(),"env",env).setEnvironment(goRootEnv).build(),EnumSet.of(ProcessExecutor.Option.EXPECTING_STD_ERR),Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
+    if (goToolResult.getExitCode() == 0) {
+      return CharMatcher.WHITESPACE.trimFrom(goToolResult.getStdout().get());
+    }
+ else {
+      throw new HumanReadableException(goToolResult.getStderr().get());
+    }
+  }
+ catch (  InterruptedException e) {
+    throw Throwables.propagate(e);
+  }
+catch (  IOException e) {
+    throw new HumanReadableException(e,"Could not run \"%s env %s\": %s",env,goTool);
+  }
+}
