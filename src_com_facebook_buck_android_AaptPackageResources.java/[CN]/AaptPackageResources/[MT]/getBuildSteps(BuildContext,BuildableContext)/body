@@ -1,40 +1,6 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   steps.add(new MkdirAndSymlinkFileStep(getProjectFilesystem(),getResolver().deprecatedGetPath(manifest),getAndroidManifestXml()));
-  Step collectAssets=new Step(){
-    @Override public int execute(    ExecutionContext context) throws IOException, InterruptedException {
-      ImmutableList.Builder<Step> commands=ImmutableList.builder();
-      try {
-        createAllAssetsDirectory(ImmutableSet.copyOf(getResolver().deprecatedAllPaths(assetsDirectories)),commands,getProjectFilesystem());
-      }
- catch (      IOException e) {
-        context.logError(e,"Error creating all assets directory in %s.",getBuildTarget());
-        return 1;
-      }
-      for (      Step command : commands.build()) {
-        int exitCode=command.execute(context);
-        if (exitCode != 0) {
-          throw new HumanReadableException("Error running " + command.getDescription(context));
-        }
-      }
-      return 0;
-    }
-    @Override public String getShortName(){
-      return "symlink_assets";
-    }
-    @Override public String getDescription(    ExecutionContext context){
-      return getShortName();
-    }
-  }
-;
-  steps.add(collectAssets);
-  Optional<Path> assetsDirectory;
-  if (assetsDirectories.isEmpty()) {
-    assetsDirectory=Optional.absent();
-  }
- else {
-    assetsDirectory=Optional.of(getPathToAllAssetsDirectory());
-  }
   steps.add(new MkdirStep(getProjectFilesystem(),getResourceApkPath().getParent()));
   Path rDotTxtDir=getPathToRDotTxtDir();
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),rDotTxtDir));
@@ -45,7 +11,7 @@
     pathToGeneratedProguardConfig=Optional.of(proguardConfigDir.resolve("proguard.txt"));
     buildableContext.recordArtifact(proguardConfigDir);
   }
-  steps.add(new AaptStep(getProjectFilesystem().getRootPath(),getAndroidManifestXml(),filteredResourcesProvider.getResDirectories(),assetsDirectory,getResourceApkPath(),rDotTxtDir,pathToGeneratedProguardConfig,!skipCrunchPngs));
+  steps.add(new AaptStep(getProjectFilesystem().getRootPath(),getAndroidManifestXml(),filteredResourcesProvider.getResDirectories(),FluentIterable.from(getResolver().getAllAbsolutePaths(assetsDirectories)).toSortedSet(Ordering.<Path>natural()),getResourceApkPath(),rDotTxtDir,pathToGeneratedProguardConfig,!skipCrunchPngs));
   steps.add(new TouchStep(getProjectFilesystem(),getPathToRDotTxtFile()));
   if (!filteredResourcesProvider.getResDirectories().isEmpty()) {
     generateAndCompileRDotJavaFiles(steps,buildableContext);
