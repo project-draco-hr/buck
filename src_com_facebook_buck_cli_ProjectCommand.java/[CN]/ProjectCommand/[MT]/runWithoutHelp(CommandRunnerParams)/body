@@ -1,7 +1,7 @@
 {
   Pair<ImmutableSet<BuildTarget>,TargetGraph> traversalResult=null;
   try {
-    traversalResult=params.getParser().buildTargetGraphForTargetNodeSpecs(parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),params.getCell().getFilesystem().getIgnorePaths(),getArguments()),new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
+    traversalResult=params.getParser().buildTargetGraphForTargetNodeSpecs(parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),getArguments()),new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
   }
  catch (  BuildTargetException|BuildFileParseException|HumanReadableException e) {
     params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
@@ -11,8 +11,8 @@
   ProjectGraphParser projectGraphParser=ProjectGraphParsers.createProjectGraphParser(params.getParser(),new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling());
   Ide projectIde=getIdeFromBuckConfig(params.getBuckConfig()).orNull();
   boolean useExperimentalProjectGeneration=isExperimentalIntelliJProjectGenerationEnabled() || projectIde == Ide.XCODE;
-  TargetGraph projectGraph=projectGraphParser.buildTargetGraphForTargetNodeSpecs(getTargetNodeSpecsForIde(passedInTargetsSet,params.getCell().getFilesystem().getIgnorePaths(),useExperimentalProjectGeneration));
-  projectIde=getIdeBasedOnPassedInTargetsAndProjectGraph(params.getBuckConfig(),passedInTargetsSet,Optional.<TargetGraph>of(projectGraph));
+  TargetGraph projectGraph=projectGraphParser.buildTargetGraphForTargetNodeSpecs(getTargetNodeSpecsForIde(passedInTargetsSet,useExperimentalProjectGeneration));
+  projectIde=getIdeBasedOnPassedInTargetsAndProjectGraph(params.getBuckConfig(),passedInTargetsSet,Optional.of(projectGraph));
   if (projectIde == ProjectCommand.Ide.XCODE) {
     useExperimentalProjectGeneration=true;
     checkForAndKillXcodeIfRunning(params,getIdePrompt(params.getBuckConfig()));
@@ -29,7 +29,7 @@
  else {
     graphRoots=getRootsFromPredicate(projectGraph,projectPredicates.getProjectRootsPredicate());
   }
-  TargetGraphAndTargets targetGraphAndTargets=createTargetGraph(projectGraph,graphRoots,projectGraphParser,projectPredicates.getAssociatedProjectPredicate(),isWithTests(),isWithDependenciesTests(),params.getCell().getFilesystem().getIgnorePaths(),useExperimentalProjectGeneration);
+  TargetGraphAndTargets targetGraphAndTargets=createTargetGraph(projectGraph,graphRoots,projectGraphParser,projectPredicates.getAssociatedProjectPredicate(),isWithTests(),isWithDependenciesTests(),useExperimentalProjectGeneration);
   if (getDryRun()) {
     for (    TargetNode<?> targetNode : targetGraphAndTargets.getTargetGraph().getNodes()) {
       params.getConsole().getStdOut().println(targetNode.toString());
