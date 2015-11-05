@@ -16,8 +16,9 @@
     }
   }
 );
+  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),outputDir));
   steps.add(new AbstractExecutionStep("hash_js_inputs"){
-    @Override public int execute(    ExecutionContext context){
+    @Override public int execute(    ExecutionContext context) throws IOException {
       ImmutableList<Path> paths;
       try {
         paths=FluentIterable.from(getProjectFilesystem().readLines(output)).transform(MorePaths.TO_PATH).transform(getProjectFilesystem().getRelativizer()).toSortedList(Ordering.natural());
@@ -41,7 +42,9 @@
           return 1;
         }
       }
-      buildableContext.addMetadata(METADATA_KEY_FOR_INPUTS_HASH,hasher.hash().toString());
+      String inputsHash=hasher.hash().toString();
+      buildableContext.addMetadata(METADATA_KEY_FOR_INPUTS_HASH,inputsHash);
+      getProjectFilesystem().writeContentsToPath(inputsHash,inputsHashFile);
       return 0;
     }
   }

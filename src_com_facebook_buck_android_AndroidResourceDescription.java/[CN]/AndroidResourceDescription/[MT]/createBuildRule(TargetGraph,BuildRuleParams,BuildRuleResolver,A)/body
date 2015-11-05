@@ -4,23 +4,7 @@
     throw new HumanReadableException(params.getBuildTarget() + " (android_resource): dependency " + invalidDep.get().getBuildTarget()+ " ("+ invalidDep.get().getType()+ ") is not of type android_resource or android_library.");
   }
   final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  ImmutableSortedSet<Path> inputResFiles=ImmutableSortedSet.of();
-  Optional<Supplier<Sha1HashCode>> additionalAbiKey=Optional.absent();
-  if (args.res.isPresent()) {
-    if (args.res.get() instanceof PathSourcePath) {
-      PathSourcePath path=(PathSourcePath)args.res.get();
-      inputResFiles=collectInputFiles(path.getFilesystem(),Optional.of(path.getRelativePath()));
-    }
- else     if (args.res.get() instanceof BuildTargetSourcePath) {
-      final BuildTargetSourcePath path=(BuildTargetSourcePath)args.res.get();
-      additionalAbiKey=Optional.<Supplier<Sha1HashCode>>of(new Supplier<Sha1HashCode>(){
-        @Override public Sha1HashCode get(){
-          return Sha1HashCode.of(pathResolver.getRule(path).get().getRuleKey().toString());
-        }
-      }
-);
-    }
-  }
-  ProjectFilesystem filesystem=params.getProjectFilesystem();
-  return new AndroidResource(params.copyWithDeps(Suppliers.ofInstance(AndroidResourceHelper.androidResOnly(params.getDeclaredDeps().get())),params.getExtraDeps()),pathResolver,resolver.getAllRules(args.deps.get()),args.res.orNull(),inputResFiles,args.rDotJavaPackage.orNull(),args.assets.transform(SourcePaths.toSourcePath(params.getProjectFilesystem())).orNull(),collectInputFiles(filesystem,args.assets),args.manifest.orNull(),args.hasWhitelistedStrings.or(false),additionalAbiKey);
+  Pair<ImmutableSortedSet<Path>,Optional<SourcePath>> resInputsAndKey=collectInputFilesAndKey(args.res);
+  Pair<ImmutableSortedSet<Path>,Optional<SourcePath>> assetsInputsAndKey=collectInputFilesAndKey(args.assets);
+  return new AndroidResource(params.copyWithDeps(Suppliers.ofInstance(AndroidResourceHelper.androidResOnly(params.getDeclaredDeps().get())),params.getExtraDeps()),pathResolver,resolver.getAllRules(args.deps.get()),args.res.orNull(),resInputsAndKey.getFirst(),resInputsAndKey.getSecond(),args.rDotJavaPackage.orNull(),args.assets.orNull(),assetsInputsAndKey.getFirst(),assetsInputsAndKey.getSecond(),args.manifest.orNull(),args.hasWhitelistedStrings.or(false));
 }
