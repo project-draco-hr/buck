@@ -1,22 +1,29 @@
 {
-  Map<String,NativeStringInfo> nativeStrings=Maps.newHashMap();
+  Map<String,NativeResourceInfo> nativeStrings=Maps.newHashMap();
+  Map<String,NativeResourceInfo> nativePlurals=Maps.newHashMap();
+  Map<String,NativeResourceInfo> nativeArrays=Maps.newHashMap();
   for (  Path resDir : resDirectories) {
     Path stringsPath=resDir.resolve("values").resolve("strings.xml");
+    String stringsPathName=stringsPath.toString();
     Path stringsFile=filesystem.getPathForRelativePath(stringsPath);
     if (Files.exists(stringsFile)) {
       try {
         Document dom=XmlDomParser.parse(stringsFile);
         NodeList stringNodes=dom.getElementsByTagName("string");
-        scrapeNodes(stringNodes,stringsPath.toString(),nativeStrings);
+        scrapeNodes(stringNodes,stringsPathName,nativeStrings,stringResourceNameToIdMap);
         NodeList pluralNodes=dom.getElementsByTagName("plurals");
-        scrapeNodes(pluralNodes,stringsPath.toString(),nativeStrings);
+        scrapeNodes(pluralNodes,stringsPathName,nativePlurals,pluralsResourceNameToIdMap);
         NodeList arrayNodes=dom.getElementsByTagName("string-array");
-        scrapeNodes(arrayNodes,stringsPath.toString(),nativeStrings);
+        scrapeNodes(arrayNodes,stringsPathName,nativeArrays,arrayResourceNameToIdMap);
       }
  catch (      IOException|SAXException ex) {
         context.logError(ex,"Failed to parse strings file: '%s'",stringsPath);
       }
     }
   }
-  return nativeStrings;
+  Map<String,Map<String,NativeResourceInfo>> resultMap=Maps.newHashMap();
+  resultMap.put("strings",nativeStrings);
+  resultMap.put("plurals",nativePlurals);
+  resultMap.put("string-arrays",nativeArrays);
+  return resultMap;
 }
