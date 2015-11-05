@@ -1,0 +1,28 @@
+{
+  Thread sleepingThread=new Thread("testThread"){
+    @Override public void run(){
+      hangForHangMonitorTestReport();
+    }
+    private void hangForHangMonitorTestReport(){
+      try {
+        Thread.sleep(1000);
+      }
+ catch (      InterruptedException e) {
+      }
+    }
+  }
+;
+  sleepingThread.start();
+  final SettableFuture<String> result=SettableFuture.create();
+  HangMonitor hangMonitor=new HangMonitor(new Function<String,Void>(){
+    @Nullable @Override public Void apply(    String input){
+      result.set(input);
+      return null;
+    }
+  }
+,new TimeSpan(10,TimeUnit.MILLISECONDS));
+  hangMonitor.runOneIteration();
+  assertThat(result.isDone(),Matchers.is(true));
+  String report=result.get();
+  assertThat(report,Matchers.containsString("hangForHangMonitorTestReport"));
+}

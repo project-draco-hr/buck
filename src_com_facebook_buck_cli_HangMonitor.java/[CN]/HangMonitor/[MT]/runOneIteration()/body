@@ -1,0 +1,26 @@
+{
+  if (eventsSeenSinceLastCheck.get() > 0) {
+    eventsSeenSinceLastCheck.set(0);
+    return;
+  }
+  Map<Thread,StackTraceElement[]> allStackTraces=Thread.getAllStackTraces();
+  Thread hangMonitorThread=Thread.currentThread();
+  StringBuilder hangReportBuilder=new StringBuilder();
+  for (  Map.Entry<Thread,StackTraceElement[]> entry : allStackTraces.entrySet()) {
+    Thread thread=entry.getKey();
+    if (thread == hangMonitorThread) {
+      continue;
+    }
+    StackTraceElement[] stack=entry.getValue();
+    hangReportBuilder.append("Thread [");
+    hangReportBuilder.append(thread.getName());
+    hangReportBuilder.append("],stack:[");
+    Joiner.on(", ").appendTo(hangReportBuilder,stack);
+    hangReportBuilder.append("],");
+  }
+  String currentReport=hangReportBuilder.toString();
+  if (!currentReport.equals(mostRecentReport)) {
+    mostRecentReport=currentReport;
+    hangReportConsumer.apply(currentReport);
+  }
+}
