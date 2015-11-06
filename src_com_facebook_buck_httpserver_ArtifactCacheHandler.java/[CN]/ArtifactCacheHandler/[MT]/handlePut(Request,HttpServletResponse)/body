@@ -1,0 +1,30 @@
+{
+  if (!artifactCache.isPresent()) {
+    response.getWriter().write("Serving local cache is disabled for this instance.");
+    return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+  }
+  Path temp=null;
+  try {
+    temp=projectFilesystem.createTempFile(BuckConstant.SCRATCH_PATH,"incoming_upload",".tmp");
+    projectFilesystem.createParentDirs(temp);
+    StoreResponseReadResult storeRequest;
+    try (DataInputStream requestInputData=new DataInputStream(baseRequest.getInputStream());OutputStream tempFileOutputStream=projectFilesystem.newFileOutputStream(temp)){
+      storeRequest=HttpArtifactCacheBinaryProtocol.readStoreRequest(requestInputData,tempFileOutputStream);
+    }
+     if (!storeRequest.getActualHashCode().equals(storeRequest.getExpectedHashCode())) {
+      response.getWriter().write("Checksum mismatch.");
+      return HttpServletResponse.SC_NOT_ACCEPTABLE;
+    }
+    artifactCache.get().store(storeRequest.getRuleKeys(),storeRequest.getMetadata(),temp);
+    return HttpServletResponse.SC_ACCEPTED;
+  }
+ catch (  InterruptedException e) {
+    response.getWriter().write("Interrupted while serving request.");
+    return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+  }
+ finally {
+    if (temp != null) {
+      projectFilesystem.deleteFileAtPathIfExists(temp);
+    }
+  }
+}
