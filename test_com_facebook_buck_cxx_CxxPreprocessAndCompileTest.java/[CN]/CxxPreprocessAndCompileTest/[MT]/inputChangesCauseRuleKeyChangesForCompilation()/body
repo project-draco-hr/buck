@@ -1,0 +1,17 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver());
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(FakeFileHashCache.createFromStrings(ImmutableMap.<String,String>builder().put("preprocessor",Strings.repeat("a",40)).put("compiler",Strings.repeat("a",40)).put("test.o",Strings.repeat("b",40)).put("test.cpp",Strings.repeat("c",40)).put("different",Strings.repeat("d",40)).put("foo/test.h",Strings.repeat("e",40)).put("path/to/a/plugin.so",Strings.repeat("f",40)).put("path/to/a/different/plugin.so",Strings.repeat("a0",40)).build()),pathResolver);
+  RuleKey defaultRuleKey=ruleKeyBuilderFactory.build(CxxPreprocessAndCompile.compile(params,pathResolver,DEFAULT_COMPILER,DEFAULT_PLATFORM_FLAGS,DEFAULT_RULE_FLAGS,DEFAULT_OUTPUT,DEFAULT_INPUT,DEFAULT_INPUT_TYPE,DEFAULT_SANITIZER));
+  RuleKey compilerChange=ruleKeyBuilderFactory.build(CxxPreprocessAndCompile.compile(params,pathResolver,new DefaultCompiler(new HashedFileTool(Paths.get("different"))),DEFAULT_PLATFORM_FLAGS,DEFAULT_RULE_FLAGS,DEFAULT_OUTPUT,DEFAULT_INPUT,DEFAULT_INPUT_TYPE,DEFAULT_SANITIZER));
+  assertNotEquals(defaultRuleKey,compilerChange);
+  RuleKey operationChange=ruleKeyBuilderFactory.build(CxxPreprocessAndCompile.preprocess(params,pathResolver,DEFAULT_PREPROCESSOR,DEFAULT_PLATFORM_FLAGS,DEFAULT_RULE_FLAGS,DEFAULT_OUTPUT,DEFAULT_INPUT,DEFAULT_INPUT_TYPE,DEFAULT_INCLUDE_ROOTS,DEFAULT_SYSTEM_INCLUDE_ROOTS,DEFAULT_HEADER_MAPS,DEFAULT_FRAMEWORK_ROOTS,Optional.<SourcePath>absent(),DEFAULT_INCLUDES,DEFAULT_SANITIZER));
+  assertNotEquals(defaultRuleKey,operationChange);
+  RuleKey platformFlagsChange=ruleKeyBuilderFactory.build(CxxPreprocessAndCompile.compile(params,pathResolver,DEFAULT_COMPILER,ImmutableList.of("-different"),DEFAULT_RULE_FLAGS,DEFAULT_OUTPUT,DEFAULT_INPUT,DEFAULT_INPUT_TYPE,DEFAULT_SANITIZER));
+  assertNotEquals(defaultRuleKey,platformFlagsChange);
+  RuleKey ruleFlagsChange=ruleKeyBuilderFactory.build(CxxPreprocessAndCompile.compile(params,pathResolver,DEFAULT_COMPILER,DEFAULT_PLATFORM_FLAGS,ImmutableList.of("-other","flags"),DEFAULT_OUTPUT,DEFAULT_INPUT,DEFAULT_INPUT_TYPE,DEFAULT_SANITIZER));
+  assertNotEquals(defaultRuleKey,ruleFlagsChange);
+  RuleKey inputChange=ruleKeyBuilderFactory.build(CxxPreprocessAndCompile.compile(params,pathResolver,DEFAULT_COMPILER,DEFAULT_PLATFORM_FLAGS,DEFAULT_RULE_FLAGS,DEFAULT_OUTPUT,new TestSourcePath("different"),DEFAULT_INPUT_TYPE,DEFAULT_SANITIZER));
+  assertNotEquals(defaultRuleKey,inputChange);
+}
