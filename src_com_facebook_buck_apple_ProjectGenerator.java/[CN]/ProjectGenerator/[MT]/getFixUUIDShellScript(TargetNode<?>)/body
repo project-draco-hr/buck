@@ -1,0 +1,38 @@
+{
+  ST template;
+  try {
+    template=new ST(Resources.toString(Resources.getResource(ProjectGenerator.class,FIX_UUID_TEMPLATE),Charsets.UTF_8));
+  }
+ catch (  IOException e) {
+    throw new RuntimeException("There was an error loading '" + FIX_UUID_TEMPLATE + "' template",e);
+  }
+  CxxPlatform cxxPlatform;
+  ImmutableSet<Flavor> flavors=ImmutableSet.copyOf(targetNode.getBuildTarget().getFlavors());
+  try {
+    cxxPlatform=cxxPlatforms.getValue(flavors).or(defaultCxxPlatform);
+  }
+ catch (  FlavorDomainException e) {
+    throw new HumanReadableException("%s: %s",targetNode.getBuildTarget(),e.getMessage());
+  }
+  String compDir=cxxPlatform.getDebugPathSanitizer().getCompilationDirectory();
+  String sourceDir=Strings.padStart(":" + projectFilesystem.getRootPath().toString(),compDir.length(),'f');
+  Optional<String> productName=getProductNameForTargetNode(targetNode);
+  String binaryName=AppleBundle.getBinaryName(targetToBuildWithBuck.get(),productName);
+  Path bundleDestination=getScratchPathForAppBundle(targetToBuildWithBuck.get(),binaryName);
+  Path dsymDestination=getScratchPathForDsymBundle(targetToBuildWithBuck.get(),binaryName);
+  Path resolvedBundleSource=projectFilesystem.resolve(AppleBundle.getBundleRoot(targetToBuildWithBuck.get(),binaryName,"app"));
+  Path resolvedDsymSource=projectFilesystem.resolve(AppleBundle.getBundleRoot(targetToBuildWithBuck.get(),binaryName,"dSYM"));
+  Path resolvedBundleDestination=projectFilesystem.resolve(bundleDestination);
+  Path resolvedDsymDestination=projectFilesystem.resolve(dsymDestination);
+  String fixUUIDScriptPath=getFixUUIDScriptPath();
+  template.add("comp_dir",compDir);
+  template.add("source_dir",sourceDir);
+  template.add("resolved_bundle_source",resolvedBundleSource);
+  template.add("resolved_bundle_destination",resolvedBundleDestination);
+  template.add("resolved_bundle_destination_parent",resolvedBundleDestination.getParent());
+  template.add("resolved_dsym_source",resolvedDsymSource);
+  template.add("resolved_dsym_destination",resolvedDsymDestination);
+  template.add("binary_name",binaryName);
+  template.add("path_to_fix_uuid_script",fixUUIDScriptPath);
+  return template.render();
+}
