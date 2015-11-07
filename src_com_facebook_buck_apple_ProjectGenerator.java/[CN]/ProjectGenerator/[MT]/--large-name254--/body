@@ -7,7 +7,8 @@
   NewNativeTargetProjectMutator mutator=new NewNativeTargetProjectMutator(pathRelativizer,sourcePathResolver);
   ImmutableSet<SourcePath> exportedHeaders=ImmutableSet.copyOf(getHeaderSourcePaths(arg.exportedHeaders));
   ImmutableSet<SourcePath> headers=ImmutableSet.copyOf(getHeaderSourcePaths(arg.headers));
-  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,buildTargetName,Paths.get(String.format(productOutputFormat,buildTargetName))).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setPrefixHeader(arg.prefixHeader).setRecursiveResources(recursiveResources).setDirectResources(directResources);
+  ImmutableMap<CxxSource.Type,ImmutableList<String>> langPreprocessorFlags=targetNode.getConstructorArg().langPreprocessorFlags.get();
+  mutator.setTargetName(getXcodeTargetName(buildTarget)).setLangPreprocessorFlags(langPreprocessorFlags).setProduct(productType,buildTargetName,Paths.get(String.format(productOutputFormat,buildTargetName))).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setPrefixHeader(arg.prefixHeader).setRecursiveResources(recursiveResources).setDirectResources(directResources);
   if (bundle.isPresent()) {
     HasAppleBundleFields bundleArg=bundle.get().getConstructorArg();
     mutator.setInfoPlist(Optional.of(bundleArg.getInfoPlist()));
@@ -94,24 +95,6 @@
   ImmutableSet<Path> recursiveHeaderMaps=collectRecursiveHeaderMaps(targetNode);
   ImmutableSet<Path> headerMapBases=recursiveHeaderMaps.isEmpty() ? ImmutableSet.<Path>of() : ImmutableSet.of(pathRelativizer.outputDirToRootRelative(BuckConstant.BUCK_OUTPUT_PATH));
   appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterables.concat(recursiveHeaderMaps,headerMapBases))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(ImmutableSet.of(targetNode)))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(ImmutableList.of(targetNode)))).put("OTHER_CFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get(),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode))),Escaper.BASH_ESCAPER))).put("OTHER_LDFLAGS",Joiner.on(' ').join(Iterables.transform(MoreIterables.zipAndConcat(Iterables.cycle("-Xlinker"),Iterables.concat(targetNode.getConstructorArg().linkerFlags.get(),collectRecursiveExportedLinkerFlags(ImmutableList.of(targetNode)))),Escaper.BASH_ESCAPER)));
-  ImmutableMap<CxxSource.Type,ImmutableList<String>> langPreprocessorFlags=targetNode.getConstructorArg().langPreprocessorFlags.get();
-  Sets.SetView<CxxSource.Type> unsupportedLangPreprocessorFlags=Sets.difference(langPreprocessorFlags.keySet(),SUPPORTED_LANG_PREPROCESSOR_FLAG_TYPES);
-  if (!unsupportedLangPreprocessorFlags.isEmpty()) {
-    throw new HumanReadableException("%s: Xcode project generation does not support specified lang_preprocessor_flags keys: " + "%s",buildTarget,unsupportedLangPreprocessorFlags);
-  }
-  ImmutableSet.Builder<String> allCxxFlagsBuilder=ImmutableSet.builder();
-  ImmutableList<String> cxxFlags=langPreprocessorFlags.get(CxxSource.Type.CXX);
-  if (cxxFlags != null) {
-    allCxxFlagsBuilder.addAll(cxxFlags);
-  }
-  ImmutableList<String> objcxxFlags=langPreprocessorFlags.get(CxxSource.Type.OBJCXX);
-  if (objcxxFlags != null) {
-    allCxxFlagsBuilder.addAll(objcxxFlags);
-  }
-  ImmutableSet<String> allCxxFlags=allCxxFlagsBuilder.build();
-  if (!allCxxFlags.isEmpty()) {
-    appendConfigsBuilder.put("OTHER_CPLUSPLUSFLAGS",Joiner.on(' ').join(allCxxFlags));
-  }
   ImmutableMap<String,String> appendedConfig=appendConfigsBuilder.build();
   Optional<ImmutableSortedMap<String,ImmutableMap<String,String>>> configs=getXcodeBuildConfigurationsForTargetNode(targetNode,appendedConfig);
   PBXNativeTarget target=targetBuilderResult.target;

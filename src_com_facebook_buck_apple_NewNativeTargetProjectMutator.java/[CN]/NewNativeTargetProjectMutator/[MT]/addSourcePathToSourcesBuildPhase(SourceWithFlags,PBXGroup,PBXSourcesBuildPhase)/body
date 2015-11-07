@@ -1,8 +1,14 @@
 {
-  PBXFileReference fileReference=sourcesGroup.getOrCreateFileReferenceBySourceTreePath(new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(sourcePathResolver.apply(sourceWithFlags.getSourcePath())),Optional.<String>absent()));
+  SourceTreePath sourceTreePath=new SourceTreePath(PBXReference.SourceTree.SOURCE_ROOT,pathRelativizer.outputDirToRootRelative(sourcePathResolver.apply(sourceWithFlags.getSourcePath())),Optional.<String>absent());
+  PBXFileReference fileReference=sourcesGroup.getOrCreateFileReferenceBySourceTreePath(sourceTreePath);
   PBXBuildFile buildFile=new PBXBuildFile(fileReference);
   sourcesBuildPhase.getFiles().add(buildFile);
-  List<String> customFlags=sourceWithFlags.getFlags();
+  ImmutableList<String> customLangPreprocessorFlags=ImmutableList.of();
+  Optional<CxxSource.Type> sourceType=CxxSource.Type.fromExtension(Files.getFileExtension(sourceTreePath.toString()));
+  if (sourceType.isPresent() && langPreprocessorFlags.containsKey(sourceType.get())) {
+    customLangPreprocessorFlags=langPreprocessorFlags.get(sourceType.get());
+  }
+  ImmutableList<String> customFlags=ImmutableList.copyOf(Iterables.concat(customLangPreprocessorFlags,sourceWithFlags.getFlags()));
   if (!customFlags.isEmpty()) {
     NSDictionary settings=new NSDictionary();
     settings.put("COMPILER_FLAGS",Joiner.on(' ').join(customFlags));
