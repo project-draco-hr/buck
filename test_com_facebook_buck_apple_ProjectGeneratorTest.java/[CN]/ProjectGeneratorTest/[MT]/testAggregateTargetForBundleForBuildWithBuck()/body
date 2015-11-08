@@ -1,10 +1,9 @@
 {
-  Optional<Path> buck=new ExecutableFinder().getOptionalExecutable(Paths.get("buck"),ImmutableMap.<String,String>of());
-  assumeThat(buck.isPresent(),is(true));
   BuildTarget binaryTarget=BuildTarget.builder(rootPath,"//foo","binary").build();
+  TargetNode<?> binaryNode=AppleBinaryBuilder.createBuilder(binaryTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).build();
   BuildTarget bundleTarget=BuildTarget.builder(rootPath,"//foo","bundle").build();
-  TargetNode<?> bundleNode=AppleBundleBuilder.createBuilder(bundleTarget).setBinary(binaryTarget).build();
-  ImmutableSet<TargetNode<?>> nodes=ImmutableSet.<TargetNode<?>>of(bundleNode);
+  TargetNode<?> bundleNode=AppleBundleBuilder.createBuilder(bundleTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.APP)).setInfoPlist(new TestSourcePath("Info.plist")).setBinary(binaryTarget).build();
+  ImmutableSet<TargetNode<?>> nodes=ImmutableSet.<TargetNode<?>>of(bundleNode,binaryNode);
   ProjectGenerator projectGenerator=new ProjectGenerator(TargetGraphFactory.newInstance(nodes),FluentIterable.from(nodes).transform(HasBuildTarget.TO_TARGET).toSet(),projectFilesystem,OUTPUT_DIRECTORY,PROJECT_NAME,"BUCK",ImmutableSet.<ProjectGenerator.Option>of(),Optional.of(bundleTarget),ImmutableList.of("--flag","value with spaces"),new AlwaysFoundExecutableFinder(),ImmutableMap.<String,String>of(),PLATFORMS,DEFAULT_PLATFORM,Functions.<Path>constant(null),getFakeBuckEventBus(),false);
   projectGenerator.createXcodeProjects();
   PBXTarget buildWithBuckTarget=null;
@@ -20,10 +19,10 @@
   PBXBuildPhase buildPhase=Iterables.get(buildWithBuckTarget.getBuildPhases(),0);
   assertThat(buildPhase,instanceOf(PBXShellScriptBuildPhase.class));
   PBXShellScriptBuildPhase shellScriptBuildPhase=(PBXShellScriptBuildPhase)buildPhase;
-  assertThat(shellScriptBuildPhase.getShellScript(),containsString("buck build --report-absolute-paths --flag 'value with spaces' " + binaryTarget.getFullyQualifiedName()));
+  assertThat(shellScriptBuildPhase.getShellScript(),containsString("buck build --report-absolute-paths --flag 'value with spaces' " + bundleTarget.getFullyQualifiedName()));
   PBXBuildPhase fixUUIDPhase=Iterables.getLast(buildWithBuckTarget.getBuildPhases());
   assertThat(fixUUIDPhase,instanceOf(PBXShellScriptBuildPhase.class));
-  PBXShellScriptBuildPhase fixUUIDShellScriptBuildPhase=(PBXShellScriptBuildPhase)buildPhase;
+  PBXShellScriptBuildPhase fixUUIDShellScriptBuildPhase=(PBXShellScriptBuildPhase)fixUUIDPhase;
   String fixUUIDScriptPath=ProjectGenerator.getFixUUIDScriptPath();
   assertThat(fixUUIDShellScriptBuildPhase.getShellScript(),containsString("python " + fixUUIDScriptPath + " --verbose"));
 }
