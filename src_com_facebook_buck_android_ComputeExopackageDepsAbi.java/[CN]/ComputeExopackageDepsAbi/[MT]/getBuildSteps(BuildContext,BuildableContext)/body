@@ -14,40 +14,38 @@
           LOG.verbose("string assets = %s",stringAssetsHash);
           hasher.putUnencodedChars(stringAssetsHash);
         }
-        ImmutableSortedMap.Builder<Path,String> filesToHash=ImmutableSortedMap.naturalOrder();
         if (!ExopackageMode.enabledForSecondaryDexes(exopackageModes) && preDexMerge.isPresent()) {
-          filesToHash.put(preDexMerge.get().getMetadataTxtPath(),"secondary_dexes");
+          addToHash(hasher,"secondary_dexes",preDexMerge.get().getMetadataTxtPath());
         }
         if (!ExopackageMode.enabledForNativeLibraries(exopackageModes) && copyNativeLibraries.isPresent()) {
-          filesToHash.put(copyNativeLibraries.get().getPathToMetadataTxt(),"native_libs");
+          addToHash(hasher,"native_libs",copyNativeLibraries.get().getPathToMetadataTxt());
         }
         if (ExopackageMode.enabledForNativeLibraries(exopackageModes)) {
           String fakeNativeLibraryBundle=System.getProperty("buck.native_exopackage_fake_path");
           Preconditions.checkNotNull(fakeNativeLibraryBundle,"fake native bundle not specified in properties.");
-          filesToHash.put(Paths.get(fakeNativeLibraryBundle),"fake_native_libs");
+          Path fakePath=Paths.get(fakeNativeLibraryBundle);
+          Preconditions.checkState(fakePath.isAbsolute(),"Expected fake path to be absolute: %s",fakePath);
+          addToHash(hasher,"fake_native_libs",fakePath,fakePath.getFileName());
         }
+        final ImmutableSortedMap.Builder<Path,Path> allNativeFiles=ImmutableSortedMap.naturalOrder();
         for (        SourcePath libDir : packageableCollection.getNativeLibAssetsDirectories()) {
-          ImmutableSet<Path> allNativeFiles=getProjectFilesystem().getFilesUnderPath(getResolver().deprecatedGetPath(libDir));
-          for (          Path nativeFile : allNativeFiles) {
-            filesToHash.put(nativeFile,"native_lib_as_asset");
+          final Path root=getResolver().getAbsolutePath(libDir);
+          Files.walkFileTree(root,new SimpleFileVisitor<Path>(){
+            @Override public FileVisitResult visitFile(            Path file,            BasicFileAttributes attrs) throws IOException {
+              allNativeFiles.put(file,root.relativize(file));
+              return FileVisitResult.CONTINUE;
+            }
           }
+);
         }
-        for (        SourcePath jar : packageableCollection.getPathsToThirdPartyJars()) {
-          filesToHash.put(getResolver().deprecatedGetPath(jar),"third-party jar");
+        for (        Map.Entry<Path,Path> entry : allNativeFiles.build().entrySet()) {
+          addToHash(hasher,"native_lib_as_asset",entry.getKey(),entry.getValue());
         }
-        filesToHash.put(keystore.getPathToStore(),"keystore");
-        filesToHash.put(keystore.getPathToPropertiesFile(),"keystore properties");
-        for (        Map.Entry<Path,String> entry : filesToHash.build().entrySet()) {
-          Path path=entry.getKey();
-          hasher.putUnencodedChars(path.toString());
-          hasher.putByte((byte)0);
-          String fileSha1=getProjectFilesystem().computeSha1(path);
-          hasher.putUnencodedChars(fileSha1);
-          hasher.putByte((byte)0);
-          hasher.putUnencodedChars(entry.getValue());
-          hasher.putByte((byte)0);
-          LOG.verbose("file %s(%s) = %s",path,entry.getValue(),fileSha1);
+        for (        SourcePath jar : ImmutableSortedSet.copyOf(packageableCollection.getPathsToThirdPartyJars())) {
+          addToHash(hasher,"third-party jar",jar);
         }
+        addToHash(hasher,"keystore",keystore.getPathToStore());
+        addToHash(hasher,"keystore properties",keystore.getPathToPropertiesFile());
         String abiHash=hasher.hash().toString();
         LOG.verbose("ABI hash = %s",abiHash);
         buildableContext.addMetadata(METADATA_KEY,abiHash);
