@@ -4,10 +4,16 @@
   try {
     List<Map<String,Object>> allRawNodes=loadRawNodes(cell,buildFile,parser);
     ImmutableSet.Builder<TargetNode<?>> nodes=ImmutableSet.builder();
-    for (    Map<String,Object> rawNode : allRawNodes) {
+    for (    final Map<String,Object> rawNode : allRawNodes) {
       UnflavoredBuildTarget unflavored=parseBuildTargetFromRawRule(cell.getRoot(),rawNode);
-      BuildTarget target=BuildTarget.of(unflavored);
-      nodes.add(createTargetNode(eventBus,cell,buildFile,target,rawNode,nodeListener));
+      final BuildTarget target=BuildTarget.of(unflavored);
+      TargetNode<?> node=allTargetNodes.get(target,new Callable<TargetNode<?>>(){
+        @Override public TargetNode<?> call() throws Exception {
+          return createTargetNode(eventBus,cell,buildFile,target,rawNode,nodeListener);
+        }
+      }
+);
+      nodes.add(node);
     }
     return nodes.build();
   }
