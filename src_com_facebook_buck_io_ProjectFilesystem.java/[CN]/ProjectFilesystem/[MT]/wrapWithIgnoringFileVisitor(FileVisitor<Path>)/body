@@ -1,0 +1,29 @@
+{
+  return new FileVisitor<Path>(){
+    @Override public FileVisitResult preVisitDirectory(    Path dir,    BasicFileAttributes attrs) throws IOException {
+      if (isIgnored(relativize(dir))) {
+        return FileVisitResult.SKIP_SUBTREE;
+      }
+      return delegate.preVisitDirectory(dir,attrs);
+    }
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs) throws IOException {
+      if (isIgnored(relativize(file))) {
+        return FileVisitResult.CONTINUE;
+      }
+      return delegate.visitFile(file,attrs);
+    }
+    @Override public FileVisitResult visitFileFailed(    Path file,    IOException exc) throws IOException {
+      return delegate.visitFileFailed(file,exc);
+    }
+    @Override public FileVisitResult postVisitDirectory(    Path dir,    IOException exc) throws IOException {
+      return delegate.postVisitDirectory(dir,exc);
+    }
+    private Path relativize(    Path path){
+      if (path.startsWith(getRootPath())) {
+        return pathRelativizer.apply(path);
+      }
+      return path;
+    }
+  }
+;
+}

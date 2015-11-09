@@ -15,7 +15,6 @@
     }
   }
 ;
-  this.blackListedPaths=MorePaths.filterForSubpaths(blackListedPaths,projectRoot);
   this.whiteListedPaths=whiteListedPaths.transform(new Function<ImmutableSet<Path>,ImmutableSet<Path>>(){
     @Override public ImmutableSet<Path> apply(    ImmutableSet<Path> input){
       return MorePaths.filterForSubpaths(input,ProjectFilesystem.this.projectRoot);
@@ -23,4 +22,16 @@
   }
 );
   this.ignoreValidityOfPaths=false;
+  this.blackListedPaths=blackListedPaths;
+  this.blackListedDirectories=FluentIterable.from(this.blackListedPaths).filter(BasePathMatcher.class).transform(new Function<BasePathMatcher,Path>(){
+    @Override public Path apply(    BasePathMatcher matcher){
+      Path path=matcher.getPath();
+      ImmutableSet<Path> filtered=MorePaths.filterForSubpaths(ImmutableSet.<Path>of(path),root);
+      if (filtered.isEmpty()) {
+        return path;
+      }
+      return Iterables.getOnlyElement(filtered);
+    }
+  }
+).append(root.getFileSystem().getPath(BuckConstant.BUCK_OUTPUT_DIRECTORY)).append(ImmutableSet.of(getCacheDir(root,Optional.of(BuckConstant.DEFAULT_CACHE_DIR)))).toSortedSet(Ordering.<Path>natural());
 }
