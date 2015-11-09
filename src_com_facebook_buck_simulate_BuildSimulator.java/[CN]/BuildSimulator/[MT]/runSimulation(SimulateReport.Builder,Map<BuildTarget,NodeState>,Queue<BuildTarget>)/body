@@ -1,0 +1,33 @@
+{
+  long simulationCurrentMillis=0;
+  int nodesBuilt=0;
+  int targetsThatUsedTheFallbackTimeMillis=0;
+  PriorityQueue<RunningNode> targetsRunning=new PriorityQueue<>();
+  while (nodesBuilt < reverseDependencies.size()) {
+    while (!targetsRunning.isEmpty() && targetsRunning.peek().getExpectedFinishMillis() <= simulationCurrentMillis) {
+      BuildTarget target=targetsRunning.remove().getTarget();
+      ++nodesBuilt;
+      NodeState nodeState=Preconditions.checkNotNull(reverseDependencies.get(target));
+      for (      BuildTarget dependant : nodeState.getDependantNodes()) {
+        NodeState dependantState=Preconditions.checkNotNull(reverseDependencies.get(dependant));
+        dependantState.decrementRefCount();
+        if (dependantState.canBuildNow()) {
+          buildableNodes.add(dependant);
+        }
+      }
+    }
+    while (targetsRunning.size() < numberOfThreads && buildableNodes.size() > 0) {
+      BuildTarget target=buildableNodes.remove();
+      long expectedFinishMillis=simulationCurrentMillis + times.getMillisForTarget(target.toString());
+      targetsRunning.add(new RunningNode(expectedFinishMillis,target));
+      if (!times.hasMillisForTarget(target.toString())) {
+        ++targetsThatUsedTheFallbackTimeMillis;
+      }
+    }
+    if (!targetsRunning.isEmpty()) {
+      simulationCurrentMillis=targetsRunning.peek().getExpectedFinishMillis();
+    }
+  }
+  report.setUsedActionGraphNodes(nodesBuilt).setBuildDurationMillis(simulationCurrentMillis).setActionGraphNodesWithoutSimulateTime(targetsThatUsedTheFallbackTimeMillis);
+  return report.build();
+}

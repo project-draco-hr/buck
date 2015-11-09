@@ -1,0 +1,13 @@
+{
+  Preconditions.checkArgument(buildTargets.size() > 0,"No targets provided for the simulation.");
+  SimulateReport.Builder report=SimulateReport.builder().setTimestampMillis(currentTimeMillis).setBuildTargets(FluentIterable.from(buildTargets).transform(Functions.toStringFunction())).setSimulateTimesFile(times.getFile()).setSimulateTimeType(times.getTimeType()).setSimulateDefaultMillis(times.getDefaultMillis()).setTotalActionGraphNodes(Iterables.size(actionGraph.getNodes())).setNumberOfThreads(numberOfThreads);
+  Map<BuildTarget,NodeState> reverseDependencies=Maps.newHashMap();
+  Queue<BuildTarget> leafNodes=Queues.newArrayDeque();
+  int totalDagEdges=0;
+  for (  BuildTarget target : buildTargets) {
+    BuildRule rule=Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(target));
+    totalDagEdges+=recursiveTraversal(rule,reverseDependencies,leafNodes);
+  }
+  report.setTotalDependencyDagEdges(totalDagEdges);
+  return runSimulation(report,reverseDependencies,leafNodes);
+}

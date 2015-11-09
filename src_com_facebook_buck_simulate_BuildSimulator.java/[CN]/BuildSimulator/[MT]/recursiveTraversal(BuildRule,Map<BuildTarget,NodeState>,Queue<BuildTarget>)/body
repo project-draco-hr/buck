@@ -1,0 +1,25 @@
+{
+  int totalDagEdges=0;
+  BuildTarget target=rule.getBuildTarget();
+  if (reverseDependencies.containsKey(target)) {
+    return totalDagEdges;
+  }
+  List<BuildRule> deps=Lists.newArrayList();
+  deps.addAll(rule.getDeps());
+  if (rule instanceof HasRuntimeDeps) {
+    deps.addAll(((HasRuntimeDeps)rule).getRuntimeDeps());
+  }
+  totalDagEdges=rule.getDeps().size();
+  NodeState state=new NodeState();
+  reverseDependencies.put(target,state);
+  for (  BuildRule dep : deps) {
+    totalDagEdges+=recursiveTraversal(dep,reverseDependencies,leafNodes);
+    NodeState nodeState=Preconditions.checkNotNull(reverseDependencies.get(dep.getBuildTarget()));
+    nodeState.addDependant(target);
+    state.incrementRefCount();
+  }
+  if (state.canBuildNow()) {
+    leafNodes.add(target);
+  }
+  return totalDagEdges;
+}
