@@ -1,0 +1,53 @@
+{
+  if (getTmpDirectory().isPresent()) {
+    args.add(String.format("-Djava.io.tmpdir=%s",filesystem.resolve(getTmpDirectory().get())));
+  }
+  args.add(String.format("-Dbuck.testrunner_classes=%s",getTestRunnerClasspath()));
+  if (isCodeCoverageEnabled()) {
+    args.add(String.format("-javaagent:%s=destfile=%s/%s,append=true",JacocoConstants.PATH_TO_JACOCO_AGENT_JAR,JacocoConstants.JACOCO_OUTPUT_DIR,JacocoConstants.JACOCO_EXEC_COVERAGE_FILE));
+  }
+  if (getPathToJavaAgent().isPresent()) {
+    args.add(String.format("-agentpath:%s",getPathToJavaAgent().get()));
+  }
+  args.add(String.format("-D%s=%s",BUILD_ID_PROPERTY,getBuildId()));
+  args.add(String.format("-D%s=%s",MODULE_BASE_PATH_PROPERTY,getBuckModuleBaseSourceCodePath()));
+  if (getStdOutLogLevel().isPresent()) {
+    args.add(String.format("-D%s=%s",STD_OUT_LOG_LEVEL_PROPERTY,getStdOutLogLevel().get()));
+  }
+  if (getStdErrLogLevel().isPresent()) {
+    args.add(String.format("-D%s=%s",STD_ERR_LOG_LEVEL_PROPERTY,getStdErrLogLevel().get()));
+  }
+  if (getRobolectricLogPath().isPresent()) {
+    args.add(String.format("-Drobolectric.logging=%s",getRobolectricLogPath().get()));
+  }
+  if (isDebugEnabled()) {
+    args.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005");
+  }
+  if (getExtraJvmArgs().isPresent()) {
+    args.addAll(getExtraJvmArgs().get());
+  }
+  if (verbosity.shouldUseVerbosityFlagIfAvailable()) {
+    args.add("-verbose");
+  }
+  args.add("-classpath","@" + filesystem.resolve(getClasspathFile()).toString() + File.pathSeparator+ getTestRunnerClasspath().toString());
+  args.add(FileClassPathRunner.class.getName());
+  args.add(getTestType().getDefaultTestRunner());
+  if (getDirectoryForTestResults().isPresent()) {
+    args.add("--output",getDirectoryForTestResults().get().toString());
+  }
+  long timeout=isDebugEnabled() ? 0 : defaultTestTimeoutMillis;
+  args.add("--default-test-timeout",String.valueOf(timeout));
+  StringBuilder selectorsArgBuilder=new StringBuilder();
+  if (getTestSelectorList().isPresent() && !getTestSelectorList().get().isEmpty()) {
+    for (    String rawSelector : getTestSelectorList().get().getRawSelectors()) {
+      selectorsArgBuilder.append(rawSelector).append("\n");
+    }
+    args.add("--test-selectors",selectorsArgBuilder.toString());
+  }
+  if (isDryRun()) {
+    args.add("--dry-run");
+  }
+  for (  String testClassName : getTestClasses()) {
+    args.add(testClassName);
+  }
+}
