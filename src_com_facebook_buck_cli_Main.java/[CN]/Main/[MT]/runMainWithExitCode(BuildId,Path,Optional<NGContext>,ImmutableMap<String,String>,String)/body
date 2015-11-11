@@ -57,20 +57,12 @@
   }
   ParserConfig parserConfig=new ParserConfig(buckConfig);
   Watchman watchman;
-  ParserConfig.GlobHandler globHandler;
   if (context.isPresent() || parserConfig.getGlobHandler() == ParserConfig.GlobHandler.WATCHMAN) {
     watchman=Watchman.build(projectRoot,clientEnvironment,console,clock);
-    if (parserConfig.getGlobHandler() == ParserConfig.GlobHandler.WATCHMAN && watchman.hasWildmatchGlob()) {
-      globHandler=ParserConfig.GlobHandler.WATCHMAN;
-    }
- else {
-      globHandler=ParserConfig.GlobHandler.PYTHON;
-    }
-    LOG.debug("Watchman capabilities: %s Watch root: %s Project prefix: %s Glob handler config: %s " + "Final glob handler: %s",watchman.getCapabilities(),watchman.getWatchRoot(),watchman.getProjectPrefix(),parserConfig.getGlobHandler(),globHandler);
+    LOG.debug("Watchman capabilities: %s Watch root: %s Project prefix: %s Glob handler config: %s ",watchman.getCapabilities(),watchman.getWatchRoot(),watchman.getProjectPrefix(),parserConfig.getGlobHandler());
   }
  else {
     watchman=Watchman.NULL_WATCHMAN;
-    globHandler=ParserConfig.GlobHandler.PYTHON;
   }
   final boolean isDaemon=context.isPresent() && (watchman != Watchman.NULL_WATCHMAN);
   KnownBuildRuleTypesFactory factory=new KnownBuildRuleTypesFactory(processExecutor,androidDirectoryResolver,testTempDirOverride);
@@ -82,8 +74,8 @@
   ProjectFileHashCache cellHashCache;
   ProjectFileHashCache buckOutHashCache;
   if (isDaemon) {
-    cellHashCache=getFileHashCacheFromDaemon(rootCell,globHandler,allowSymlinks);
-    buckOutHashCache=getBuckOutFileHashCacheFromDaemon(rootCell,globHandler,allowSymlinks);
+    cellHashCache=getFileHashCacheFromDaemon(rootCell,allowSymlinks);
+    buckOutHashCache=getBuckOutFileHashCacheFromDaemon(rootCell,allowSymlinks);
   }
  else {
     cellHashCache=new DefaultFileHashCache(rootCell.getFilesystem());
@@ -100,7 +92,7 @@
     allCaches.add(new DefaultFileHashCache(new ProjectFilesystem(root)));
   }
   FileHashCache fileHashCache=new StackedFileHashCache(allCaches.build());
-  Optional<WebServer> webServer=getWebServerIfDaemon(context,rootCell,globHandler,allowSymlinks);
+  Optional<WebServer> webServer=getWebServerIfDaemon(context,rootCell,allowSymlinks);
   TestConfig testConfig=new TestConfig(buckConfig);
   ArtifactCacheBuckConfig cacheBuckConfig=new ArtifactCacheBuckConfig(buckConfig);
   ExecutorService diskIoExecutorService=MoreExecutors.newSingleThreadExecutor("Disk I/O");
@@ -123,16 +115,16 @@
     Parser parser=null;
     if (isDaemon && watchman != Watchman.NULL_WATCHMAN) {
       try {
-        Daemon daemon=getDaemon(rootCell,globHandler,allowSymlinks,objectMapper);
+        Daemon daemon=getDaemon(rootCell,allowSymlinks,objectMapper);
         WatchmanWatcher watchmanWatcher=new WatchmanWatcher(watchman.getWatchRoot().or(canonicalRootPath.toString()),daemon.getFileEventBus(),clock,objectMapper,processExecutor,filesystem.getIgnorePaths(),DEFAULT_IGNORE_GLOBS,watchman,daemon.getWatchmanQueryUUID());
-        parser=getParserFromDaemon(context,rootCell,startedEvent,buildEventBus,watchmanWatcher,globHandler,allowSymlinks);
+        parser=getParserFromDaemon(context,rootCell,startedEvent,buildEventBus,watchmanWatcher,allowSymlinks);
       }
  catch (      WatchmanWatcherException|IOException e) {
         buildEventBus.post(ConsoleEvent.warning("Watchman threw an exception while parsing file changes.\n%s",e.getMessage()));
       }
     }
     if (parser == null) {
-      parser=Parser.createBuildFileParser(rootCell,globHandler == ParserConfig.GlobHandler.WATCHMAN,allowSymlinks);
+      parser=Parser.createBuildFileParser(rootCell,allowSymlinks);
     }
     JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootCell.getFilesystem());
     Optional<ProcessManager> processManager;
