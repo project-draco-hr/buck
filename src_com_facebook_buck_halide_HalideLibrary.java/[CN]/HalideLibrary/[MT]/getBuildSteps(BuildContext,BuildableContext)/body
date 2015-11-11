@@ -1,9 +1,14 @@
 {
+  Path outputDir=getPathToOutput();
   String shortName=getBuildTarget().getShortName();
-  buildableContext.recordArtifact(outputDir.resolve(shortName + ".h"));
-  buildableContext.recordArtifact(outputDir.resolve(shortName + ".o"));
+  if (cxxPlatform.isPresent()) {
+    buildableContext.recordArtifact(outputDir.resolve(getLibraryName()));
+  }
+ else {
+    buildableContext.recordArtifact(outputDir.resolve(shortName + ".h"));
+  }
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
   commands.add(new MakeCleanDirectoryStep(getProjectFilesystem(),outputDir));
-  commands.add(new HalideCompilerStep(getProjectFilesystem().getRootPath(),halideCompiler.getCommandPrefix(getResolver()),outputDir,shortName));
+  commands.add(new HalideCompilerStep(getProjectFilesystem().getRootPath(),halideCompiler.getCommandPrefix(getResolver()),outputDir,shortName,halideBuckConfig.getHalideTargetForPlatform(cxxPlatform),!cxxPlatform.isPresent()));
   return commands.build();
 }
