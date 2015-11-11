@@ -1,0 +1,46 @@
+{
+  ImmutableList<Optional<IjFolder>> children=FluentIterable.from(tree.getOutgoingNodesFor(currentPath)).transform(new Function<Path,Optional<IjFolder>>(){
+    @Override public Optional<IjFolder> apply(    Path input){
+      return walk(input);
+    }
+  }
+).toList();
+  boolean anyAbsent=FluentIterable.from(children).anyMatch(Predicates.equalTo(Optional.<IjFolder>absent()));
+  if (anyAbsent) {
+    return Optional.absent();
+  }
+  ImmutableSet<IjFolder> presentChildren=FluentIterable.from(children).transform(new Function<Optional<IjFolder>,IjFolder>(){
+    @Override public IjFolder apply(    Optional<IjFolder> input){
+      return input.get();
+    }
+  }
+).toSet();
+  IjFolder currentFolder=mergePathsMap.get(currentPath);
+  if (presentChildren.isEmpty()) {
+    return Optional.of(Preconditions.checkNotNull(currentFolder));
+  }
+  final IjFolder myFolder;
+  if (currentFolder != null) {
+    myFolder=currentFolder;
+  }
+ else {
+    IjFolder aChild=presentChildren.iterator().next();
+    myFolder=aChild.withInputs(ImmutableSortedSet.<Path>of()).withPath(currentPath);
+  }
+  boolean allChildrenCanBeMerged=FluentIterable.from(presentChildren).allMatch(new Predicate<IjFolder>(){
+    @Override public boolean apply(    IjFolder input){
+      return canMerge(myFolder,input,packagePathCache);
+    }
+  }
+);
+  if (!allChildrenCanBeMerged) {
+    return Optional.absent();
+  }
+  IjFolder mergedFolder=myFolder;
+  for (  IjFolder presentChild : presentChildren) {
+    mergePathsMap.remove(presentChild.getPath());
+    mergedFolder=presentChild.merge(mergedFolder);
+  }
+  mergePathsMap.put(mergedFolder.getPath(),mergedFolder);
+  return Optional.of(mergedFolder);
+}
