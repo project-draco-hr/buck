@@ -6,7 +6,8 @@
     if (srcRule instanceof AndroidBinary) {
       AndroidBinary androidBinary=(AndroidBinary)srcRule;
       AndroidPackageableCollection packageableCollection=androidBinary.getAndroidPackageableCollection();
-      noDxJarsBuilder.addAll(resolver.deprecatedAllPaths(packageableCollection.getNoDxClasspathEntries()));
+      ImmutableList<Path> dxAbsolutePaths=resolver.getAllAbsolutePaths(packageableCollection.getNoDxClasspathEntries());
+      noDxJarsBuilder.addAll(FluentIterable.from(dxAbsolutePaths).transform(projectFilesystem.getRelativizer()));
     }
     final Optional<Path> rJava;
     if (srcRule instanceof AndroidLibrary) {
@@ -28,6 +29,6 @@
     modules.add(module);
   }
   ImmutableSet<Path> noDxJars=noDxJarsBuilder.build();
-  markNoDxJarsAsProvided(modules,noDxJars,resolver);
+  markNoDxJarsAsProvided(projectFilesystem,modules,noDxJars,resolver);
   return modules;
 }
