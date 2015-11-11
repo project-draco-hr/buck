@@ -1,21 +1,12 @@
 {
-  ImmutableMap.Builder<Path,Path> replacementPathsBuilder=ImmutableMap.builder();
+  ImmutableMap<Path,Path> replacementPaths;
   try {
-    for (    Map.Entry<Path,SourcePath> entry : CxxHeaders.concat(includes).getFullNameToPathMap().entrySet()) {
-      replacementPathsBuilder.put(entry.getKey(),getResolver().deprecatedGetPath(entry.getValue()));
-    }
+    replacementPaths=preprocessDelegate.isPresent() ? preprocessDelegate.get().getReplacementPaths() : ImmutableMap.<Path,Path>of();
   }
  catch (  CxxHeaders.ConflictingHeadersException e) {
     throw e.getHumanReadableExceptionForBuildTarget(getBuildTarget());
   }
-  ImmutableMap<Path,Path> replacementPaths=replacementPathsBuilder.build();
-  Optional<ImmutableList<String>> preprocessorCommand;
-  if (preprocessor.isPresent()) {
-    preprocessorCommand=Optional.of(ImmutableList.<String>builder().addAll(preprocessor.get().getCommandPrefix(getResolver())).addAll(getPreprocessorPlatformPrefix()).addAll(getPreprocessorSuffix()).addAll(preprocessor.get().getExtraFlags().or(ImmutableList.<String>of())).build());
-  }
- else {
-    preprocessorCommand=Optional.absent();
-  }
+  Optional<ImmutableList<String>> preprocessorCommand=preprocessDelegate.isPresent() ? Optional.of(preprocessDelegate.get().getPreprocessorCommand()) : Optional.<ImmutableList<String>>absent();
   Optional<ImmutableList<String>> compilerCommand;
   if (compiler.isPresent()) {
     compilerCommand=Optional.of(ImmutableList.<String>builder().addAll(compiler.get().getCommandPrefix(getResolver())).addAll(getCompilerPlatformPrefix()).addAll(getCompilerSuffix()).build());
@@ -23,10 +14,5 @@
  else {
     compilerCommand=Optional.absent();
   }
-  return new CxxPreprocessAndCompileStep(getProjectFilesystem(),operation,output,getDepFilePath(),getResolver().deprecatedGetPath(input),inputType,preprocessorCommand,compilerCommand,replacementPaths,sanitizer,Optionals.bind(preprocessor,new Function<Preprocessor,Optional<Function<String,Iterable<String>>>>(){
-    @Override public Optional<Function<String,Iterable<String>>> apply(    Preprocessor input){
-      return input.getExtraLineProcessor();
-    }
-  }
-));
+  return new CxxPreprocessAndCompileStep(getProjectFilesystem(),operation,output,getDepFilePath(),getResolver().deprecatedGetPath(input),inputType,preprocessorCommand,compilerCommand,replacementPaths,sanitizer,preprocessDelegate.isPresent() ? preprocessDelegate.get().getPreprocessorExtraLineProcessor() : Optional.<Function<String,Iterable<String>>>absent());
 }

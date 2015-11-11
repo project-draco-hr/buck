@@ -1,0 +1,21 @@
+{
+  if (operation == CxxPreprocessAndCompileStep.Operation.COMPILE_MUNGE_DEBUGINFO) {
+    return makeMainStep().getCommand();
+  }
+  CxxPreprocessAndCompile preprocessRule=externalPreprocessRule.or(this);
+  if (!preprocessRule.preprocessDelegate.isPresent()) {
+    throw new HumanReadableException("Neither %s nor %s handles preprocessing.",externalPreprocessRule,this);
+  }
+  PreprocessorDelegate effectivePreprocessorDelegate=preprocessRule.preprocessDelegate.get();
+  ImmutableList.Builder<String> cmd=ImmutableList.builder();
+  cmd.addAll(compiler.get().getCommandPrefix(getResolver()));
+  cmd.addAll(effectivePreprocessorDelegate.getPreprocessorPlatformPrefix());
+  cmd.addAll(getCompilerPlatformPrefix());
+  cmd.addAll(effectivePreprocessorDelegate.getPreprocessorSuffix());
+  cmd.addAll(getCompilerSuffix());
+  cmd.add("-x",preprocessRule.inputType.getLanguage());
+  cmd.add("-c");
+  cmd.add("-o",output.toString());
+  cmd.add(getResolver().deprecatedGetPath(preprocessRule.input).toString());
+  return cmd.build();
+}
