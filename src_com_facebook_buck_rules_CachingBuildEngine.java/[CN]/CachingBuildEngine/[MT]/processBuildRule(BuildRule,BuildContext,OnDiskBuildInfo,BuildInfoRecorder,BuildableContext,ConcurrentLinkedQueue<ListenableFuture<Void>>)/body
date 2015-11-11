@@ -15,11 +15,11 @@
     @Override public ListenableFuture<BuildResult> apply(    @Nonnull List<BuildResult> depResults) throws Exception {
       context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule));
       for (      BuildResult depResult : depResults) {
-        if (depResult.getStatus() != BuildRuleStatus.SUCCESS) {
+        if (buildMode != BuildMode.POPULATE_FROM_REMOTE_CACHE && depResult.getStatus() != BuildRuleStatus.SUCCESS) {
           return Futures.immediateFuture(BuildResult.canceled(rule,Preconditions.checkNotNull(depResult.getFailure())));
         }
       }
-      if (!context.isKeepGoing() && firstFailure != null) {
+      if (buildMode != BuildMode.POPULATE_FROM_REMOTE_CACHE && !context.isKeepGoing() && firstFailure != null) {
         return Futures.immediateFuture(BuildResult.canceled(rule,firstFailure));
       }
       if (useDependencyFileRuleKey(rule)) {
@@ -53,8 +53,14 @@
           return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_ABI_RULE_KEY,CacheResult.localKeyUnchangedHit()));
         }
       }
-      executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
-      return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResult));
+      if (buildMode != BuildMode.POPULATE_FROM_REMOTE_CACHE) {
+        executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
+        return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResult));
+      }
+ else {
+        LOG.info("Cannot populate cache for " + rule.getBuildTarget().getFullyQualifiedName());
+        return Futures.immediateFuture(BuildResult.canceled(rule,new HumanReadableException("Skipping %s: in cache population mode " + "local builds are disabled",rule)));
+      }
     }
   }
 ,service);
