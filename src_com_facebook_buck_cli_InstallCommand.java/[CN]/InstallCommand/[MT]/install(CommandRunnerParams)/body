@@ -1,0 +1,31 @@
+{
+  Build build=super.getBuild();
+  ActionGraph graph=build.getActionGraph();
+  int exitCode=0;
+  for (  BuildTarget buildTarget : getBuildTargets()) {
+    BuildRule buildRule=Preconditions.checkNotNull(graph.findBuildRuleByTarget(buildTarget));
+    if (buildRule instanceof InstallableApk) {
+      ExecutionContext.Builder builder=ExecutionContext.builder().setExecutionContext(build.getExecutionContext()).setAdbOptions(Optional.<AdbOptions>of(adbOptions(params.getBuckConfig()))).setTargetDeviceOptions(Optional.<TargetDeviceOptions>of(targetDeviceOptions()));
+      exitCode=installApk(params,(InstallableApk)buildRule,builder.build());
+      if (exitCode != 0) {
+        return exitCode;
+      }
+    }
+ else     if (buildRule instanceof AppleBundle) {
+      AppleBundle appleBundle=(AppleBundle)buildRule;
+      InstallEvent.Started started=InstallEvent.started(appleBundle.getBuildTarget());
+      params.getBuckEventBus().post(started);
+      InstallResult installResult=installAppleBundle(params,appleBundle,appleBundle.getProjectFilesystem(),build.getExecutionContext().getProcessExecutor());
+      params.getBuckEventBus().post(InstallEvent.finished(started,installResult.getExitCode() == 0,installResult.getLaunchedPid()));
+      exitCode=installResult.getExitCode();
+      if (exitCode != 0) {
+        return exitCode;
+      }
+    }
+ else {
+      params.getBuckEventBus().post(ConsoleEvent.severe(String.format("Specified rule %s must be of type android_binary() or apk_genrule() or " + "apple_bundle() but was %s().\n",buildRule.getFullyQualifiedName(),buildRule.getType())));
+      return 1;
+    }
+  }
+  return exitCode;
+}

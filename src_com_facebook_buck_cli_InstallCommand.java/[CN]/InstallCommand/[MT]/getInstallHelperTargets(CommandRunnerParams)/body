@@ -1,0 +1,23 @@
+{
+  ImmutableSet.Builder<String> installHelperTargets=ImmutableSet.builder();
+  for (int index=0; index < getArguments().size(); index++) {
+    TargetNodeSpec spec=parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),getArguments()).get(index);
+    BuildTarget target=params.getParser().resolveTargetSpec(spec,new ParserConfig(params.getBuckConfig()),params.getBuckEventBus(),params.getConsole(),params.getEnvironment(),getEnableProfiling()).iterator().next();
+    TargetNode<?> node=params.getParser().getTargetNode(target);
+    if (node != null && node.getDescription().getBuildRuleType().equals(AppleBundleDescription.TYPE)) {
+      for (      Flavor flavor : node.getBuildTarget().getFlavors()) {
+        if (ApplePlatform.needsInstallHelper(flavor.getName())) {
+          AppleConfig appleConfig=new AppleConfig(params.getBuckConfig());
+          Optional<BuildTarget> deviceHelperTarget=appleConfig.getAppleDeviceHelperTarget();
+          Optionals.addIfPresent(Optionals.bind(deviceHelperTarget,new Function<BuildTarget,Optional<String>>(){
+            @Override public Optional<String> apply(            BuildTarget input){
+              return !input.toString().isEmpty() ? Optional.of(input.toString()) : Optional.<String>absent();
+            }
+          }
+),installHelperTargets);
+        }
+      }
+    }
+  }
+  return installHelperTargets.build();
+}
