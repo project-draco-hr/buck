@@ -1,5 +1,6 @@
 {
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(ruleResolver);
   NdkCxxPlatform ndkCxxPlatform=NdkCxxPlatform.builder().setCxxPlatform(CxxPlatformUtils.DEFAULT_PLATFORM).setCxxRuntime(NdkCxxPlatforms.CxxRuntime.GNUSTL).setCxxSharedRuntimePath(Paths.get("runtime")).build();
   ImmutableMap<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> nativePlatforms=ImmutableMap.<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform>builder().put(NdkCxxPlatforms.TargetCpuType.ARMV7,ndkCxxPlatform).put(NdkCxxPlatforms.TargetCpuType.X86,ndkCxxPlatform).build();
   AbstractCxxSourceBuilder<CxxLibraryDescription.Arg> cxxLibraryBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:cxxlib")).setSoname("somelib.so").setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new TestSourcePath("test/bar.cpp"))));
@@ -15,6 +16,13 @@
   AndroidPackageableCollection packageableCollection=collector.build();
   Optional<CopyNativeLibraries> copyNativeLibrariesOptional=enhancer.getCopyNativeLibraries(targetGraph,packageableCollection);
   CopyNativeLibraries copyNativeLibraries=copyNativeLibrariesOptional.get();
-  assertThat(copyNativeLibraries.getFilteredNativeLibraries().keySet(),Matchers.containsInAnyOrder(new Pair<>(NdkCxxPlatforms.TargetCpuType.ARMV7,"somelib.so"),new Pair<>(NdkCxxPlatforms.TargetCpuType.ARMV7,"libgnustl_shared.so")));
+  assertThat(copyNativeLibraries.getStrippedObjectDescriptions(),Matchers.containsInAnyOrder(Matchers.allOf(Matchers.hasProperty("targetCpuType",Matchers.equalTo(NdkCxxPlatforms.TargetCpuType.ARMV7)),Matchers.hasProperty("strippedObjectName",Matchers.equalTo("somelib.so"))),Matchers.allOf(Matchers.hasProperty("targetCpuType",Matchers.equalTo(NdkCxxPlatforms.TargetCpuType.ARMV7)),Matchers.hasProperty("strippedObjectName",Matchers.equalTo("libgnustl_shared.so")))));
   assertThat(copyNativeLibraries.getNativeLibDirectories(),Matchers.empty());
+  ImmutableCollection<BuildRule> stripRules=sourcePathResolver.filterBuildRuleInputs(FluentIterable.from(copyNativeLibraries.getStrippedObjectDescriptions()).transform(new Function<StrippedObjectDescription,SourcePath>(){
+    @Override public SourcePath apply(    StrippedObjectDescription input){
+      return input.getSourcePath();
+    }
+  }
+).toSet());
+  assertThat(stripRules,Matchers.contains(Matchers.instanceOf(StripLinkable.class),Matchers.instanceOf(StripLinkable.class)));
 }

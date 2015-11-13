@@ -1,0 +1,22 @@
+{
+  ImmutableMap.Builder<StripLinkable,StrippedObjectDescription> result=ImmutableMap.builder();
+  for (  Map.Entry<Pair<NdkCxxPlatforms.TargetCpuType,String>,SourcePath> entry : libs.entrySet()) {
+    SourcePath sourcePath=entry.getValue();
+    NdkCxxPlatforms.TargetCpuType targetCpuType=entry.getKey().getFirst();
+    NdkCxxPlatform platform=Preconditions.checkNotNull(nativePlatforms.get(targetCpuType));
+    String sharedLibrarySoName=entry.getKey().getSecond();
+    BuildTarget targetForStripRule=BuildTarget.builder(originalBuildTarget).addFlavors(ImmutableFlavor.of("strip")).addFlavors(ImmutableFlavor.of(sharedLibrarySoName)).addFlavors(ImmutableFlavor.of(targetCpuType.name())).build();
+    Optional<BuildRule> previouslyCreated=ruleResolver.getRuleOptional(targetForStripRule);
+    StripLinkable stripLinkable;
+    if (previouslyCreated.isPresent()) {
+      stripLinkable=(StripLinkable)previouslyCreated.get();
+    }
+ else {
+      BuildRuleParams paramsForStripLinkable=buildRuleParams.copyWithChanges(targetForStripRule,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(ImmutableList.of(sourcePath))).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+      stripLinkable=new StripLinkable(paramsForStripLinkable,pathResolver,platform.getCxxPlatform().getStrip(),sourcePath,sharedLibrarySoName);
+      ruleResolver.addToIndex(stripLinkable);
+    }
+    result.put(stripLinkable,StrippedObjectDescription.builder().setSourcePath(SourcePaths.getToBuildTargetSourcePath().apply(stripLinkable)).setStrippedObjectName(sharedLibrarySoName).setTargetCpuType(targetCpuType).build());
+  }
+  return result.build();
+}
