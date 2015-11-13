@@ -1,9 +1,52 @@
 {
   ImmutableList.Builder<String> args=ImmutableList.builder();
   args.add("java");
-  junitJVMArgs.formatCommandLineArgsToList(args,filesystem,context.getVerbosity(),context.getDefaultTestTimeoutMillis());
-  if (junitJVMArgs.isDebugEnabled()) {
+  if (tmpDirectory.isPresent()) {
+    args.add(String.format("-Djava.io.tmpdir=%s",filesystem.resolve(tmpDirectory.get())));
+  }
+  args.add(String.format("-Dbuck.testrunner_classes=%s",testRunnerClasspath));
+  if (isCodeCoverageEnabled) {
+    args.add(String.format("-javaagent:%s=destfile=%s/%s,append=true",PATH_TO_JACOCO_AGENT_JAR,JACOCO_OUTPUT_DIR,JACOCO_EXEC_COVERAGE_FILE));
+  }
+  if (pathToJavaAgent.isPresent()) {
+    args.add(String.format("-agentpath:%s",pathToJavaAgent.get()));
+  }
+  args.add(String.format("-D%s=%s",BUILD_ID_PROPERTY,buildId));
+  args.add(String.format("-D%s=%s",MODULE_BASE_PATH_PROPERTY,modulePath));
+  if (stdOutLogLevel.isPresent()) {
+    args.add(String.format("-D%s=%s",STD_OUT_LOG_LEVEL_PROPERTY,stdOutLogLevel.get()));
+  }
+  if (stdErrLogLevel.isPresent()) {
+    args.add(String.format("-D%s=%s",STD_ERR_LOG_LEVEL_PROPERTY,stdErrLogLevel.get()));
+  }
+  if (isDebugEnabled) {
+    args.add("-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005");
     warnUser(context,"Debugging. Suspending JVM. Connect a JDWP debugger to port 5005 to proceed.");
+  }
+  args.addAll(vmArgs);
+  if (context.getVerbosity().shouldUseVerbosityFlagIfAvailable()) {
+    args.add("-verbose");
+  }
+  args.add("-classpath").add(Joiner.on(File.pathSeparator).join(FluentIterable.from(classpathEntries).append(testRunnerClasspath.toString())));
+  args.add(FileClassPathRunner.class.getName());
+  args.add(type.getDefaultTestRunner());
+  if (directoryForTestResults.isPresent()) {
+    args.add("--output",directoryForTestResults.get().toString());
+  }
+  long timeout=isDebugEnabled ? 0 : context.getDefaultTestTimeoutMillis();
+  args.add("--default-test-timeout",String.valueOf(timeout));
+  StringBuilder selectorsArgBuilder=new StringBuilder();
+  if (!testSelectorList.isEmpty()) {
+    for (    String rawSelector : this.testSelectorList.getRawSelectors()) {
+      selectorsArgBuilder.append(rawSelector).append("\n");
+    }
+    args.add("--test-selectors",selectorsArgBuilder.toString());
+  }
+  if (isDryRun) {
+    args.add("--dry-run");
+  }
+  for (  String testClassName : testClassNames) {
+    args.add(testClassName);
   }
   return args.build();
 }
