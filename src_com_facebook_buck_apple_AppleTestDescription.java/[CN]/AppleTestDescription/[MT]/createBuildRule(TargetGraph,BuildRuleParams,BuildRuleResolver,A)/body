@@ -32,8 +32,9 @@
     AppleBundleDescription.Arg testHostAppDescription=(AppleBundleDescription.Arg)testHostAppNode.getConstructorArg();
     testHostApp=Optional.of(appleBundleDescription.createBuildRule(targetGraph,params.copyWithChanges(BuildTarget.builder(args.testHostApp.get()).addAllFlavors(nonLibraryFlavors).build(),Suppliers.ofInstance(BuildRules.toBuildRulesFor(args.testHostApp.get(),resolver,testHostAppNode.getDeclaredDeps())),Suppliers.ofInstance(BuildRules.toBuildRulesFor(args.testHostApp.get(),resolver,testHostAppNode.getExtraDeps()))),resolver,testHostAppDescription));
     testHostAppBinarySourcePath=Optional.<SourcePath>of(new BuildTargetSourcePath(testHostAppDescription.binary));
-    Pair<MutableDirectedGraph<BuildRule>,Map<BuildTarget,Linker.LinkableDepType>> transitiveDependencies=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,testHostApp.get().getBinary().get().getDeps(),Linker.LinkableDepType.STATIC,Predicates.alwaysTrue());
-    blacklist=FluentIterable.from(transitiveDependencies.getFirst().getNodes()).transform(HasBuildTarget.TO_TARGET).toSet();
+    ImmutableMap<BuildTarget,NativeLinkable> roots=NativeLinkables.getNativeLinkableRoots(testHostApp.get().getBinary().get().getDeps(),Predicates.alwaysTrue());
+    ImmutableMap<BuildTarget,NativeLinkable> nativeLinkables=NativeLinkables.getTransitiveNativeLinkables(cxxPlatform,roots.values());
+    blacklist=ImmutableSet.copyOf(nativeLinkables.keySet());
   }
  else {
     testHostApp=Optional.absent();

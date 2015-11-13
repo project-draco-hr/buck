@@ -1,0 +1,33 @@
+{
+  final Map<BuildTarget,NativeLinkable> nativeLinkables=Maps.newHashMap();
+  for (  NativeLinkable nativeLinkable : inputs) {
+    nativeLinkables.put(nativeLinkable.getBuildTarget(),nativeLinkable);
+  }
+  final MutableDirectedGraph<BuildTarget> graph=new MutableDirectedGraph<>();
+  AbstractBreadthFirstTraversal<BuildTarget> visitor=new AbstractBreadthFirstTraversal<BuildTarget>(nativeLinkables.keySet()){
+    @Override public ImmutableSet<BuildTarget> visit(    BuildTarget target){
+      NativeLinkable nativeLinkable=Preconditions.checkNotNull(nativeLinkables.get(target));
+      graph.addNode(target);
+      Iterable<? extends NativeLinkable> nativeLinkableDeps=nativeLinkable.getNativeLinkableExportedDeps(cxxPlatform);
+      if (linkStyle != Linker.LinkableDepType.SHARED || nativeLinkable.getPreferredLinkage(cxxPlatform) == NativeLinkable.Linkage.STATIC) {
+        nativeLinkableDeps=Iterables.concat(nativeLinkableDeps,nativeLinkable.getNativeLinkableDeps(cxxPlatform));
+      }
+      ImmutableSet.Builder<BuildTarget> deps=ImmutableSet.builder();
+      for (      NativeLinkable dep : nativeLinkableDeps) {
+        BuildTarget depTarget=dep.getBuildTarget();
+        graph.addEdge(target,depTarget);
+        deps.add(depTarget);
+        nativeLinkables.put(depTarget,dep);
+      }
+      return deps.build();
+    }
+  }
+;
+  visitor.start();
+  Iterable<BuildTarget> ordered=TopologicalSort.sort(graph,Predicates.<BuildTarget>alwaysTrue()).reverse();
+  ImmutableMap.Builder<BuildTarget,NativeLinkable> result=ImmutableMap.builder();
+  for (  BuildTarget target : ordered) {
+    result.put(target,nativeLinkables.get(target));
+  }
+  return result.build();
+}

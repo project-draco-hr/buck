@@ -1,15 +1,14 @@
 {
-  Pair<MutableDirectedGraph<BuildRule>,Map<BuildTarget,Linker.LinkableDepType>> result=getTransitiveNativeLinkableInput(cxxPlatform,inputs,depType,traverse);
-  ImmutableList<BuildRule> sorted=TopologicalSort.sort(result.getFirst(),Predicates.<BuildRule>alwaysTrue());
-  List<NativeLinkableInput> nativeLinkableInputs=Lists.newArrayList();
-  for (  BuildRule buildRule : reverse ? sorted.reverse() : sorted) {
-    if (buildRule instanceof NativeLinkable) {
-      Linker.LinkableDepType type=result.getSecond().get(buildRule.getBuildTarget());
-      if (type != null && !blacklist.contains(buildRule.getBuildTarget())) {
-        NativeLinkable linkable=(NativeLinkable)buildRule;
-        nativeLinkableInputs.add(linkable.getNativeLinkableInput(targetGraph,cxxPlatform,type));
-      }
+  ImmutableMap<BuildTarget,NativeLinkable> roots=getNativeLinkableRoots(inputs,traverse);
+  ImmutableMap<BuildTarget,NativeLinkable> nativeLinkables=getNativeLinkables(cxxPlatform,roots.values(),depType);
+  List<NativeLinkable> filtered=Lists.newArrayListWithExpectedSize(nativeLinkables.size());
+  for (  Map.Entry<BuildTarget,NativeLinkable> entry : nativeLinkables.entrySet()) {
+    if (!blacklist.contains(entry.getKey())) {
+      filtered.add(entry.getValue());
     }
   }
-  return NativeLinkableInput.concat(nativeLinkableInputs);
+  if (!reverse) {
+    Collections.reverse(filtered);
+  }
+  return NativeLinkableInput.concat(FluentIterable.from(filtered).transform(getNativeLinkableInputFunction(targetGraph,cxxPlatform,depType)));
 }
