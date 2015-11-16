@@ -1,13 +1,14 @@
 {
   ProjectFilesystem projectFilesystem=new FakeProjectFilesystem();
   ExecutionContext context=TestExecutionContext.newInstance();
+  ImmutableMap<String,String> compilerEnvironment=ImmutableMap.<String,String>of();
   ImmutableList<String> compilerPrefix=ImmutableList.of("compiler","--allow-64-bit");
   Path outputDir=Paths.get("output-dir");
   Path input=Paths.get("test.thrift");
   String language="cpp";
   ImmutableSet<String> options=ImmutableSet.of("templates");
   ImmutableList<Path> includes=ImmutableList.of(Paths.get("blah-dir"));
-  ThriftCompilerStep thriftCompilerStep=new ThriftCompilerStep(projectFilesystem.getRootPath(),compilerPrefix,outputDir,input,language,options,includes);
+  ThriftCompilerStep thriftCompilerStep=new ThriftCompilerStep(projectFilesystem.getRootPath(),compilerEnvironment,compilerPrefix,outputDir,input,language,options,includes);
   ImmutableList<String> expected=ImmutableList.<String>builder().addAll(compilerPrefix).add("--gen",String.format("%s:%s",language,Joiner.on(',').join(options))).addAll(MoreIterables.zipAndConcat(Iterables.cycle("-I"),Iterables.transform(includes,Functions.toStringFunction()))).add("-o",outputDir.toString()).add(input.toString()).build();
   ImmutableList<String> actual=thriftCompilerStep.getShellCommand(context);
   assertEquals(expected,actual);
