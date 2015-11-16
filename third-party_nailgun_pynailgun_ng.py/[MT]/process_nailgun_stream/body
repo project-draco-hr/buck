@@ -1,0 +1,14 @@
+def process_nailgun_stream(nailgun_connection):
+    '\n    Processes a single chunk from the nailgun server.\n    '
+    recv_to_buffer(len(nailgun_connection.header_buf), nailgun_connection.header_buf, nailgun_connection)
+    (chunk_len, chunk_type) = struct.unpack_from('>ic', nailgun_connection.header_buf.raw)
+    if (chunk_type == CHUNKTYPE_STDOUT):
+        recv_to_fd(nailgun_connection.stdout, chunk_len, nailgun_connection)
+    elif (chunk_type == CHUNKTYPE_STDERR):
+        recv_to_fd(nailgun_connection.stderr, chunk_len, nailgun_connection)
+    elif (chunk_type == CHUNKTYPE_EXIT):
+        process_exit(chunk_len, nailgun_connection)
+    elif (chunk_type == CHUNKTYPE_SENDINPUT):
+        nailgun_connection.ready_to_send = True
+    else:
+        raise NailgunException('Unexpected chunk type: {0}'.format(chunk_type), NailgunException.UNEXPECTED_CHUNKTYPE)

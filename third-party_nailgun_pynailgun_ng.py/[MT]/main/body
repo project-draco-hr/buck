@@ -1,0 +1,27 @@
+def main():
+    '\n    Main entry point to the nailgun client.\n    '
+    default_nailgun_server = os.environ.get('NAILGUN_SERVER', '127.0.0.1')
+    default_nailgun_port = int(os.environ.get('NAILGUN_PORT', NAILGUN_PORT_DEFAULT))
+    parser = optparse.OptionParser(usage='%prog [options] cmd arg1 arg2 ...')
+    parser.add_option('--nailgun-server', default=default_nailgun_server)
+    parser.add_option('--nailgun-port', type='int', default=default_nailgun_port)
+    parser.add_option('--nailgun-filearg')
+    parser.add_option('--nailgun-showversion', action='store_true')
+    parser.add_option('--nailgun-help', action='help')
+    (options, args) = parser.parse_args()
+    if options.nailgun_showversion:
+        print ('NailGun client version ' + NAILGUN_VERSION)
+    if len(args):
+        cmd = args.pop(0)
+    else:
+        cmd = os.path.basename(sys.argv[0])
+    cmd_args = args
+    try:
+        with NailgunConnection(nailgun_server=options.nailgun_server, nailgun_port=options.nailgun_port) as c:
+            exit_code = c.send_command(cmd, cmd_args, options.nailgun_filearg)
+            sys.exit(exit_code)
+    except NailgunException as e:
+        print  >> sys.stderr, str(e)
+        sys.exit(e.code)
+    except KeyboardInterrupt as e:
+        pass

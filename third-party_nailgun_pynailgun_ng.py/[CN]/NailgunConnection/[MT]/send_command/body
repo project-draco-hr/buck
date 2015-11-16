@@ -1,0 +1,18 @@
+def send_command(self, cmd, cmd_args=[], filearg=None, env=os.environ, cwd=os.getcwd()):
+    '\n        Sends the command and environment to the nailgun server.\n        '
+    if filearg:
+        send_file_arg(filearg, self)
+    for cmd_arg in cmd_args:
+        send_chunk(cmd_arg, CHUNKTYPE_ARG, self)
+    send_env_var('NAILGUN_FILESEPARATOR', os.sep, self)
+    send_env_var('NAILGUN_PATHSEPARATOR', os.pathsep, self)
+    send_tty_format(self.stdin, self)
+    send_tty_format(self.stdout, self)
+    send_tty_format(self.stderr, self)
+    for (k, v) in env.iteritems():
+        send_env_var(k, v, self)
+    send_chunk(cwd, CHUNKTYPE_DIR, self)
+    send_chunk(cmd, CHUNKTYPE_CMD, self)
+    while (self.exit_code is None):
+        self._process_next_chunk()
+    return self.exit_code

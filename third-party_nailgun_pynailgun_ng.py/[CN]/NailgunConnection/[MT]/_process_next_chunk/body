@@ -1,0 +1,17 @@
+def _process_next_chunk(self):
+    '\n        Processes the next chunk from the nailgun server.\n        '
+    select_list = set([self.socket])
+    if (self.ready_to_send and (not self.stdin_eof)):
+        select_list.add(sys.stdin)
+    (readable, _, exceptional) = select.select(select_list, [], select_list, HEARTBEAT_TIMEOUT_SECS)
+    for r in readable:
+        if (r is self.socket):
+            process_nailgun_stream(self)
+        elif (r is sys.stdin):
+            if (not process_stdin(self)):
+                self.stdin_eof = True
+    now = monotonic_time_nanos()
+    if ((now - self.sendtime_nanos) > HEARTBEAT_TIMEOUT_NANOS):
+        send_heartbeat(self)
+    if (self.socket in exceptional):
+        raise NailgunException('Server disconnected in select', NailgunException.CONNECTION_BROKEN)
