@@ -1,0 +1,25 @@
+{
+  tempDir.create();
+  Path root=tempDir.getRootPath();
+  Files.createDirectories(root);
+  filesystem=new ProjectFilesystem(root);
+  Path fbJavaRoot=root.resolve(root.resolve("java/com/facebook"));
+  Files.createDirectories(fbJavaRoot);
+  for (int i=0; i < targetCount; i++) {
+    Path targetRoot=fbJavaRoot.resolve(String.format("target_%d",i));
+    Files.createDirectories(targetRoot);
+    Path buckFile=targetRoot.resolve("BUCK");
+    Files.createFile(buckFile);
+    Files.write(buckFile,("java_library(name = 'foo', srcs = ['A.java'])\n" + "genrule(name = 'baz', out = '')\n").getBytes("UTF-8"));
+    Path javaFile=targetRoot.resolve("A.java");
+    Files.createFile(javaFile);
+    Files.write(javaFile,String.format("package com.facebook.target_%d; class A {}",i).getBytes("UTF-8"));
+  }
+  BuckConfig config=FakeBuckConfig.builder().setFilesystem(filesystem).build();
+  cell=new TestCellBuilder().setFilesystem(filesystem).setBuckConfig(config).build();
+  eventBus=BuckEventBusFactory.newInstance();
+  parser=new ParserNg();
+  legacyParser=Parser.createBuildFileParser(cell,ParserConfig.AllowSymlinks.FORBID);
+  legacyParserConfig=new ParserConfig(config);
+  console=new TestConsole();
+}
