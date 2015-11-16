@@ -23,19 +23,14 @@ def launch_buck(self, build_id):
             print('Not using buckd because NO_BUCKD is set.', file=sys.stderr)
         env = self._environ_for_buck()
         env['BUCK_BUILD_ID'] = build_id
-        buck_client_file = self._get_resource(CLIENT)
         buck_socket_path = self._buck_project.get_buckd_socket_path()
-        if (use_buckd and self._is_buckd_running() and os.path.exists(buck_client_file) and os.path.exists(buck_socket_path)):
-            command = [buck_client_file]
-            command.append('--nailgun-server')
-            command.append('local:.buckd/sock')
-            command.append('com.facebook.buck.cli.Main')
-            command.extend(sys.argv[1:])
-            with Tracing('buck', args={'command': command, }):
-                exit_code = subprocess.call(command, cwd=self._buck_project.root, env=env)
-                if (exit_code == 2):
-                    print('Daemon is busy, please wait', 'or run "buck kill" to terminate it.', file=sys.stderr)
-                return exit_code
+        if (use_buckd and self._is_buckd_running() and os.path.exists(buck_socket_path)):
+            with Tracing('buck', args={'command': sys.argv[1:], }):
+                with NailgunConnection('local:.buckd/sock') as c:
+                    exit_code = c.send_command('com.facebook.buck.cli.Main', sys.argv[1:], env=env, cwd=self._buck_project.root)
+                    if (exit_code == 2):
+                        print('Daemon is busy, please wait', 'or run "buck kill" to terminate it.', file=sys.stderr)
+                    return exit_code
         command = ['buck']
         extra_default_options = ['-Djava.io.tmpdir={0}'.format(self._tmp_dir)]
         command.extend(self._get_java_args(buck_version_uid, extra_default_options))

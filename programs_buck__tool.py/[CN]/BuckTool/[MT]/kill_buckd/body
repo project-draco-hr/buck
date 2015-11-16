@@ -3,15 +3,10 @@ def kill_buckd(self):
         buckd_socket_path = self._buck_project.get_buckd_socket_path()
         if os.path.exists(buckd_socket_path):
             print('Shutting down nailgun server...', file=sys.stderr)
-            buck_client_file = self._get_resource(CLIENT)
-            command = [buck_client_file]
-            command.append('ng-stop')
-            command.append('--nailgun-server')
-            command.append('local:.buckd/sock')
             try:
-                check_output(command, cwd=self._buck_project.root, stderr=subprocess.STDOUT)
-            except CalledProcessError as e:
-                if (e.returncode not in [NAILGUN_CONNECTION_REFUSED_CODE, NAILGUN_CONNECTION_BROKEN_CODE, NAILGUN_UNEXPECTED_CHUNK_TYPE]):
-                    print(e.output, end='', file=sys.stderr)
-                    raise
+                with NailgunConnection('local:.buckd/sock') as c:
+                    c.send_command('ng-stop')
+            except NailgunException as e:
+                if (e.code not in (NailgunException.CONNECT_FAILED, NailgunException.CONNECTION_BROKEN, NailgunException.UNEXPECTED_CHUNKTYPE)):
+                    raise BuckToolException(('Unexpected error shutting down nailgun server: ' + str(e)))
         self._buck_project.clean_up_buckd()
