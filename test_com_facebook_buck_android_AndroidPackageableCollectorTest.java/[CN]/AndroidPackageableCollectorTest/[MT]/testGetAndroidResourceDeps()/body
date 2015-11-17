@@ -1,17 +1,17 @@
 {
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
   SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
-  BuildRule c=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(pathResolver).setBuildTarget(BuildTargetFactory.newInstance("//:c")).setRes(new TestSourcePath("res_c")).setRDotJavaPackage("com.facebook").build());
-  BuildRule b=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(pathResolver).setBuildTarget(BuildTargetFactory.newInstance("//:b")).setRes(new TestSourcePath("res_b")).setRDotJavaPackage("com.facebook").setDeps(ImmutableSortedSet.of(c)).build());
-  BuildRule d=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(pathResolver).setBuildTarget(BuildTargetFactory.newInstance("//:d")).setRes(new TestSourcePath("res_d")).setRDotJavaPackage("com.facebook").setDeps(ImmutableSortedSet.of(c)).build());
-  AndroidResource a=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(pathResolver).setBuildTarget(BuildTargetFactory.newInstance("//:a")).setRes(new TestSourcePath("res_a")).setRDotJavaPackage("com.facebook").setDeps(ImmutableSortedSet.of(b,c,d)).build());
+  BuildRule c=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(pathResolver).setBuildTarget(BuildTargetFactory.newInstance("//:c")).setRes(new FakeSourcePath("res_c")).setRDotJavaPackage("com.facebook").build());
+  BuildRule b=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(pathResolver).setBuildTarget(BuildTargetFactory.newInstance("//:b")).setRes(new FakeSourcePath("res_b")).setRDotJavaPackage("com.facebook").setDeps(ImmutableSortedSet.of(c)).build());
+  BuildRule d=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(pathResolver).setBuildTarget(BuildTargetFactory.newInstance("//:d")).setRes(new FakeSourcePath("res_d")).setRDotJavaPackage("com.facebook").setDeps(ImmutableSortedSet.of(c)).build());
+  AndroidResource a=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(pathResolver).setBuildTarget(BuildTargetFactory.newInstance("//:a")).setRes(new FakeSourcePath("res_a")).setRDotJavaPackage("com.facebook").setDeps(ImmutableSortedSet.of(b,c,d)).build());
   AndroidPackageableCollector collector=new AndroidPackageableCollector(a.getBuildTarget());
   collector.addPackageables(ImmutableList.<AndroidPackageable>of(a));
   ImmutableList<BuildTarget> result=FluentIterable.from(ImmutableList.of(a,d,b,c)).transform(BuildTarget.TO_TARGET).toList();
   assertEquals("Android resources should be topologically sorted.",result,collector.build().getResourceDetails().getResourcesWithNonEmptyResDir());
   BuildTarget keystoreTarget=BuildTargetFactory.newInstance("//keystore:debug");
-  KeystoreBuilder.createBuilder(keystoreTarget).setStore(new TestSourcePath("keystore/debug.keystore")).setProperties(new TestSourcePath("keystore/debug.keystore.properties")).build(ruleResolver);
+  KeystoreBuilder.createBuilder(keystoreTarget).setStore(new FakeSourcePath("keystore/debug.keystore")).setProperties(new FakeSourcePath("keystore/debug.keystore.properties")).build(ruleResolver);
   ImmutableSortedSet<BuildTarget> declaredDepsTargets=ImmutableSortedSet.of(a.getBuildTarget(),c.getBuildTarget());
-  AndroidBinary androidBinary=(AndroidBinary)AndroidBinaryBuilder.createBuilder(BuildTargetFactory.newInstance("//:e")).setManifest(new TestSourcePath("AndroidManfiest.xml")).setKeystore(keystoreTarget).setOriginalDeps(declaredDepsTargets).build(ruleResolver);
+  AndroidBinary androidBinary=(AndroidBinary)AndroidBinaryBuilder.createBuilder(BuildTargetFactory.newInstance("//:e")).setManifest(new FakeSourcePath("AndroidManfiest.xml")).setKeystore(keystoreTarget).setOriginalDeps(declaredDepsTargets).build(ruleResolver);
   assertEquals("Android resources should be topologically sorted.",result,androidBinary.getAndroidPackageableCollection().getResourceDetails().getResourcesWithNonEmptyResDir());
 }
