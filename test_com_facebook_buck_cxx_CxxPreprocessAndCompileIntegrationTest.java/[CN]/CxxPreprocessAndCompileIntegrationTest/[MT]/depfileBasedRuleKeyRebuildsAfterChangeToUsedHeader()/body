@@ -1,15 +1,15 @@
 {
   CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(new CxxBuckConfig(FakeBuckConfig.builder().build()));
-  BuildTarget target=BuildTargetFactory.newInstance("//:binary_with_unused_header");
-  String unusedHeaderName="unused_header.h";
-  String sourceName="source.cpp";
+  BuildTarget target=BuildTargetFactory.newInstance("//:binary_with_used_full_header");
+  String usedHeaderName="source_full_header.h";
+  String sourceName="source_full_header.cpp";
   BuildTarget preprocessTarget=getPreprocessTarget(cxxPlatform,target,sourceName,AbstractCxxSource.Type.CXX);
   workspace.runBuckBuild("--config","build.depfiles=true",target.toString()).assertSuccess();
   BuckBuildLog.BuildLogEntry firstRunEntry=workspace.getBuildLog().getLogEntry(preprocessTarget);
   assertThat(firstRunEntry.getSuccessType(),equalTo(Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)));
-  workspace.writeContentsToPath("static inline int newFunction() { return 20; }",unusedHeaderName);
+  workspace.writeContentsToPath("static inline int newFunction() { return 20; }",usedHeaderName);
   workspace.runBuckBuild("--config","build.depfiles=true",target.toString()).assertSuccess();
   BuckBuildLog.BuildLogEntry secondRunEntry=workspace.getBuildLog().getLogEntry(preprocessTarget);
-  assertThat(secondRunEntry.getSuccessType(),equalTo(Optional.of(BuildRuleSuccessType.MATCHING_DEP_FILE_RULE_KEY)));
+  assertThat(secondRunEntry.getSuccessType(),equalTo(Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)));
   assertThat(secondRunEntry.getRuleKey(),Matchers.not(equalTo(firstRunEntry.getRuleKey())));
 }
