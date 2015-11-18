@@ -5,20 +5,33 @@
  * meta-data such as timestamps, UIDs, and GIDs.
  */
     @SuppressWarnings("PMD.AvoidUsingOctalValues") @Override public void scrubFile(    FileChannel file) throws IOException, ScrubException {
-      MappedByteBuffer map=file.map(FileChannel.MapMode.READ_WRITE,0,file.size());
       try {
-        byte[] globalHeader=getBytes(map,expectedGlobalHeader.length);
+        ByteBuffer header=ByteBuffer.allocate(expectedGlobalHeader.length);
+        file.read(header,0);
+        header.position(0);
+        byte[] globalHeader=getBytes(header,expectedGlobalHeader.length);
         checkArchive(Arrays.equals(expectedGlobalHeader,globalHeader),"invalid global header");
-        while (map.hasRemaining()) {
-          getBytes(map,16);
-          putIntAsDecimalString(map,12,0);
-          putIntAsDecimalString(map,6,0);
-          putIntAsDecimalString(map,6,0);
-          putIntAsOctalString(map,8,0100644);
-          int fileSize=getDecimalStringAsInt(map,10);
-          byte[] fileMagic=getBytes(map,2);
+        final int entrySize=16 + 12 + 6+ 6+ 8+ 10+ 2;
+        int start=expectedGlobalHeader.length;
+        ByteBuffer buffer=ByteBuffer.allocate(entrySize);
+        while (start < file.size()) {
+          checkArchive(file.size() - start >= entrySize,"Invalid entry metadata format");
+          buffer.clear();
+          int read=file.read(buffer,start);
+          checkArchive(read == entrySize,"Not all bytes have been read");
+          buffer.position(0);
+          getBytes(buffer,16);
+          putIntAsDecimalString(buffer,12,0);
+          putIntAsDecimalString(buffer,6,0);
+          putIntAsDecimalString(buffer,6,0);
+          putIntAsOctalString(buffer,8,0100644);
+          int fileSize=getDecimalStringAsInt(buffer,10);
+          byte[] fileMagic=getBytes(buffer,2);
           checkArchive(Arrays.equals(END_OF_FILE_HEADER_MARKER,fileMagic),"invalid file magic");
-          map.position(map.position() + fileSize + fileSize % 2);
+          buffer.position(0);
+          int written=file.write(buffer,start);
+          checkArchive(written == entrySize,"Not all bytes have been written");
+          start+=entrySize + fileSize + fileSize % 2;
         }
       }
  catch (      BufferUnderflowException|ReadOnlyBufferException e) {
