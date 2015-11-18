@@ -1,0 +1,12 @@
+{
+  TestResultFormatter formatter=createFormatterWithMaxLogLines(3);
+  TestCaseSummary summary=new TestCaseSummary("com.example.FooTest",ImmutableList.of(failingTest));
+  FileSystem vfs=Jimfs.newFileSystem(Configuration.unix());
+  Path logPath=vfs.getPath("log.txt");
+  Files.write(logPath,ImmutableList.of("This log won't appear","This one will","Another one","Should be last"),StandardCharsets.UTF_8);
+  TestResults results=TestResults.builder().setBuildTarget(BuildTargetFactory.newInstance("//foo:bar")).setTestCases(ImmutableList.of(summary)).setTestLogPath(logPath).build();
+  ImmutableList.Builder<String> builder=ImmutableList.builder();
+  formatter.reportResult(builder,results);
+  String expected=String.format(Joiner.on('\n').join("FAIL     200ms  0 Passed   0 Skipped   1 Failed   com.example.FooTest","FAILURE %s %s: %s","%s","====TEST LOGS====","Last 3 test log lines from log.txt:","This one will","Another one","Should be last"),failingTest.getTestCaseName(),failingTest.getTestName(),failingTest.getMessage(),stackTrace);
+  assertEquals(expected,toString(builder));
+}
