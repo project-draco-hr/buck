@@ -1,8 +1,10 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
   DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,resolver);
   BuildRuleParams buildRuleParams=new FakeBuildRuleParamsBuilder(BUILD_TARGET).setProjectFilesystem(filesystem).build();
-  FakeBuildRule buildRule=new FakeBuildRule(buildRuleParams,new SourcePathResolver(new BuildRuleResolver()));
+  FakeBuildRule buildRule=new FakeBuildRule(buildRuleParams,resolver);
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   FakeBuckEventListener listener=new FakeBuckEventListener();
   buckEventBus.register(listener);
@@ -27,10 +29,10 @@
   List<BuckEvent> events=listener.getEvents();
   assertThat(events,Matchers.hasSize(6));
   Iterator<BuckEvent> eventIter=events.iterator();
-  assertEquals(configureTestEvent(BuildRuleEvent.started(buildRule),buckEventBus).getEventName(),eventIter.next().getEventName());
-  assertEquals(configureTestEvent(BuildRuleEvent.suspended(buildRule),buckEventBus).getEventName(),eventIter.next().getEventName());
-  assertEquals(configureTestEvent(BuildRuleEvent.resumed(buildRule),buckEventBus).getEventName(),eventIter.next().getEventName());
-  assertEquals(configureTestEvent(BuildRuleEvent.suspended(buildRule),buckEventBus).getEventName(),eventIter.next().getEventName());
-  assertEquals(configureTestEvent(BuildRuleEvent.resumed(buildRule),buckEventBus).getEventName(),eventIter.next().getEventName());
-  assertEquals(configureTestEvent(BuildRuleEvent.finished(buildRule,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()),buckEventBus).getEventName(),eventIter.next().getEventName());
+  assertEquals(configureTestEvent(BuildRuleEvent.started(buildRule,ruleKeyBuilderFactory),buckEventBus).getEventName(),eventIter.next().getEventName());
+  assertEquals(configureTestEvent(BuildRuleEvent.suspended(buildRule,ruleKeyBuilderFactory),buckEventBus).getEventName(),eventIter.next().getEventName());
+  assertEquals(configureTestEvent(BuildRuleEvent.resumed(buildRule,ruleKeyBuilderFactory),buckEventBus).getEventName(),eventIter.next().getEventName());
+  assertEquals(configureTestEvent(BuildRuleEvent.suspended(buildRule,ruleKeyBuilderFactory),buckEventBus).getEventName(),eventIter.next().getEventName());
+  assertEquals(configureTestEvent(BuildRuleEvent.resumed(buildRule,ruleKeyBuilderFactory),buckEventBus).getEventName(),eventIter.next().getEventName());
+  assertEquals(configureTestEvent(BuildRuleEvent.finished(buildRule,ruleKeyBuilderFactory,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()),buckEventBus).getEventName(),eventIter.next().getEventName());
 }

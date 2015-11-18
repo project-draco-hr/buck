@@ -6,11 +6,10 @@
   FakeBuildRule dep=resolver.addToIndex(new FakeBuildRule(BuildTargetFactory.newInstance("//:dep"),filesystem,pathResolver));
   dep.setOutputFile(depOutput.toString());
   filesystem.writeContentsToPath("hello",dep.getPathToOutput());
-  DefaultFileHashCache hashCache=new DefaultFileHashCache(filesystem);
+  FakeFileHashCache hashCache=new FakeFileHashCache(ImmutableMap.of(filesystem.resolve(depOutput),HashCode.fromInt(0)));
+  DefaultRuleKeyBuilderFactory defaultRuleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(hashCache,pathResolver);
   BuildRule rule=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:rule")).setOut("out").setSrcs(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(dep.getBuildTarget()))).build(resolver,filesystem);
-  dep.setRuleKey(new RuleKey("aaaa"));
-  RuleKey inputKey1=new InputBasedRuleKeyBuilderFactory(hashCache,pathResolver).build(rule);
-  dep.setRuleKey(new RuleKey("bbbb"));
-  RuleKey inputKey2=new InputBasedRuleKeyBuilderFactory(hashCache,pathResolver).build(rule);
+  RuleKey inputKey1=new InputBasedRuleKeyBuilderFactory(hashCache,pathResolver,defaultRuleKeyBuilderFactory).build(rule);
+  RuleKey inputKey2=new InputBasedRuleKeyBuilderFactory(hashCache,pathResolver,defaultRuleKeyBuilderFactory).build(rule);
   assertThat(inputKey1,Matchers.equalTo(inputKey2));
 }

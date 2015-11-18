@@ -10,15 +10,19 @@
   filesystem.writeContentsToPath("stuff",javaLibrary.getPathToOutput());
   BuildTarget target=BuildTargetFactory.newInstance("//:library-abi");
   CalculateAbi calculateAbi=CalculateAbi.of(target,pathResolver,builder.createBuildRuleParams(resolver,filesystem),new BuildTargetSourcePath(javaLibraryTarget));
-  RuleKey initialKey=new DefaultRuleKeyBuilderFactory(new DefaultFileHashCache(filesystem),pathResolver).build(calculateAbi);
-  RuleKey initialInputKey=new InputBasedRuleKeyBuilderFactory(new DefaultFileHashCache(filesystem),pathResolver).build(calculateAbi);
+  DefaultFileHashCache initialHashCache=new DefaultFileHashCache(filesystem);
+  DefaultRuleKeyBuilderFactory initialRuleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(initialHashCache,pathResolver);
+  RuleKey initialKey=initialRuleKeyBuilderFactory.build(calculateAbi);
+  RuleKey initialInputKey=new InputBasedRuleKeyBuilderFactory(initialHashCache,pathResolver,initialRuleKeyBuilderFactory).build(calculateAbi);
   filesystem.writeContentsToPath("new stuff",input);
   filesystem.writeContentsToPath("new stuff",javaLibrary.getPathToOutput());
   resolver=new BuildRuleResolver();
   pathResolver=new SourcePathResolver(resolver);
   builder.build(resolver,filesystem);
-  RuleKey alteredKey=new DefaultRuleKeyBuilderFactory(new DefaultFileHashCache(filesystem),pathResolver).build(calculateAbi);
-  RuleKey alteredInputKey=new InputBasedRuleKeyBuilderFactory(new DefaultFileHashCache(filesystem),pathResolver).build(calculateAbi);
+  DefaultFileHashCache alteredHashCache=new DefaultFileHashCache(filesystem);
+  DefaultRuleKeyBuilderFactory alteredRuleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(alteredHashCache,pathResolver);
+  RuleKey alteredKey=alteredRuleKeyBuilderFactory.build(calculateAbi);
+  RuleKey alteredInputKey=new InputBasedRuleKeyBuilderFactory(alteredHashCache,pathResolver,alteredRuleKeyBuilderFactory).build(calculateAbi);
   assertThat(initialKey,Matchers.not(Matchers.equalTo(alteredKey)));
   assertThat(initialInputKey,Matchers.not(Matchers.equalTo(alteredInputKey)));
 }

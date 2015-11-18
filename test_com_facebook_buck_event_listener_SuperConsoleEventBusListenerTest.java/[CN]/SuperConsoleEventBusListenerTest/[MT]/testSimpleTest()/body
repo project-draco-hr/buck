@@ -8,6 +8,7 @@
   ImmutableSet<BuildTarget> testTargets=ImmutableSet.of(testTarget);
   Iterable<String> testArgs=Iterables.transform(testTargets,Functions.toStringFunction());
   FakeBuildRule testBuildRule=new FakeBuildRule(testTarget,pathResolver,ImmutableSortedSet.<BuildRule>of());
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new FakeRuleKeyBuilderFactory(ImmutableMap.of(testTarget,new RuleKey("aaaa")));
   SuperConsoleEventBusListener listener=new SuperConsoleEventBusListener(console,fakeClock,silentSummaryVerbosity,new DefaultExecutionEnvironment(new FakeProcessExecutor(),ImmutableMap.copyOf(System.getenv()),System.getProperties()),Optional.<WebServer>absent());
   eventBus.register(listener);
   ProjectBuildFileParseEvents.Started parseEventStarted=new ProjectBuildFileParseEvents.Started();
@@ -25,9 +26,9 @@
   rawEventBus.post(configureTestEventAtTime(ActionGraphEvent.finished(ActionGraphEvent.started()),400L,TimeUnit.MILLISECONDS,0L));
   final String parsingLine=formatConsoleTimes("[-] PROCESSING BUCK FILES...FINISHED %s",0.2);
   validateConsole(console,listener,540L,ImmutableList.of(parsingLine,formatConsoleTimes("[+] BUILDING...%s",0.1)));
-  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.started(testBuildRule),600L,TimeUnit.MILLISECONDS,0L));
+  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.started(testBuildRule,ruleKeyBuilderFactory),600L,TimeUnit.MILLISECONDS,0L));
   validateConsole(console,listener,800L,ImmutableList.of(parsingLine,formatConsoleTimes("[+] BUILDING...%s",0.4),formatConsoleTimes(" |=> //:test...  %s (checking local cache)",0.2)));
-  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.finished(testBuildRule,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()),1000L,TimeUnit.MILLISECONDS,0L));
+  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.finished(testBuildRule,ruleKeyBuilderFactory,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()),1000L,TimeUnit.MILLISECONDS,0L));
   rawEventBus.post(configureTestEventAtTime(BuildEvent.finished(buildEventStarted,0),1234L,TimeUnit.MILLISECONDS,0L));
   final String buildingLine=formatConsoleTimes("[-] BUILDING...FINISHED %s",0.8);
   validateConsole(console,listener,1300L,ImmutableList.of(parsingLine,buildingLine));

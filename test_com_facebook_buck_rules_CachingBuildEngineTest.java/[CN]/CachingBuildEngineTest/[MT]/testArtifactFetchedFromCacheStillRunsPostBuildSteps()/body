@@ -1,15 +1,18 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
+  FileHashCache hashCache=new DefaultFileHashCache(filesystem);
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(hashCache,resolver);
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   StepRunner stepRunner=createStepRunner(buckEventBus);
   Step buildStep=createMock(Step.class);
   expect(buildStep.getDescription(anyObject(ExecutionContext.class))).andReturn("Some Description").anyTimes();
   expect(buildStep.getShortName()).andReturn("Some Short Name").anyTimes();
   expect(buildStep.execute(anyObject(ExecutionContext.class))).andReturn(0);
-  BuildRule buildRule=createRule(filesystem,new SourcePathResolver(new BuildRuleResolver()),ImmutableSet.<BuildRule>of(),ImmutableList.<Step>of(),ImmutableList.of(buildStep),null);
+  BuildRule buildRule=createRule(filesystem,resolver,ImmutableSet.<BuildRule>of(),ImmutableList.<Step>of(),ImmutableList.of(buildStep),null);
   ArtifactCache artifactCache=createMock(ArtifactCache.class);
   Map<String,String> desiredZipEntries=ImmutableMap.of("buck-out/gen/src/com/facebook/orca/orca.jar","Imagine this is the contents of a valid JAR file.");
-  expect(artifactCache.fetch(eq(buildRule.getRuleKey()),isA(Path.class))).andDelegateTo(new FakeArtifactCacheThatWritesAZipFile(desiredZipEntries));
+  expect(artifactCache.fetch(eq(ruleKeyBuilderFactory.build(buildRule)),isA(Path.class))).andDelegateTo(new FakeArtifactCacheThatWritesAZipFile(desiredZipEntries));
   DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   BuildContext buildContext=ImmutableBuildContext.builder().setActionGraph(RuleMap.createGraphFromSingleRule(buildRule)).setStepRunner(stepRunner).setClock(new DefaultClock()).setBuildId(new BuildId()).setArtifactCache(artifactCache).setJavaPackageFinder(createMock(JavaPackageFinder.class)).setEventBus(buckEventBus).build();
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(buildRule.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));

@@ -1,7 +1,7 @@
 {
-  context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule));
+  context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule,ruleKeyFactories.defaultRuleKeyBuilderFactory));
   final OnDiskBuildInfo onDiskBuildInfo=context.createOnDiskBuildInfoFor(rule.getBuildTarget(),rule.getProjectFilesystem());
-  final BuildInfoRecorder buildInfoRecorder=context.createBuildInfoRecorder(rule.getBuildTarget(),rule.getProjectFilesystem()).addBuildMetadata(BuildInfo.METADATA_KEY_FOR_RULE_KEY,rule.getRuleKey().toString());
+  final BuildInfoRecorder buildInfoRecorder=context.createBuildInfoRecorder(rule.getBuildTarget(),rule.getProjectFilesystem()).addBuildMetadata(BuildInfo.METADATA_KEY_FOR_RULE_KEY,ruleKeyFactories.defaultRuleKeyBuilderFactory.build(rule).toString());
   final BuildableContext buildableContext=new DefaultBuildableContext(buildInfoRecorder);
   ListenableFuture<BuildResult> buildResult=processBuildRule(rule,context,onDiskBuildInfo,buildInfoRecorder,buildableContext,asyncCallbacks);
   if (buildMode == BuildMode.DEEP || buildMode == BuildMode.POPULATE_FROM_REMOTE_CACHE) {
@@ -71,7 +71,7 @@
     private void uploadToCache(    BuildRuleSuccessType success){
       Set<RuleKey> ruleKeys=Sets.newHashSet();
       if (success.shouldUploadResultingArtifact()) {
-        ruleKeys.add(rule.getRuleKey());
+        ruleKeys.add(ruleKeyFactories.defaultRuleKeyBuilderFactory.build(rule));
       }
       if (rule instanceof SupportsInputBasedRuleKey && success.shouldUploadResultingArtifactInputBased()) {
         ruleKeys.add(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY).get());
@@ -108,7 +108,7 @@
           }
         }
       }
-      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,input.getStatus(),input.getCacheResult(),successType,outputHash,outputSize));
+      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.finished(rule,ruleKeyFactories.defaultRuleKeyBuilderFactory,input.getStatus(),input.getCacheResult(),successType,outputHash,outputSize));
     }
     @Override public void onSuccess(    BuildResult input){
       handleResult(input);

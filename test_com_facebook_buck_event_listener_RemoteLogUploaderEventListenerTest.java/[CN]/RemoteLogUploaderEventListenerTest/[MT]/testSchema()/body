@@ -1,8 +1,11 @@
 {
   singleSchemaTest(CommandEvent.started("cook",ImmutableList.of("--dinner"),true),Matchers.allOf(hasJsonField("type","CommandStarted"),eventShapeMatcher,hasJsonField("args",Arrays.asList("--dinner")),hasJsonField("commandName","cook"),hasJsonField("daemon",true)));
+  ProjectFilesystem projectFilesystem=new FakeProjectFilesystem();
+  FileHashCache fileHashCache=new DefaultFileHashCache(projectFilesystem);
   SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
-  FakeBuildRule buildRule=createFakeBuildRule("//build:rule1",resolver,new RuleKey("aaaa"));
-  FakeBuildRule buildRule2=createFakeBuildRule("//build:rule2",resolver,ImmutableSortedSet.<BuildRule>of(buildRule),new RuleKey("aaaa"));
-  singleSchemaTest(BuildRuleEvent.started(buildRule),Matchers.allOf(hasJsonField("type","BuildRuleStarted"),eventShapeMatcher,hasJsonField("buildRule",Matchers.allOf(hasJsonField("type","fake_build_rule"),hasJsonField("name","//build:rule1")))));
-  singleSchemaTest(BuildRuleEvent.started(buildRule2),Matchers.allOf(hasJsonField("type","BuildRuleStartedAux"),hasJsonField("buildRule",buildRuleShapeMatcher),hasJsonField("buildRule",hasJsonField("name","//build:rule2")),hasJsonField("deps",Matchers.contains(buildRuleShapeMatcher)),hasJsonField("deps",Matchers.contains(hasJsonField("name","//build:rule1")))));
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,resolver);
+  FakeBuildRule buildRule=createFakeBuildRule("//build:rule1",resolver);
+  FakeBuildRule buildRule2=createFakeBuildRule("//build:rule2",resolver,ImmutableSortedSet.<BuildRule>of(buildRule));
+  singleSchemaTest(BuildRuleEvent.started(buildRule,ruleKeyBuilderFactory),Matchers.allOf(hasJsonField("type","BuildRuleStarted"),eventShapeMatcher,hasJsonField("buildRule",Matchers.allOf(hasJsonField("type","fake_build_rule"),hasJsonField("name","//build:rule1")))));
+  singleSchemaTest(BuildRuleEvent.started(buildRule2,ruleKeyBuilderFactory),Matchers.allOf(hasJsonField("type","BuildRuleStartedAux"),hasJsonField("buildRule",buildRuleShapeMatcher),hasJsonField("buildRule",hasJsonField("name","//build:rule2")),hasJsonField("deps",Matchers.contains(buildRuleShapeMatcher)),hasJsonField("deps",Matchers.contains(hasJsonField("name","//build:rule1")))));
 }

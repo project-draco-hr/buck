@@ -2,21 +2,13 @@
   ActionGraphEvent.Started started=ActionGraphEvent.started();
   eventBus.post(started);
   final BuildRuleResolver resolver=new BuildRuleResolver();
-  final LoadingCache<ProjectFilesystem,RuleKeyBuilderFactory> ruleKeyBuilderFactories=CacheBuilder.newBuilder().build(new CacheLoader<ProjectFilesystem,RuleKeyBuilderFactory>(){
-    @Override public RuleKeyBuilderFactory load(    ProjectFilesystem filesystem) throws Exception {
-      StackedFileHashCache cellHashCache=new StackedFileHashCache(ImmutableList.of(fileHashCache,new DefaultFileHashCache(filesystem)));
-      return new DefaultRuleKeyBuilderFactory(cellHashCache,new SourcePathResolver(resolver));
-    }
-  }
-);
   final int numberOfNodes=targetGraph.getNodes().size();
   final AtomicInteger processedNodes=new AtomicInteger(0);
   AbstractBottomUpTraversal<TargetNode<?>,ActionGraph> bottomUpTraversal=new AbstractBottomUpTraversal<TargetNode<?>,ActionGraph>(targetGraph){
     @Override public void visit(    TargetNode<?> node){
-      RuleKeyBuilderFactory data=ruleKeyBuilderFactories.getUnchecked(node.getRuleFactoryParams().getProjectFilesystem());
       BuildRule rule;
       try {
-        rule=buildRuleGenerator.transform(targetGraph,resolver,node,data);
+        rule=buildRuleGenerator.transform(targetGraph,resolver,node);
       }
  catch (      NoSuchBuildTargetException e) {
         throw new HumanReadableException(e);

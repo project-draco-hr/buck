@@ -1,5 +1,7 @@
 {
   SourcePathResolver sourcePathResolver=new SourcePathResolver(new BuildRuleResolver());
+  FileHashCache hashCache=new FakeFileHashCache(ImmutableMap.<Path,HashCode>of());
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(hashCache,sourcePathResolver);
   BuildTarget target=BuildTargetFactory.newInstance("//a:target");
   BuildTarget depTarget=BuildTargetFactory.newInstance("//some:dep");
   BuildRuleParams depParams=new FakeBuildRuleParamsBuilder(depTarget).build();
@@ -10,7 +12,7 @@
   NoopBuildRule ruleWithExtraDep=new NoopBuildRule(paramsWithExtraDep,sourcePathResolver);
   BuildRuleParams paramsWithBothDeps=new FakeBuildRuleParamsBuilder(target).setDeclaredDeps(ImmutableSortedSet.<BuildRule>of(dep)).setExtraDeps(ImmutableSortedSet.<BuildRule>of(dep)).build();
   NoopBuildRule ruleWithBothDeps=new NoopBuildRule(paramsWithBothDeps,sourcePathResolver);
-  assertNotEquals(ruleWithDeclaredDep.getRuleKey(),ruleWithExtraDep.getRuleKey());
-  assertNotEquals(ruleWithDeclaredDep.getRuleKey(),ruleWithBothDeps.getRuleKey());
-  assertNotEquals(ruleWithExtraDep.getRuleKey(),ruleWithBothDeps.getRuleKey());
+  assertNotEquals(ruleKeyBuilderFactory.newInstance(ruleWithDeclaredDep).build(),ruleKeyBuilderFactory.newInstance(ruleWithExtraDep).build());
+  assertNotEquals(ruleKeyBuilderFactory.newInstance(ruleWithDeclaredDep).build(),ruleKeyBuilderFactory.newInstance(ruleWithBothDeps).build());
+  assertNotEquals(ruleKeyBuilderFactory.newInstance(ruleWithExtraDep).build(),ruleKeyBuilderFactory.newInstance(ruleWithBothDeps).build());
 }

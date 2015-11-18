@@ -11,6 +11,7 @@
   String stepShortName="doing_something";
   String stepDescription="working hard";
   UUID stepUuid=UUID.randomUUID();
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new FakeRuleKeyBuilderFactory(ImmutableMap.of(fakeTarget,new RuleKey("aaaa")));
   SuperConsoleEventBusListener listener=new SuperConsoleEventBusListener(console,fakeClock,silentSummaryVerbosity,new DefaultExecutionEnvironment(new FakeProcessExecutor(),ImmutableMap.copyOf(System.getenv()),System.getProperties()),Optional.<WebServer>absent());
   eventBus.register(listener);
   BuildEvent.Started buildEventStarted=BuildEvent.started(buildArgs);
@@ -20,18 +21,18 @@
   rawEventBus.post(configureTestEventAtTime(parseStarted,0L,TimeUnit.MILLISECONDS,0L));
   rawEventBus.post(configureTestEventAtTime(ParseEvent.finished(parseStarted,Optional.<TargetGraph>absent()),0L,TimeUnit.MILLISECONDS,0L));
   rawEventBus.post(configureTestEventAtTime(ActionGraphEvent.finished(ActionGraphEvent.started()),0L,TimeUnit.MILLISECONDS,0L));
-  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.started(fakeRule),0L,TimeUnit.MILLISECONDS,0L));
+  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.started(fakeRule,ruleKeyBuilderFactory),0L,TimeUnit.MILLISECONDS,0L));
   StepEvent.Started stepEventStarted=StepEvent.started(stepShortName,stepDescription,stepUuid);
   rawEventBus.post(configureTestEventAtTime(stepEventStarted,0L,TimeUnit.MILLISECONDS,0L));
   rawEventBus.post(configureTestEventAtTime(StepEvent.finished(stepEventStarted,0),100L,TimeUnit.MILLISECONDS,0L));
-  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.suspended(fakeRule),100L,TimeUnit.MILLISECONDS,0L));
+  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.suspended(fakeRule,ruleKeyBuilderFactory),100L,TimeUnit.MILLISECONDS,0L));
   validateConsole(console,listener,200L,ImmutableList.of(parsingLine,formatConsoleTimes("[+] BUILDING...%s",0.2)," |=> IDLE"));
-  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.resumed(fakeRule),300L,TimeUnit.MILLISECONDS,0L));
+  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.resumed(fakeRule,ruleKeyBuilderFactory),300L,TimeUnit.MILLISECONDS,0L));
   validateConsole(console,listener,300L,ImmutableList.of(parsingLine,formatConsoleTimes("[+] BUILDING...%s",0.3),formatConsoleTimes(" |=> //banana:stand...  %s (checking local cache)",0.1)));
   StepEvent.Started step2EventStarted=StepEvent.started(stepShortName,stepDescription,stepUuid);
   rawEventBus.post(configureTestEventAtTime(step2EventStarted,400L,TimeUnit.MILLISECONDS,0L));
   validateConsole(console,listener,500L,ImmutableList.of(parsingLine,formatConsoleTimes("[+] BUILDING...%s",0.5),formatConsoleTimes(" |=> //banana:stand...  %s (running doing_something[%s])",0.3,0.1)));
   rawEventBus.post(configureTestEventAtTime(StepEvent.finished(step2EventStarted,0),600L,TimeUnit.MILLISECONDS,0L));
-  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.finished(fakeRule,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()),600L,TimeUnit.MILLISECONDS,0L));
+  rawEventBus.post(configureTestEventAtTime(BuildRuleEvent.finished(fakeRule,ruleKeyBuilderFactory,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()),600L,TimeUnit.MILLISECONDS,0L));
   validateConsole(console,listener,700L,ImmutableList.of(parsingLine,formatConsoleTimes("[+] BUILDING...%s",0.7)," |=> IDLE"));
 }

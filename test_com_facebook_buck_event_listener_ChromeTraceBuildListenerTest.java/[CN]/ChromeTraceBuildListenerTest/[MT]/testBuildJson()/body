@@ -6,10 +6,10 @@
   BuildTarget target=BuildTargetFactory.newInstance("//fake:rule");
   FakeBuildRule rule=new FakeBuildRule(target,new SourcePathResolver(new BuildRuleResolver()),ImmutableSortedSet.<BuildRule>of());
   RuleKey ruleKey=new RuleKey("abc123");
-  rule.setRuleKey(ruleKey);
   String stepShortName="fakeStep";
   String stepDescription="I'm a Fake Step!";
   UUID stepUuid=UUID.randomUUID();
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new FakeRuleKeyBuilderFactory(ImmutableMap.of(target,ruleKey));
   ExecutionContext context=createMock(ExecutionContext.class);
   replay(context);
   ImmutableSet<BuildTarget> buildTargets=ImmutableSet.of(target);
@@ -30,7 +30,7 @@
   ArtifactCompressionEvent.Started artifactCompressionStartedEvent=ArtifactCompressionEvent.started(ArtifactCompressionEvent.Operation.COMPRESS,ImmutableSet.of(ruleKey));
   eventBus.post(artifactCompressionStartedEvent);
   eventBus.post(ArtifactCompressionEvent.finished(artifactCompressionStartedEvent));
-  eventBus.post(BuildRuleEvent.started(rule));
+  eventBus.post(BuildRuleEvent.started(rule,ruleKeyBuilderFactory));
   eventBus.post(StepEvent.started(stepShortName,stepDescription,stepUuid));
   JavacPhaseEvent.Started runProcessorsStartedEvent=JavacPhaseEvent.started(target,JavacPhaseEvent.Phase.RUN_ANNOTATION_PROCESSORS,ImmutableMap.<String,String>of());
   eventBus.post(runProcessorsStartedEvent);
@@ -51,7 +51,7 @@
   eventBus.post(AnnotationProcessingEvent.finished(annotationProcessingEventStarted));
   eventBus.post(JavacPhaseEvent.finished(runProcessorsStartedEvent,ImmutableMap.<String,String>of()));
   eventBus.post(StepEvent.finished(StepEvent.started(stepShortName,stepDescription,stepUuid),0));
-  eventBus.post(BuildRuleEvent.finished(rule,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()));
+  eventBus.post(BuildRuleEvent.finished(rule,ruleKeyBuilderFactory,BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()));
   try (TraceEventLogger ignored=TraceEventLogger.start(eventBus,"planning",ImmutableMap.of("nefarious","true"))){
     eventBus.post(new TraceEvent("scheming",ChromeTraceEvent.Phase.BEGIN));
     eventBus.post(new TraceEvent("scheming",ChromeTraceEvent.Phase.END,ImmutableMap.of("success","false")));

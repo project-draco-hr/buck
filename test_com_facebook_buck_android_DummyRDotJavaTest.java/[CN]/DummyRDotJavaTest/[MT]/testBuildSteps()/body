@@ -1,15 +1,17 @@
 {
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  FileHashCache hashCache=new DefaultFileHashCache(filesystem);
   BuildRuleResolver ruleResolver=new BuildRuleResolver();
   SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(hashCache,pathResolver);
   BuildRule resourceRule1=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(pathResolver).setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res1")).setRDotJavaPackage("com.facebook").setRes(new FakeSourcePath("android_res/com/example/res1")).build());
   setAndroidResourceBuildOutput(resourceRule1,RESOURCE_RULE1_KEY);
   BuildRule resourceRule2=ruleResolver.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(pathResolver).setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/example:res2")).setRDotJavaPackage("com.facebook").setRes(new FakeSourcePath("android_res/com/example/res2")).build());
   setAndroidResourceBuildOutput(resourceRule2,RESOURCE_RULE2_KEY);
-  DummyRDotJava dummyRDotJava=new DummyRDotJava(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//java/base:rule")).build(),pathResolver,ImmutableSet.of((HasAndroidResourceDeps)resourceRule1,(HasAndroidResourceDeps)resourceRule2),new FakeSourcePath("abi.jar"),ANDROID_JAVAC_OPTIONS,Optional.<String>absent());
+  DummyRDotJava dummyRDotJava=new DummyRDotJava(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//java/base:rule")).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableSet.of((HasAndroidResourceDeps)resourceRule1,(HasAndroidResourceDeps)resourceRule2),new FakeSourcePath("abi.jar"),ANDROID_JAVAC_OPTIONS,Optional.<String>absent());
   FakeBuildableContext buildableContext=new FakeBuildableContext();
   List<Step> steps=dummyRDotJava.getBuildSteps(EasyMock.createMock(BuildContext.class),buildableContext);
   assertEquals("DummyRDotJava returns an incorrect number of Steps.",6,steps.size());
-  ProjectFilesystem filesystem=dummyRDotJava.getProjectFilesystem();
   String rDotJavaSrcFolder=Paths.get("buck-out/bin/java/base/__rule_rdotjava_src__").toString();
   String rDotJavaBinFolder=Paths.get("buck-out/bin/java/base/__rule_rdotjava_bin__").toString();
   String rDotJavaAbiFolder=Paths.get("buck-out/gen/java/base/__rule_dummyrdotjava_abi__").toString();
@@ -17,5 +19,5 @@
   MoreAsserts.assertSteps("DummyRDotJava.getBuildSteps() must return these exact steps.",expectedStepDescriptions,steps,TestExecutionContext.newInstance());
   assertEquals(ImmutableSet.of(Paths.get(rDotJavaBinFolder)),buildableContext.getRecordedArtifacts());
   Sha1HashCode expectedSha1=AndroidResource.ABI_HASHER.apply(ImmutableList.of((HasAndroidResourceDeps)resourceRule1,(HasAndroidResourceDeps)resourceRule2));
-  assertEquals(expectedSha1,dummyRDotJava.getAbiKeyForDeps());
+  assertEquals(expectedSha1,dummyRDotJava.getAbiKeyForDeps(ruleKeyBuilderFactory));
 }

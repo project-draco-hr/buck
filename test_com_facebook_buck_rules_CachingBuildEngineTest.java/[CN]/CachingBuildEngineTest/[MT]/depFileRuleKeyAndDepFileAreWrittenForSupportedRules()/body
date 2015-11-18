@@ -2,13 +2,14 @@
   final ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
   DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   InMemoryArtifactCache cache=new InMemoryArtifactCache();
+  BuildRuleResolver resolver=new BuildRuleResolver();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,pathResolver);
   BuildContext buildContext=FakeBuildContext.newBuilder().setArtifactCache(cache).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
   final Path input=Paths.get("input_file");
   filesystem.writeContentsToPath("contents",input);
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setProjectFilesystem(filesystem).build();
-  BuildRuleResolver resolver=new BuildRuleResolver();
-  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   RuleKey depFileRuleKey=new RuleKey("aaaa");
   final Path output=Paths.get("output");
   BuildRule rule=new DepFileBuildRule(params,pathResolver){
@@ -23,14 +24,14 @@
     }
   }
 ;
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,pathResolver,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new FixedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),depFileRuleKey),fileHashCache));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,pathResolver,ruleKeyBuilderFactory,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new FakeRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),depFileRuleKey),fileHashCache));
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
   OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(target,filesystem);
   assertThat(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY),equalTo(Optional.of(depFileRuleKey)));
   assertThat(onDiskBuildInfo.getValues(BuildInfo.METADATA_KEY_FOR_DEP_FILE),equalTo(Optional.of(ImmutableList.of(input.toString()))));
   Path fetchedArtifact=tmp.newFile("fetched_artifact.zip").toPath();
-  CacheResult cacheResult=cache.fetch(rule.getRuleKey(),fetchedArtifact);
+  CacheResult cacheResult=cache.fetch(ruleKeyBuilderFactory.build(rule),fetchedArtifact);
   assertThat(cacheResult.getType(),equalTo(CacheResultType.HIT));
   assertThat(cacheResult.getMetadata().get(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY),equalTo(depFileRuleKey.toString()));
   ZipInspector inspector=new ZipInspector(fetchedArtifact);

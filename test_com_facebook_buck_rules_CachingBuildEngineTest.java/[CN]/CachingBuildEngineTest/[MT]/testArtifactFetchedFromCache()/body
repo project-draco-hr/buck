@@ -1,16 +1,19 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
+  FileHashCache hashCache=new DefaultFileHashCache(filesystem);
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(hashCache,resolver);
   Step step=new AbstractExecutionStep("exploding step"){
     @Override public int execute(    ExecutionContext context){
       throw new UnsupportedOperationException("build step should not be executed");
     }
   }
 ;
-  BuildRule buildRule=createRule(filesystem,new SourcePathResolver(new BuildRuleResolver()),ImmutableSet.<BuildRule>of(),ImmutableList.of(step),ImmutableList.<Step>of(),null);
+  BuildRule buildRule=createRule(filesystem,resolver,ImmutableSet.<BuildRule>of(),ImmutableList.of(step),ImmutableList.<Step>of(),null);
   StepRunner stepRunner=createStepRunner(null);
   ArtifactCache artifactCache=createMock(ArtifactCache.class);
   Map<String,String> desiredZipEntries=ImmutableMap.of("buck-out/gen/src/com/facebook/orca/orca.jar","Imagine this is the contents of a valid JAR file.");
-  expect(artifactCache.fetch(eq(buildRule.getRuleKey()),isA(Path.class))).andDelegateTo(new FakeArtifactCacheThatWritesAZipFile(desiredZipEntries));
+  expect(artifactCache.fetch(eq(ruleKeyBuilderFactory.build(buildRule)),isA(Path.class))).andDelegateTo(new FakeArtifactCacheThatWritesAZipFile(desiredZipEntries));
   DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   BuildContext buildContext=ImmutableBuildContext.builder().setActionGraph(RuleMap.createGraphFromSingleRule(buildRule)).setStepRunner(stepRunner).setClock(new DefaultClock()).setBuildId(new BuildId()).setArtifactCache(artifactCache).setJavaPackageFinder(createMock(JavaPackageFinder.class)).setEventBus(buckEventBus).build();

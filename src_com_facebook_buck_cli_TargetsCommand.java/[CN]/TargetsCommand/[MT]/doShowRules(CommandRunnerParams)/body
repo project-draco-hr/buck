@@ -18,13 +18,15 @@
     return doShowTargetHash(params,matchingBuildTargets);
   }
  else {
-    Optional<ActionGraph> actionGraph;
+    Optional<ActionGraph> actionGraph=Optional.absent();
+    Optional<RuleKeyBuilderFactory> ruleKeyBuilderFactory=Optional.absent();
     if (isShowRuleKey() || isShowOutput()) {
-      TargetGraphTransformer targetGraphTransformer=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer(),params.getFileHashCache());
-      actionGraph=Optional.of(Preconditions.checkNotNull(targetGraphTransformer.apply(targetGraph)).getFirst());
-    }
- else {
-      actionGraph=Optional.absent();
+      TargetGraphTransformer targetGraphTransformer=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer());
+      Pair<ActionGraph,BuildRuleResolver> result=Preconditions.checkNotNull(targetGraphTransformer.apply(targetGraph));
+      actionGraph=Optional.of(result.getFirst());
+      if (isShowRuleKey()) {
+        ruleKeyBuilderFactory=Optional.<RuleKeyBuilderFactory>of(new DefaultRuleKeyBuilderFactory(params.getFileHashCache(),new SourcePathResolver(result.getSecond())));
+      }
     }
     for (    BuildTarget target : ImmutableSortedSet.copyOf(matchingBuildTargets)) {
       ImmutableList.Builder<String> builder=ImmutableList.builder();
@@ -32,7 +34,7 @@
       if (actionGraph.isPresent()) {
         BuildRule rule=Preconditions.checkNotNull(actionGraph.get().findBuildRuleByTarget(target));
         if (isShowRuleKey()) {
-          builder.add(rule.getRuleKey().toString());
+          builder.add(ruleKeyBuilderFactory.get().build(rule).toString());
         }
         if (isShowOutput()) {
           Path outputPath=rule.getPathToOutput();

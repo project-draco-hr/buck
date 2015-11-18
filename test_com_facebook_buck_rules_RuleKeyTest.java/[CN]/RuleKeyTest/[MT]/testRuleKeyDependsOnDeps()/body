@@ -1,7 +1,10 @@
 {
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  FileHashCache hashCache=new DefaultFileHashCache(filesystem);
   BuildRuleResolver ruleResolver1=new BuildRuleResolver();
   BuildRuleResolver ruleResolver2=new BuildRuleResolver();
+  RuleKeyBuilderFactory ruleKeyBuilderFactory1=new DefaultRuleKeyBuilderFactory(hashCache,new SourcePathResolver(ruleResolver1));
+  RuleKeyBuilderFactory ruleKeyBuilderFactory2=new DefaultRuleKeyBuilderFactory(hashCache,new SourcePathResolver(ruleResolver2));
   JavaLibraryBuilder builder=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//src/com/facebook/buck/cli:common"));
   BuildRule commonJavaLibrary=builder.build(ruleResolver1);
   builder.build(ruleResolver2);
@@ -12,7 +15,7 @@
   BuildRule libraryNoCommon=javaLibraryBuilder.build(ruleResolver1,filesystem);
   javaLibraryBuilder.addDep(commonJavaLibrary.getBuildTarget());
   BuildRule libraryWithCommon=javaLibraryBuilder.build(ruleResolver2,filesystem);
-  RuleKey r1=libraryNoCommon.getRuleKey();
-  RuleKey r2=libraryWithCommon.getRuleKey();
+  RuleKey r1=ruleKeyBuilderFactory1.build(libraryNoCommon);
+  RuleKey r2=ruleKeyBuilderFactory2.build(libraryWithCommon);
   assertThat("Rule keys should be distinct because the deps of the rules are different.",r1,not(equalTo(r2)));
 }

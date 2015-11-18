@@ -2,6 +2,8 @@
   ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
   DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   ArtifactCache cache=new NoopArtifactCache();
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
+  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,resolver);
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   FakeBuckEventListener listener=new FakeBuckEventListener();
   buckEventBus.register(listener);
@@ -11,8 +13,8 @@
     }
   }
 ;
-  BuildRule ruleToTest=createRule(filesystem,new SourcePathResolver(new BuildRuleResolver()),ImmutableSet.<BuildRule>of(),ImmutableList.<Step>of(),ImmutableList.of(failingStep),null);
-  filesystem.writeContentsToPath(ruleToTest.getRuleKey().toString(),BuildInfo.getPathToMetadataDirectory(ruleToTest.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY));
+  BuildRule ruleToTest=createRule(filesystem,resolver,ImmutableSet.<BuildRule>of(),ImmutableList.<Step>of(),ImmutableList.of(failingStep),null);
+  filesystem.writeContentsToPath(ruleKeyBuilderFactory.build(ruleToTest).toString(),BuildInfo.getPathToMetadataDirectory(ruleToTest.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY));
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(ruleToTest.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
   BuildContext context=FakeBuildContext.newBuilder().setArtifactCache(cache).setEventBus(buckEventBus).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,new BuildRuleResolver());
