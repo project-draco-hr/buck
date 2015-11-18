@@ -11,7 +11,10 @@ def __init__(self, server_name, server_port=None, stdin=sys.stdin, stdout=sys.st
         self.send_flags |= socket.MSG_NOSIGNAL
     self.header_buf = ctypes.create_string_buffer(CHUNK_HEADER_LEN)
     self.buf = ctypes.create_string_buffer(BUFSIZE)
-    self.ready_to_send = True
-    self.stdin_eof = False
+    self.ready_to_send_condition = Condition()
     self.sendtime_nanos = 0
     self.exit_code = None
+    self.stdin_queue = Queue.Queue()
+    self.shutdown_event = Event()
+    self.stdin_thread = Thread(target=stdin_thread_main, args=(self.stdin, self.stdin_queue, self.shutdown_event, self.ready_to_send_condition))
+    self.stdin_thread.daemon = True

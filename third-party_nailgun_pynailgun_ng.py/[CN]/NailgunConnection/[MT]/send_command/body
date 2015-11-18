@@ -13,6 +13,11 @@ def send_command(self, cmd, cmd_args=[], filearg=None, env=os.environ, cwd=os.ge
         send_env_var(k, v, self)
     send_chunk(cwd, CHUNKTYPE_DIR, self)
     send_chunk(cmd, CHUNKTYPE_CMD, self)
+    self.stdin_thread.start()
     while (self.exit_code is None):
         self._process_next_chunk()
+        self._check_stdin_queue()
+    self.shutdown_event.set()
+    with self.ready_to_send_condition:
+        self.ready_to_send_condition.notify()
     return self.exit_code

@@ -1,0 +1,16 @@
+def stdin_thread_main(stdin, queue, shutdown_event, ready_to_send_condition):
+    if (not stdin):
+        return
+    try:
+        while (not shutdown_event.is_set()):
+            with ready_to_send_condition:
+                ready_to_send_condition.wait()
+            if shutdown_event.is_set():
+                break
+            buf = stdin.readline()
+            if (buf == ''):
+                queue.put((EVENT_STDIN_CLOSED, None))
+                break
+            queue.put((EVENT_STDIN_CHUNK, buf))
+    except Exception as e:
+        queue.put((EVENT_STDIN_EXCEPTION, e))
