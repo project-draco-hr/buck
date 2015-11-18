@@ -3,14 +3,14 @@
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   final FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   final BuildRule dep=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:dep")).setOut("out").build(resolver,filesystem);
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder("//:rule").setDeclaredDeps(ImmutableSortedSet.of(dep)).build();
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder("//:rule").setDeclaredDeps(ImmutableSortedSet.of(dep)).setProjectFilesystem(filesystem).build();
   BuildRule rule=new NoopBuildRule(params,pathResolver){
     @AddToRuleKey RuleKeyAppendableWithInput input=new RuleKeyAppendableWithInput(new BuildTargetSourcePath(dep.getBuildTarget()));
   }
 ;
-  FakeFileHashCache hashCache=new FakeFileHashCache(ImmutableMap.of(Preconditions.checkNotNull(dep.getPathToOutput()),HashCode.fromInt(0)));
+  FakeFileHashCache hashCache=new FakeFileHashCache(ImmutableMap.of(pathResolver.getAbsolutePath(new BuildTargetSourcePath(dep.getBuildTarget())),HashCode.fromInt(0)));
   RuleKey inputKey1=new InputBasedRuleKeyBuilderFactory(hashCache,pathResolver).build(rule);
-  hashCache=new FakeFileHashCache(ImmutableMap.of(Preconditions.checkNotNull(dep.getPathToOutput()),HashCode.fromInt(1)));
+  hashCache=new FakeFileHashCache(ImmutableMap.of(pathResolver.getAbsolutePath(new BuildTargetSourcePath(dep.getBuildTarget())),HashCode.fromInt(1)));
   RuleKey inputKey2=new InputBasedRuleKeyBuilderFactory(hashCache,pathResolver).build(rule);
   assertThat(inputKey1,Matchers.not(Matchers.equalTo(inputKey2)));
 }
