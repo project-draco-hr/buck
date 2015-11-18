@@ -1,9 +1,7 @@
 {
   final SettableFuture<TestResults> transformedTestResults=SettableFuture.create();
   FutureCallback<TestResults> callback=new FutureCallback<TestResults>(){
-    private void postTestResults(    TestResults testResults){
-      testResults.setSequenceNumber(lastReportedTestSequenceNumber.incrementAndGet());
-      testResults.setTotalNumberOfTests(totalNumberOfTests);
+    private TestResults postTestResults(    TestResults testResults){
       if (!testRule.supportsStreamingTests()) {
         LOG.debug("Simulating streaming test events for rule %s",testRule);
         testReportingCallback.testsDidBegin();
@@ -16,7 +14,9 @@
         testReportingCallback.testsDidEnd(testResults.getTestCases());
         LOG.debug("Done simulating streaming test events for rule %s",testRule);
       }
-      params.getBuckEventBus().post(IndividualTestEvent.finished(testTargets,testResults));
+      TestResults transformedTestResults=TestResults.builder().from(testResults).setSequenceNumber(lastReportedTestSequenceNumber.incrementAndGet()).setTotalNumberOfTests(totalNumberOfTests).build();
+      params.getBuckEventBus().post(IndividualTestEvent.finished(testTargets,transformedTestResults));
+      return transformedTestResults;
     }
     private String getStackTrace(    Throwable throwable){
       StringWriter sw=new StringWriter();
@@ -33,11 +33,15 @@
     }
     @Override public void onFailure(    Throwable throwable){
       LOG.warn(throwable,"Test command step failed, marking %s as failed",testRule);
-      TestResults testResults=new TestResults(testRule.getBuildTarget(),ImmutableList.of(new TestCaseSummary(testRule.getBuildTarget().toString(),ImmutableList.of(new TestResultSummary(testRule.getBuildTarget().toString(),"main",ResultType.FAILURE,0L,throwable.getMessage(),getStackTrace(throwable),"","")))),testRule.getContacts(),FluentIterable.from(testRule.getLabels()).transform(Functions.toStringFunction()).toSet());
+      TestResults testResults=TestResults.of(testRule.getBuildTarget(),ImmutableList.of(new TestCaseSummary(testRule.getBuildTarget().toString(),ImmutableList.of(new TestResultSummary(testRule.getBuildTarget().toString(),"main",ResultType.FAILURE,0L,throwable.getMessage(),getStackTrace(throwable),"","")))),testRule.getContacts(),FluentIterable.from(testRule.getLabels()).transform(Functions.toStringFunction()).toSet());
+      TestResults newTestResults;
       if (printTestResults) {
-        postTestResults(testResults);
+        newTestResults=postTestResults(testResults);
       }
-      transformedTestResults.set(testResults);
+ else {
+        newTestResults=testResults;
+      }
+      transformedTestResults.set(newTestResults);
     }
   }
 ;
