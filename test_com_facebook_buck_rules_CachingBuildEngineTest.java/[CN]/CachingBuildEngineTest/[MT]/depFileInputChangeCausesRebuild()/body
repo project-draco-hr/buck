@@ -2,10 +2,10 @@
   final ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
   InMemoryArtifactCache cache=new InMemoryArtifactCache();
   BuildContext buildContext=FakeBuildContext.newBuilder().setArtifactCache(cache).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
-  FileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
+  final FileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   BuildRuleResolver resolver=new BuildRuleResolver();
-  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,pathResolver);
+  final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  final RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,pathResolver);
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setProjectFilesystem(filesystem).build();
   final Path input=Paths.get("input_file");
@@ -31,7 +31,7 @@
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of(output.toString())),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
   filesystem.writeContentsToPath("something else",input);
   fileHashCache.invalidate(input);
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,pathResolver,ruleKeyBuilderFactory,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new DependencyFileRuleKeyBuilderFactory(fileHashCache,pathResolver,ruleKeyBuilderFactory));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,pathResolver,Functions.constant(new CachingBuildEngine.RuleKeyFactories(ruleKeyBuilderFactory,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new DependencyFileRuleKeyBuilderFactory(fileHashCache,pathResolver,ruleKeyBuilderFactory))));
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
 }

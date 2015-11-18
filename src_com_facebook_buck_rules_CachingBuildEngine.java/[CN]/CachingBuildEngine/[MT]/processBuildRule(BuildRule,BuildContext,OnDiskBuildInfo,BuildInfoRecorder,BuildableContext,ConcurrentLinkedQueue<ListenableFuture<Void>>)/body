@@ -2,18 +2,19 @@
   if (!context.isKeepGoing() && firstFailure != null) {
     return Futures.immediateFuture(BuildResult.canceled(rule,firstFailure));
   }
+  final RuleKeyFactories ruleKeyFactory=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem());
   Optional<RuleKey> cachedRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_RULE_KEY);
-  if (ruleKeyFactories.defaultRuleKeyBuilderFactory.build(rule).equals(cachedRuleKey.orNull())) {
+  if (ruleKeyFactory.defaultRuleKeyBuilderFactory.build(rule).equals(cachedRuleKey.orNull())) {
     return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_RULE_KEY,CacheResult.localKeyUnchangedHit()));
   }
-  final CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,ruleKeyFactories.defaultRuleKeyBuilderFactory.build(rule),buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
+  final CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory.build(rule),buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
   if (cacheResult.getType().isSuccess()) {
     return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult));
   }
-  context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.suspended(rule,ruleKeyFactories.defaultRuleKeyBuilderFactory));
+  context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.suspended(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory));
   return Futures.transform(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,BuildResult>(){
     @Override public ListenableFuture<BuildResult> apply(    @Nonnull List<BuildResult> depResults) throws Exception {
-      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule,ruleKeyFactories.defaultRuleKeyBuilderFactory));
+      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory));
       for (      BuildResult depResult : depResults) {
         if (buildMode != BuildMode.POPULATE_FROM_REMOTE_CACHE && depResult.getStatus() != BuildRuleStatus.SUCCESS) {
           return Futures.immediateFuture(BuildResult.canceled(rule,Preconditions.checkNotNull(depResult.getFailure())));
@@ -31,7 +32,7 @@
           }
         }
       }
-      RuleKeyFactories cellData=CachingBuildEngine.this.ruleKeyFactories;
+      RuleKeyFactories cellData=ruleKeyFactories.get(rule.getProjectFilesystem());
       Preconditions.checkNotNull(cellData);
       if (rule instanceof SupportsInputBasedRuleKey) {
         RuleKey inputRuleKey=cellData.inputBasedRuleKeyBuilderFactory.build(rule);
