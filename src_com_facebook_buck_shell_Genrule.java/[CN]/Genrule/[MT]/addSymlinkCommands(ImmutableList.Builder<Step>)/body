@@ -1,11 +1,13 @@
 {
   String basePath=getBuildTarget().getBasePathWithSlash();
   int basePathLength=basePath.length();
-  for (  Map.Entry<Path,Path> entry : srcsToAbsolutePaths.entrySet()) {
-    String localPath=MorePaths.pathWithUnixSeparators(entry.getKey());
+  for (  SourcePath src : srcs) {
+    Path relativePath=getResolver().getRelativePath(src);
+    Path absolutePath=getResolver().getAbsolutePath(src);
+    String localPath=MorePaths.pathWithUnixSeparators(relativePath);
     Path canonicalPath;
-    canonicalPath=MorePaths.absolutify(entry.getValue());
-    if (entry.getValue().equals(canonicalPath)) {
+    canonicalPath=absolutePath.normalize();
+    if (absolutePath.equals(canonicalPath)) {
       if (localPath.startsWith(basePath)) {
         localPath=localPath.substring(basePathLength);
       }
@@ -14,6 +16,6 @@
       }
     }
     Path destination=pathToSrcDirectory.resolve(localPath);
-    commands.add(new MkdirAndSymlinkFileStep(getProjectFilesystem(),entry.getKey(),destination));
+    commands.add(new MkdirAndSymlinkFileStep(getProjectFilesystem(),relativePath,destination));
   }
 }
