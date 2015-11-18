@@ -14,8 +14,8 @@
       buildableContext.addMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE,ImmutableList.of(input.toString()));
       return ImmutableList.<Step>of(new WriteFileStep(filesystem,"",output,false));
     }
-    @Override public ImmutableList<Path> getInputsAfterBuildingLocally(){
-      return ImmutableList.of(input);
+    @Override public ImmutableList<SourcePath> getInputsAfterBuildingLocally(){
+      return ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,input));
     }
     @Override public Path getPathToOutput(){
       return output;
@@ -30,7 +30,7 @@
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of(output.toString())),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
   filesystem.writeContentsToPath("something else",input);
   fileHashCache.invalidate(input);
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new DependencyFileRuleKeyBuilderFactory(fileHashCache,pathResolver));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,pathResolver,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new DependencyFileRuleKeyBuilderFactory(fileHashCache,pathResolver));
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
 }

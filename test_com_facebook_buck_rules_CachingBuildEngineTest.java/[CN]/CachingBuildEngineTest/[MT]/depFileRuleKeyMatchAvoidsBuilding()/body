@@ -1,5 +1,5 @@
 {
-  ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
+  final ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
   DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   InMemoryArtifactCache cache=new InMemoryArtifactCache();
   BuildContext buildContext=FakeBuildContext.newBuilder().setArtifactCache(cache).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
@@ -21,15 +21,15 @@
       }
 );
     }
-    @Override public ImmutableList<Path> getInputsAfterBuildingLocally(){
-      return ImmutableList.of(input);
+    @Override public ImmutableList<SourcePath> getInputsAfterBuildingLocally(){
+      return ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,input));
     }
     @Override public Path getPathToOutput(){
       return output;
     }
   }
 ;
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new FixedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),depFileRuleKey),fileHashCache));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,pathResolver,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new FixedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),depFileRuleKey),fileHashCache));
   filesystem.writeContentsToPath(depFileRuleKey.toString(),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY));
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of(input.toString())),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_DEP_FILE));
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of(output.toString())),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));

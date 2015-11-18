@@ -1,9 +1,18 @@
 {
-  ImmutableList.Builder<Path> inputs=ImmutableList.builder();
-  inputs.addAll(Ordering.natural().immutableSortedCopy(resolver.deprecatedAllPaths(preprocessor.getInputs())));
+  ImmutableList.Builder<SourcePath> inputs=ImmutableList.builder();
+  inputs.addAll(preprocessor.getInputs());
   if (prefixHeader.isPresent()) {
-    inputs.add(resolver.deprecatedGetPath(prefixHeader.get()));
+    inputs.add(prefixHeader.get());
   }
-  inputs.addAll(Iterables.transform(depFileLines,MorePaths.TO_PATH));
+  ImmutableMultimap<String,SourcePath> pathToSourcePathMap;
+  try {
+    pathToSourcePathMap=Multimaps.index(CxxHeaders.concat(includes).getFullNameToPathMap().values(),Functions.compose(Functions.toStringFunction(),resolver.getRelativePathFunction()));
+  }
+ catch (  CxxHeaders.ConflictingHeadersException e) {
+    throw Throwables.propagate(e);
+  }
+  for (  String line : depFileLines) {
+    inputs.addAll(pathToSourcePathMap.get(line));
+  }
   return inputs.build();
 }

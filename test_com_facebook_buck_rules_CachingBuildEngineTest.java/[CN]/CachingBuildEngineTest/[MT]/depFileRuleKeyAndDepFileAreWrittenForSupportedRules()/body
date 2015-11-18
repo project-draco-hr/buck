@@ -15,15 +15,15 @@
     @Override public ImmutableList<Step> getBuildSteps(    BuildContext context,    BuildableContext buildableContext){
       return ImmutableList.<Step>of(new WriteFileStep(filesystem,"",output,false));
     }
-    @Override public ImmutableList<Path> getInputsAfterBuildingLocally(){
-      return ImmutableList.of(input);
+    @Override public ImmutableList<SourcePath> getInputsAfterBuildingLocally(){
+      return ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,input));
     }
     @Override public Path getPathToOutput(){
       return output;
     }
   }
 ;
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new FixedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),depFileRuleKey),fileHashCache));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,pathResolver,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new FixedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),depFileRuleKey),fileHashCache));
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
   OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(target,filesystem);
