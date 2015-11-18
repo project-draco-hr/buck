@@ -31,7 +31,15 @@
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),getOutputJarDirPath(target)));
   if (!getJavaSrcs().isEmpty()) {
     Path output=outputJar.get();
-    createCommandsForJavacJar(outputDirectory,declared,javacOptions,suggestBuildRule,steps,target,output,addPostprocessClassesCommands(getProjectFilesystem().getRootPath(),postprocessClassesCommands,outputDirectory));
+    Path pathToSrcsList=BuildTargets.getGenPath(getBuildTarget(),"__%s__srcs");
+    steps.add(new MkdirStep(getProjectFilesystem(),pathToSrcsList.getParent()));
+    Path scratchDir=BuildTargets.getGenPath(target,"lib__%s____working_directory");
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),scratchDir));
+    Optional<Path> workingDirectory=Optional.of(scratchDir);
+    JavacStepFactory javacStepFactory=new JavacStepFactory(outputDirectory,workingDirectory,getJavaSrcs(),Optional.of(pathToSrcsList),declared,javacOptions,target,suggestBuildRule,getResolver(),getProjectFilesystem());
+    steps.add(javacStepFactory.createCompileStep());
+    steps.addAll(Lists.newCopyOnWriteArrayList(addPostprocessClassesCommands(getProjectFilesystem().getRootPath(),postprocessClassesCommands,outputDirectory)));
+    steps.add(new JarDirectoryStep(getProjectFilesystem(),output,ImmutableSortedSet.of(outputDirectory),null,null));
   }
   Path abiJar=getOutputJarDirPath(target).resolve(String.format("%s-abi.jar",target.getShortNameAndFlavorPostfix()));
   if (outputJar.isPresent()) {
