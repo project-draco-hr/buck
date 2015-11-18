@@ -1,14 +1,12 @@
 {
-  this(hashCache,pathResolver,new Function<Pair<RuleKeyBuilder,BuildRule>,RuleKeyBuilder>(){
-    @Override public RuleKeyBuilder apply(    Pair<RuleKeyBuilder,BuildRule> input){
-      if (input.getSecond() instanceof AbstractBuildRule) {
-        AbstractBuildRule abstractBuildRule=(AbstractBuildRule)input.getSecond();
-        return input.getFirst().setReflectively("buck.extraDeps",abstractBuildRule.deprecatedGetExtraDeps()).setReflectively("buck.declaredDeps",abstractBuildRule.getDeclaredDeps());
-      }
- else {
-        return input.getFirst().setReflectively("buck.deps",input.getSecond().getDeps());
-      }
+  ruleKeyCache=CacheBuilder.newBuilder().weakKeys().build(new CacheLoader<RuleKeyAppendable,RuleKey>(){
+    @Override public RuleKey load(    @Nonnull RuleKeyAppendable appendable) throws Exception {
+      RuleKeyBuilder subKeyBuilder=newBuilder();
+      appendable.appendToRuleKey(subKeyBuilder);
+      return subKeyBuilder.build();
     }
   }
 );
+  this.hashCache=hashCache;
+  this.pathResolver=pathResolver;
 }
