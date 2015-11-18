@@ -30,12 +30,20 @@
         }
 .hash(Hashing.crc32()).padToLong());
       }
+      long mode=0;
       if (filesystem.isExecutable(path)) {
-        long mode=MorePosixFilePermissions.toMode(EnumSet.of(PosixFilePermission.OWNER_EXECUTE));
-        long externalAttributes=mode << 16;
-        LOG.verbose("Setting mode for entry %s path %s to 0x%08X (0x%08X)",entryName,path,mode,externalAttributes);
-        entry.setExternalAttributes(externalAttributes);
+        mode|=MorePosixFilePermissions.toMode(EnumSet.of(PosixFilePermission.OWNER_EXECUTE));
       }
+      if (isDirectory) {
+        mode|=S_IFDIR;
+      }
+      if (filesystem.isSymLink(path)) {
+        mode|=S_IFLNK;
+      }
+      mode|=MorePosixFilePermissions.toMode(filesystem.getPosixFilePermissions(path));
+      long externalAttributes=mode << 16;
+      LOG.verbose("Setting mode for entry %s path %s to 0x%08X (0x%08X)",entryName,path,mode,externalAttributes);
+      entry.setExternalAttributes(externalAttributes);
       return entry;
     }
     @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs) throws IOException {
