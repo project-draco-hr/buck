@@ -1,0 +1,16 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_application_bundle",tmp);
+  workspace.setUp();
+  workspace.runBuckCommand("build","//:DemoAppPackage#iphonesimulator-i386,iphonesimulator-x86_64").assertSuccess();
+  Unzip.extractZipFile(workspace.getPath("buck-out/gen/DemoAppPackage#iphonesimulator-i386,iphonesimulator-x86_64.ipa"),workspace.getDestPath(),Unzip.ExistingFileMode.OVERWRITE_AND_CLEAN_DIRECTORIES);
+  ProcessExecutor executor=new ProcessExecutor(new TestConsole());
+  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().setCommand(ImmutableList.of("lipo","-info",workspace.getDestPath().resolve("Payload/DemoApp.app/DemoApp").toString())).build();
+  Set<ProcessExecutor.Option> options=EnumSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT,ProcessExecutor.Option.IS_SILENT);
+  ProcessExecutor.Result result=executor.launchAndExecute(processExecutorParams,options,Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
+  assertEquals(result.getExitCode(),0);
+  assertTrue(result.getStdout().isPresent());
+  String output=result.getStdout().get();
+  assertTrue(output.contains("i386"));
+  assertTrue(output.contains("x86_64"));
+}
