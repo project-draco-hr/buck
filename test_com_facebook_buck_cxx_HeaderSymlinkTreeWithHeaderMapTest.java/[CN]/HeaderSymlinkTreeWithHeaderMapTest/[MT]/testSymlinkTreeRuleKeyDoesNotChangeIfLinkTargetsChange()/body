@@ -1,8 +1,10 @@
 {
-  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(ImmutableSet.of(symlinkTreeBuildRule)));
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  ruleResolver.addToIndex(symlinkTreeBuildRule);
+  SourcePathResolver resolver=new SourcePathResolver(ruleResolver);
   RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(FakeFileHashCache.createFromStrings(ImmutableMap.<String,String>of()),resolver);
   RuleKey key1=ruleKeyBuilderFactory.build(symlinkTreeBuildRule);
-  Path existingFile=projectFilesystem.resolve(new SourcePathResolver(new BuildRuleResolver()).deprecatedGetPath(links.values().asList().get(0)));
+  Path existingFile=projectFilesystem.resolve(resolver.deprecatedGetPath(links.values().asList().get(0)));
   Files.write(existingFile,"something new".getBytes(Charsets.UTF_8));
   RuleKey key2=ruleKeyBuilderFactory.build(symlinkTreeBuildRule);
   assertEquals(key1,key2);

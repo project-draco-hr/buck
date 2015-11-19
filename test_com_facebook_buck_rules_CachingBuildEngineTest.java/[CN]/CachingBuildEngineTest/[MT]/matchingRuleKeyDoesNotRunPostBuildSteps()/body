@@ -2,7 +2,7 @@
   ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
   DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   ArtifactCache cache=new NoopArtifactCache();
-  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver());
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
   RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,resolver);
   BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
   FakeBuckEventListener listener=new FakeBuckEventListener();
@@ -17,7 +17,7 @@
   filesystem.writeContentsToPath(ruleKeyBuilderFactory.build(ruleToTest).toString(),BuildInfo.getPathToMetadataDirectory(ruleToTest.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY));
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(ruleToTest.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
   BuildContext context=FakeBuildContext.newBuilder().setArtifactCache(cache).setEventBus(buckEventBus).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,new BuildRuleResolver());
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
   BuildResult result=cachingBuildEngine.build(context,ruleToTest).get();
   assertEquals(BuildRuleSuccessType.MATCHING_RULE_KEY,result.getSuccess());
 }

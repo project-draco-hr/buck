@@ -1,6 +1,6 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
-  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   JavaLibrary exportedDep=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:edep")).addSrc(Paths.get("Source1.java")).build(resolver,filesystem);
   filesystem.writeContentsToPath("JAR contents",exportedDep.getPathToOutput());
@@ -11,7 +11,7 @@
   RuleKeyBuilderFactory originalRuleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(originalHashCache,pathResolver);
   InputBasedRuleKeyBuilderFactory factory=new InputBasedRuleKeyBuilderFactory(originalHashCache,pathResolver,originalRuleKeyBuilderFactory);
   RuleKey originalRuleKey=factory.build(library);
-  resolver=new BuildRuleResolver();
+  resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   exportedDep=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:edep")).addSrc(Paths.get("Source1.java")).setResourcesRoot(Paths.get("some root that changes the rule key")).build(resolver,filesystem);
   filesystem.writeContentsToPath("different JAR contents",exportedDep.getPathToOutput());
   dep=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:dep")).addExportedDep(exportedDep.getBuildTarget()).build(resolver,filesystem);
@@ -21,7 +21,7 @@
   factory=new InputBasedRuleKeyBuilderFactory(unaffectedHashCache,pathResolver,unaffectedRuleKeyBuilderFactory);
   RuleKey unaffectedRuleKey=factory.build(library);
   assertThat(originalRuleKey,Matchers.equalTo(unaffectedRuleKey));
-  resolver=new BuildRuleResolver();
+  resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   exportedDep=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:edep")).addSrc(Paths.get("Source1.java")).build(resolver,filesystem);
   filesystem.writeContentsToPath("changed ABI JAR contents",pathResolver.deprecatedGetPath(exportedDep.getAbiJar().get()));
   dep=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:dep")).addExportedDep(exportedDep.getBuildTarget()).build(resolver,filesystem);

@@ -7,8 +7,9 @@
   FakeProjectFilesystem filesystem=entriesBuilder.getProjectFilesystem();
   Path uberRDotTxt=filesystem.resolve("R.txt").toAbsolutePath();
   filesystem.writeLinesToPath(outputTextSymbols,uberRDotTxt);
-  HasAndroidResourceDeps resource=AndroidResourceRuleBuilder.newBuilder().setResolver(new SourcePathResolver(new BuildRuleResolver())).setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/facebook/http:res")).setRes(new FakeSourcePath("res")).setRDotJavaPackage("com.facebook").build();
-  MergeAndroidResourcesStep mergeStep=new MergeAndroidResourcesStep(filesystem,new SourcePathResolver(new BuildRuleResolver()),ImmutableList.of(resource),Optional.of(uberRDotTxt),Paths.get("output"),Optional.<String>absent());
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
+  HasAndroidResourceDeps resource=AndroidResourceRuleBuilder.newBuilder().setResolver(resolver).setBuildTarget(BuildTargetFactory.newInstance("//android_res/com/facebook/http:res")).setRes(new FakeSourcePath("res")).setRDotJavaPackage("com.facebook").build();
+  MergeAndroidResourcesStep mergeStep=new MergeAndroidResourcesStep(filesystem,resolver,ImmutableList.of(resource),Optional.of(uberRDotTxt),Paths.get("output"),Optional.<String>absent());
   ExecutionContext executionContext=TestExecutionContext.newInstance();
   assertEquals(0,mergeStep.execute(executionContext));
   assertEquals("package com.facebook;\n" + "\n" + "public class R {\n"+ "\n"+ "  public static class drawable {\n"+ "    public static final int android_drawable=0x7f010000;\n"+ "    public static final int fb_drawable=0x7f010001;\n"+ "  }\n"+ "\n"+ "  public static final int[] custom_drawables = { 0x7f010001 };\n"+ "\n"+ "}\n",filesystem.readFileIfItExists(Paths.get("output/com/facebook/R.java")).get().replace("\r",""));

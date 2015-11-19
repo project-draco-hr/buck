@@ -1,6 +1,6 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
-  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   BuildRule genSrc=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:gen_srcs")).setOut("Test.java").setCmd("something").build(resolver,filesystem);
   filesystem.writeContentsToPath("class Test {}",genSrc.getPathToOutput());
@@ -9,7 +9,7 @@
   RuleKeyBuilderFactory originalRuleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(originalHashCache,pathResolver);
   InputBasedRuleKeyBuilderFactory factory=new InputBasedRuleKeyBuilderFactory(originalHashCache,pathResolver,originalRuleKeyBuilderFactory);
   RuleKey originalRuleKey=factory.build(library);
-  resolver=new BuildRuleResolver();
+  resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   genSrc=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:gen_srcs")).setOut("Test.java").setCmd("something else").build(resolver,filesystem);
   library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addSrc(new BuildTargetSourcePath(genSrc.getBuildTarget())).build(resolver,filesystem);
   DefaultFileHashCache unaffectedHashCache=new DefaultFileHashCache(filesystem);
@@ -17,7 +17,7 @@
   factory=new InputBasedRuleKeyBuilderFactory(unaffectedHashCache,pathResolver,unaffectedRuleKeyBuilderFactory);
   RuleKey unaffectedRuleKey=factory.build(library);
   assertThat(originalRuleKey,Matchers.equalTo(unaffectedRuleKey));
-  resolver=new BuildRuleResolver();
+  resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   genSrc=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:gen_srcs")).setOut("Test.java").setCmd("something else").build(resolver,filesystem);
   filesystem.writeContentsToPath("class Test2 {}",genSrc.getPathToOutput());
   library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addSrc(new BuildTargetSourcePath(genSrc.getBuildTarget())).build(resolver,filesystem);

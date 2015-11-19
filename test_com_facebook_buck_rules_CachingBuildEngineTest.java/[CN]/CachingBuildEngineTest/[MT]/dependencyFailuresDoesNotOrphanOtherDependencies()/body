@@ -1,6 +1,6 @@
 {
   ListeningExecutorService service=listeningDecorator(Executors.newFixedThreadPool(2));
-  BuildRuleResolver resolver=new BuildRuleResolver();
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   ProjectFilesystem filesystem=new FakeProjectFilesystem(tmp.getRoot());
   DefaultFileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
@@ -11,7 +11,7 @@
   BuildRule dep3=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:dep3")).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new SleepStep(300)),null);
   BuildRule dep4=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:dep4")).setDeclaredDeps(ImmutableSortedSet.of(dep3)).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new SleepStep(300)),null);
   BuildRule rule=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:rule")).setDeclaredDeps(ImmutableSortedSet.of(dep2,dep4)).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new SleepStep(1000)),null);
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(service,fileHashCache,CachingBuildEngine.BuildMode.DEEP,CachingBuildEngine.DepFiles.ENABLED,new BuildRuleResolver());
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(service,fileHashCache,CachingBuildEngine.BuildMode.DEEP,CachingBuildEngine.DepFiles.ENABLED,new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertTrue(service.shutdownNow().isEmpty());
   assertThat(result.getStatus(),equalTo(BuildRuleStatus.CANCELED));
