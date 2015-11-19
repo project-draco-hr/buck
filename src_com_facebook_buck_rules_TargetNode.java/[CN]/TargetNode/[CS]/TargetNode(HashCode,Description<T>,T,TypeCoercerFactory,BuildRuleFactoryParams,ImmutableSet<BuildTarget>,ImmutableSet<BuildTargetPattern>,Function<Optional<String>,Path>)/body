@@ -1,0 +1,27 @@
+{
+  this.rawInputsHashCode=rawInputsHashCode;
+  this.description=description;
+  this.constructorArg=constructorArg;
+  this.typeCoercerFactory=typeCoercerFactory;
+  this.ruleFactoryParams=params;
+  this.cellRoots=cellRoots;
+  final ImmutableSet.Builder<Path> paths=ImmutableSet.builder();
+  final ImmutableSortedSet.Builder<BuildTarget> extraDeps=ImmutableSortedSet.naturalOrder();
+  T arg=description.createUnpopulatedConstructorArg();
+  for (  Field field : arg.getClass().getFields()) {
+    ParamInfo<T> info=new ParamInfo<>(typeCoercerFactory,field);
+    if (info.isDep() && info.isInput() && info.hasElementTypes(BuildTarget.class,SourcePath.class,Path.class)) {
+      detectBuildTargetsAndPathsForConstructorArg(extraDeps,paths,info,constructorArg);
+    }
+  }
+  if (description instanceof ImplicitDepsInferringDescription) {
+    extraDeps.addAll(((ImplicitDepsInferringDescription<T>)description).findDepsForTargetFromConstructorArgs(params.target,cellRoots,constructorArg));
+  }
+  if (description instanceof ImplicitInputsInferringDescription) {
+    paths.addAll(((ImplicitInputsInferringDescription<T>)description).inferInputsFromConstructorArgs(params.target,constructorArg));
+  }
+  this.extraDeps=ImmutableSortedSet.copyOf(Sets.difference(extraDeps.build(),declaredDeps));
+  this.pathsReferenced=ruleFactoryParams.enforceBuckPackageBoundary() ? verifyPaths(paths.build()) : paths.build();
+  this.declaredDeps=declaredDeps;
+  this.visibilityPatterns=visibilityPatterns;
+}

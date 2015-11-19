@@ -3,7 +3,7 @@
   Map<String,Object> instance=ImmutableMap.<String,Object>of("srcs",ImmutableList.of(":baz","//biz:baz"),"out","AndroidManifest.xml","cmd","$(exe //bin:executable) $(location :arg)");
   ProjectFilesystem projectFilesystem=new AllExistingProjectFilesystem();
   BuildRuleFactoryParams params=new BuildRuleFactoryParams(projectFilesystem,BuildTargetFactory.newInstance("//foo:bar"),new InMemoryBuildFileTree(ImmutableList.<BuildTarget>of()),true);
-  ConstructorArgMarshaller marshaller=new ConstructorArgMarshaller();
+  ConstructorArgMarshaller marshaller=new ConstructorArgMarshaller(new DefaultTypeCoercerFactory());
   ImmutableSet.Builder<BuildTarget> declaredDeps=ImmutableSet.builder();
   ImmutableSet.Builder<BuildTargetPattern> visibilityPatterns=ImmutableSet.builder();
   GenruleDescription.Arg constructorArg=genruleDescription.createUnpopulatedConstructorArg();
@@ -13,6 +13,6 @@
  catch (  ConstructorArgMarshalException e) {
     fail("Expected constructorArg to be correctly populated.");
   }
-  TargetNode<GenruleDescription.Arg> targetNode=new TargetNode<>(Hashing.sha1().hashString(params.target.getFullyQualifiedName(),UTF_8),genruleDescription,constructorArg,params,declaredDeps.build(),visibilityPatterns.build(),createCellRoots(projectFilesystem));
+  TargetNode<GenruleDescription.Arg> targetNode=new TargetNode<>(Hashing.sha1().hashString(params.target.getFullyQualifiedName(),UTF_8),genruleDescription,constructorArg,new DefaultTypeCoercerFactory(),params,declaredDeps.build(),visibilityPatterns.build(),createCellRoots(projectFilesystem));
   assertEquals("SourcePaths and targets from cmd string should be extracted as extra deps.",ImmutableSet.of("//foo:baz","//biz:baz","//bin:executable","//foo:arg"),FluentIterable.from(targetNode.getExtraDeps()).transform(Functions.toStringFunction()).toSet());
 }
