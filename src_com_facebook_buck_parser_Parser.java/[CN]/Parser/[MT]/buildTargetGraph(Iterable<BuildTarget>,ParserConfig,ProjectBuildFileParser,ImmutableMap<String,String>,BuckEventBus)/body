@@ -1,5 +1,6 @@
 {
   final MutableDirectedGraph<TargetNode<?>> graph=new MutableDirectedGraph<>();
+  final Map<BuildTarget,TargetNode<?>> index=new HashMap<>();
   final Optional<BuckEventBus> eventBusOptional=Optional.of(eventBus);
   AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget> traversal=new AbstractAcyclicDepthFirstPostOrderTraversal<BuildTarget>(){
     @Override protected Iterator<BuildTarget> findChildren(    BuildTarget buildTarget) throws IOException, InterruptedException {
@@ -42,6 +43,11 @@
       TargetNode<?> targetNode=getTargetNode(buildTarget);
       Preconditions.checkNotNull(targetNode,"No target node found for %s",buildTarget);
       graph.addNode(targetNode);
+      MoreMaps.putCheckEquals(index,targetNode.getBuildTarget(),targetNode);
+      if (targetNode.getBuildTarget().isFlavored()) {
+        BuildTarget unflavoredBuildTarget=BuildTarget.of(targetNode.getBuildTarget().getUnflavoredBuildTarget());
+        MoreMaps.putCheckEquals(index,unflavoredBuildTarget,getTargetNode(unflavoredBuildTarget));
+      }
       for (      BuildTarget target : targetNode.getDeps()) {
         graph.addEdge(targetNode,Preconditions.checkNotNull(getTargetNode(target)));
       }
@@ -56,5 +62,5 @@
  catch (  AbstractAcyclicDepthFirstPostOrderTraversal.CycleException e) {
     throw new HumanReadableException(e.getMessage());
   }
-  return new TargetGraph(graph);
+  return new TargetGraph(graph,ImmutableMap.copyOf(index));
 }
