@@ -1,25 +1,25 @@
 {
-  ImmutableSet.Builder<PathMatcher> builder=ImmutableSet.builder();
-  builder.add(new BasePathMatcher(root,".idea"));
+  ImmutableSet.Builder<PathOrGlobMatcher> builder=ImmutableSet.builder();
+  builder.add(new PathOrGlobMatcher(root,".idea"));
   final String projectKey="project";
   final String ignoreKey="ignore";
   String buckdDirProperty=System.getProperty(BUCK_BUCKD_DIR_KEY,".buckd");
   if (!Strings.isNullOrEmpty(buckdDirProperty)) {
-    builder.add(new BasePathMatcher(root,buckdDirProperty));
+    builder.add(new PathOrGlobMatcher(root,buckdDirProperty));
   }
   Path cacheDir=getCacheDir(root,config.getValue("cache","dir"));
-  builder.add(new BasePathMatcher(cacheDir));
-  builder.addAll(FluentIterable.from(config.getListWithoutComments(projectKey,ignoreKey)).transform(new Function<String,PathMatcher>(){
-    @Nullable @Override public PathMatcher apply(    String input){
+  builder.add(new PathOrGlobMatcher(cacheDir));
+  builder.addAll(FluentIterable.from(config.getListWithoutComments(projectKey,ignoreKey)).transform(new Function<String,PathOrGlobMatcher>(){
+    @Nullable @Override public PathOrGlobMatcher apply(    String input){
       if (BuckConstant.BUCK_OUTPUT_DIRECTORY.equals(input)) {
         return null;
       }
       if (GLOB_CHARS.matcher(input).find()) {
-        return root.getFileSystem().getPathMatcher("glob:" + input);
+        return new PathOrGlobMatcher(root.getFileSystem().getPathMatcher("glob:" + input),input);
       }
-      return new BasePathMatcher(root,input);
+      return new PathOrGlobMatcher(root,input);
     }
   }
-).filter(Predicates.<PathMatcher>notNull()).toList());
+).filter(Predicates.<PathOrGlobMatcher>notNull()).toList());
   return builder.build();
 }
