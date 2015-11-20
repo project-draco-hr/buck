@@ -1,0 +1,19 @@
+{
+  AppleCxxPlatform appleCxxPlatform=getAppleCxxPlatformForBuildTarget(cxxPlatformFlavorDomain,defaultCxxPlatform,platformFlavorsToAppleCxxPlatforms,params.getBuildTarget());
+  AppleBundleDestinations destinations=AppleBundleDestinations.platformDestinations(appleCxxPlatform.getAppleSdk().getApplePlatform());
+  ImmutableSet.Builder<SourcePath> bundleDirsBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> dirsContainingResourceDirsBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> bundleFilesBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> bundleVariantFilesBuilder=ImmutableSet.builder();
+  AppleResources.collectResourceDirsAndFiles(targetGraph,Preconditions.checkNotNull(targetGraph.get(params.getBuildTarget())),bundleDirsBuilder,dirsContainingResourceDirsBuilder,bundleFilesBuilder,bundleVariantFilesBuilder);
+  ImmutableSet<SourcePath> bundleDirs=bundleDirsBuilder.build();
+  ImmutableSet<SourcePath> dirsContainingResourceDirs=dirsContainingResourceDirsBuilder.build();
+  ImmutableSet<SourcePath> bundleFiles=bundleFilesBuilder.build();
+  ImmutableSet<SourcePath> bundleVariantFiles=bundleVariantFilesBuilder.build();
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
+  Optional<AppleAssetCatalog> assetCatalog=createBuildRuleForTransitiveAssetCatalogDependencies(targetGraph,params,sourcePathResolver,appleCxxPlatform.getAppleSdk().getApplePlatform(),appleCxxPlatform.getActool());
+  BuildRule flavoredBinaryRule=getFlavoredBinaryRule(cxxPlatformFlavorDomain,defaultCxxPlatform,targetGraph,params,resolver,binary);
+  BuildRuleParams bundleParamsWithFlavoredBinaryDep=getBundleParamsWithUpdatedDeps(params,binary,ImmutableSet.<BuildRule>builder().add(flavoredBinaryRule).addAll(assetCatalog.asSet()).addAll(BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,SourcePaths.filterBuildTargetSourcePaths(Iterables.concat(bundleFiles,bundleDirs,dirsContainingResourceDirs,bundleVariantFiles)))).build());
+  ImmutableMap<SourcePath,String> extensionBundlePaths=collectFirstLevelAppleDependencyBundles(params.getDeps(),destinations);
+  return new AppleBundle(bundleParamsWithFlavoredBinaryDep,sourcePathResolver,extension,productName,infoPlist,infoPlistSubstitutions.get(),Optional.of(flavoredBinaryRule),destinations,bundleDirs,bundleFiles,dirsContainingResourceDirs,extensionBundlePaths,Optional.of(bundleVariantFiles),appleCxxPlatform.getIbtool(),appleCxxPlatform.getDsymutil(),appleCxxPlatform.getCxxPlatform().getStrip(),appleCxxPlatform.getLldb(),assetCatalog,tests,appleCxxPlatform.getAppleSdk(),codeSignIdentityStore,appleCxxPlatform.getCodesignAllocatePath(),provisioningProfileStore,AppleBundle.DebugInfoFormat.DSYM);
+}

@@ -1,0 +1,11 @@
+{
+  ImmutableSet<Flavor> flavors=params.getBuildTarget().withoutFlavors(ImmutableSet.of(ReactNativeFlavors.DO_NOT_BUNDLE)).getFlavors();
+  if (!cxxPlatformFlavorDomain.containsAnyOf(flavors)) {
+    flavors=new ImmutableSet.Builder<Flavor>().addAll(flavors).add(defaultCxxPlatform.getFlavor()).build();
+  }
+  final TargetNode<?> binaryTargetNode=Preconditions.checkNotNull(targetGraph.get(binary));
+  if (binaryTargetNode.getDescription() instanceof AppleLibraryDescription && (Sets.intersection(AppleBundleDescription.SUPPORTED_LIBRARY_FLAVORS,binaryTargetNode.getBuildTarget().getFlavors()).size() != 1)) {
+    throw new HumanReadableException("AppleExtension bundle [%s] must have exactly one of these flavors: [%s].",binaryTargetNode.getBuildTarget().toString(),Joiner.on(", ").join(AppleBundleDescription.SUPPORTED_LIBRARY_FLAVORS));
+  }
+  return resolver.requireRule(BuildTarget.of(binary.getUnflavoredBuildTarget(),ImmutableSet.<Flavor>builder().addAll(flavors).addAll(binary.getFlavors()).build()));
+}
