@@ -1,7 +1,16 @@
 {
   List<ListenableFuture<BuildResult>> depResults=Lists.newArrayListWithExpectedSize(rule.getDeps().size());
-  for (  BuildRule dep : rule.getDeps()) {
-    depResults.add(getBuildRuleResultWithRuntimeDeps(dep,context,asyncCallbacks));
-  }
-  return Futures.allAsList(depResults);
+  Iterable<BuildRule> deps=rule.getDeps();
+switch (dependencySchedulingOrder) {
+case SORTED:
+    deps=ImmutableSortedSet.copyOf(deps);
+  break;
+case RANDOM:
+deps=shuffled(deps);
+break;
+}
+for (BuildRule dep : deps) {
+depResults.add(getBuildRuleResultWithRuntimeDeps(dep,context,asyncCallbacks));
+}
+return Futures.allAsList(depResults);
 }
