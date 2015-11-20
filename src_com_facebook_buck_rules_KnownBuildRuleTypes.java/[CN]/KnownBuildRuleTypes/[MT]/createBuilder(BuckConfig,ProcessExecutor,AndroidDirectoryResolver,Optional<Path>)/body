@@ -68,13 +68,13 @@
   InferBuckConfig inferBuckConfig=new InferBuckConfig(config);
   CxxBinaryDescription cxxBinaryDescription=new CxxBinaryDescription(inferBuckConfig,defaultCxxPlatform,cxxPlatforms,cxxBuckConfig.getPreprocessMode());
   CxxLibraryDescription cxxLibraryDescription=new CxxLibraryDescription(cxxBuckConfig,inferBuckConfig,cxxPlatforms,cxxBuckConfig.getPreprocessMode());
-  AppleLibraryDescription appleLibraryDescription=new AppleLibraryDescription(cxxLibraryDescription,cxxPlatforms);
+  CodeSignIdentityStore codeSignIdentityStore=CodeSignIdentityStore.fromSystem(processExecutor);
+  ProvisioningProfileStore provisioningProfileStore=ProvisioningProfileStore.fromSearchPath(appleConfig.getProvisioningProfileSearchPath());
+  AppleLibraryDescription appleLibraryDescription=new AppleLibraryDescription(cxxLibraryDescription,cxxPlatforms,platformFlavorsToAppleCxxPlatforms,defaultCxxPlatform,codeSignIdentityStore,provisioningProfileStore);
   builder.register(appleLibraryDescription);
   AppleBinaryDescription appleBinaryDescription=new AppleBinaryDescription(cxxBinaryDescription,platformFlavorsToAppleCxxPlatforms);
   builder.register(appleBinaryDescription);
   ListeningExecutorService dxExecutorService=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(SmartDexingStep.determineOptimalThreadCount(),new CommandThreadFactory("SmartDexing")));
-  CodeSignIdentityStore codeSignIdentityStore=CodeSignIdentityStore.fromSystem(processExecutor);
-  ProvisioningProfileStore provisioningProfileStore=ProvisioningProfileStore.fromSearchPath(appleConfig.getProvisioningProfileSearchPath());
   builder.register(new AndroidAarDescription(new AndroidManifestDescription(),ndkCxxPlatforms));
   builder.register(new AndroidBinaryDescription(defaultJavacOptions,proGuardConfig,ndkCxxPlatforms,dxExecutorService));
   builder.register(new AndroidBuildConfigDescription(defaultJavacOptions));
