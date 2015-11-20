@@ -3,20 +3,14 @@
   if (!depFile.isPresent()) {
     return Optional.absent();
   }
-  RuleKeyFactories cellData=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem());
-  Preconditions.checkNotNull(cellData);
   ImmutableList<Path> inputs=FluentIterable.from(depFile.get()).transform(MorePaths.TO_PATH).toList();
-  RuleKeyBuilder builder=cellData.depFileRuleKeyBuilderFactory.newInstance(rule);
-  for (  Path input : inputs) {
-    try {
-      builder.setPath(rule.getProjectFilesystem().resolve(input),input);
-    }
- catch (    NoSuchFileException e) {
-      if (!allowMissingInputs) {
-        throw e;
-      }
-      return Optional.absent();
-    }
+  try {
+    return Optional.of(this.ruleKeyFactories.getUnchecked(rule.getProjectFilesystem()).depFileRuleKeyBuilderFactory.build(rule,inputs));
   }
-  return Optional.of(builder.build());
+ catch (  NoSuchFileException e) {
+    if (!allowMissingInputs) {
+      throw e;
+    }
+    return Optional.absent();
+  }
 }

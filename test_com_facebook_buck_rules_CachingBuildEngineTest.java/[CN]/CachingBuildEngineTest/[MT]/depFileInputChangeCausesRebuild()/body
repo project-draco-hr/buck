@@ -5,12 +5,15 @@
   FileHashCache fileHashCache=new DefaultFileHashCache(filesystem);
   BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,pathResolver);
+  RuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(fileHashCache,pathResolver);
+  DefaultDependencyFileRuleKeyBuilderFactory depFilefactory=new DefaultDependencyFileRuleKeyBuilderFactory(fileHashCache,pathResolver,factory);
+  final Genrule genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:dep")).setOut("input").build(resolver,filesystem);
+  final Path input=Preconditions.checkNotNull(genrule.getPathToOutput());
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setProjectFilesystem(filesystem).build();
-  final Path input=Paths.get("input_file");
   final Path output=Paths.get("output");
   BuildRule rule=new DepFileBuildRule(params,pathResolver){
+    @AddToRuleKey private final SourcePath path=new BuildTargetSourcePath(genrule.getBuildTarget());
     @Override public ImmutableList<Step> getBuildSteps(    BuildContext context,    BuildableContext buildableContext){
       buildableContext.addMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE,ImmutableList.of(input.toString()));
       return ImmutableList.<Step>of(new WriteFileStep(filesystem,"",output,false));
@@ -24,14 +27,13 @@
   }
 ;
   filesystem.writeContentsToPath("something",input);
-  DependencyFileRuleKeyBuilderFactory factory=new DependencyFileRuleKeyBuilderFactory(fileHashCache,pathResolver,ruleKeyBuilderFactory);
-  RuleKey depFileRuleKey=factory.newInstance(rule).setPath(input).build();
+  RuleKey depFileRuleKey=depFilefactory.build(rule,ImmutableList.of(input));
   filesystem.writeContentsToPath(depFileRuleKey.toString(),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY));
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of(input.toString())),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_DEP_FILE));
   filesystem.writeContentsToPath(new ObjectMapper().writeValueAsString(ImmutableList.of(output.toString())),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
   filesystem.writeContentsToPath("something else",input);
   fileHashCache.invalidate(input);
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,pathResolver,Functions.constant(new CachingBuildEngine.RuleKeyFactories(ruleKeyBuilderFactory,NOOP_RULE_KEY_FACTORY,NOOP_RULE_KEY_FACTORY,new DependencyFileRuleKeyBuilderFactory(fileHashCache,pathResolver,ruleKeyBuilderFactory))));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DepFiles.ENABLED,pathResolver,Functions.constant(new CachingBuildEngine.RuleKeyFactories(factory,factory,factory,depFilefactory)));
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
-  assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
+  assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,getSuccess(result));
 }
