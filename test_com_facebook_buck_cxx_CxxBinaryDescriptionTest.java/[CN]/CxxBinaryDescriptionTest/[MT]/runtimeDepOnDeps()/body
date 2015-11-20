@@ -1,9 +1,14 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
-  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
-  Set<TargetNode<?>> targetNodes=Sets.newTreeSet();
-  BuildRule leafCxxBinary=new CxxBinaryBuilder(BuildTargetFactory.newInstance("//:dep")).build(resolver,filesystem,targetNodes);
-  BuildRule cxxLibrary=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:lib")).setDeps(ImmutableSortedSet.of(leafCxxBinary.getBuildTarget())).build(resolver,filesystem,targetNodes);
-  CxxBinary topLevelCxxBinary=(CxxBinary)new CxxBinaryBuilder(BuildTargetFactory.newInstance("//:bin")).setDeps(ImmutableSortedSet.of(cxxLibrary.getBuildTarget())).build(resolver,filesystem,targetNodes);
+  BuildTarget leafBinaryTarget=BuildTargetFactory.newInstance("//:dep");
+  CxxBinaryBuilder leafCxxBinaryBuilder=new CxxBinaryBuilder(leafBinaryTarget);
+  BuildTarget libraryTarget=BuildTargetFactory.newInstance("//:lib");
+  CxxLibraryBuilder cxxLibraryBuilder=new CxxLibraryBuilder(libraryTarget).setDeps(ImmutableSortedSet.of(leafBinaryTarget));
+  BuildTarget topLevelBinaryTarget=BuildTargetFactory.newInstance("//:bin");
+  CxxBinaryBuilder topLevelCxxBinaryBuilder=new CxxBinaryBuilder(topLevelBinaryTarget).setDeps(ImmutableSortedSet.of(libraryTarget));
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(leafCxxBinaryBuilder.build(),cxxLibraryBuilder.build(),topLevelCxxBinaryBuilder.build()),new BuildTargetNodeToBuildRuleTransformer());
+  BuildRule leafCxxBinary=leafCxxBinaryBuilder.build(resolver,filesystem);
+  cxxLibraryBuilder.build(resolver,filesystem);
+  CxxBinary topLevelCxxBinary=(CxxBinary)topLevelCxxBinaryBuilder.build(resolver,filesystem);
   assertThat(BuildRules.getTransitiveRuntimeDeps(topLevelCxxBinary),Matchers.hasItem(leafCxxBinary));
 }

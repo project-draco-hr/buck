@@ -1,0 +1,25 @@
+{
+  ImmutableMap.Builder<Pair<NdkCxxPlatforms.TargetCpuType,String>,SourcePath> nativeLinkableLibsBuilder=ImmutableMap.builder();
+  ImmutableMap.Builder<Pair<NdkCxxPlatforms.TargetCpuType,String>,SourcePath> nativeLinkableLibsAssetsBuilder=ImmutableMap.builder();
+  ImmutableSet<NdkCxxPlatforms.TargetCpuType> filters=cpuFilters.isEmpty() ? nativePlatforms.keySet() : cpuFilters;
+  for (  NdkCxxPlatforms.TargetCpuType targetCpuType : filters) {
+    NdkCxxPlatform platform=Preconditions.checkNotNull(nativePlatforms.get(targetCpuType));
+    boolean hasNativeLibs=populateMapWithLinkables(packageableCollection.getNativeLinkables(),nativeLinkableLibsBuilder,targetCpuType,platform);
+    boolean hasNativeLibsAssets=populateMapWithLinkables(packageableCollection.getNativeLinkablesAssets(),nativeLinkableLibsAssetsBuilder,targetCpuType,platform);
+    NdkCxxPlatforms.CxxRuntime cxxRuntime=platform.getCxxRuntime();
+    if ((hasNativeLibs || hasNativeLibsAssets) && !cxxRuntime.equals(NdkCxxPlatforms.CxxRuntime.SYSTEM)) {
+      nativeLinkableLibsBuilder.put(new Pair<>(targetCpuType,cxxRuntime.getSoname()),new PathSourcePath(buildRuleParams.getProjectFilesystem(),platform.getCxxSharedRuntimePath()));
+    }
+  }
+  ImmutableMap<Pair<NdkCxxPlatforms.TargetCpuType,String>,SourcePath> nativeLinkableLibs=nativeLinkableLibsBuilder.build();
+  ImmutableMap<Pair<NdkCxxPlatforms.TargetCpuType,String>,SourcePath> nativeLinkableLibsAssets=nativeLinkableLibsAssetsBuilder.build();
+  if (packageableCollection.getNativeLibsDirectories().isEmpty() && nativeLinkableLibs.isEmpty() && nativeLinkableLibsAssets.isEmpty()) {
+    return Optional.absent();
+  }
+  ImmutableMap<StripLinkable,StrippedObjectDescription> strippedLibsMap=generateStripRules(nativeLinkableLibs);
+  ImmutableMap<StripLinkable,StrippedObjectDescription> strippedLibsAssetsMap=generateStripRules(nativeLinkableLibsAssets);
+  BuildTarget targetForCopyNativeLibraries=BuildTarget.builder(originalBuildTarget).addFlavors(COPY_NATIVE_LIBS_FLAVOR).build();
+  ImmutableSortedSet<BuildRule> nativeLibsRules=BuildRules.toBuildRulesFor(originalBuildTarget,ruleResolver,packageableCollection.getNativeLibsTargets());
+  BuildRuleParams paramsForCopyNativeLibraries=buildRuleParams.copyWithChanges(targetForCopyNativeLibraries,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(nativeLibsRules).addAll(pathResolver.filterBuildRuleInputs(packageableCollection.getNativeLibsDirectories())).addAll(strippedLibsMap.keySet()).addAll(strippedLibsAssetsMap.keySet()).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  return Optional.of(new CopyNativeLibraries(paramsForCopyNativeLibraries,pathResolver,packageableCollection.getNativeLibsDirectories(),ImmutableSet.copyOf(strippedLibsMap.values()),ImmutableSet.copyOf(strippedLibsAssetsMap.values()),cpuFilters));
+}

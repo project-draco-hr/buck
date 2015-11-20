@@ -1,0 +1,44 @@
+{
+  CxxPreprocessorInput cxxPreprocessorInputFromDeps;
+  try {
+    cxxPreprocessorInputFromDeps=CxxPreprocessorInput.concat(CxxPreprocessables.getTransitiveCxxPreprocessorInput(ocamlBuckConfig.getCxxPlatform(),FluentIterable.from(params.getDeps()).filter(Predicates.instanceOf(CxxPreprocessorDep.class))));
+  }
+ catch (  CxxHeaders.ConflictingHeadersException e) {
+    throw e.getHumanReadableExceptionForBuildTarget(params.getBuildTarget());
+  }
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ImmutableList<String> includes=FluentIterable.from(params.getDeps()).transformAndConcat(getLibInclude(false)).toList();
+  ImmutableList<String> bytecodeIncludes=FluentIterable.from(params.getDeps()).transformAndConcat(getLibInclude(true)).toList();
+  NativeLinkableInput linkableInput=getLinkableInput(params.getDeps());
+  NativeLinkableInput nativeLinkableInput=getNativeLinkableInput(ocamlBuckConfig.getCxxPlatform(),params.getDeps());
+  ImmutableList<OCamlLibrary> ocamlInput=OCamlUtil.getTransitiveOCamlInput(params.getDeps());
+  ImmutableSortedSet.Builder<BuildRule> allDepsBuilder=ImmutableSortedSet.naturalOrder();
+  allDepsBuilder.addAll(pathResolver.filterBuildRuleInputs(getInput(srcs)));
+  allDepsBuilder.addAll(FluentIterable.from(linkableInput.getArgs()).append(nativeLinkableInput.getArgs()).transformAndConcat(Arg.getDepsFunction(pathResolver)));
+  for (  OCamlLibrary library : ocamlInput) {
+    allDepsBuilder.addAll(library.getCompileDeps());
+    allDepsBuilder.addAll(library.getBytecodeCompileDeps());
+  }
+  ImmutableSortedSet<BuildRule> allDeps=allDepsBuilder.build();
+  BuildTarget buildTarget=isLibrary ? createStaticLibraryBuildTarget(params.getBuildTarget()) : createOCamlLinkTarget(params.getBuildTarget());
+  final BuildRuleParams compileParams=params.copyWithChanges(buildTarget,Suppliers.ofInstance(allDeps),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  ImmutableList.Builder<String> flagsBuilder=ImmutableList.builder();
+  flagsBuilder.addAll(argFlags);
+  ImmutableSortedSet.Builder<BuildRule> compileDepsBuilder=ImmutableSortedSet.naturalOrder();
+  ImmutableSortedSet.Builder<BuildRule> bytecodeCompileDepsBuilder=ImmutableSortedSet.naturalOrder();
+  ImmutableSortedSet.Builder<BuildRule> bytecodeLinkDepsBuilder=ImmutableSortedSet.naturalOrder();
+  for (  OCamlLibrary library : ocamlInput) {
+    compileDepsBuilder.addAll(library.getCompileDeps());
+    bytecodeCompileDepsBuilder.addAll(library.getBytecodeCompileDeps());
+    bytecodeLinkDepsBuilder.addAll(library.getBytecodeLinkDeps());
+  }
+  OCamlBuildContext ocamlContext=OCamlBuildContext.builder(ocamlBuckConfig).setFlags(flagsBuilder.build()).setIncludes(includes).setBytecodeIncludes(bytecodeIncludes).setOCamlInput(ocamlInput).setLinkableInput(linkableInput).setNativeLinkableInput(nativeLinkableInput).setBuildTarget(buildTarget.getUnflavoredBuildTarget()).setLibrary(isLibrary).setCxxPreprocessorInput(cxxPreprocessorInputFromDeps).setInput(pathResolver.deprecatedAllPaths(getInput(srcs))).setCompileDeps(compileDepsBuilder.build()).setBytecodeCompileDeps(bytecodeCompileDepsBuilder.build()).setBytecodeLinkDeps(bytecodeLinkDepsBuilder.build()).build();
+  final OCamlBuild ocamlLibraryBuild=new OCamlBuild(compileParams,pathResolver,ocamlContext,ocamlBuckConfig.getCCompiler(),ocamlBuckConfig.getCxxCompiler());
+  resolver.addToIndex(ocamlLibraryBuild);
+  if (isLibrary) {
+    return new OCamlStaticLibrary(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps().get()).add(ocamlLibraryBuild).build()),params.getExtraDeps()),pathResolver,compileParams,linkerFlags,FluentIterable.from(srcs).transform(OCamlSource.TO_SOURCE_PATH).transform(pathResolver.deprecatedPathFunction()).filter(OCamlUtil.ext(OCamlCompilables.OCAML_C)).transform(ocamlContext.toCOutput()).transform(SourcePaths.getToBuildTargetSourcePath(compileParams.getBuildTarget())).toList(),ocamlContext,ocamlLibraryBuild,ImmutableSortedSet.<BuildRule>of(ocamlLibraryBuild),ImmutableSortedSet.<BuildRule>of(ocamlLibraryBuild),ImmutableSortedSet.<BuildRule>of(ocamlLibraryBuild));
+  }
+ else {
+    return new OCamlBinary(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps().get()).add(ocamlLibraryBuild).build()),params.getExtraDeps()),pathResolver,ocamlLibraryBuild);
+  }
+}

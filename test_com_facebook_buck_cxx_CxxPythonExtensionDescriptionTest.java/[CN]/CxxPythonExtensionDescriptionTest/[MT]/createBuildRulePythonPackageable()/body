@@ -1,10 +1,14 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
-  Set<TargetNode<?>> targetNodes=Sets.newHashSet();
+  PrebuiltCxxLibraryBuilder python2Builder=new PrebuiltCxxLibraryBuilder(PYTHON2_DEP_TARGET).setHeaderOnly(true).setExportedLinkerFlags(ImmutableList.of("-lpython2"));
+  PrebuiltCxxLibraryBuilder python3Builder=new PrebuiltCxxLibraryBuilder(PYTHON3_DEP_TARGET).setHeaderOnly(true).setExportedLinkerFlags(ImmutableList.of("-lpython3"));
   BuildTarget target=BuildTargetFactory.newInstance("//:target");
-  CxxPythonExtension extension=(CxxPythonExtension)createBuilder(resolver,filesystem,targetNodes,target).build(resolver,filesystem,targetNodes);
-  PythonPackageComponents actualComponent=extension.getPythonPackageComponents(TargetGraphFactory.newInstance(ImmutableSet.copyOf(targetNodes)),PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
+  CxxPythonExtensionBuilder builder=new CxxPythonExtensionBuilder(target,new FlavorDomain<>("Python Platform",ImmutableMap.of(PY2.getFlavor(),PY2,PY3.getFlavor(),PY3)),new CxxBuckConfig(FakeBuckConfig.builder().build()),CxxTestBuilder.createDefaultPlatforms());
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(builder.build(),python2Builder.build(),python3Builder.build()),new BuildTargetNodeToBuildRuleTransformer());
+  python2Builder.build(resolver,filesystem);
+  python3Builder.build(resolver,filesystem);
+  CxxPythonExtension extension=(CxxPythonExtension)builder.build(resolver,filesystem);
+  PythonPackageComponents actualComponent=extension.getPythonPackageComponents(PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
   BuildRule rule=resolver.getRule(CxxPythonExtensionDescription.getExtensionTarget(target,PY2.getFlavor(),CxxPlatformUtils.DEFAULT_PLATFORM.getFlavor()));
   PythonPackageComponents expectedComponents=PythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(target.getBasePath().resolve(CxxPythonExtensionDescription.getExtensionName(target)),new BuildTargetSourcePath(rule.getBuildTarget())),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),Optional.of(false));
   assertEquals(expectedComponents,actualComponent);

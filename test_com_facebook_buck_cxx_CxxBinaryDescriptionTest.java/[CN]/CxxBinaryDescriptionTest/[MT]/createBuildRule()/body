@@ -16,11 +16,11 @@
   BuildTarget depTarget=BuildTargetFactory.newInstance("//:dep");
   BuildRuleParams depParams=new FakeBuildRuleParamsBuilder(depTarget).build();
   AbstractCxxLibrary dep=new AbstractCxxLibrary(depParams,pathResolver){
-    @Override public CxxPreprocessorInput getCxxPreprocessorInput(    TargetGraph targetGraph,    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility){
+    @Override public CxxPreprocessorInput getCxxPreprocessorInput(    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility){
       return CxxPreprocessorInput.builder().addRules(header.getBuildTarget(),headerSymlinkTree.getBuildTarget()).addIncludeRoots(headerSymlinkTreeRoot).build();
     }
-    @Override public ImmutableMap<BuildTarget,CxxPreprocessorInput> getTransitiveCxxPreprocessorInput(    TargetGraph targetGraph,    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility){
-      return ImmutableMap.of(getBuildTarget(),getCxxPreprocessorInput(targetGraph,cxxPlatform,headerVisibility));
+    @Override public ImmutableMap<BuildTarget,CxxPreprocessorInput> getTransitiveCxxPreprocessorInput(    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility){
+      return ImmutableMap.of(getBuildTarget(),getCxxPreprocessorInput(cxxPlatform,headerVisibility));
     }
     @Override public Iterable<NativeLinkable> getNativeLinkableDeps(    CxxPlatform cxxPlatform){
       return FluentIterable.from(getDeclaredDeps()).filter(NativeLinkable.class);
@@ -28,13 +28,13 @@
     @Override public Iterable<NativeLinkable> getNativeLinkableExportedDeps(    CxxPlatform cxxPlatform){
       return FluentIterable.from(getDeclaredDeps()).filter(NativeLinkable.class);
     }
-    @Override public NativeLinkableInput getNativeLinkableInput(    TargetGraph targetGraph,    CxxPlatform cxxPlatform,    Linker.LinkableDepType type){
+    @Override public NativeLinkableInput getNativeLinkableInput(    CxxPlatform cxxPlatform,    Linker.LinkableDepType type){
       return NativeLinkableInput.of(ImmutableList.<Arg>of(new SourcePathArg(getResolver(),new BuildTargetSourcePath(archive.getBuildTarget()))),ImmutableSet.<FrameworkPath>of(),ImmutableSet.<FrameworkPath>of());
     }
     @Override public NativeLinkable.Linkage getPreferredLinkage(    CxxPlatform cxxPlatform){
       return Linkage.ANY;
     }
-    @Override public PythonPackageComponents getPythonPackageComponents(    TargetGraph targetGraph,    PythonPlatform pythonPlatform,    CxxPlatform cxxPlatform){
+    @Override public PythonPackageComponents getPythonPackageComponents(    PythonPlatform pythonPlatform,    CxxPlatform cxxPlatform){
       return PythonPackageComponents.of(ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),Optional.<Boolean>absent());
     }
     @Override public Iterable<AndroidPackageable> getRequiredPackageables(){
@@ -42,7 +42,7 @@
     }
     @Override public void addToCollector(    AndroidPackageableCollector collector){
     }
-    @Override public ImmutableMap<String,SourcePath> getSharedLibraries(    TargetGraph targetGraph,    CxxPlatform cxxPlatform){
+    @Override public ImmutableMap<String,SourcePath> getSharedLibraries(    CxxPlatform cxxPlatform){
       return ImmutableMap.of();
     }
     @Override public boolean isTestedBy(    BuildTarget buildTarget){
@@ -52,7 +52,7 @@
 ;
   resolver.addAllToIndex(ImmutableList.of(header,headerSymlinkTree,archive,dep));
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
-  CxxBinaryBuilder cxxBinaryBuilder=(CxxBinaryBuilder)new CxxBinaryBuilder(target).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("test/bar.cpp")),SourceWithFlags.of(new BuildTargetSourcePath(genSource.getBuildTarget())))).setHeaders(ImmutableSortedSet.<SourcePath>of(new FakeSourcePath("test/bar.h"),new BuildTargetSourcePath(genHeader.getBuildTarget()))).setDeps(ImmutableSortedSet.of(dep.getBuildTarget()));
+  CxxBinaryBuilder cxxBinaryBuilder=new CxxBinaryBuilder(target).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("test/bar.cpp")),SourceWithFlags.of(new BuildTargetSourcePath(genSource.getBuildTarget())))).setHeaders(ImmutableSortedSet.<SourcePath>of(new FakeSourcePath("test/bar.h"),new BuildTargetSourcePath(genHeader.getBuildTarget()))).setDeps(ImmutableSortedSet.of(dep.getBuildTarget()));
   CxxBinary binRule=(CxxBinary)cxxBinaryBuilder.build(resolver);
   CxxLink rule=binRule.getRule();
   CxxSourceRuleFactory cxxSourceRuleFactory=new CxxSourceRuleFactory(cxxBinaryBuilder.createBuildRuleParams(resolver,projectFilesystem),resolver,pathResolver,cxxPlatform,ImmutableList.<CxxPreprocessorInput>of(),ImmutableList.<String>of(),Optional.<SourcePath>absent());

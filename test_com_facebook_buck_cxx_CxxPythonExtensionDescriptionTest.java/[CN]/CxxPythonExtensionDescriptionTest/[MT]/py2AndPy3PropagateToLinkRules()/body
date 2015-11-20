@@ -1,11 +1,15 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
-  Set<TargetNode<?>> targetNodes=Sets.newHashSet();
+  PrebuiltCxxLibraryBuilder python2Builder=new PrebuiltCxxLibraryBuilder(PYTHON2_DEP_TARGET).setHeaderOnly(true).setExportedLinkerFlags(ImmutableList.of("-lpython2"));
+  PrebuiltCxxLibraryBuilder python3Builder=new PrebuiltCxxLibraryBuilder(PYTHON3_DEP_TARGET).setHeaderOnly(true).setExportedLinkerFlags(ImmutableList.of("-lpython3"));
   BuildTarget target=BuildTargetFactory.newInstance("//:target");
-  CxxPythonExtension extension=(CxxPythonExtension)createBuilder(resolver,filesystem,targetNodes,target).build(resolver,filesystem,targetNodes);
-  CxxLink py2Ext=(CxxLink)extension.getExtension(TargetGraphFactory.newInstance(ImmutableSet.copyOf(targetNodes)),PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
+  CxxPythonExtensionBuilder builder=new CxxPythonExtensionBuilder(target,new FlavorDomain<>("Python Platform",ImmutableMap.of(PY2.getFlavor(),PY2,PY3.getFlavor(),PY3)),new CxxBuckConfig(FakeBuckConfig.builder().build()),CxxTestBuilder.createDefaultPlatforms());
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(builder.build(),python2Builder.build(),python3Builder.build()),new BuildTargetNodeToBuildRuleTransformer());
+  python2Builder.build(resolver,filesystem);
+  python3Builder.build(resolver,filesystem);
+  CxxPythonExtension extension=(CxxPythonExtension)builder.build(resolver,filesystem);
+  CxxLink py2Ext=(CxxLink)extension.getExtension(PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
   assertThat(py2Ext.getArgs(),Matchers.allOf(Matchers.hasItem("-lpython2"),Matchers.not(Matchers.hasItem("-lpython3"))));
-  CxxLink py3Ext=(CxxLink)extension.getExtension(TargetGraphFactory.newInstance(ImmutableSet.copyOf(targetNodes)),PY3,CxxPlatformUtils.DEFAULT_PLATFORM);
+  CxxLink py3Ext=(CxxLink)extension.getExtension(PY3,CxxPlatformUtils.DEFAULT_PLATFORM);
   assertThat(py3Ext.getArgs(),Matchers.allOf(Matchers.hasItem("-lpython3"),Matchers.not(Matchers.hasItem("-lpython2"))));
 }

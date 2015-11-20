@@ -1,9 +1,13 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
-  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
-  Set<TargetNode<?>> targetNodes=Sets.newTreeSet();
-  BuildRule cxxBinary=new CxxBinaryBuilder(BuildTargetFactory.newInstance("//:dep")).build(resolver,filesystem,targetNodes);
-  BuildRule cxxLibrary=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:lib")).setDeps(ImmutableSortedSet.of(cxxBinary.getBuildTarget())).build(resolver,filesystem,targetNodes);
-  CxxTest cxxTest=(CxxTest)createTestBuilder(resolver,filesystem,targetNodes).setDeps(ImmutableSortedSet.of(cxxLibrary.getBuildTarget())).build(resolver,filesystem,targetNodes);
+  BuildTarget cxxBinaryTarget=BuildTargetFactory.newInstance("//:dep");
+  BuildTarget cxxLibraryTarget=BuildTargetFactory.newInstance("//:lib");
+  CxxBinaryBuilder cxxBinaryBuilder=new CxxBinaryBuilder(cxxBinaryTarget);
+  CxxLibraryBuilder cxxLibraryBuilder=new CxxLibraryBuilder(cxxLibraryTarget).setDeps(ImmutableSortedSet.of(cxxBinaryTarget));
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(cxxLibraryBuilder.build(),cxxBinaryBuilder.build()),new BuildTargetNodeToBuildRuleTransformer());
+  BuildRule cxxBinary=cxxBinaryBuilder.build(resolver,filesystem);
+  cxxLibraryBuilder.build(resolver,filesystem);
+  CxxTestBuilder cxxTestBuilder=createTestBuilder(resolver,filesystem).setDeps(ImmutableSortedSet.of(cxxLibraryTarget));
+  CxxTest cxxTest=(CxxTest)cxxTestBuilder.build(resolver,filesystem);
   assertThat(BuildRules.getTransitiveRuntimeDeps(cxxTest),Matchers.hasItem(cxxBinary));
 }

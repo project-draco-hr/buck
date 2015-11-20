@@ -1,15 +1,22 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
-  Set<TargetNode<?>> targetNodes=Sets.newHashSet();
-  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  PrebuiltCxxLibraryBuilder python2Builder=new PrebuiltCxxLibraryBuilder(PYTHON2_DEP_TARGET).setHeaderOnly(true).setExportedLinkerFlags(ImmutableList.of("-lpython2"));
+  PrebuiltCxxLibraryBuilder python3Builder=new PrebuiltCxxLibraryBuilder(PYTHON3_DEP_TARGET).setHeaderOnly(true).setExportedLinkerFlags(ImmutableList.of("-lpython3"));
   BuildTarget target=BuildTargetFactory.newInstance("//:target");
-  CxxPythonExtension normal=(CxxPythonExtension)createBuilder(resolver,filesystem,targetNodes,target).build(resolver,filesystem,targetNodes);
-  PythonPackageComponents normalComps=normal.getPythonPackageComponents(TargetGraphFactory.newInstance(ImmutableSet.copyOf(targetNodes)),PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
+  CxxPythonExtensionBuilder builder=new CxxPythonExtensionBuilder(target,new FlavorDomain<>("Python Platform",ImmutableMap.of(PY2.getFlavor(),PY2,PY3.getFlavor(),PY3)),new CxxBuckConfig(FakeBuckConfig.builder().build()),CxxTestBuilder.createDefaultPlatforms());
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(builder.build(),python2Builder.build(),python3Builder.build()),new BuildTargetNodeToBuildRuleTransformer());
+  python2Builder.build(resolver,filesystem);
+  python3Builder.build(resolver,filesystem);
+  CxxPythonExtension normal=(CxxPythonExtension)builder.build(resolver,filesystem);
+  PythonPackageComponents normalComps=normal.getPythonPackageComponents(PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
   assertEquals(ImmutableSet.of(target.getBasePath().resolve(CxxPythonExtensionDescription.getExtensionName(target))),normalComps.getModules().keySet());
-  resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   BuildTarget target2=BuildTargetFactory.newInstance("//:target2#py2");
   String name="blah";
-  CxxPythonExtension baseModule=(CxxPythonExtension)createBuilder(resolver,filesystem,targetNodes,target2).setBaseModule(name).build(resolver,filesystem,targetNodes);
-  PythonPackageComponents baseModuleComps=baseModule.getPythonPackageComponents(TargetGraphFactory.newInstance(ImmutableSet.copyOf(targetNodes)),PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
+  CxxPythonExtensionBuilder baseModuleBuilder=new CxxPythonExtensionBuilder(target2,new FlavorDomain<>("Python Platform",ImmutableMap.of(PY2.getFlavor(),PY2,PY3.getFlavor(),PY3)),new CxxBuckConfig(FakeBuckConfig.builder().build()),CxxTestBuilder.createDefaultPlatforms()).setBaseModule(name);
+  resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(baseModuleBuilder.build(),python2Builder.build(),python3Builder.build()),new BuildTargetNodeToBuildRuleTransformer());
+  python2Builder.build(resolver,filesystem);
+  python3Builder.build(resolver,filesystem);
+  CxxPythonExtension baseModule=(CxxPythonExtension)baseModuleBuilder.build(resolver,filesystem);
+  PythonPackageComponents baseModuleComps=baseModule.getPythonPackageComponents(PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
   assertEquals(ImmutableSet.of(Paths.get(name).resolve(CxxPythonExtensionDescription.getExtensionName(target2))),baseModuleComps.getModules().keySet());
 }

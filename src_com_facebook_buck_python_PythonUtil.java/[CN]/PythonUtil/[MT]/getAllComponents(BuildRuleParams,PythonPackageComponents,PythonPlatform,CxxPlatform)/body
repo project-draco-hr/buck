@@ -1,0 +1,26 @@
+{
+  final PythonPackageComponents.Builder components=new PythonPackageComponents.Builder(params.getBuildTarget());
+  components.addComponent(packageComponents,params.getBuildTarget());
+  try {
+    new AbstractBreadthFirstTraversal<BuildRule>(params.getDeps()){
+      @Override public ImmutableSortedSet<BuildRule> visit(      BuildRule rule){
+        if (rule instanceof PythonPackagable) {
+          PythonPackagable lib=(PythonPackagable)rule;
+          try {
+            components.addComponent(lib.getPythonPackageComponents(pythonPlatform,cxxPlatform),rule.getBuildTarget());
+          }
+ catch (          NoSuchBuildTargetException e) {
+            throw new ClosureException(e);
+          }
+          return rule.getDeps();
+        }
+        return ImmutableSortedSet.of();
+      }
+    }
+.start();
+  }
+ catch (  ClosureException e) {
+    throw (NoSuchBuildTargetException)e.getException();
+  }
+  return components.build();
+}

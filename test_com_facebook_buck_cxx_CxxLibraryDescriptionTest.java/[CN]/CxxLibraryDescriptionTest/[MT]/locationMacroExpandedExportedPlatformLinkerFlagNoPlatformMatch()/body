@@ -1,7 +1,6 @@
 {
   BuildTarget location=BuildTargetFactory.newInstance("//:loc");
   BuildTarget target=BuildTargetFactory.newInstance("//foo:bar").withFlavors(CxxLibraryBuilder.createDefaultPlatform().getFlavor());
-  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
   ExportFileBuilder locBuilder=ExportFileBuilder.newExportFileBuilder(location);
   locBuilder.setOut("somewhere.over.the.rainbow");
@@ -9,9 +8,10 @@
   libBuilder.setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new PathSourcePath(filesystem,Paths.get("test.cpp")))));
   libBuilder.setExportedPlatformLinkerFlags(PatternMatchedCollection.<ImmutableList<String>>builder().add(Pattern.compile("notarealplatform"),ImmutableList.of("-Wl,--version-script=$(location //:loc)")).build());
   TargetGraph targetGraph=TargetGraphFactory.newInstance(libBuilder.build(),locBuilder.build());
+  BuildRuleResolver resolver=new BuildRuleResolver(targetGraph,new BuildTargetNodeToBuildRuleTransformer());
   ExportFile loc=(ExportFile)locBuilder.build(resolver,filesystem,targetGraph);
   CxxLibrary lib=(CxxLibrary)libBuilder.build(resolver,filesystem,targetGraph);
-  NativeLinkableInput nativeLinkableInput=lib.getNativeLinkableInput(targetGraph,CxxLibraryBuilder.createDefaultPlatform(),Linker.LinkableDepType.SHARED);
+  NativeLinkableInput nativeLinkableInput=lib.getNativeLinkableInput(CxxLibraryBuilder.createDefaultPlatform(),Linker.LinkableDepType.SHARED);
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   assertThat(FluentIterable.from(nativeLinkableInput.getArgs()).transformAndConcat(Arg.getDepsFunction(pathResolver)).toSet(),Matchers.not(Matchers.hasItem(loc)));
   assertThat(FluentIterable.from(nativeLinkableInput.getArgs()).transform(Arg.stringifyFunction()).toList(),Matchers.not(Matchers.hasItem(Matchers.containsString(Preconditions.checkNotNull(loc.getPathToOutput()).toString()))));

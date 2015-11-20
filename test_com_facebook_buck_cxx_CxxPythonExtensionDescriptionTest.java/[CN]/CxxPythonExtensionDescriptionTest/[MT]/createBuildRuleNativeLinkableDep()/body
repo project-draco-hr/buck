@@ -1,13 +1,19 @@
 {
-  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
-  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
-  Set<TargetNode<?>> targetNodes=Sets.newHashSet();
   BuildTarget target=BuildTargetFactory.newInstance("//:target");
-  CxxLibrary dep=(CxxLibrary)new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:dep")).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("something.cpp"),ImmutableList.<String>of()))).build(resolver,filesystem,targetNodes);
-  NativeLinkableInput depInput=dep.getNativeLinkableInput(TargetGraphFactory.newInstance(ImmutableSet.copyOf(targetNodes)),CxxPlatformUtils.DEFAULT_PLATFORM,Linker.LinkableDepType.SHARED);
-  CxxPythonExtension extension=(CxxPythonExtension)createBuilder(resolver,filesystem,targetNodes,target).setDeps(ImmutableSortedSet.of(dep.getBuildTarget())).build(resolver,filesystem,targetNodes);
-  extension.getPythonPackageComponents(TargetGraphFactory.newInstance(ImmutableSet.copyOf(targetNodes)),PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
+  PrebuiltCxxLibraryBuilder python2Builder=new PrebuiltCxxLibraryBuilder(PYTHON2_DEP_TARGET).setHeaderOnly(true).setExportedLinkerFlags(ImmutableList.of("-lpython2"));
+  PrebuiltCxxLibraryBuilder python3Builder=new PrebuiltCxxLibraryBuilder(PYTHON3_DEP_TARGET).setHeaderOnly(true).setExportedLinkerFlags(ImmutableList.of("-lpython3"));
+  BuildTarget cxxLibraryTarget=BuildTargetFactory.newInstance("//:dep");
+  CxxLibraryBuilder cxxLibraryBuilder=new CxxLibraryBuilder(cxxLibraryTarget).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("something.cpp"),ImmutableList.<String>of())));
+  CxxPythonExtensionBuilder builder=new CxxPythonExtensionBuilder(target,new FlavorDomain<>("Python Platform",ImmutableMap.of(PY2.getFlavor(),PY2,PY3.getFlavor(),PY3)),new CxxBuckConfig(FakeBuckConfig.builder().build()),CxxTestBuilder.createDefaultPlatforms()).setDeps(ImmutableSortedSet.of(cxxLibraryTarget));
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(cxxLibraryBuilder.build(),builder.build(),python2Builder.build(),python3Builder.build()),new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  python2Builder.build(resolver,filesystem);
+  python3Builder.build(resolver,filesystem);
+  CxxLibrary dep=(CxxLibrary)cxxLibraryBuilder.build(resolver,filesystem);
+  CxxPythonExtension extension=(CxxPythonExtension)builder.build(resolver,filesystem);
+  NativeLinkableInput depInput=dep.getNativeLinkableInput(CxxPlatformUtils.DEFAULT_PLATFORM,Linker.LinkableDepType.SHARED);
+  extension.getPythonPackageComponents(PY2,CxxPlatformUtils.DEFAULT_PLATFORM);
   BuildRule rule=resolver.getRule(CxxPythonExtensionDescription.getExtensionTarget(target,PY2.getFlavor(),CxxPlatformUtils.DEFAULT_PLATFORM.getFlavor()));
   assertThat(rule.getDeps(),Matchers.hasItems(FluentIterable.from(depInput.getArgs()).transformAndConcat(Arg.getDepsFunction(pathResolver)).toArray(BuildRule.class)));
 }

@@ -1,0 +1,24 @@
+{
+  BuildTarget inferAnalyzeBuildTarget=createInferAnalyzeBuildTarget(params.getBuildTarget());
+  Optional<CxxInferAnalyze> existingRule=resolver.getRuleOptionalWithType(inferAnalyzeBuildTarget,CxxInferAnalyze.class);
+  if (existingRule.isPresent()) {
+    return existingRule.get();
+  }
+  BuildRuleParams paramsWithoutInferFlavor=params.withoutFlavor(INFER_ANALYZE);
+  ImmutableMap<Path,SourcePath> headers=CxxDescriptionEnhancer.parseHeaders(paramsWithoutInferFlavor,resolver,cxxPlatform,args);
+  HeaderSymlinkTree headerSymlinkTree=CxxDescriptionEnhancer.requireHeaderSymlinkTree(paramsWithoutInferFlavor,resolver,pathResolver,cxxPlatform,headers,HeaderVisibility.PRIVATE);
+  ImmutableList<CxxPreprocessorInput> preprocessorInputs;
+  if (args instanceof CxxBinaryDescription.Arg) {
+    preprocessorInputs=computePreprocessorInputForCxxBinaryDescriptionArg(paramsWithoutInferFlavor,cxxPlatform,(CxxBinaryDescription.Arg)args,headerSymlinkTree);
+  }
+ else   if (args instanceof CxxLibraryDescription.Arg) {
+    preprocessorInputs=computePreprocessorInputForCxxLibraryDescriptionArg(paramsWithoutInferFlavor,resolver,pathResolver,cxxPlatform,(CxxLibraryDescription.Arg)args,headerSymlinkTree);
+  }
+ else {
+    throw new IllegalStateException("Only Binary and Library args supported.");
+  }
+  ImmutableSet<CxxInferAnalyze> transitiveDepsLibraryRules=requireTransitiveDependentLibraries(cxxPlatform,paramsWithoutInferFlavor.getDeps());
+  ImmutableMap<String,CxxSource> srcs=CxxDescriptionEnhancer.parseCxxSources(paramsWithoutInferFlavor,resolver,cxxPlatform,args);
+  CxxInferCaptureAndAnalyzeRules cxxInferCaptureAndAnalyzeRules=new CxxInferCaptureAndAnalyzeRules(createInferCaptureBuildRules(paramsWithoutInferFlavor,resolver,cxxPlatform,srcs,CxxSourceRuleFactory.PicType.PDC,inferTools,preprocessorInputs,CxxFlags.getFlags(args.compilerFlags,args.platformCompilerFlags,cxxPlatform),args.prefixHeader),transitiveDepsLibraryRules);
+  return createInferAnalyzeRule(params,resolver,inferAnalyzeBuildTarget,pathResolver,inferTools,cxxInferCaptureAndAnalyzeRules);
+}

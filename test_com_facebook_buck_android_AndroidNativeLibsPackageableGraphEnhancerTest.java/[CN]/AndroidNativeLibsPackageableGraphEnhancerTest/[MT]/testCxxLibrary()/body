@@ -1,11 +1,11 @@
 {
-  BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
-  SourcePathResolver sourcePathResolver=new SourcePathResolver(ruleResolver);
   NdkCxxPlatform ndkCxxPlatform=NdkCxxPlatform.builder().setCxxPlatform(CxxPlatformUtils.DEFAULT_PLATFORM).setCxxRuntime(NdkCxxPlatforms.CxxRuntime.GNUSTL).setCxxSharedRuntimePath(Paths.get("runtime")).build();
   ImmutableMap<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> nativePlatforms=ImmutableMap.<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform>builder().put(NdkCxxPlatforms.TargetCpuType.ARMV7,ndkCxxPlatform).put(NdkCxxPlatforms.TargetCpuType.X86,ndkCxxPlatform).build();
-  AbstractCxxSourceBuilder<CxxLibraryDescription.Arg> cxxLibraryBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:cxxlib")).setSoname("somelib.so").setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("test/bar.cpp"))));
+  CxxLibraryBuilder cxxLibraryBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:cxxlib")).setSoname("somelib.so").setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("test/bar.cpp"))));
   TargetNode<CxxLibraryDescription.Arg> cxxLibraryDescription=cxxLibraryBuilder.build();
   TargetGraph targetGraph=TargetGraphFactory.newInstance(cxxLibraryDescription);
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(targetGraph,new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(ruleResolver);
   CxxLibrary cxxLibrary=(CxxLibrary)cxxLibraryBuilder.build(ruleResolver,new FakeProjectFilesystem(),targetGraph);
   ruleResolver.addToIndex(cxxLibrary);
   BuildTarget target=BuildTargetFactory.newInstance("//:target");
@@ -14,7 +14,7 @@
   AndroidPackageableCollector collector=new AndroidPackageableCollector(target,ImmutableSet.<BuildTarget>of(),ImmutableSet.<BuildTarget>of());
   collector.addPackageables(AndroidPackageableCollector.getPackageableRules(ImmutableSet.<BuildRule>of(cxxLibrary)));
   AndroidPackageableCollection packageableCollection=collector.build();
-  Optional<CopyNativeLibraries> copyNativeLibrariesOptional=enhancer.getCopyNativeLibraries(targetGraph,packageableCollection);
+  Optional<CopyNativeLibraries> copyNativeLibrariesOptional=enhancer.getCopyNativeLibraries(packageableCollection);
   CopyNativeLibraries copyNativeLibraries=copyNativeLibrariesOptional.get();
   assertThat(copyNativeLibraries.getStrippedObjectDescriptions(),Matchers.containsInAnyOrder(Matchers.allOf(Matchers.hasProperty("targetCpuType",Matchers.equalTo(NdkCxxPlatforms.TargetCpuType.ARMV7)),Matchers.hasProperty("strippedObjectName",Matchers.equalTo("somelib.so"))),Matchers.allOf(Matchers.hasProperty("targetCpuType",Matchers.equalTo(NdkCxxPlatforms.TargetCpuType.ARMV7)),Matchers.hasProperty("strippedObjectName",Matchers.equalTo("libgnustl_shared.so")))));
   assertThat(copyNativeLibraries.getNativeLibDirectories(),Matchers.empty());

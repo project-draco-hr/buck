@@ -1,0 +1,26 @@
+{
+  final Map<BuildTarget,CxxPreprocessorInput> deps=Maps.newLinkedHashMap();
+  AbstractBreadthFirstTraversal<BuildRule> visitor=new AbstractBreadthFirstTraversal<BuildRule>(inputs){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule){
+      if (rule instanceof CxxPreprocessorDep) {
+        CxxPreprocessorDep dep=(CxxPreprocessorDep)rule;
+        try {
+          deps.putAll(dep.getTransitiveCxxPreprocessorInput(cxxPlatform,HeaderVisibility.PUBLIC));
+        }
+ catch (        NoSuchBuildTargetException e) {
+          throw new ClosureException(e);
+        }
+        return ImmutableSet.of();
+      }
+      return traverse.apply(rule) ? rule.getDeps() : ImmutableSet.<BuildRule>of();
+    }
+  }
+;
+  try {
+    visitor.start();
+  }
+ catch (  ClosureException e) {
+    throw (NoSuchBuildTargetException)e.getException();
+  }
+  return deps.values();
+}

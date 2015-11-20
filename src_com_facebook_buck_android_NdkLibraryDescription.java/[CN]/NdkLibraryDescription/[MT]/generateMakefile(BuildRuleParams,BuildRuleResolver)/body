@@ -1,0 +1,40 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ImmutableList.Builder<String> outputLinesBuilder=ImmutableList.builder();
+  ImmutableSortedSet.Builder<BuildRule> deps=ImmutableSortedSet.naturalOrder();
+  for (  Map.Entry<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> entry : cxxPlatforms.entrySet()) {
+    CxxPlatform cxxPlatform=entry.getValue().getCxxPlatform();
+    CxxPreprocessorInput cxxPreprocessorInput;
+    try {
+      cxxPreprocessorInput=CxxPreprocessorInput.concat(CxxPreprocessables.getTransitiveCxxPreprocessorInput(cxxPlatform,params.getDeps(),Predicates.instanceOf(NdkLibrary.class)));
+    }
+ catch (    CxxHeaders.ConflictingHeadersException e) {
+      throw e.getHumanReadableExceptionForBuildTarget(params.getBuildTarget());
+    }
+    deps.addAll(pathResolver.filterBuildRuleInputs(cxxPreprocessorInput.getIncludes().getNameToPathMap().values()));
+    deps.addAll(resolver.getAllRules(cxxPreprocessorInput.getRules()));
+    Iterable<String> ppflags=Iterables.concat(cxxPreprocessorInput.getPreprocessorFlags().get(CxxSource.Type.C),MoreIterables.zipAndConcat(Iterables.cycle("-I"),FluentIterable.from(cxxPreprocessorInput.getHeaderMaps()).transform(Functions.toStringFunction())),MoreIterables.zipAndConcat(Iterables.cycle("-I"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(Functions.toStringFunction())),MoreIterables.zipAndConcat(Iterables.cycle("-isystem"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(Functions.toStringFunction())));
+    String localCflags=Joiner.on(' ').join(escapeForMakefile(ppflags));
+    NativeLinkableInput nativeLinkableInput=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,params.getDeps(),Linker.LinkableDepType.SHARED,Predicates.instanceOf(NdkLibrary.class));
+    deps.addAll(FluentIterable.from(nativeLinkableInput.getArgs()).transformAndConcat(com.facebook.buck.rules.args.Arg.getDepsFunction(pathResolver)));
+    String localLdflags=Joiner.on(' ').join(escapeForMakefile(FluentIterable.from(nativeLinkableInput.getArgs()).transform(com.facebook.buck.rules.args.Arg.stringifyFunction())));
+    if (!localCflags.isEmpty() || !localLdflags.isEmpty()) {
+      NdkCxxPlatforms.TargetCpuType targetCpuType=entry.getKey();
+      String targetArchAbi=getTargetArchAbi(targetCpuType);
+      outputLinesBuilder.add(String.format("ifeq ($(TARGET_ARCH_ABI),%s)",targetArchAbi));
+      if (!localCflags.isEmpty()) {
+        outputLinesBuilder.add("BUCK_DEP_CFLAGS=" + localCflags);
+      }
+      if (!localLdflags.isEmpty()) {
+        outputLinesBuilder.add("BUCK_DEP_LDFLAGS=" + localLdflags);
+      }
+      outputLinesBuilder.add("endif");
+      outputLinesBuilder.add("");
+    }
+  }
+  String ndksubst=NdkCxxPlatforms.ANDROID_NDK_ROOT;
+  outputLinesBuilder.addAll(ImmutableList.copyOf(new String[]{"ifeq ($(BUCK_ALREADY_HOOKED_CFLAGS),)","BUCK_ALREADY_HOOKED_CFLAGS := 1","ifeq ($(filter clang%,$(NDK_TOOLCHAIN_VERSION)),)","NDK_APP_CFLAGS += -fdebug-prefix-map=$(NDK_ROOT)/=" + ndksubst + "/","NDK_APP_CFLAGS += -fdebug-prefix-map=$(abspath $(BUCK_PROJECT_DIR))/=./","NDK_APP_CFLAGS += -fdebug-prefix-map=$(BUCK_PROJECT_DIR)/=./","NDK_APP_CFLAGS += -fdebug-prefix-map=./=" + ".$(subst $(abspath $(BUCK_PROJECT_DIR)),,$(abspath $(CURDIR)))/","NDK_APP_CFLAGS += -fno-record-gcc-switches","ifeq ($(filter 4.6,$(TOOLCHAIN_VERSION)),)","NDK_APP_CPPFLAGS += -fno-canonical-system-headers","NDK_APP_CFLAGS += -gno-record-gcc-switches","endif","endif","BUCK_SAVED_IMPORTS := $(__ndk_import_dirs)","__ndk_import_dirs :=","$(foreach __dir,$(BUCK_SAVED_IMPORTS),\\","$(call import-add-path-optional,\\","$(if $(filter $(abspath $(BUCK_PROJECT_DIR))%,$(__dir)),\\","$(BUCK_PROJECT_DIR)$(patsubst $(abspath $(BUCK_PROJECT_DIR))%,%,$(__dir)),\\","$(__dir))))","endif","NDK_APP_CFLAGS += -fdebug-prefix-map=$(TOOLCHAIN_PREBUILT_ROOT)/=" + "@ANDROID_NDK_ROOT@/toolchains/$(TOOLCHAIN_NAME)/prebuilt/@BUILD_HOST@/"}));
+  outputLinesBuilder.add("include Android.mk");
+  String contents=Joiner.on(System.lineSeparator()).join(outputLinesBuilder.build());
+  return new Pair<String,Iterable<BuildRule>>(contents,deps.build());
+}
