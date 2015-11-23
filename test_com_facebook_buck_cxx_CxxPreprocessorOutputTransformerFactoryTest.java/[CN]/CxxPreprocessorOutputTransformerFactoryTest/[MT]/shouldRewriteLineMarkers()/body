@@ -1,0 +1,12 @@
+{
+  Path original=Paths.get("buck-out/foo#bar/world.h");
+  ImmutableMap<Path,Path> replacementPaths=ImmutableMap.of(original,Paths.get("hello/////world.h"));
+  Path finalPath=Paths.get("SANITIZED/world.h");
+  DebugPathSanitizer sanitizer=new DebugPathSanitizer(9,File.separatorChar,Paths.get("PWD"),ImmutableBiMap.of(Paths.get("hello"),Paths.get("SANITIZED")));
+  FakeProjectFilesystem fakeProjectFilesystem=new FakeProjectFilesystem();
+  CxxPreprocessorOutputTransformerFactory transformer=new CxxPreprocessorOutputTransformerFactory(fakeProjectFilesystem.getRootPath(),replacementPaths,sanitizer,Optional.<Function<String,Iterable<String>>>absent());
+  assertThat(ImmutableList.of(String.format("# 12 \"%s\"",Escaper.escapePathForCIncludeString(finalPath))),equalTo(transformer.transformLine(String.format("# 12 \"%s\"",original))));
+  assertThat(ImmutableList.of(String.format("# 12 \"%s\" 2 1",Escaper.escapePathForCIncludeString(finalPath))),equalTo(transformer.transformLine(String.format("# 12 \"%s\" 2 1",original))));
+  assertThat(ImmutableList.of("# 4 \"test.h\""),equalTo(transformer.transformLine("# 4 \"test.h\"")));
+  assertThat(ImmutableList.of("int main() {"),equalTo(transformer.transformLine("int main() {")));
+}
