@@ -1,0 +1,20 @@
+{
+  RuleKey key=new RuleKey("aa");
+  TemporaryFolder tmp1=new TemporaryFolder();
+  tmp1.create();
+  ProjectFilesystem filesystem1=new FakeProjectFilesystem(tmp1.getRoot());
+  SourcePath input1=new PathSourcePath(filesystem1,Paths.get("input.h"));
+  HashCode hashCode1=HashCode.fromInt(1);
+  TemporaryFolder tmp2=new TemporaryFolder();
+  tmp2.create();
+  ProjectFilesystem filesystem2=new FakeProjectFilesystem(tmp2.getRoot());
+  SourcePath input2=new PathSourcePath(filesystem2,Paths.get("input.h"));
+  HashCode hashCode2=HashCode.fromInt(1);
+  FileHashCache fileHashCache=new FakeFileHashCache(ImmutableMap.of(RESOLVER.getAbsolutePath(input1),hashCode1,RESOLVER.getAbsolutePath(input2),hashCode2));
+  Manifest manifest1=new Manifest();
+  manifest1.addEntry(fileHashCache,key,RESOLVER,ImmutableSet.of(input1,input2),ImmutableSet.of(input1));
+  assertThat(manifest1.toMap(),Matchers.equalTo(ImmutableMap.of(key,ImmutableMap.of(RESOLVER.getRelativePath(input1).toString(),Manifest.hashSourcePathGroup(fileHashCache,RESOLVER,ImmutableList.of(input1,input2))))));
+  Manifest manifest2=new Manifest();
+  manifest2.addEntry(fileHashCache,key,RESOLVER,ImmutableSet.of(input1,input2),ImmutableSet.of(input2));
+  assertThat(manifest2.toMap(),Matchers.equalTo(ImmutableMap.of(key,ImmutableMap.of(RESOLVER.getRelativePath(input2).toString(),Manifest.hashSourcePathGroup(fileHashCache,RESOLVER,ImmutableList.of(input1,input2))))));
+}
