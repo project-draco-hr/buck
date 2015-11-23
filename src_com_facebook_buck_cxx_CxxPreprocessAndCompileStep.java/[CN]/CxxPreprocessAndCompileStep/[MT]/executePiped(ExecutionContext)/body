@@ -15,16 +15,17 @@
   compileBuilder.redirectInput(ProcessBuilder.Redirect.PIPE);
   Process preprocess=null;
   Process compile=null;
-  FunctionLineProcessorThread errorProcessorPreprocess=null;
-  FunctionLineProcessorThread errorProcessorCompile=null;
-  FunctionLineProcessorThread lineDirectiveMunger=null;
+  LineProcessorThread errorProcessorPreprocess=null;
+  LineProcessorThread errorProcessorCompile=null;
+  LineProcessorThread lineDirectiveMunger=null;
+  CxxErrorTransformerFactory errorStreamTransformerFactory=createErrorTransformerFactory(context);
   try {
     LOG.debug("Running command (pwd=%s): %s",preprocessBuilder.directory(),getDescription(context));
     preprocess=preprocessBuilder.start();
     compile=compileBuilder.start();
-    errorProcessorPreprocess=new FunctionLineProcessorThread(preprocess.getErrorStream(),preprocessError,createErrorLineProcessor(filesystem.getRootPath(),context.shouldReportAbsolutePaths()));
+    errorProcessorPreprocess=errorStreamTransformerFactory.createTransformerThread(preprocess.getErrorStream(),preprocessError);
     errorProcessorPreprocess.start();
-    errorProcessorCompile=new FunctionLineProcessorThread(compile.getErrorStream(),compileError,createErrorLineProcessor(filesystem.getRootPath(),context.shouldReportAbsolutePaths()));
+    errorProcessorCompile=errorStreamTransformerFactory.createTransformerThread(compile.getErrorStream(),compileError);
     errorProcessorCompile.start();
     lineDirectiveMunger=new FunctionLineProcessorThread(preprocess.getInputStream(),compile.getOutputStream(),createPreprocessOutputLineProcessor(filesystem.getRootPath()));
     lineDirectiveMunger.start();

@@ -1,0 +1,11 @@
+{
+  Path original=Paths.get("buck-out/foo#bar/world.h");
+  Path replacement=Paths.get("hello/world.h");
+  ImmutableMap<Path,Path> replacementPaths=ImmutableMap.of(original,replacement);
+  Path compilationDirectory=Paths.get("compDir");
+  Path sanitizedDir=Paths.get("hello");
+  Path unsanitizedDir=Paths.get("buck-out/foo#bar");
+  DebugPathSanitizer sanitizer=new DebugPathSanitizer(unsanitizedDir.toString().length(),File.separatorChar,compilationDirectory,ImmutableBiMap.of(unsanitizedDir,sanitizedDir));
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  return ImmutableList.copyOf(new Object[][]{{"relative paths",new CxxErrorTransformerFactory(Optional.of(filesystem.getRootPath()),Optional.<Function<Path,Path>>absent(),replacementPaths,sanitizer),replacement,original},{"absolute paths",new CxxErrorTransformerFactory(Optional.of(filesystem.getRootPath()),Optional.of(filesystem.getAbsolutifier()),replacementPaths,sanitizer),replacement.toAbsolutePath(),original}});
+}
