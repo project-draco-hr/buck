@@ -6,5 +6,23 @@
       return input.getPathToOutput();
     }
   }
-).toList(),resultsDir)).add(new DefaultShellStep(getProjectFilesystem().getRootPath(),getAnalyzeCommand(getSpecsOfAllDeps()),inferTools.topLevel.getEnvironment(getResolver()))).build();
+).toList(),resultsDir)).add(new AbstractExecutionStep("write_specs_path_list"){
+    @Override public int execute(    ExecutionContext context) throws IOException {
+      try {
+        ImmutableList<String> specsDirsWithAbsolutePath=FluentIterable.from(getSpecsOfAllDeps()).transform(new Function<SourcePath,String>(){
+          @Override public String apply(          SourcePath input){
+            return getResolver().getAbsolutePath(input).toString();
+          }
+        }
+).toList();
+        getProjectFilesystem().writeLinesToPath(specsDirsWithAbsolutePath,specsPathList);
+      }
+ catch (      IOException e) {
+        context.logError(e,"Error while writing specs path list file for the analyzer");
+        return 1;
+      }
+      return 0;
+    }
+  }
+).add(new DefaultShellStep(getProjectFilesystem().getRootPath(),getAnalyzeCommand(),inferTools.topLevel.getEnvironment(getResolver()))).build();
 }
