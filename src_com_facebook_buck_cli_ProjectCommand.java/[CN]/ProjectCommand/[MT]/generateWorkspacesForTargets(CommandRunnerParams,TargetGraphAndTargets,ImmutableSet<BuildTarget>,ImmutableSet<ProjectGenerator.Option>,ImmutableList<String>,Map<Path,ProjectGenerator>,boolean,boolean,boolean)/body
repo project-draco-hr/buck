@@ -6,6 +6,21 @@
  else {
     targets=passedInTargetsSet;
   }
+  final Supplier<TargetGraphToActionGraph> targetGraphToActionGraphSupplier=Suppliers.memoize(new Supplier<TargetGraphToActionGraph>(){
+    @Override public TargetGraphToActionGraph get(){
+      return new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer());
+    }
+  }
+);
+  final LoadingCache<TargetNode<?>,SourcePathResolver> sourcePathResolverCache=CacheBuilder.newBuilder().build(new CacheLoader<TargetNode<?>,SourcePathResolver>(){
+    @Override public SourcePathResolver load(    TargetNode<?> targetNode){
+      TargetGraphToActionGraph targetGraphToActionGraph=targetGraphToActionGraphSupplier.get();
+      TargetGraph subgraph=targetGraphAndTargets.getTargetGraph().getSubgraph(ImmutableSet.of(targetNode));
+      BuildRuleResolver buildRuleResolver=targetGraphToActionGraph.apply(subgraph).getSecond();
+      return new SourcePathResolver(buildRuleResolver);
+    }
+  }
+);
   LOG.debug("Generating workspace for config targets %s",targets);
   ImmutableSet<TargetNode<?>> testTargetNodes=targetGraphAndTargets.getAssociatedTests();
   ImmutableSet<TargetNode<AppleTestDescription.Arg>> groupableTests=combineTestBundles ? AppleBuildRules.filterGroupableTests(testTargetNodes) : ImmutableSet.<TargetNode<AppleTestDescription.Arg>>of();
@@ -25,13 +40,9 @@
       throw new HumanReadableException("%s must be a xcode_workspace_config, apple_binary, apple_bundle, or apple_library",inputNode);
     }
     AppleConfig appleConfig=new AppleConfig(params.getBuckConfig());
-    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(params.getCell().getFilesystem(),targetGraphAndTargets.getTargetGraph(),workspaceArgs,inputTarget,options,combinedProject,buildWithBuck,buildWithBuckFlags,!appleConfig.getXcodeDisableParallelizeBuild(),appleConfig.shouldAttemptToDetermineBestCxxPlatform(),new ExecutableFinder(),params.getEnvironment(),params.getCell().getKnownBuildRuleTypes().getCxxPlatforms(),params.getCell().getKnownBuildRuleTypes().getDefaultCxxPlatforms(),new ParserConfig(params.getBuckConfig()).getBuildFileName(),new Function<TargetNode<?>,Path>(){
-      @Nullable @Override public Path apply(      TargetNode<?> input){
-        TargetGraphToActionGraph targetGraphToActionGraph=new TargetGraphToActionGraph(params.getBuckEventBus(),new BuildTargetNodeToBuildRuleTransformer());
-        TargetGraph subgraph=targetGraphAndTargets.getTargetGraph().getSubgraph(ImmutableSet.of(input));
-        ActionGraph actionGraph=Preconditions.checkNotNull(targetGraphToActionGraph.apply(subgraph)).getFirst();
-        BuildRule rule=Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(input.getBuildTarget()));
-        return rule.getPathToOutput();
+    WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(params.getCell().getFilesystem(),targetGraphAndTargets.getTargetGraph(),workspaceArgs,inputTarget,options,combinedProject,buildWithBuck,buildWithBuckFlags,!appleConfig.getXcodeDisableParallelizeBuild(),appleConfig.shouldAttemptToDetermineBestCxxPlatform(),new ExecutableFinder(),params.getEnvironment(),params.getCell().getKnownBuildRuleTypes().getCxxPlatforms(),params.getCell().getKnownBuildRuleTypes().getDefaultCxxPlatforms(),new ParserConfig(params.getBuckConfig()).getBuildFileName(),new Function<TargetNode<?>,SourcePathResolver>(){
+      @Override public SourcePathResolver apply(      TargetNode<?> input){
+        return sourcePathResolverCache.getUnchecked(input);
       }
     }
 ,params.getBuckEventBus());

@@ -1,0 +1,16 @@
+{
+  BuildTarget privateGeneratedTarget=BuildTarget.builder(rootPath,"//foo","generated1.h").build();
+  BuildTarget publicGeneratedTarget=BuildTarget.builder(rootPath,"//foo","generated2.h").build();
+  TargetNode<?> privateGeneratedNode=ExportFileBuilder.newExportFileBuilder(privateGeneratedTarget).build();
+  TargetNode<?> publicGeneratedNode=ExportFileBuilder.newExportFileBuilder(publicGeneratedTarget).build();
+  BuildTarget buildTarget=BuildTarget.builder(rootPath,"//foo","lib").build();
+  TargetNode<?> node=new CxxLibraryBuilder(buildTarget).setExportedHeaders(ImmutableSortedMap.<String,SourcePath>of("yet/another/name.h",new FakeSourcePath("foo/dir1/bar.h"),"and/one/more.h",new BuildTargetSourcePath(publicGeneratedTarget))).setHeaders(ImmutableSortedMap.<String,SourcePath>of("any/name.h",new FakeSourcePath("foo/dir1/foo.h"),"different/name.h",new FakeSourcePath("foo/dir2/baz.h"),"one/more/name.h",new BuildTargetSourcePath(privateGeneratedTarget))).setSrcs(ImmutableSortedSet.<SourceWithFlags>of()).setHeaderNamespace("name/space").build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(node,privateGeneratedNode,publicGeneratedNode));
+  projectGenerator.createXcodeProjects();
+  List<Path> headerSymlinkTrees=projectGenerator.getGeneratedHeaderSymlinkTrees();
+  assertThat(headerSymlinkTrees,hasSize(2));
+  assertThat(headerSymlinkTrees.get(0).toString(),is(equalTo("buck-out/gen/foo/lib-public-header-symlink-tree")));
+  assertThatHeaderSymlinkTreeContains(Paths.get("buck-out/gen/foo/lib-public-header-symlink-tree"),ImmutableMap.of("name/space/yet/another/name.h","foo/dir1/bar.h","name/space/and/one/more.h","foo/generated2.h"));
+  assertThat(headerSymlinkTrees.get(1).toString(),is(equalTo("buck-out/gen/foo/lib-private-header-symlink-tree")));
+  assertThatHeaderSymlinkTreeContains(Paths.get("buck-out/gen/foo/lib-private-header-symlink-tree"),ImmutableMap.of("name/space/any/name.h","foo/dir1/foo.h","name/space/different/name.h","foo/dir2/baz.h","name/space/one/more/name.h","foo/generated1.h"));
+}

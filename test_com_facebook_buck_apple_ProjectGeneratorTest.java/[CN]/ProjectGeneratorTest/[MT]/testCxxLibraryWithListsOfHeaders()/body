@@ -1,0 +1,12 @@
+{
+  BuildTarget buildTarget=BuildTarget.builder(rootPath,"//foo","lib").build();
+  TargetNode<?> node=new CxxLibraryBuilder(buildTarget).setExportedHeaders(ImmutableSortedSet.<SourcePath>of(new FakeSourcePath("foo/dir1/bar.h"))).setHeaders(ImmutableSortedSet.<SourcePath>of(new FakeSourcePath("foo/dir1/foo.h"),new FakeSourcePath("foo/dir2/baz.h"))).setSrcs(ImmutableSortedSet.<SourceWithFlags>of()).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node));
+  projectGenerator.createXcodeProjects();
+  List<Path> headerSymlinkTrees=projectGenerator.getGeneratedHeaderSymlinkTrees();
+  assertThat(headerSymlinkTrees,hasSize(2));
+  assertThat(headerSymlinkTrees.get(0).toString(),is(equalTo("buck-out/gen/foo/lib-public-header-symlink-tree")));
+  assertThatHeaderSymlinkTreeContains(Paths.get("buck-out/gen/foo/lib-public-header-symlink-tree"),ImmutableMap.of("foo/dir1/bar.h","foo/dir1/bar.h"));
+  assertThat(headerSymlinkTrees.get(1).toString(),is(equalTo("buck-out/gen/foo/lib-private-header-symlink-tree")));
+  assertThatHeaderSymlinkTreeContains(Paths.get("buck-out/gen/foo/lib-private-header-symlink-tree"),ImmutableMap.<String,String>builder().put("foo/dir1/foo.h","foo/dir1/foo.h").put("foo/dir2/baz.h","foo/dir2/baz.h").build());
+}
