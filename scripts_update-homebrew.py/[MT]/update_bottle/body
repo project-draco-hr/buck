@@ -1,0 +1,27 @@
+def update_bottle(version_tag, github_token, tap_repo_location):
+    release_data = get_release(version_tag)
+    tarball_sha256 = sha256(fetch_tarball(release_data['tarball_url']))
+    (temp_handle, temp_path) = tempfile.mkstemp(text=True)
+    with os_closing(temp_handle):
+        with open(os.path.join(tap_repo_location, 'buck.rb'), 'r') as orig:
+            for line in orig:
+                line = re.sub('@@buck_version = .*$', '@@buck_version = "{version_name}"'.format(version_name=version_tag[1:]), line)
+                line = re.sub('sha256 "[a-z0-9]{64}"$', 'sha256 "{sha}"'.format(sha=tarball_sha256), line)
+                line = re.sub('  url "https://.+"$', '  url "{url}"'.format(url=release_data['tarball_url']), line)
+                os.write(temp_handle, line)
+        shutil.copyfile(temp_path, os.path.join(tap_repo_location, 'buck.rb'))
+    bottle_file = build_bottle(version_tag, tap_repo_location)
+    bottle_sha256 = sha256(bottle_file)
+    upload_release(bottle_file, release_data['upload_url'], github_token)
+    os.remove(bottle_file)
+    (temp_handle, temp_path) = tempfile.mkstemp(text=True)
+    with os_closing(temp_handle):
+        with open(os.path.join(tap_repo_location, 'buck.rb'), 'r') as orig:
+            for line in orig:
+                line = re.sub('sha256 "[a-z0-9]{64}" => :.+$', 'sha256 "{sha}" => :{bottle_target}'.format(sha=bottle_sha256, bottle_target=BOTTLE_TARGET), line)
+                os.write(temp_handle, line)
+        shutil.copyfile(temp_path, os.path.join(tap_repo_location, 'buck.rb'))
+    validate()
+    subprocess.check_call(['git', 'commit', '-m', 'Update `buck.rb` to {version_tag}'.format(version_tag=version_tag), 'buck.rb'], cwd=tap_repo_location)
+    print 'Your commit is ready for testing!  Check it out:'
+    print tap_repo_location
