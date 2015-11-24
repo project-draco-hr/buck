@@ -1,12 +1,21 @@
 {
   try (InputStream inner=Preconditions.checkNotNull(Resources.getResource(relativeTo,name),"Unable to find: %s",name).openStream();BufferedInputStream stream=new BufferedInputStream(inner)){
-    Path zip=Files.createTempFile(filename.toString(),"zip");
-    Cleaner.addRoot(zip);
-    Files.copy(stream,zip,REPLACE_EXISTING);
-    Path output=Files.createTempDirectory("buck-resource");
-    Cleaner.addRoot(output);
-    Unzip.extractZipFile(zip,output,OVERWRITE);
-    return output;
+    Path outputDir=Files.createTempDirectory("buck-resource");
+    Cleaner.addRoot(outputDir);
+    String extension=com.google.common.io.Files.getFileExtension(filename.toString());
+    if (extension.equals("zip")) {
+      Path zip=Files.createTempFile(filename.toString(),".zip");
+      Cleaner.addRoot(zip);
+      Files.copy(stream,zip,REPLACE_EXISTING);
+      Unzip.extractZipFile(zip,outputDir,OVERWRITE);
+      return outputDir;
+    }
+ else {
+      Path tempFilePath=Files.createFile(outputDir.resolve(filename));
+      Cleaner.addRoot(tempFilePath);
+      Files.copy(stream,tempFilePath,REPLACE_EXISTING);
+      return tempFilePath;
+    }
   }
  catch (  IOException ioe) {
     throw new RuntimeException("Unable to unpack " + name,ioe);
