@@ -1,0 +1,21 @@
+{
+  Preconditions.checkState(useManifestCaching(rule));
+  Pair<RuleKey,ImmutableSet<SourcePath>> manifestKey=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem()).depFileRuleKeyBuilderFactory.buildManifestKey(rule);
+  Path manifestPath=getManifestPath(rule);
+  Manifest manifest=new Manifest();
+  if (rule.getProjectFilesystem().exists(manifestPath)) {
+    try (InputStream inputStream=rule.getProjectFilesystem().newFileInputStream(manifestPath)){
+      manifest=new Manifest(inputStream);
+    }
+   }
+  manifest.addEntry(fileHashCaches.getUnchecked(rule.getProjectFilesystem()),key,pathResolver,manifestKey.getSecond(),inputs);
+  try (OutputStream outputStream=rule.getProjectFilesystem().newFileOutputStream(manifestPath)){
+    manifest.serialize(outputStream);
+  }
+   try (NamedTemporaryFile tempFile=new NamedTemporaryFile("buck.",".manifest")){
+    try (InputStream inputStream=rule.getProjectFilesystem().newFileInputStream(manifestPath)){
+      Files.copy(inputStream,tempFile.get(),StandardCopyOption.REPLACE_EXISTING);
+    }
+     cache.store(ImmutableSet.of(manifestKey.getFirst()),ImmutableMap.<String,String>of(),tempFile.get());
+  }
+ }

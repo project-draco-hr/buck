@@ -1,0 +1,25 @@
+{
+  Preconditions.checkState(useManifestCaching(rule));
+  Pair<RuleKey,ImmutableSet<SourcePath>> manifestKey=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem()).depFileRuleKeyBuilderFactory.buildManifestKey(rule);
+  Path manifestPath=getManifestPath(rule);
+  rule.getProjectFilesystem().deleteFileAtPathIfExists(manifestPath);
+  rule.getProjectFilesystem().createParentDirs(manifestPath);
+  try (NamedTemporaryFile tempFile=new NamedTemporaryFile("buck.",".manifest")){
+    CacheResult manifestResult=context.getArtifactCache().fetch(manifestKey.getFirst(),tempFile.get());
+    if (!manifestResult.getType().isSuccess()) {
+      return CacheResult.miss();
+    }
+    try (OutputStream outputStream=rule.getProjectFilesystem().newFileOutputStream(manifestPath)){
+      Files.copy(tempFile.get(),outputStream);
+    }
+   }
+   Manifest manifest;
+  try (InputStream input=rule.getProjectFilesystem().newFileInputStream(manifestPath)){
+    manifest=new Manifest(input);
+  }
+   Optional<RuleKey> ruleKey=manifest.lookup(fileHashCaches.getUnchecked(rule.getProjectFilesystem()),pathResolver,manifestKey.getSecond());
+  if (!ruleKey.isPresent()) {
+    return CacheResult.miss();
+  }
+  return tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,ruleKey.get(),buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
+}

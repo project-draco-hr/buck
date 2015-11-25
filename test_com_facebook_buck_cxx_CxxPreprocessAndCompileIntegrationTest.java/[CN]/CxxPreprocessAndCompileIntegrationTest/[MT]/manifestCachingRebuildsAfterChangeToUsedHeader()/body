@@ -4,11 +4,13 @@
   String usedHeaderName="source_full_header.h";
   String sourceName="source_full_header.cpp";
   BuildTarget preprocessTarget=getPreprocessTarget(cxxPlatform,target,sourceName,AbstractCxxSource.Type.CXX);
-  workspace.runBuckBuild("--config","build.depfiles=enabled",target.toString()).assertSuccess();
+  workspace.enableDirCache();
+  workspace.runBuckBuild("--config","build.depfiles=cache",target.toString()).assertSuccess();
   BuckBuildLog.BuildLogEntry firstRunEntry=workspace.getBuildLog().getLogEntry(preprocessTarget);
   assertThat(firstRunEntry.getSuccessType(),equalTo(Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)));
   workspace.writeContentsToPath("static inline int newFunction() { return 20; }",usedHeaderName);
-  workspace.runBuckBuild("--config","build.depfiles=enabled",target.toString()).assertSuccess();
+  workspace.runBuckCommand("clean");
+  workspace.runBuckBuild("--config","build.depfiles=cache",target.toString()).assertSuccess();
   BuckBuildLog.BuildLogEntry secondRunEntry=workspace.getBuildLog().getLogEntry(preprocessTarget);
   assertThat(secondRunEntry.getSuccessType(),equalTo(Optional.of(BuildRuleSuccessType.BUILT_LOCALLY)));
   assertThat(secondRunEntry.getRuleKey(),Matchers.not(equalTo(firstRunEntry.getRuleKey())));
