@@ -1,4 +1,4 @@
-def make_nailgun_socket(nailgun_server, nailgun_port=None):
+def make_nailgun_socket(nailgun_server, nailgun_port=None, cwd=None):
     '\n    Creates and returns a socket connection to the nailgun server.\n    '
     s = None
     if nailgun_server.startswith('local:'):
@@ -7,10 +7,17 @@ def make_nailgun_socket(nailgun_server, nailgun_port=None):
         except socket.error as msg:
             raise NailgunException('Could not create local socket connection to server: {0}'.format(msg), NailgunException.SOCKET_FAILED)
         socket_addr = nailgun_server[6:]
+        prev_cwd = os.getcwd()
         try:
-            s.connect(socket_addr)
-        except socket.error as msg:
-            raise NailgunException('Could not connect to local server at {0}: {1}'.format(socket_addr, msg), NailgunException.CONNECT_FAILED)
+            try:
+                if (cwd is not None):
+                    os.chdir(cwd)
+                s.connect(socket_addr)
+            except socket.error as msg:
+                raise NailgunException('Could not connect to local server at {0}: {1}'.format(socket_addr, msg), NailgunException.CONNECT_FAILED)
+        finally:
+            if (cwd is not None):
+                os.chdir(prev_cwd)
     else:
         socket_addr = nailgun_server
         socket_family = socket.AF_UNSPEC
