@@ -1,0 +1,26 @@
+def analyze(log_file, show_only_misses, fields_to_show):
+    rulekey_to_history = {}
+    file = open(log_file, 'r+')
+    mm = mmap.mmap(file.fileno(), 0)
+    while (mm.tell() < mm.size()):
+        line = mm.readline()
+        if (EVENT_NAME_PREFIX in line):
+            parsed_dict = parse_line(line)
+            if (not parsed_dict):
+                continue
+            rulekey = parsed_dict.get(RULE_KEY_KEY)
+            history = rulekey_to_history.get(rulekey)
+            if (not history):
+                history = ArtifactHistory(rulekey)
+                rulekey_to_history[rulekey] = history
+            history.add_entry(rulekey, parsed_dict.get(TIMESTAMP_KEY), parsed_dict.get(EVENT_NAME_KEY), parsed_dict.get(INFO_KEY), parsed_dict.get(RESULT_KEY))
+    mm.close()
+    file.close()
+    for (i, artifact_history_item) in enumerate(rulekey_to_history.values()):
+        got_hit = False
+        for (j, history_entry) in enumerate(artifact_history_item.entries):
+            if (history_entry.result == 'hit'):
+                got_hit = True
+                break
+        if ((show_only_misses and (not got_hit)) or (not show_only_misses)):
+            print artifact_history_item.expand((TIMESTAMP_KEY in fields_to_show), (EVENT_NAME_KEY in fields_to_show), (RESULT_KEY in fields_to_show), (INFO_KEY in fields_to_show))

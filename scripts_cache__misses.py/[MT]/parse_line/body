@@ -1,0 +1,18 @@
+def parse_line(line):
+    rulekey_match = re.search('\\b[0-9a-f]{40}\\b', line)
+    if (not rulekey_match):
+        return None
+    timestamp_match = re.search('\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}.\\d{3}', line)
+    if (not timestamp_match):
+        return None
+    rulekey = line[rulekey_match.start():rulekey_match.end()]
+    timestamp = line[timestamp_match.start():timestamp_match.end()]
+    event_name_start = line.find(EVENT_NAME_PREFIX)
+    buck_event_tmp_line = line[event_name_start:]
+    event_name = buck_event_tmp_line[:buck_event_tmp_line.find(']')][len(EVENT_NAME_PREFIX):]
+    result_keyword = 'cache '
+    result_start = line.rfind(result_keyword)
+    result = line[(result_start + len(result_keyword)):(-1)].strip()
+    info = line[((line.find(event_name) + len(event_name)) + 1):]
+    info = info[:(((- len(result)) - len(result_keyword)) - 1)].strip()
+    return {RULE_KEY_KEY: rulekey, TIMESTAMP_KEY: timestamp, EVENT_NAME_KEY: event_name, RESULT_KEY: result, INFO_KEY: info, }
