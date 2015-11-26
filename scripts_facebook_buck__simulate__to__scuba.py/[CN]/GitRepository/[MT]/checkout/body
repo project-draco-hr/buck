@@ -1,0 +1,19 @@
+def checkout(self, rev):
+    if (rev is None):
+        nullbranch = u'sourcesyncnull'
+        try:
+            self.run([u'git', u'branch', u'-D', nullbranch])
+        except subprocess.CalledProcessError as ex:
+            if (u'you are currently on' in ex.cmd):
+                self.run([u'git', u'checkout', self.run([u'git', u'rev-parse', u'HEAD']).strip()])
+                self.run([u'git', u'branch', u'-D', nullbranch])
+            elif (u'not found' not in ex.cmd):
+                raise
+        self.run([u'git', u'checkout', u'--orphan', nullbranch])
+        try:
+            self.run([u'git', u'rm', u'-rf', u'.'])
+        except subprocess.CalledProcessError as ex:
+            if (u'did not match any files' not in ex.cmd):
+                raise
+    else:
+        self.run([u'git', u'checkout', u'--force', rev])

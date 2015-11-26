@@ -1,0 +1,62 @@
+def main():
+    args = parse_args()
+    repo = get_repo(args.repo)
+    buck_config = os.path.join(args.repo, u'.buckconfig')
+    scuba_client = ScubaData(SCUBA_TABLE)
+    if (not os.path.isdir(REPORTS_DIR)):
+        os.makedirs(REPORTS_DIR)
+    i = 1
+    epoch_seconds = int(time.time())
+    next_rev_secs = None
+    skipped_revs = 0
+    failed_revs = []
+    for rev in get_rev_iterator(repo, args.rev):
+        if (i > args.rev_count):
+            break
+        if (next_rev_secs is None):
+            next_rev_secs = (rev.date - args.rev_step_secs)
+        elif (rev.date > next_rev_secs):
+            skipped_revs += 1
+            continue
+        rev_info = {}
+        rev_info[u'time'] = rev.date
+        rev_info[u'author'] = rev.author
+        rev_info[u'revision'] = rev.hash
+        rev_info[u'repository'] = repo.name
+        rev_info[u'repository_type'] = repo.type
+        printf(u'Checking out revision [{0}] from [{1}] ({2}/{3} - {4:.1f}%).'.format(rev.hash, rev.datetime(), i, args.rev_count, ((100.0 * i) / float(args.rev_count))))
+        repo.checkout(rev.hash)
+        if (not os.path.isfile(buck_config)):
+            printf(u'Skipping revision [{0}]. Does not belong to repo.'.format(rev.hash))
+            skipped_revs += 1
+            continue
+        while (rev.date <= next_rev_secs):
+            next_rev_secs -= args.rev_step_secs
+        if (skipped_revs > 0):
+            printf(u'Skipped a total of [{0}] revs.'.format(skipped_revs))
+        skipped_revs = 0
+        if args.times_file:
+            times_file = args.times_file
+        else:
+            printf(u'Retrieving buck simulate times file.')
+            times_file = find_times_file(epoch_seconds)
+        for time_aggregate in args.time_aggregate:
+            report_file = u'buck_simulate_report_{0}_{1}.json'.format(time_aggregate, rev.hash)
+            report_path = os.path.join(REPORTS_DIR, report_file)
+            printf(u'Running buck simulate. report_file=[{0}]'.format(report_file))
+            try:
+                buck_simulate(targets=args.targets, num_threads=args.num_threads, repository=args.repo, report_file=report_path, times_file=times_file, time_aggregate=time_aggregate)
+            except Exception as exception:
+                printf(u'Failed to run. rev=[{rev}] exception=[{exc}].'.format(rev=rev.hash, exc=exception))
+                failed_revs.append(u'{0}-{1}'.format(rev.hash, time_aggregate))
+                continue
+            printf(u'Uploading results to Scuba table [{0}].'.format(SCUBA_TABLE))
+            upload_to_scuba(client=scuba_client, rev_info=rev_info, report_path=report_path)
+        i += 1
+    total = ((i - 1) * len(args.time_aggregate))
+    if (len(failed_revs) > 0):
+        success = (total - len(failed_revs))
+        printf(u'Finished {success} successfully and failed {fail}.'.format(fail=len(failed_revs), success=success))
+        printf(u'Failed revisions=[{0}]'.format(u', '.join(failed_revs)))
+    else:
+        printf(u'Successfully simulated all {0} runs.'.format(total))

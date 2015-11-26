@@ -1,0 +1,27 @@
+def run_cmd(cmd, cwd=None, env=None, stderr=False, utf8decode=True, input=None):
+    environ = os.environ.copy()
+    if env:
+        environ.update(env)
+    stdin = None
+    if input:
+        stdin = subprocess.PIPE
+    p = subprocess.Popen(cmd, stdin=stdin, stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd=cwd, env=environ, close_fds=True)
+    if input:
+        (out, err) = p.communicate(input=input)
+    else:
+        (out, err) = p.communicate()
+    if ((out is not None) and utf8decode):
+        out = out.decode(u'utf-8')
+    if ((err is not None) and utf8decode):
+        err = err.decode(u'utf-8')
+    if (p.returncode != 0):
+        cmdstr = u' '.join(cmd)
+        out = u'CWD: {cwd}\nCMD: {cmd}\n'.format(cwd=cwd, cmd=cmdstr)
+        out += (u'STDOUT: %s\nSTDERR: %s\n' % (out, err))
+        ex = subprocess.CalledProcessError(p.returncode, cmdstr)
+        ex.output = out
+        printf(u'Failed to run with output: [{0}]'.format(out))
+        raise ex
+    if stderr:
+        return (out, err)
+    return out
