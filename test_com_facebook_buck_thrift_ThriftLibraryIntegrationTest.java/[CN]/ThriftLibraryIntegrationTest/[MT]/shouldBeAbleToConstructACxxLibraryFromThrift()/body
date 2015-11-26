@@ -6,10 +6,19 @@
   BuckEventBus eventBus=BuckEventBusFactory.newInstance();
   ProjectFilesystem filesystem=new ProjectFilesystem(workspace.getDestPath());
   Path compiler=new ExecutableFinder().getExecutable(Paths.get("echo"),ImmutableMap.copyOf(System.getenv()));
-  BuckConfig config=FakeBuckConfig.builder().setFilesystem(filesystem).setSections("[thrift]","compiler = " + compiler,"compiler2 = " + compiler,"cpp_library = //:fake","cpp_reflection_library = //:fake").build();
+  BuckConfig config=FakeBuckConfig.builder().setFilesystem(filesystem).setSections("[thrift]","compiler = " + compiler,"compiler2 = " + compiler,"cpp_library = //thrift:fake","cpp_reflection_library = //thrift:fake").build();
   Cell cell=new Cell(filesystem,new TestConsole(),Watchman.NULL_WATCHMAN,config,new KnownBuildRuleTypesFactory(new ProcessExecutor(new TestConsole()),new FakeAndroidDirectoryResolver(),Optional.<Path>absent()),new FakeAndroidDirectoryResolver(),new DefaultClock());
-  BuildTarget target=BuildTargetFactory.newInstance(filesystem,"//:exe");
+  BuildTarget target=BuildTargetFactory.newInstance(filesystem,"//thrift:exe");
   TargetGraph targetGraph=parser.buildTargetGraph(eventBus,cell,false,ImmutableSet.of(target));
   TargetNodeToBuildRuleTransformer transformer=new BuildTargetNodeToBuildRuleTransformer();
-  new TargetGraphToActionGraph(eventBus,transformer).apply(targetGraph);
+  Pair<ActionGraph,BuildRuleResolver> actionGraphAndResolver=new TargetGraphToActionGraph(eventBus,transformer).apply(targetGraph);
+  BuildRuleResolver ruleResolver=actionGraphAndResolver.getSecond();
+  BuildTarget binaryFlavor=target.withFlavors(ImmutableFlavor.of("binary"));
+  ImmutableSortedSet<BuildRule> deps=ruleResolver.getRule(binaryFlavor).getDeps();
+  assertThat(FluentIterable.from(deps).anyMatch(new Predicate<BuildRule>(){
+    @Override public boolean apply(    BuildRule input){
+      return input instanceof NoopBuildRule;
+    }
+  }
+),Matchers.is(false));
 }
