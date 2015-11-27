@@ -1,26 +1,17 @@
 {
-  Optional<FatBinaryInfo> fatBinaryInfo=FatBinaryInfo.create(platformFlavorsToAppleCxxPlatforms,params.getBuildTarget());
-  if (fatBinaryInfo.isPresent()) {
-    return createFatBinaryBuildRule(targetGraph,params,resolver,args,fatBinaryInfo.get());
+  if (params.getBuildTarget().getFlavors().contains(APP_FLAVOR)) {
+    if (!args.infoPlist.isPresent()) {
+      throw new HumanReadableException("Cannot create application for apple_binary '%s':\n","No value specified for 'info_plist' attribute.",params.getBuildTarget().getUnflavoredBuildTarget());
+    }
+    Optional<AppleBundle.DebugInfoFormat> flavoredDebugInfoFormat;
+    try {
+      flavoredDebugInfoFormat=AppleBundle.DEBUG_INFO_FORMAT_FLAVOR_DOMAIN.getValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors()));
+    }
+ catch (    FlavorDomainException e) {
+      throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
+    }
+    BuildTarget binaryTarget=params.withoutFlavor(APP_FLAVOR).getBuildTarget();
+    return AppleDescriptions.createAppleBundle(cxxPlatformFlavorDomain,defaultCxxPlatform,platformFlavorsToAppleCxxPlatforms,targetGraph,params,resolver,codeSignIdentityStore,provisioningProfileStore,binaryTarget,Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.APP),Optional.<String>absent(),args.infoPlist.get(),args.infoPlistSubstitutions,args.getTests(),flavoredDebugInfoFormat.or(defaultDebugInfoFormat));
   }
- else {
-    Optional<Path> stubBinaryPath=Optional.absent();
-    Optional<AppleCxxPlatform> appleCxxPlatform=getAppleCxxPlatformFromParams(params);
-    if (appleCxxPlatform.isPresent() && (!args.srcs.isPresent() || args.srcs.get().isEmpty())) {
-      stubBinaryPath=appleCxxPlatform.get().getStubBinary();
-    }
-    if (stubBinaryPath.isPresent()) {
-      try {
-        return new WriteFile(params,new SourcePathResolver(resolver),Files.readAllBytes(stubBinaryPath.get()),BuildTargets.getGenPath(params.getBuildTarget(),"%s"),true);
-      }
- catch (      IOException e) {
-        throw new HumanReadableException("Could not read stub binary " + stubBinaryPath.get());
-      }
-    }
- else {
-      CxxBinaryDescription.Arg delegateArg=delegate.createUnpopulatedConstructorArg();
-      AppleDescriptions.populateCxxBinaryDescriptionArg(new SourcePathResolver(resolver),delegateArg,args,params.getBuildTarget());
-      return delegate.createBuildRule(targetGraph,params,resolver,delegateArg);
-    }
-  }
+  return createBinary(targetGraph,params,resolver,args);
 }
