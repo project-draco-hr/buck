@@ -3,17 +3,17 @@
   CxxPlatform cxxPlatform=CxxLibraryBuilder.createDefaultPlatform();
   BuildTarget target=BuildTargetFactory.newInstance("//:test");
   Linker linker=cxxPlatform.getLd();
-  ImmutableList<String> linkWholeFlags=FluentIterable.from(linker.linkWhole(new StringArg("sentinel"))).transform(Arg.stringifyFunction()).filter(Predicates.not(Predicates.equalTo("sentinel"))).toList();
+  ImmutableList<String> linkWholeFlags=FluentIterable.from(linker.linkWhole(new StringArg("sentinel"))).transformAndConcat(Arg.stringListFunction()).filter(Predicates.not(Predicates.equalTo("sentinel"))).toList();
   CxxLibraryBuilder normalBuilder=new CxxLibraryBuilder(target);
   TargetGraph normalGraph=TargetGraphFactory.newInstance(normalBuilder.build());
   BuildRuleResolver resolver=new BuildRuleResolver(normalGraph,new BuildTargetNodeToBuildRuleTransformer());
   CxxLibrary normal=(CxxLibrary)normalBuilder.setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("test.cpp")))).build(resolver,filesystem,normalGraph);
   NativeLinkableInput input=normal.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.STATIC);
-  assertThat(FluentIterable.from(input.getArgs()).transform(Arg.stringifyFunction()).toList(),Matchers.not(Matchers.hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()]))));
+  assertThat(Arg.stringify(input.getArgs()),Matchers.not(Matchers.hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()]))));
   CxxLibraryBuilder linkWholeBuilder=new CxxLibraryBuilder(target).setLinkWhole(true).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("foo.cpp"))));
   TargetGraph linkWholeGraph=TargetGraphFactory.newInstance(linkWholeBuilder.build());
   resolver=new BuildRuleResolver(normalGraph,new BuildTargetNodeToBuildRuleTransformer());
   CxxLibrary linkWhole=(CxxLibrary)linkWholeBuilder.setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("test.cpp")))).build(resolver,filesystem,linkWholeGraph);
   NativeLinkableInput linkWholeInput=linkWhole.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.STATIC);
-  assertThat(FluentIterable.from(linkWholeInput.getArgs()).transform(Arg.stringifyFunction()).toList(),Matchers.hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()])));
+  assertThat(Arg.stringify(linkWholeInput.getArgs()),Matchers.hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()])));
 }
