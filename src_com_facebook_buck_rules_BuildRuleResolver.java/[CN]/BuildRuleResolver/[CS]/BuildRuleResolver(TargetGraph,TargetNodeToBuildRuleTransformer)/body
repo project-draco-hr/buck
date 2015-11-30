@@ -2,4 +2,20 @@
   this.targetGraph=targetGraph;
   this.buildRuleGenerator=buildRuleGenerator;
   this.buildRuleIndex=new ConcurrentHashMap<>();
+  this.metadataCache=CacheBuilder.newBuilder().build(new CacheLoader<Pair<BuildTarget,Class<?>>,Optional<?>>(){
+    @Override public Optional<?> load(    Pair<BuildTarget,Class<?>> key) throws Exception {
+      TargetNode<?> node=BuildRuleResolver.this.targetGraph.get(key.getFirst());
+      Preconditions.checkNotNull(node,"Required target for rule '%s' was not found in the target graph.",key);
+      return load(node,key.getSecond());
+    }
+    @SuppressWarnings("unchecked") private <T,U>Optional<U> load(    TargetNode<T> node,    Class<U> metadataClass) throws NoSuchBuildTargetException {
+      Description<T> description=node.getDescription();
+      if (!(description instanceof MetadataProvidingDescription)) {
+        return Optional.absent();
+      }
+      MetadataProvidingDescription<T> metadataProvidingDescription=(MetadataProvidingDescription<T>)description;
+      return metadataProvidingDescription.createMetadata(node.getBuildTarget(),BuildRuleResolver.this,node.getConstructorArg(),metadataClass);
+    }
+  }
+);
 }

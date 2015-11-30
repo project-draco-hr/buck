@@ -1,0 +1,27 @@
+{
+  if (!metadataClass.isAssignableFrom(FrameworkDependencies.class)) {
+    return Optional.absent();
+  }
+  if (!buildTarget.getFlavors().contains(AppleDescriptions.FRAMEWORK_SHALLOW_FLAVOR)) {
+    return Optional.absent();
+  }
+  Optional<Flavor> cxxPlatformFlavor;
+  try {
+    cxxPlatformFlavor=cxxPlatformFlavorDomain.getFlavor(buildTarget.getFlavors());
+  }
+ catch (  FlavorDomainException e) {
+    throw new RuntimeException(e);
+  }
+  Preconditions.checkState(cxxPlatformFlavor.isPresent(),"Could not find cxx platform in:\n%s",Joiner.on(", ").join(buildTarget.getFlavors()));
+  ImmutableSet.Builder<SourcePath> sourcePaths=ImmutableSet.builder();
+  for (  BuildTarget dep : args.deps.get()) {
+    Optional<FrameworkDependencies> frameworks=resolver.requireMetadata(BuildTarget.builder(dep).addFlavors(AppleDescriptions.FRAMEWORK_SHALLOW_FLAVOR).addFlavors(cxxPlatformFlavor.get()).build(),FrameworkDependencies.class);
+    if (frameworks.isPresent()) {
+      sourcePaths.addAll(frameworks.get().getSourcePaths());
+    }
+  }
+  BuildTarget shallowTarget=BuildTarget.builder(buildTarget).addFlavors(AppleDescriptions.FRAMEWORK_SHALLOW_FLAVOR).build();
+  resolver.requireRule(shallowTarget);
+  sourcePaths.add(new BuildTargetSourcePath(shallowTarget));
+  return Optional.of(metadataClass.cast(FrameworkDependencies.of(sourcePaths.build())));
+}

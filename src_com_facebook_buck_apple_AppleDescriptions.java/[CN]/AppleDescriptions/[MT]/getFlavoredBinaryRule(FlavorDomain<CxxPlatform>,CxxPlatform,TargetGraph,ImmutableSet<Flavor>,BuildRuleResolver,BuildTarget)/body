@@ -1,0 +1,27 @@
+{
+  if (flavors.contains(AppleDescriptions.FRAMEWORK_FLAVOR) || flavors.contains(AppleDescriptions.FRAMEWORK_SHALLOW_FLAVOR)) {
+    flavors=ImmutableSet.<Flavor>builder().addAll(flavors).add(CxxDescriptionEnhancer.SHARED_FLAVOR).build();
+  }
+  flavors=ImmutableSet.copyOf(Sets.difference(flavors,ImmutableSet.of(ReactNativeFlavors.DO_NOT_BUNDLE,AppleDescriptions.FRAMEWORK_FLAVOR,AppleDescriptions.FRAMEWORK_SHALLOW_FLAVOR,AppleBundle.DEBUG_INFO_FORMAT_DWARF_AND_DSYM_FLAVOR,AppleBundle.DEBUG_INFO_FORMAT_NONE_FLAVOR,AppleBinaryDescription.APP_FLAVOR)));
+  if (!cxxPlatformFlavorDomain.containsAnyOf(flavors)) {
+    flavors=new ImmutableSet.Builder<Flavor>().addAll(flavors).add(defaultCxxPlatform.getFlavor()).build();
+  }
+  BuildTarget.Builder buildTargetBuilder=BuildTarget.builder(binary.getUnflavoredBuildTarget()).addAllFlavors(flavors);
+  try {
+    if (!(AppleLibraryDescription.LIBRARY_TYPE.getFlavor(flavors).isPresent())) {
+      buildTargetBuilder.addAllFlavors(binary.getFlavors());
+    }
+ else {
+      buildTargetBuilder.addAllFlavors(Sets.difference(binary.getFlavors(),AppleLibraryDescription.LIBRARY_TYPE.getFlavors()));
+    }
+  }
+ catch (  FlavorDomainException e) {
+    throw new RuntimeException(e);
+  }
+  BuildTarget buildTarget=buildTargetBuilder.build();
+  final TargetNode<?> binaryTargetNode=Preconditions.checkNotNull(targetGraph.get(buildTarget));
+  if (binaryTargetNode.getDescription() instanceof AppleLibraryDescription && (Sets.intersection(AppleBundleDescription.SUPPORTED_LIBRARY_FLAVORS,buildTarget.getFlavors()).size() != 1)) {
+    throw new HumanReadableException("AppleExtension bundle [%s] must have exactly one of these flavors: [%s].",binaryTargetNode.getBuildTarget().toString(),Joiner.on(", ").join(AppleBundleDescription.SUPPORTED_LIBRARY_FLAVORS));
+  }
+  return resolver.requireRule(buildTarget);
+}

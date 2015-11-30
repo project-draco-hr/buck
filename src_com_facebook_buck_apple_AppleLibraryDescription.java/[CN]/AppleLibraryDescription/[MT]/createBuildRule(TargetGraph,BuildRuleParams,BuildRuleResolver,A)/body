@@ -12,8 +12,11 @@
     if (!args.infoPlist.isPresent()) {
       throw new HumanReadableException("Cannot create framework for apple_library '%s':\n","No value specified for 'info_plist' attribute.",params.getBuildTarget().getUnflavoredBuildTarget());
     }
-    BuildTarget binaryTarget=params.withoutFlavor(AppleDescriptions.FRAMEWORK_FLAVOR).withFlavor(CxxDescriptionEnhancer.SHARED_FLAVOR).getBuildTarget();
-    return AppleDescriptions.createAppleBundle(cxxPlatformFlavorDomain,defaultCxxPlatform,platformFlavorsToAppleCxxPlatforms,targetGraph,params,resolver,codeSignIdentityStore,provisioningProfileStore,binaryTarget,Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK),Optional.<String>absent(),args.infoPlist.get(),args.infoPlistSubstitutions,args.getTests(),flavoredDebugInfoFormat.or(debugInfoFormat));
+    Optional<DependencyMode> dependencyMode=type.get().getValue().getDependencyMode();
+    if (!dependencyMode.isPresent()) {
+      throw new RuntimeException(String.format("Invalid framework type '%s', missing dependency mode.",type.get().getValue()));
+    }
+    return AppleDescriptions.createAppleBundle(cxxPlatformFlavorDomain,defaultCxxPlatform,platformFlavorsToAppleCxxPlatforms,targetGraph,params,resolver,codeSignIdentityStore,provisioningProfileStore,params.getBuildTarget(),Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK),Optional.<String>absent(),args.infoPlist.get(),args.infoPlistSubstitutions,args.deps.get(),args.getTests(),flavoredDebugInfoFormat.or(debugInfoFormat));
   }
   return createBuildRule(params,resolver,args,args.linkStyle,Optional.<SourcePath>absent(),ImmutableSet.<BuildTarget>of());
 }
