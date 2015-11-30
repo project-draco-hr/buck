@@ -5,6 +5,7 @@
   }
  else {
     ShellStep test=new ShellStep(filesystem.getRootPath()){
+      boolean timedOut=false;
       @Override public String getShortName(){
         return pathToShellScript.toString();
       }
@@ -16,6 +17,25 @@
       }
       @Override protected boolean shouldPrintStderr(      Verbosity verbosity){
         return false;
+      }
+      @Override public int execute(      ExecutionContext context) throws InterruptedException {
+        int exitCode=super.execute(context);
+        if (timedOut) {
+          throw new HumanReadableException("Timed out running test: " + testCaseName + ", with exitCode: "+ exitCode);
+        }
+        return exitCode;
+      }
+      @Override protected Optional<Function<Process,Void>> getTimeoutHandler(      final ExecutionContext context){
+        return Optional.<Function<Process,Void>>of(new Function<Process,Void>(){
+          @Override public Void apply(          Process process){
+            timedOut=true;
+            return null;
+          }
+        }
+);
+      }
+      @Override protected Optional<Long> getTimeout(){
+        return testRuleTimeoutMs;
       }
       @Override protected boolean shouldPrintStdout(      Verbosity verbosity){
         return false;
