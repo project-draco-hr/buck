@@ -15,8 +15,8 @@
   ThriftCompiler thrift2=createFakeThriftCompiler("//:thrift_source2",pathResolver);
   resolver.addToIndex(thrift2);
   ImmutableMap<String,ThriftSource> sources=ImmutableMap.of("test1.thrift",new ThriftSource(thrift1,ImmutableList.<String>of(),Paths.get("output1")),"test2.thrift",new ThriftSource(thrift2,ImmutableList.<String>of(),Paths.get("output2")));
-  BuildRule dep=createFakeBuildRule("//:dep",pathResolver);
-  resolver.addToIndex(dep);
-  ImmutableSortedSet<BuildRule> deps=ImmutableSortedSet.of(dep);
-  ENHANCER_CPP2.createBuildRule(TargetGraph.EMPTY,flavoredParams,resolver,arg,sources,deps);
+  CxxLibrary dep=(CxxLibrary)new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:dep")).build(resolver);
+  ImmutableSortedSet<BuildRule> deps=ImmutableSortedSet.<BuildRule>of(dep);
+  CxxLibrary rule=(CxxLibrary)ENHANCER_CPP2.createBuildRule(TargetGraph.EMPTY,flavoredParams,resolver,arg,sources,deps);
+  assertThat(ImmutableList.copyOf(rule.getNativeLinkableExportedDeps(CXX_PLATFORM)),Matchers.<NativeLinkable>hasItem(dep));
 }

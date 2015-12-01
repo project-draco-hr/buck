@@ -2,7 +2,7 @@
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   CxxHeadersAndSources spec=getThriftHeaderSourceSpec(params,args,sources);
   ImmutableSortedSet<BuildRule> allDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(deps).addAll(resolver.getAllRules((cpp2 ? args.cpp2Deps : args.cppDeps).or(ImmutableSortedSet.<BuildTarget>of()))).build();
-  BuildRuleParams langParams=params.copyWithDeps(Suppliers.ofInstance(allDeps),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  BuildRuleParams langParams=params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(allDeps));
   ImmutableSortedMap.Builder<String,SourcePath> headersBuilder=ImmutableSortedMap.naturalOrder();
   headersBuilder.putAll(spec.getHeaders());
   if (args.cppExportedHeaders.isPresent()) {
@@ -32,5 +32,6 @@
   langArgs.srcs=Optional.of(ImmutableSortedSet.copyOf(srcs.values()));
   langArgs.exportedHeaders=Optional.of(SourceList.ofNamedSources(headers));
   langArgs.canBeAsset=Optional.absent();
+  langArgs.exportedDeps=Optional.of(FluentIterable.from(allDeps).transform(HasBuildTarget.TO_TARGET).toSortedSet(Ordering.<BuildTarget>natural()));
   return cxxLibraryDescription.createBuildRule(targetGraph,langParams,resolver,langArgs);
 }
