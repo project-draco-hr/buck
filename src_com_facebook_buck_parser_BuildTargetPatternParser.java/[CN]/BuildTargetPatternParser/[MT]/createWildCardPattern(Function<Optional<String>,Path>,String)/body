@@ -1,0 +1,23 @@
+{
+  Path cellPath;
+  if (buildTargetPattern.startsWith(CELL_NAME_PREFIX)) {
+    int index=buildTargetPattern.indexOf(BUILD_RULE_PREFIX);
+    Preconditions.checkState(index != -1);
+    cellPath=cellNames.apply(Optional.of(buildTargetPattern.substring(CELL_NAME_PREFIX.length(),index)));
+    buildTargetPattern=buildTargetPattern.substring(index);
+  }
+ else {
+    cellPath=cellNames.apply(Optional.<String>absent());
+  }
+  if (isWildCardAllowed()) {
+    if (buildTargetPattern.contains(BUILD_RULE_SEPARATOR)) {
+      throw new BuildTargetParseException(String.format("'%s' cannot contain colon",buildTargetPattern));
+    }
+    String basePathWithSlash=buildTargetPattern.substring(BUILD_RULE_PREFIX.length(),buildTargetPattern.length() - WILDCARD_BUILD_RULE_SUFFIX.length());
+    Path basePath=cellPath.getFileSystem().getPath(basePathWithSlash);
+    return createForDescendants(cellPath,basePath);
+  }
+ else {
+    throw new BuildTargetParseException(String.format("'%s' cannot end with '...'",buildTargetPattern));
+  }
+}
