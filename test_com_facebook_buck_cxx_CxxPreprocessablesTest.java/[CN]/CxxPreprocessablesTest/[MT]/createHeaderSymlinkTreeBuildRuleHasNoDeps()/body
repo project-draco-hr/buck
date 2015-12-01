@@ -1,11 +1,12 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  FakeBuildRule dep=createFakeBuildRule(BuildTargetFactory.newInstance("//random:dep"),pathResolver);
-  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
-  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setDeclaredDeps(ImmutableSortedSet.<BuildRule>of(dep)).build();
-  Path root=Paths.get("root");
-  Genrule genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:genrule")).setOut("foo/bar.o").build(resolver);
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  FakeBuildRule dep=createFakeBuildRule(BuildTargetFactory.newInstance(filesystem,"//random:dep"),pathResolver);
+  BuildTarget target=BuildTargetFactory.newInstance(filesystem,"//foo:bar");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setDeclaredDeps(ImmutableSortedSet.<BuildRule>of(dep)).setProjectFilesystem(filesystem).build();
+  Path root=filesystem.resolve("root");
+  Genrule genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance(filesystem,"//:genrule")).setOut("foo/bar.o").build(resolver);
   ImmutableMap<Path,SourcePath> links=ImmutableMap.<Path,SourcePath>of(Paths.get("link1"),new FakeSourcePath("hello"),Paths.get("link2"),new BuildTargetSourcePath(genrule.getBuildTarget()));
   HeaderSymlinkTree symlinkTree=CxxPreprocessables.createHeaderSymlinkTreeBuildRule(pathResolver,target,params,root,Optional.<Path>absent(),links);
   assertTrue(symlinkTree.getDeps().isEmpty());

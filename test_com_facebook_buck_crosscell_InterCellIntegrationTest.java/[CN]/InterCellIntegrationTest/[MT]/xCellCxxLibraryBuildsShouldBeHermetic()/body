@@ -1,0 +1,18 @@
+{
+  assumeThat(Platform.detect(),is(not(WINDOWS)));
+  Pair<ProjectWorkspace,ProjectWorkspace> cells=prepare("inter-cell/export-file/primary","inter-cell/export-file/secondary");
+  ProjectWorkspace primary=cells.getFirst();
+  ProjectWorkspace secondary=cells.getSecond();
+  Path firstBinary=primary.buildAndReturnOutput("//:cxxbinary");
+  ImmutableMap<String,HashCode> firstPrimaryObjectFiles=findObjectFiles(primary);
+  ImmutableMap<String,HashCode> firstObjectFiles=findObjectFiles(secondary);
+  cells=prepare("inter-cell/export-file/primary","inter-cell/export-file/secondary");
+  primary=cells.getFirst();
+  secondary=cells.getSecond();
+  Path secondBinary=primary.buildAndReturnOutput("//:cxxbinary");
+  ImmutableMap<String,HashCode> secondPrimaryObjectFiles=findObjectFiles(primary);
+  ImmutableMap<String,HashCode> secondObjectFiles=findObjectFiles(secondary);
+  assertEquals(firstPrimaryObjectFiles,secondPrimaryObjectFiles);
+  assertEquals(firstObjectFiles,secondObjectFiles);
+  MoreAsserts.assertContentsEqual(firstBinary,secondBinary);
+}

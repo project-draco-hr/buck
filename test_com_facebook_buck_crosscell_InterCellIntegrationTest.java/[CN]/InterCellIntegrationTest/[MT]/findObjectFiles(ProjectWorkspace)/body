@@ -1,0 +1,17 @@
+{
+  final Path buckOut=workspace.getPath(BuckConstant.BUCK_OUTPUT_DIRECTORY);
+  final ImmutableMap.Builder<String,HashCode> objectHashCodes=ImmutableMap.builder();
+  Files.walkFileTree(buckOut,new SimpleFileVisitor<Path>(){
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs) throws IOException {
+      if (MorePaths.getFileExtension(file).equals("o")) {
+        HashCode hash=MorePaths.asByteSource(file).hash(Hashing.sha1());
+        objectHashCodes.put(buckOut.relativize(file).toString(),hash);
+      }
+      return FileVisitResult.CONTINUE;
+    }
+  }
+);
+  ImmutableMap<String,HashCode> toReturn=objectHashCodes.build();
+  Preconditions.checkState(!toReturn.isEmpty());
+  return toReturn;
+}

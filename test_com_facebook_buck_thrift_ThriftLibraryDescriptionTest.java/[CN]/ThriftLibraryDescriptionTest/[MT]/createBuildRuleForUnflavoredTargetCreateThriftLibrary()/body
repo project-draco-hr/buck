@@ -3,13 +3,14 @@
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   BuildTarget unflavoredTarget=BuildTargetFactory.newInstance("//:thrift");
   BuildRuleParams unflavoredParams=new FakeBuildRuleParamsBuilder(unflavoredTarget).build();
+  ProjectFilesystem filesystem=unflavoredParams.getProjectFilesystem();
   BuckConfig buckConfig=FakeBuckConfig.builder().build();
   ThriftBuckConfig thriftBuckConfig=new ThriftBuckConfig(buckConfig);
   ThriftLibraryDescription desc=new ThriftLibraryDescription(thriftBuckConfig,ImmutableList.<ThriftLanguageSpecificEnhancer>of());
   String sourceName="test.thrift";
   SourcePath source=new FakeSourcePath(sourceName);
   BuildTarget depTarget=BuildTargetFactory.newInstance("//:dep");
-  Path depIncludeRoot=desc.getIncludeRoot(depTarget);
+  Path depIncludeRoot=filesystem.resolve(desc.getIncludeRoot(depTarget));
   HeaderSymlinkTree depIncludeSymlinkTree=createFakeSymlinkTree(depTarget,pathResolver,depIncludeRoot);
   ThriftLibrary dep=new ThriftLibrary(new FakeBuildRuleParamsBuilder(depTarget).build(),pathResolver,ImmutableSortedSet.<ThriftLibrary>of(),depIncludeSymlinkTree,ImmutableMap.<Path,SourcePath>of());
   resolver.addToIndex(dep);
@@ -22,5 +23,5 @@
   assertTrue(rule instanceof ThriftLibrary);
   ThriftLibrary me=(ThriftLibrary)rule;
   assertEquals(ImmutableSortedSet.of(dep),me.getThriftDeps());
-  assertEquals(desc.getIncludeRoot(unflavoredTarget),me.getIncludeTreeRule().getIncludePath());
+  assertEquals(filesystem.resolve(desc.getIncludeRoot(unflavoredTarget)),me.getIncludeTreeRule().getIncludePath());
 }
