@@ -1,8 +1,33 @@
 {
-  ImmutableSet<Path> librarySearchPaths=CxxDescriptionEnhancer.getFrameworkSearchPaths(Optional.of(allLibraries),cxxPlatform,resolver);
-  for (  Path unsanitizedLibrarySearchPath : getLibrarySearchDirectories(librarySearchPaths)) {
-    argsBuilder.add(new StringArg("-L"));
-    argsBuilder.add(new SanitizedArg(cxxPlatform.getDebugPathSanitizer().sanitize(Optional.<Path>absent()),unsanitizedLibrarySearchPath.toString()));
+  final Function<FrameworkPath,Path> frameworkPathToSearchPath=CxxDescriptionEnhancer.frameworkPathToSearchPath(cxxPlatform,resolver);
+  argsBuilder.add(new FrameworkPathArg(resolver,allLibraries){
+    @Override public RuleKeyBuilder appendToRuleKey(    RuleKeyBuilder builder){
+      return super.appendToRuleKey(builder).setReflectively("frameworkPathToSearchPath",frameworkPathToSearchPath);
+    }
+    @Override public void appendToCommandLine(    ImmutableCollection.Builder<String> builder){
+      ImmutableSortedSet<Path> searchPaths=FluentIterable.from(frameworkPaths).transform(frameworkPathToSearchPath).transform(new Function<Path,Path>(){
+        @Override public Path apply(        Path input){
+          return input.getParent();
+        }
+      }
+).filter(Predicates.notNull()).toSortedSet(Ordering.natural());
+      for (      Path searchPath : searchPaths) {
+        builder.add("-L");
+        builder.add(searchPath.toString());
+      }
+    }
   }
-  argsBuilder.add(librariesToLinkerArg(resolver,allLibraries));
+);
+  argsBuilder.add(new FrameworkPathArg(resolver,allLibraries){
+    @Override public void appendToCommandLine(    ImmutableCollection.Builder<String> builder){
+      for (      FrameworkPath frameworkPath : frameworkPaths) {
+        String libName=MorePaths.stripPathPrefixAndExtension(frameworkPath.getFileName(resolver.getAbsolutePathFunction()),"lib");
+        if (libName.isEmpty()) {
+          continue;
+        }
+        builder.add("-l" + libName);
+      }
+    }
+  }
+);
 }
