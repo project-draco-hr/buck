@@ -19,6 +19,12 @@
   }
 );
   IjModuleFactory.IjModuleFactoryResolver moduleFactoryResolver=new IjModuleFactory.IjModuleFactoryResolver(){
+    private Function<SourcePath,Path> getAbsolutePathAndRecordRuleFunction=new Function<SourcePath,Path>(){
+      @Override public Path apply(      SourcePath input){
+        return getAbsolutePathAndRecordRule(input);
+      }
+    }
+;
     @Override public Optional<Path> getDummyRDotJavaPath(    TargetNode<?> targetNode){
       BuildTarget dummyRDotJavaTarget=AndroidLibraryGraphEnhancer.getDummyRDotJavaTarget(targetNode.getBuildTarget());
       Optional<BuildRule> dummyRDotJavaRule=buildRuleResolver.getRuleOptional(dummyRDotJavaTarget);
@@ -32,13 +38,17 @@
       return sourcePathResolver.getAbsolutePath(targetNode.getConstructorArg().manifest);
     }
     @Override public Optional<Path> getProguardConfigPath(    TargetNode<AndroidBinaryDescription.Arg> targetNode){
-      return targetNode.getConstructorArg().proguardConfig.transform(sourcePathResolver.getAbsolutePathFunction());
+      return targetNode.getConstructorArg().proguardConfig.transform(getAbsolutePathAndRecordRuleFunction);
     }
     @Override public Optional<Path> getAndroidResourcePath(    TargetNode<AndroidResourceDescription.Arg> targetNode){
-      return targetNode.getConstructorArg().res.transform(sourcePathResolver.getAbsolutePathFunction());
+      return targetNode.getConstructorArg().res.transform(getAbsolutePathAndRecordRuleFunction);
     }
     @Override public Optional<Path> getAssetsPath(    TargetNode<AndroidResourceDescription.Arg> targetNode){
-      return targetNode.getConstructorArg().assets.transform(sourcePathResolver.getAbsolutePathFunction());
+      return targetNode.getConstructorArg().assets.transform(getAbsolutePathAndRecordRuleFunction);
+    }
+    private Path getAbsolutePathAndRecordRule(    SourcePath sourcePath){
+      requiredBuildTargets.addAll(sourcePathResolver.getRule(sourcePath).transform(HasBuildTarget.TO_TARGET).asSet());
+      return sourcePathResolver.getAbsolutePath(sourcePath);
     }
   }
 ;
