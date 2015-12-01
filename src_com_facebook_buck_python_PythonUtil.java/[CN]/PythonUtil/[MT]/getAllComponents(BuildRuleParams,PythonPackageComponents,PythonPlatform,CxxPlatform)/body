@@ -12,7 +12,7 @@
  catch (          NoSuchBuildTargetException e) {
             throw new ClosureException(e);
           }
-          return rule.getDeps();
+          return FluentIterable.from(rule.getDeps()).filter(Predicates.instanceOf(PythonPackagable.class)).toSortedSet(Ordering.natural());
         }
         return ImmutableSortedSet.of();
       }
@@ -21,6 +21,10 @@
   }
  catch (  ClosureException e) {
     throw (NoSuchBuildTargetException)e.getException();
+  }
+  ImmutableMap<String,SourcePath> sharedLibs=NativeLinkables.getTransitiveSharedLibraries(cxxPlatform,params.getDeps(),Predicates.instanceOf(PythonPackagable.class));
+  for (  Map.Entry<String,SourcePath> ent : sharedLibs.entrySet()) {
+    components.addNativeLibraries(Paths.get(ent.getKey()),ent.getValue(),params.getBuildTarget());
   }
   return components.build();
 }
