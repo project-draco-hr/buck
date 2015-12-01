@@ -1,0 +1,35 @@
+{
+  ImmutableList.Builder<Path> filesWritten=ImmutableList.builder();
+  try (ZipFile zip=new ZipFile(zipFile.toFile())){
+    Enumeration<ZipArchiveEntry> entries=zip.getEntries();
+    while (entries.hasMoreElements()) {
+      ZipArchiveEntry entry=entries.nextElement();
+      String fileName=entry.getName();
+      Path target=relativePath.resolve(fileName);
+      if (filesystem.exists(target)) {
+switch (existingFileMode) {
+case OVERWRITE:
+          break;
+case OVERWRITE_AND_CLEAN_DIRECTORIES:
+        filesystem.deleteRecursivelyIfExists(target);
+      break;
+  }
+}
+if (entry.isDirectory()) {
+  filesystem.mkdirs(target);
+}
+ else {
+  filesystem.createParentDirs(target);
+  filesWritten.add(target);
+  try (OutputStream out=filesystem.newFileOutputStream(target);InputStream is=zip.getInputStream(entry)){
+    ByteStreams.copy(is,out);
+  }
+   Set<PosixFilePermission> permissions=MorePosixFilePermissions.fromMode(entry.getExternalAttributes() >> 16);
+  if (permissions.contains(PosixFilePermission.OWNER_EXECUTE)) {
+    MoreFiles.makeExecutable(filesystem.resolve(target));
+  }
+}
+}
+}
+ return filesWritten.build();
+}

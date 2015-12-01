@@ -1,21 +1,26 @@
 {
   try (InputStream inner=Preconditions.checkNotNull(Resources.getResource(relativeTo,name),"Unable to find: %s",name).openStream();BufferedInputStream stream=new BufferedInputStream(inner)){
-    Path outputDir=Files.createTempDirectory("buck-resource");
-    Cleaner.addRoot(outputDir);
+    Path outputPath=BuckConstant.RES_PATH.resolve(relativeTo.getCanonicalName()).resolve(filename);
+    if (filesystem.exists(outputPath)) {
+      filesystem.deleteRecursivelyIfExists(outputPath);
+    }
     String extension=com.google.common.io.Files.getFileExtension(filename.toString());
     if (extension.equals("zip")) {
+      filesystem.mkdirs(outputPath);
       Path zip=Files.createTempFile(filename.toString(),".zip");
-      Cleaner.addRoot(zip);
       Files.copy(stream,zip,REPLACE_EXISTING);
-      Unzip.extractZipFile(zip,outputDir,OVERWRITE);
-      return outputDir;
+      Unzip.extractZipFile(zip,filesystem,outputPath,OVERWRITE);
+      Files.delete(zip);
     }
  else {
-      Path tempFilePath=Files.createFile(outputDir.resolve(filename));
-      Cleaner.addRoot(tempFilePath);
-      Files.copy(stream,tempFilePath,REPLACE_EXISTING);
-      return tempFilePath;
+      filesystem.createParentDirs(outputPath);
+      Path tempFilePath=filesystem.createTempFile(outputPath.getParent(),outputPath.getFileName().toString() + ".",".tmp");
+      try (OutputStream outputStream=filesystem.newFileOutputStream(tempFilePath)){
+        ByteStreams.copy(stream,outputStream);
+      }
+       filesystem.move(tempFilePath,outputPath);
     }
+    return outputPath;
   }
  catch (  IOException ioe) {
     throw new RuntimeException("Unable to unpack " + name,ioe);
