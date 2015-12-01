@@ -1,0 +1,13 @@
+{
+  Path jarDirectory=folder.newFolder("jarDir");
+  Path first=createZip(jarDirectory.resolve("a.jar"),"com/example/Main.class","com/example/common/Helper.class");
+  Path second=createZip(jarDirectory.resolve("b.jar"),"com/example/common/Helper.class");
+  final Path outputPath=Paths.get("output.jar");
+  JarDirectoryStep step=new JarDirectoryStep(new ProjectFilesystem(jarDirectory),outputPath,ImmutableSortedSet.of(first.getFileName(),second.getFileName()),"com.example.Main",null);
+  ExecutionContext context=TestExecutionContext.newInstance();
+  final BuckEventBusFactory.CapturingConsoleEventListener listener=new BuckEventBusFactory.CapturingConsoleEventListener();
+  context.getBuckEventBus().register(listener);
+  step.execute(context);
+  final String expectedMessage=String.format("Duplicate found when adding 'com/example/common/Helper.class' to '%s' from '%s'",outputPath.toAbsolutePath(),second.toAbsolutePath());
+  assertThat(listener.getLogMessages(),hasItem(expectedMessage));
+}
