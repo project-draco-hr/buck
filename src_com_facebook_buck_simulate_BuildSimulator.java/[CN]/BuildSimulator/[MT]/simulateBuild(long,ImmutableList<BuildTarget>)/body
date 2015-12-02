@@ -1,13 +1,17 @@
 {
   Preconditions.checkArgument(buildTargets.size() > 0,"No targets provided for the simulation.");
-  SimulateReport.Builder report=SimulateReport.builder().setTimestampMillis(currentTimeMillis).setBuildTargets(FluentIterable.from(buildTargets).transform(Functions.toStringFunction())).setSimulateTimesFile(times.getFile()).setTimeAggregate(times.getTimeAggregate()).setRuleFallbackTimeMillis(times.getRuleFallbackTimeMillis()).setTotalActionGraphNodes(Iterables.size(actionGraph.getNodes())).setNumberOfThreads(numberOfThreads);
-  Map<BuildTarget,NodeState> reverseDependencies=Maps.newHashMap();
-  Queue<BuildTarget> leafNodes=Queues.newArrayDeque();
-  int totalDagEdges=0;
-  for (  BuildTarget target : buildTargets) {
-    BuildRule rule=Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(target));
-    totalDagEdges+=recursiveTraversal(rule,reverseDependencies,leafNodes);
+  SimulateReport.Builder simulateReport=SimulateReport.builder();
+  for (  String timeAggregate : times.getTimeAggregates()) {
+    SingleRunReport.Builder report=SingleRunReport.builder().setTimestampMillis(currentTimeMillis).setBuildTargets(FluentIterable.from(buildTargets).transform(Functions.toStringFunction())).setSimulateTimesFile(times.getFile()).setRuleFallbackTimeMillis(times.getRuleFallbackTimeMillis()).setTotalActionGraphNodes(Iterables.size(actionGraph.getNodes())).setTimeAggregate(timeAggregate).setNumberOfThreads(numberOfThreads);
+    Map<BuildTarget,NodeState> reverseDependencies=Maps.newHashMap();
+    Queue<BuildTarget> leafNodes=Queues.newArrayDeque();
+    int totalDagEdges=0;
+    for (    BuildTarget target : buildTargets) {
+      BuildRule rule=Preconditions.checkNotNull(actionGraph.findBuildRuleByTarget(target));
+      totalDagEdges+=recursiveTraversal(rule,reverseDependencies,leafNodes);
+    }
+    report.setTotalDependencyDagEdges(totalDagEdges);
+    simulateReport.addRunReports(runSimulation(report,reverseDependencies,leafNodes,timeAggregate));
   }
-  report.setTotalDependencyDagEdges(totalDagEdges);
-  return runSimulation(report,reverseDependencies,leafNodes);
+  return simulateReport.build();
 }
