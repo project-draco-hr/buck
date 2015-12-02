@@ -1,23 +1,6 @@
 def send_command(self, cmd, cmd_args=[], filearg=None, env=os.environ, cwd=os.getcwd()):
-    '\n        Sends the command and environment to the nailgun server.\n        '
-    if filearg:
-        send_file_arg(filearg, self)
-    for cmd_arg in cmd_args:
-        send_chunk(cmd_arg, CHUNKTYPE_ARG, self)
-    send_env_var('NAILGUN_FILESEPARATOR', os.sep, self)
-    send_env_var('NAILGUN_PATHSEPARATOR', os.pathsep, self)
-    send_tty_format(self.stdin, self)
-    send_tty_format(self.stdout, self)
-    send_tty_format(self.stderr, self)
-    for (k, v) in env.iteritems():
-        send_env_var(k, v, self)
-    send_chunk(cwd, CHUNKTYPE_DIR, self)
-    send_chunk(cmd, CHUNKTYPE_CMD, self)
-    self.stdin_thread.start()
-    while (self.exit_code is None):
-        self._process_next_chunk()
-        self._check_stdin_queue()
-    self.shutdown_event.set()
-    with self.ready_to_send_condition:
-        self.ready_to_send_condition.notify()
-    return self.exit_code
+    '\n        Sends the command and environment to the nailgun server, then loops forever\n        reading the response until the server sends an exit chunk.\n\n        Returns the exit value, or raises NailgunException on error.\n        '
+    try:
+        return self._send_command_and_read_response(cmd, cmd_args, filearg, env, cwd)
+    except socket.error as e:
+        raise NailgunException('Server disconnected unexpectedly: {0}'.format(e), NailgunException.CONNECTION_BROKEN)
