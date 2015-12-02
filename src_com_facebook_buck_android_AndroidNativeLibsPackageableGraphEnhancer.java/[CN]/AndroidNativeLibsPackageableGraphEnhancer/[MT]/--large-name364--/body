@@ -1,0 +1,20 @@
+{
+  boolean hasNativeLibs=false;
+  ImmutableMap<BuildTarget,NativeLinkable> nativeLinkables=NativeLinkables.getTransitiveNativeLinkables(cxxPlatform,nativeLinkableRoots);
+  for (  NativeLinkable nativeLinkable : nativeLinkables.values()) {
+    NativeLinkable.Linkage linkage=nativeLinkable.getPreferredLinkage(cxxPlatform);
+    if (linkage != NativeLinkable.Linkage.STATIC) {
+      ImmutableMap<String,SourcePath> solibs=nativeLinkable.getSharedLibraries(cxxPlatform);
+      for (      Map.Entry<String,SourcePath> entry : solibs.entrySet()) {
+        hasNativeLibs=true;
+        if (nativeLinkable.canBeAsset()) {
+          assetsBuilder.put(new Pair<>(targetCpuType,entry.getKey()),entry.getValue());
+        }
+ else {
+          builder.put(new Pair<>(targetCpuType,entry.getKey()),entry.getValue());
+        }
+      }
+    }
+  }
+  return hasNativeLibs;
+}
