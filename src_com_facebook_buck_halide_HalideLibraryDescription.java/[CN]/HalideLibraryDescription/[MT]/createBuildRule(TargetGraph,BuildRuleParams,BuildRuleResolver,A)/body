@@ -1,14 +1,7 @@
 {
   BuildTarget target=params.getBuildTarget();
-  Optional<Map.Entry<Flavor,Type>> type;
-  Optional<Map.Entry<Flavor,CxxPlatform>> cxxPlatform;
-  try {
-    type=LIBRARY_TYPE.getFlavorAndValue(ImmutableSet.copyOf(target.getFlavors()));
-    cxxPlatform=cxxPlatforms.getFlavorAndValue(ImmutableSet.copyOf(target.getFlavors()));
-  }
- catch (  FlavorDomainException e) {
-    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
-  }
+  Optional<Map.Entry<Flavor,Type>> type=LIBRARY_TYPE.getFlavorAndValue(target);
+  Optional<Map.Entry<Flavor,CxxPlatform>> cxxPlatform=cxxPlatforms.getFlavorAndValue(target);
   final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   if (type.isPresent()) {
     if (type.get().getValue() == Type.EXPORTED_HEADERS) {
@@ -21,13 +14,7 @@
       return CxxDescriptionEnhancer.createHeaderSymlinkTree(params,new SourcePathResolver(resolver),cxxPlatform.get().getValue(),headersBuilder.build(),HeaderVisibility.PUBLIC);
     }
  else     if (type.get().getValue() == Type.HALIDE_COMPILER) {
-      CxxPlatform hostCxxPlatform;
-      try {
-        hostCxxPlatform=cxxPlatforms.getValue(ImmutableFlavor.of("default"));
-      }
- catch (      FlavorDomainException e) {
-        throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
-      }
+      CxxPlatform hostCxxPlatform=cxxPlatforms.getValue(ImmutableFlavor.of("default"));
       Preconditions.checkState(args.srcs.isPresent());
       final ImmutableSortedSet<BuildTarget> compilerDeps=args.compilerDeps.or(ImmutableSortedSet.<BuildTarget>of());
       CxxBinary halideCompiler=requireHalideCompiler(params.copyWithDeps(Suppliers.ofInstance(resolver.getAllRules(compilerDeps)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),resolver,pathResolver,hostCxxPlatform,args.srcs.get(),args.compilerFlags,args.platformCompilerFlags,args.linkerFlags,args.platformLinkerFlags);

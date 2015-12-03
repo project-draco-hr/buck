@@ -1,25 +1,11 @@
 {
-  PythonPlatform pythonPlatform;
-  try {
-    pythonPlatform=pythonPlatforms.getValue(params.getBuildTarget().getFlavors()).or(pythonPlatforms.getValue(args.platform.transform(Flavor.TO_FLAVOR).or(pythonPlatforms.getFlavors().iterator().next())));
-  }
- catch (  FlavorDomainException e) {
-    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
-  }
-  CxxPlatform cxxPlatform;
-  try {
-    cxxPlatform=cxxPlatforms.getValue(ImmutableSet.copyOf(params.getBuildTarget().getFlavors())).or(defaultCxxPlatform);
-  }
- catch (  FlavorDomainException e) {
-    throw new HumanReadableException("%s: %s",params.getBuildTarget(),e.getMessage());
-  }
   if (!(args.main.isPresent() ^ args.mainModule.isPresent())) {
     throw new HumanReadableException("%s: must set exactly one of `main_module` and `main`",params.getBuildTarget());
   }
-  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);
   String mainModule;
   ImmutableMap.Builder<Path,SourcePath> modules=ImmutableMap.builder();
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   if (args.main.isPresent()) {
     LOG.warn("%s: parameter `main` is deprecated, please use `main_module` instead.",params.getBuildTarget());
     String mainName=pathResolver.getSourcePathName(params.getBuildTarget(),args.main.get());
@@ -31,6 +17,8 @@
     mainModule=args.mainModule.get();
   }
   PythonPackageComponents binaryPackageComponents=PythonPackageComponents.of(modules.build(),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),args.zipSafe);
+  PythonPlatform pythonPlatform=pythonPlatforms.getValue(params.getBuildTarget()).or(pythonPlatforms.getValue(args.platform.transform(Flavor.TO_FLAVOR).or(pythonPlatforms.getFlavors().iterator().next())));
+  CxxPlatform cxxPlatform=cxxPlatforms.getValue(params.getBuildTarget()).or(defaultCxxPlatform);
   PythonPackageComponents allPackageComponents=PythonUtil.getAllComponents(params,binaryPackageComponents,pythonPlatform,cxxPlatform);
   return createPackageRule(params,resolver,pathResolver,pythonPlatform,cxxPlatform,mainModule,allPackageComponents,args.buildArgs.or(ImmutableList.<String>of()));
 }
