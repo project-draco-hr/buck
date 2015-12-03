@@ -1,4 +1,8 @@
 {
-  Optional<AppleDebugFormat> flavoredDebugInfoFormat=AppleDebugFormat.FLAVOR_DOMAIN.getValue(params.getBuildTarget());
-  return AppleDescriptions.createAppleBundle(cxxPlatformFlavorDomain,defaultCxxPlatform,platformFlavorsToAppleCxxPlatforms,targetGraph,params,resolver,codeSignIdentityStore,provisioningProfileStore,args.binary,args.extension,args.productName,args.infoPlist,args.infoPlistSubstitutions,args.deps.get(),args.getTests(),flavoredDebugInfoFormat.or(defaultDebugInfoFormat));
+  AppleDebugFormat flavoredDebugInfoFormat=AppleDebugFormat.FLAVOR_DOMAIN.getValue(params.getBuildTarget()).or(defaultDebugInfoFormat);
+  Flavor debugFormatFlavor=flavoredDebugInfoFormat.getFlavor();
+  if (!params.getBuildTarget().getFlavors().contains(debugFormatFlavor)) {
+    return (AppleBundle)resolver.requireRule(BuildTarget.builder(params.getBuildTarget()).addFlavors(debugFormatFlavor).build());
+  }
+  return AppleDescriptions.createAppleBundle(cxxPlatformFlavorDomain,defaultCxxPlatform,platformFlavorsToAppleCxxPlatforms,targetGraph,params,resolver,codeSignIdentityStore,provisioningProfileStore,args.binary,args.extension,args.productName,args.infoPlist,args.infoPlistSubstitutions,args.deps.get(),args.getTests(),flavoredDebugInfoFormat);
 }
