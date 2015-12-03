@@ -3,10 +3,11 @@
   ImmutableMap.Builder<Pair<NdkCxxPlatforms.TargetCpuType,String>,SourcePath> nativeLinkableLibsAssetsBuilder=ImmutableMap.builder();
   ImmutableSet<NdkCxxPlatforms.TargetCpuType> filters=cpuFilters.isEmpty() ? nativePlatforms.keySet() : cpuFilters;
   for (  NdkCxxPlatforms.TargetCpuType targetCpuType : filters) {
-    boolean hasNativeLibs=populateMapWithLinkables(packageableCollection.getNativeLinkableRoots(),targetCpuType,Preconditions.checkNotNull(nativePlatforms.get(targetCpuType)).getCxxPlatform(),nativeLinkableLibsBuilder,nativeLinkableLibsAssetsBuilder);
     NdkCxxPlatform platform=Preconditions.checkNotNull(nativePlatforms.get(targetCpuType));
+    boolean hasNativeLibs=populateMapWithLinkables(packageableCollection.getNativeLinkables(),nativeLinkableLibsBuilder,targetCpuType,platform);
+    boolean hasNativeLibsAssets=populateMapWithLinkables(packageableCollection.getNativeLinkablesAssets(),nativeLinkableLibsAssetsBuilder,targetCpuType,platform);
     NdkCxxPlatforms.CxxRuntime cxxRuntime=platform.getCxxRuntime();
-    if (hasNativeLibs && !cxxRuntime.equals(NdkCxxPlatforms.CxxRuntime.SYSTEM)) {
+    if ((hasNativeLibs || hasNativeLibsAssets) && !cxxRuntime.equals(NdkCxxPlatforms.CxxRuntime.SYSTEM)) {
       nativeLinkableLibsBuilder.put(new Pair<>(targetCpuType,cxxRuntime.getSoname()),new PathSourcePath(buildRuleParams.getProjectFilesystem(),platform.getCxxSharedRuntimePath()));
     }
   }
