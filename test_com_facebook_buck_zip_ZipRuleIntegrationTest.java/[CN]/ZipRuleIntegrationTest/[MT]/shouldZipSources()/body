@@ -2,7 +2,18 @@
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"zip-rule",tmp);
   workspace.setUp();
   Path zip=workspace.buildAndReturnOutput("//example:ziptastic");
-  ZipInspector inspector=new ZipInspector(zip);
-  inspector.assertFileExists("cake.txt");
-  inspector.assertFileExists("beans/cheesy.txt");
-}
+  try (ZipFile zipFile=new ZipFile(zip.toFile())){
+    ZipArchiveEntry cake=zipFile.getEntry("cake.txt");
+    assertThat(cake,Matchers.notNullValue());
+    assertFalse(cake.isUnixSymlink());
+    assertFalse(cake.isDirectory());
+    ZipArchiveEntry beans=zipFile.getEntry("beans/");
+    assertThat(beans,Matchers.notNullValue());
+    assertFalse(beans.isUnixSymlink());
+    assertTrue(beans.isDirectory());
+    ZipArchiveEntry cheesy=zipFile.getEntry("beans/cheesy.txt");
+    assertThat(cheesy,Matchers.notNullValue());
+    assertFalse(cheesy.isUnixSymlink());
+    assertFalse(cheesy.isDirectory());
+  }
+ }

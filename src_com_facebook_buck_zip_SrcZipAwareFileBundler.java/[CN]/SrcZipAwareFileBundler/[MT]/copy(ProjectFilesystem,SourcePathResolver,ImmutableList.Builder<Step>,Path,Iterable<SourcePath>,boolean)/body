@@ -1,5 +1,4 @@
 {
-  ImmutableMap.Builder<Path,Path> links=ImmutableMap.builder();
   for (  SourcePath sourcePath : toCopy) {
     Path absolute=resolver.getAbsolutePath(sourcePath);
     if (absolute.toString().endsWith(Javac.SRC_ZIP) || absolute.toString().endsWith(Javac.SRC_JAR)) {
@@ -17,7 +16,10 @@
  else {
       destination=absolute.getFileName();
     }
-    links.put(destination,absolute);
+    destination=destinationDir.resolve(destination);
+    if (destination.getParent() != null) {
+      steps.add(new MkdirStep(filesystem,destination.getParent()));
+    }
+    steps.add(CopyStep.forFile(filesystem,absolute,destination));
   }
-  steps.add(new SymlinkTreeStep(filesystem,destinationDir,links.build()));
 }
