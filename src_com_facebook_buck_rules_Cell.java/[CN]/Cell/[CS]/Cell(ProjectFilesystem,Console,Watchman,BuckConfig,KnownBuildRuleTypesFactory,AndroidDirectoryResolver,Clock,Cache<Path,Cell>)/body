@@ -3,6 +3,7 @@
   this.watchman=watchman;
   this.config=config;
   this.directoryResolver=directoryResolver;
+  this.cells=cells;
   ParserConfig parserConfig=new ParserConfig(config);
   this.buildFileName=parserConfig.getBuildFileName();
   this.enforceBuckPackageBoundaries=parserConfig.getEnforceBuckPackageBoundary();
@@ -18,7 +19,7 @@
   PythonBuckConfig pythonConfig=new PythonBuckConfig(config,new ExecutableFinder());
   this.pythonInterpreter=pythonConfig.getPythonInterpreter();
   this.knownBuildRuleTypes=knownBuildRuleTypesFactory.create(config);
-  this.cells=CacheBuilder.newBuilder().build(new CacheLoader<Path,Cell>(){
+  cellLoader=new CacheLoader<Path,Cell>(){
     @Override public Cell load(    Path cellPath) throws Exception {
       cellPath=cellPath.toRealPath().normalize();
       if (!knownRoots.contains(cellPath)) {
@@ -31,9 +32,9 @@
       BuckConfig parentConfig=parent.getBuckConfig();
       BuckConfig buckConfig=new BuckConfig(config,cellFilesystem,parentConfig.getArchitecture(),parentConfig.getPlatform(),parentConfig.getEnvironment());
       Watchman.build(cellPath,parentConfig.getEnvironment(),console,clock);
-      return new Cell(cellFilesystem,console,watchman,buckConfig,knownBuildRuleTypesFactory,directoryResolver,clock);
+      return new Cell(cellFilesystem,console,watchman,buckConfig,knownBuildRuleTypesFactory,directoryResolver,clock,cells);
     }
   }
-);
+;
   cells.put(getFilesystem().getRootPath(),this);
 }
