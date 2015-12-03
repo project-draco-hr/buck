@@ -1,9 +1,15 @@
 {
+  CxxPreprocessorInput.Builder builder=CxxPreprocessorInput.builder();
 switch (headerVisibility) {
 case PUBLIC:
-    return CxxPreprocessorInput.builder().from(CxxPreprocessables.getCxxPreprocessorInput(params,ruleResolver,cxxPlatform.getFlavor(),headerVisibility,CxxPreprocessables.IncludeType.SYSTEM,exportedPreprocessorFlags.apply(cxxPlatform),ImmutableList.<FrameworkPath>of())).addAllSystemIncludeRoots(Iterables.transform(includeDirs,getProjectFilesystem().getAbsolutifier())).build();
+    if (Preconditions.checkNotNull(hasHeaders.apply(cxxPlatform))) {
+      CxxPreprocessables.addHeaderSymlinkTree(builder,getBuildTarget(),ruleResolver,cxxPlatform.getFlavor(),headerVisibility,CxxPreprocessables.IncludeType.SYSTEM);
+    }
+  builder.putAllPreprocessorFlags(Preconditions.checkNotNull(exportedPreprocessorFlags.apply(cxxPlatform)));
+builder.addAllSystemIncludeRoots(Iterables.transform(includeDirs,getProjectFilesystem().getAbsolutifier()));
+return builder.build();
 case PRIVATE:
-  return CxxPreprocessorInput.EMPTY;
+return builder.build();
 }
 throw new RuntimeException("Invalid header visibility: " + headerVisibility);
 }
