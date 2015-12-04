@@ -12,70 +12,50 @@
   ImmutableList.Builder<String> cflagsBuilder=ImmutableList.builder();
   cflagsBuilder.add("-isysroot",sdkPaths.getSdkPath().toString());
   cflagsBuilder.add("-arch",targetArchitecture);
-switch (targetSdk.getApplePlatform().getName()) {
-case ApplePlatform.Name.IPHONEOS:
-    cflagsBuilder.add("-mios-version-min=" + minVersion);
-  break;
-case ApplePlatform.Name.IPHONESIMULATOR:
-cflagsBuilder.add("-mios-simulator-version-min=" + minVersion);
-break;
-case ApplePlatform.Name.WATCHOS:
-cflagsBuilder.add("-mwatchos-version-min=" + minVersion);
-break;
-case ApplePlatform.Name.WATCHSIMULATOR:
-cflagsBuilder.add("-mwatchos-simulator-version-min=" + minVersion);
-break;
-default :
-cflagsBuilder.add("-m" + targetSdk.getApplePlatform().getName() + "-version-min="+ minVersion);
-break;
-}
-ImmutableList<String> asflags=cflagsBuilder.build();
-ImmutableList<String> ldflags=ImmutableList.copyOf(Linkers.iXlinker("-sdk_version",targetSdk.getVersion(),"-ObjC"));
-ImmutableList.Builder<String> versionsBuilder=ImmutableList.builder();
-versionsBuilder.add(targetSdk.getVersion());
-for (AppleToolchain toolchain : targetSdk.getToolchains()) {
-versionsBuilder.add(toolchain.getVersion());
-}
-String version=Joiner.on(':').join(versionsBuilder.build());
-Tool clangPath=new VersionedTool(getToolPath("clang",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-clang",version);
-Tool clangXxPath=new VersionedTool(getToolPath("clang++",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-clang++",version);
-Tool ar=new VersionedTool(getToolPath("ar",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-ar",version);
-Tool ranlib=new VersionedTool(getToolPath("ranlib",toolSearchPaths,executableFinder),ImmutableList.<String>of("-s"),"apple-ranlib",version);
-Tool strip=new VersionedTool(getToolPath("strip",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-strip",version);
-Tool actool=new VersionedTool(getToolPath("actool",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-actool",version);
-Tool ibtool=new VersionedTool(getToolPath("ibtool",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-ibtool",version);
-Tool xctest=new VersionedTool(getToolPath("xctest",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-xctest",version);
-Optional<Tool> otest=getOptionalTool("otest",toolSearchPaths,executableFinder,version);
-Tool dsymutil=new VersionedTool(getToolPath("dsymutil",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-dsymutil",version);
-Tool lipo=new VersionedTool(getToolPath("lipo",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-lipo",version);
-Tool lldb=new VersionedTool(getToolPath("lldb",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"lldb",version);
-Optional<Path> stubBinaryPath;
-switch (targetSdk.getApplePlatform().getName()) {
-case ApplePlatform.Name.WATCHOS:
-case ApplePlatform.Name.WATCHSIMULATOR:
-stubBinaryPath=Optional.of(sdkPaths.getSdkPath().resolve("Library/Application Support/WatchKit/WK"));
-break;
-default :
-stubBinaryPath=Optional.absent();
-break;
-}
-CxxBuckConfig config=new CxxBuckConfig(buckConfig);
-ImmutableFlavor targetFlavor=ImmutableFlavor.of(ImmutableFlavor.replaceInvalidCharacters(targetSdk.getName() + "-" + targetArchitecture));
-ImmutableBiMap.Builder<Path,Path> sanitizerPaths=ImmutableBiMap.builder();
-sanitizerPaths.put(sdkPaths.getSdkPath(),Paths.get("APPLE_SDKROOT"));
-sanitizerPaths.put(sdkPaths.getPlatformPath(),Paths.get("APPLE_PLATFORM_DIR"));
-if (sdkPaths.getDeveloperPath().isPresent()) {
-sanitizerPaths.put(sdkPaths.getDeveloperPath().get(),Paths.get("APPLE_DEVELOPER_DIR"));
-}
-DebugPathSanitizer debugPathSanitizer=new DebugPathSanitizer(250,File.separatorChar,Paths.get("."),sanitizerPaths.build());
-ImmutableList<String> cflags=cflagsBuilder.build();
-ImmutableMap.Builder<String,String> macrosBuilder=ImmutableMap.builder();
-macrosBuilder.put("SDKROOT",sdkPaths.getSdkPath().toString());
-macrosBuilder.put("PLATFORM_DIR",sdkPaths.getPlatformPath().toString());
-if (sdkPaths.getDeveloperPath().isPresent()) {
-macrosBuilder.put("DEVELOPER_DIR",sdkPaths.getDeveloperPath().get().toString());
-}
-ImmutableMap<String,String> macros=macrosBuilder.build();
-CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,config,clangPath,new ClangPreprocessor(clangPath),new ClangCompiler(clangPath),new ClangCompiler(clangXxPath),new ClangPreprocessor(clangPath),new ClangPreprocessor(clangXxPath),new DarwinLinker(clangXxPath),ImmutableList.<String>builder().addAll(cflags).addAll(ldflags).build(),strip,new BsdArchiver(ar),ranlib,asflags,ImmutableList.<String>of(),cflags,ImmutableList.<String>of(),"dylib","%s.dylib",Optional.of(debugPathSanitizer),macros);
-return AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setActool(actool).setIbtool(ibtool).setXctest(xctest).setOtest(otest).setDsymutil(dsymutil).setLipo(lipo).setStubBinary(stubBinaryPath).setLldb(lldb).setCodesignAllocate(getOptionalTool("codesign_allocate",toolSearchPaths,executableFinder,version)).build();
+  cflagsBuilder.add(targetSdk.getApplePlatform().getMinVersionFlagPrefix() + minVersion);
+  ImmutableList<String> asflags=cflagsBuilder.build();
+  ImmutableList<String> ldflags=ImmutableList.copyOf(Linkers.iXlinker("-sdk_version",targetSdk.getVersion(),"-ObjC"));
+  ImmutableList.Builder<String> versionsBuilder=ImmutableList.builder();
+  versionsBuilder.add(targetSdk.getVersion());
+  for (  AppleToolchain toolchain : targetSdk.getToolchains()) {
+    versionsBuilder.add(toolchain.getVersion());
+  }
+  String version=Joiner.on(':').join(versionsBuilder.build());
+  Tool clangPath=new VersionedTool(getToolPath("clang",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-clang",version);
+  Tool clangXxPath=new VersionedTool(getToolPath("clang++",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-clang++",version);
+  Tool ar=new VersionedTool(getToolPath("ar",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-ar",version);
+  Tool ranlib=new VersionedTool(getToolPath("ranlib",toolSearchPaths,executableFinder),ImmutableList.<String>of("-s"),"apple-ranlib",version);
+  Tool strip=new VersionedTool(getToolPath("strip",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-strip",version);
+  Tool actool=new VersionedTool(getToolPath("actool",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-actool",version);
+  Tool ibtool=new VersionedTool(getToolPath("ibtool",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-ibtool",version);
+  Tool xctest=new VersionedTool(getToolPath("xctest",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-xctest",version);
+  Optional<Tool> otest=getOptionalTool("otest",toolSearchPaths,executableFinder,version);
+  Tool dsymutil=new VersionedTool(getToolPath("dsymutil",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-dsymutil",version);
+  Tool lipo=new VersionedTool(getToolPath("lipo",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-lipo",version);
+  Tool lldb=new VersionedTool(getToolPath("lldb",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"lldb",version);
+  Optional<Path> stubBinaryPath=targetSdk.getApplePlatform().getStubBinaryPath().transform(new Function<Path,Path>(){
+    @Override public Path apply(    Path input){
+      return sdkPaths.getSdkPath().resolve(input);
+    }
+  }
+);
+  CxxBuckConfig config=new CxxBuckConfig(buckConfig);
+  ImmutableFlavor targetFlavor=ImmutableFlavor.of(ImmutableFlavor.replaceInvalidCharacters(targetSdk.getName() + "-" + targetArchitecture));
+  ImmutableBiMap.Builder<Path,Path> sanitizerPaths=ImmutableBiMap.builder();
+  sanitizerPaths.put(sdkPaths.getSdkPath(),Paths.get("APPLE_SDKROOT"));
+  sanitizerPaths.put(sdkPaths.getPlatformPath(),Paths.get("APPLE_PLATFORM_DIR"));
+  if (sdkPaths.getDeveloperPath().isPresent()) {
+    sanitizerPaths.put(sdkPaths.getDeveloperPath().get(),Paths.get("APPLE_DEVELOPER_DIR"));
+  }
+  DebugPathSanitizer debugPathSanitizer=new DebugPathSanitizer(250,File.separatorChar,Paths.get("."),sanitizerPaths.build());
+  ImmutableList<String> cflags=cflagsBuilder.build();
+  ImmutableMap.Builder<String,String> macrosBuilder=ImmutableMap.builder();
+  macrosBuilder.put("SDKROOT",sdkPaths.getSdkPath().toString());
+  macrosBuilder.put("PLATFORM_DIR",sdkPaths.getPlatformPath().toString());
+  if (sdkPaths.getDeveloperPath().isPresent()) {
+    macrosBuilder.put("DEVELOPER_DIR",sdkPaths.getDeveloperPath().get().toString());
+  }
+  ImmutableMap<String,String> macros=macrosBuilder.build();
+  CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,config,clangPath,new ClangPreprocessor(clangPath),new ClangCompiler(clangPath),new ClangCompiler(clangXxPath),new ClangPreprocessor(clangPath),new ClangPreprocessor(clangXxPath),new DarwinLinker(clangXxPath),ImmutableList.<String>builder().addAll(cflags).addAll(ldflags).build(),strip,new BsdArchiver(ar),ranlib,asflags,ImmutableList.<String>of(),cflags,ImmutableList.<String>of(),"dylib","%s.dylib",Optional.of(debugPathSanitizer),macros);
+  return AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setActool(actool).setIbtool(ibtool).setXctest(xctest).setOtest(otest).setDsymutil(dsymutil).setLipo(lipo).setStubBinary(stubBinaryPath).setLldb(lldb).setCodesignAllocate(getOptionalTool("codesign_allocate",toolSearchPaths,executableFinder,version)).build();
 }
