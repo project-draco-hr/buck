@@ -3,13 +3,13 @@
   EasyMock.expect(javaPackageFinder.findJavaPackage(Paths.get("foo/module_foo.iml"))).andReturn("");
   EasyMock.expect(javaPackageFinder.findJavaPackage(Paths.get("bar/module_bar.iml"))).andReturn("");
   EasyMock.replay(javaPackageFinder);
-  ProjectWithModules projectWithModules=createActionGraphForTesting(javaPackageFinder);
-  Project project=projectWithModules.project;
-  ActionGraph actionGraph=project.getActionGraph();
-  List<SerializableModule> modules=projectWithModules.modules;
+  Pair<ProjectWithModules,BuildRuleResolver> projectWithModules=createActionGraphForTesting(javaPackageFinder);
+  Project project=projectWithModules.getFirst().project;
+  BuildRuleResolver resolver=projectWithModules.getSecond();
+  List<SerializableModule> modules=projectWithModules.getFirst().modules;
   assertEquals("Should be one module for the java_library, one for the android_library, " + "one module for the android_resource, and one for each android_binary",5,modules.size());
   SerializableModule javaLibraryModule=modules.get(4);
-  assertSame(getRuleById("//java/src/com/facebook/exportlib:exportlib",actionGraph),javaLibraryModule.srcRule);
+  assertSame(getRuleByBuildTarget("//java/src/com/facebook/exportlib:exportlib",resolver),javaLibraryModule.srcRule);
   assertEquals("module_java_src_com_facebook_exportlib",javaLibraryModule.name);
   assertEquals(Paths.get("java/src/com/facebook/exportlib/module_java_src_com_facebook_exportlib.iml"),javaLibraryModule.pathToImlFile);
   assertListEquals(ImmutableList.of(SerializableModule.SourceFolder.SRC),javaLibraryModule.sourceFolders);
@@ -18,7 +18,7 @@
   guavaAsProvidedDep.scope="PROVIDED";
   assertListEquals(ImmutableList.of(SerializableDependentModule.newSourceFolder(),guavaAsProvidedDep,SerializableDependentModule.newStandardJdk()),javaLibraryModule.getDependencies());
   SerializableModule androidLibraryModule=modules.get(3);
-  assertSame(getRuleById("//java/src/com/facebook/base:base",actionGraph),androidLibraryModule.srcRule);
+  assertSame(getRuleByBuildTarget("//java/src/com/facebook/base:base",resolver),androidLibraryModule.srcRule);
   assertEquals("module_java_src_com_facebook_base",androidLibraryModule.name);
   assertEquals(Paths.get("java/src/com/facebook/base/module_java_src_com_facebook_base.iml"),androidLibraryModule.pathToImlFile);
   assertListEquals(ImmutableList.of(SerializableModule.SourceFolder.SRC,new SourceFolder("file://$MODULE_DIR$/src-gen",false),SerializableModule.SourceFolder.GEN),androidLibraryModule.sourceFolders);
@@ -31,10 +31,10 @@
   SerializableDependentModule exportDepsAsProvidedDep=SerializableDependentModule.newModule(BuildTargetFactory.newInstance("//java/src/com/facebook/exportlib:exportlib"),"module_java_src_com_facebook_exportlib");
   assertListEquals(ImmutableList.of(SerializableDependentModule.newSourceFolder(),guavaAsProvidedDep,androidResourceAsProvidedDep,childAsProvidedDep,exportDepsAsProvidedDep,inheritedJdk),androidLibraryModule.getDependencies());
   SerializableModule androidResourceModule=modules.get(0);
-  assertSame(getRuleById("//android_res/base:res",actionGraph),androidResourceModule.srcRule);
+  assertSame(getRuleByBuildTarget("//android_res/base:res",resolver),androidResourceModule.srcRule);
   assertEquals(Paths.get("res"),androidResourceModule.resFolder);
   SerializableModule androidBinaryModuleNoDx=modules.get(2);
-  assertSame(getRuleById("//foo:app",actionGraph),androidBinaryModuleNoDx.srcRule);
+  assertSame(getRuleByBuildTarget("//foo:app",resolver),androidBinaryModuleNoDx.srcRule);
   assertEquals("module_foo",androidBinaryModuleNoDx.name);
   assertEquals(Paths.get("foo/module_foo.iml"),androidBinaryModuleNoDx.pathToImlFile);
   assertListEquals(ImmutableList.of(SerializableModule.SourceFolder.GEN),androidBinaryModuleNoDx.sourceFolders);
@@ -47,7 +47,7 @@
   SerializableDependentModule androidLibraryDep=SerializableDependentModule.newModule(androidLibraryModule.srcRule.getBuildTarget(),"module_java_src_com_facebook_base");
   assertEquals(ImmutableList.of(SerializableDependentModule.newSourceFolder(),guavaAsProvidedDep,androidLibraryDep,androidResourceAsProvidedDep,childAsProvidedDep,exportDepsAsProvidedDep,grandchildAsProvidedDep,inheritedJdk),androidBinaryModuleNoDx.getDependencies());
   SerializableModule androidBinaryModuleEmptyNoDx=modules.get(1);
-  assertSame(getRuleById("//bar:app",actionGraph),androidBinaryModuleEmptyNoDx.srcRule);
+  assertSame(getRuleByBuildTarget("//bar:app",resolver),androidBinaryModuleEmptyNoDx.srcRule);
   assertEquals("module_bar",androidBinaryModuleEmptyNoDx.name);
   assertEquals(Paths.get("bar/module_bar.iml"),androidBinaryModuleEmptyNoDx.pathToImlFile);
   assertListEquals(ImmutableList.of(SerializableModule.SourceFolder.GEN),androidBinaryModuleEmptyNoDx.sourceFolders);
@@ -58,6 +58,6 @@
   assertEquals(Paths.get("../keystore/debug.keystore"),androidBinaryModuleEmptyNoDx.keystorePath);
   SerializableDependentModule guavaAsCompiledDep=SerializableDependentModule.newLibrary(guava.getBuildTarget(),"buck_out_gen_third_party_guava_guava_jar");
   assertEquals("Important that Guava is listed as a 'COMPILED' dependency here because it is " + "only listed as a 'PROVIDED' dependency earlier.",ImmutableList.of(SerializableDependentModule.newSourceFolder(),guavaAsCompiledDep,androidLibraryDep,androidResourceAsProvidedDep,childAsProvidedDep,exportDepsAsProvidedDep,grandchildAsProvidedDep,inheritedJdk),androidBinaryModuleEmptyNoDx.getDependencies());
-  BuildRule guava=getRuleById("//third_party/guava:guava",actionGraph);
+  BuildRule guava=getRuleByBuildTarget("//third_party/guava:guava",resolver);
   assertSame(guava,Iterables.getOnlyElement(project.getLibraryJars()));
 }

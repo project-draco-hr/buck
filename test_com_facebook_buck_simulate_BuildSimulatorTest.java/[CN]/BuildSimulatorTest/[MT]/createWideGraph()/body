@@ -1,10 +1,12 @@
 {
-  List<BuildRule> nodes=Lists.newArrayList();
+  List<TargetNode<?>> nodes=new ArrayList<>();
   for (int i=0; i < WIDE_GRAPH_LEAF_NODES_COUNT; ++i) {
-    TestBuildRule leaf=TestBuildRule.fromName("//my/leaft_" + i + ":target");
-    nodes.add(leaf);
+    nodes.add(JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//my/leaft_" + i + ":target")).build());
   }
-  TestBuildRule root=TestBuildRule.fromName(ROOT_NODE,nodes.toArray(new TestBuildRule[nodes.size()]));
-  nodes.add(root);
-  return new ActionGraph(nodes);
+  JavaLibraryBuilder rootBuilder=JavaLibraryBuilder.createBuilder(ROOT_NODE);
+  for (  TargetNode<?> node : nodes) {
+    rootBuilder.addDep(node.getBuildTarget());
+  }
+  nodes.add(rootBuilder.build());
+  return TargetGraphFactory.newInstance(nodes);
 }

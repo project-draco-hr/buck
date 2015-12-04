@@ -12,7 +12,13 @@
   String targetName=getTarget(params.getBuckConfig());
   BuildTarget target=Iterables.getOnlyElement(getBuildTargets(params.getCell().getCellRoots(),ImmutableSet.of(targetName)));
   Build build=buildCommand.getBuild();
-  BuildRule targetRule=build.getActionGraph().findBuildRuleByTarget(target);
+  BuildRule targetRule;
+  try {
+    targetRule=build.getRuleResolver().requireRule(target);
+  }
+ catch (  NoSuchBuildTargetException e) {
+    throw new HumanReadableException(e.getHumanReadableErrorMessage());
+  }
   BinaryBuildRule binaryBuildRule=null;
   if (targetRule instanceof BinaryBuildRule) {
     binaryBuildRule=(BinaryBuildRule)targetRule;
