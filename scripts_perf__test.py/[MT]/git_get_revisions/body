@@ -1,2 +1,8 @@
 def git_get_revisions(args):
-    return list(reversed(subprocess.check_output(['git', 'log', '--pretty=format:%H', 'HEAD', '-n', str((args.revisions_to_go_back + 1))], cwd=args.repo_under_test).splitlines()))
+    cmd = ['git', 'log', '--pretty=format:%H', 'HEAD', '-n', str((args.revisions_to_go_back + 1))]
+    proc = subprocess.Popen(cmd, cwd=args.repo_under_test, stdout=subprocess.PIPE)
+    try:
+        return list(reversed(proc.communicate()[0].splitlines()))
+    finally:
+        if proc.wait():
+            raise subprocess.CalledProcessError(proc.returncode, ' '.join(cmd))
