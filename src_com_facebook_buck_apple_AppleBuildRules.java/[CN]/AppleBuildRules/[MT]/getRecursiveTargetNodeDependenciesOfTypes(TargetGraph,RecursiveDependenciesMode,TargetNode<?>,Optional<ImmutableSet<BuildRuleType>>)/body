@@ -34,36 +34,41 @@
       if (!exportedDeps.isEmpty()) {
         LOG.verbose("Exported deps for node %s mode %s: %s",node,mode,exportedDeps);
       }
-      ImmutableSortedSet<TargetNode<?>> deps=ImmutableSortedSet.of();
+      ImmutableSortedSet<TargetNode<?>> deps;
       if (node != targetNode) {
 switch (mode) {
-case LINKING:
-          if (node.getType().equals(AppleLibraryDescription.TYPE) || node.getType().equals(CxxLibraryDescription.TYPE)) {
-            if (AppleLibraryDescription.isSharedLibraryTarget(node.getBuildTarget())) {
-              deps=exportedDeps;
-            }
- else {
-              deps=defaultDeps;
-            }
-          }
- else           if (RECURSIVE_DEPENDENCIES_STOP_AT_TYPES.contains(node.getType())) {
-            deps=exportedDeps;
-          }
- else {
-            deps=defaultDeps;
-          }
+case NONE:
+          deps=ImmutableSortedSet.of();
         break;
-case COPYING:
-      if (RECURSIVE_DEPENDENCIES_STOP_AT_TYPES.contains(node.getType())) {
+case LINKING:
+      if (node.getType().equals(AppleLibraryDescription.TYPE) || node.getType().equals(CxxLibraryDescription.TYPE)) {
+        if (AppleLibraryDescription.isSharedLibraryTarget(node.getBuildTarget())) {
+          deps=exportedDeps;
+        }
+ else {
+          deps=defaultDeps;
+        }
+      }
+ else       if (RECURSIVE_DEPENDENCIES_STOP_AT_TYPES.contains(node.getType())) {
         deps=exportedDeps;
       }
  else {
         deps=defaultDeps;
       }
     break;
-case BUILDING:
-  deps=defaultDeps;
+case COPYING:
+  if (RECURSIVE_DEPENDENCIES_STOP_AT_TYPES.contains(node.getType())) {
+    deps=exportedDeps;
+  }
+ else {
+    deps=defaultDeps;
+  }
 break;
+case BUILDING:
+deps=defaultDeps;
+break;
+default :
+throw new RuntimeException(String.format("Unhandled '%s': '%s'.",RecursiveDependenciesMode.class.getSimpleName(),mode));
 }
 }
  else {
