@@ -1,13 +1,12 @@
 {
   Optional<Map.Entry<Flavor,Type>> type=LIBRARY_TYPE.getFlavorAndValue(params.getBuildTarget());
   Optional<AppleDebugFormat> flavoredDebugInfoFormat=AppleDebugFormat.FLAVOR_DOMAIN.getValue(params.getBuildTarget());
-  if (type.isPresent() && type.get().getValue().isFramework()) {
+  if (type.isPresent() && type.get().getValue().equals(Type.FRAMEWORK)) {
     if (!args.infoPlist.isPresent()) {
       throw new HumanReadableException("Cannot create framework for apple_library '%s':\n","No value specified for 'info_plist' attribute.",params.getBuildTarget().getUnflavoredBuildTarget());
     }
-    Optional<DependencyMode> dependencyMode=type.get().getValue().getDependencyMode();
-    if (!dependencyMode.isPresent()) {
-      throw new RuntimeException(String.format("Invalid framework type '%s', missing dependency mode.",type.get().getValue()));
+    if (!AppleDescriptions.INCLUDE_FRAMEWORKS.getValue(params.getBuildTarget()).isPresent()) {
+      return resolver.requireRule(BuildTarget.builder(params.getBuildTarget()).addFlavors(AppleDescriptions.INCLUDE_FRAMEWORKS_FLAVOR).build());
     }
     return AppleDescriptions.createAppleBundle(cxxPlatformFlavorDomain,defaultCxxPlatform,platformFlavorsToAppleCxxPlatforms,targetGraph,params,resolver,codeSignIdentityStore,provisioningProfileStore,params.getBuildTarget(),Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK),Optional.<String>absent(),args.infoPlist.get(),args.infoPlistSubstitutions,args.deps.get(),args.getTests(),flavoredDebugInfoFormat.or(debugInfoFormat));
   }
