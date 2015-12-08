@@ -1,0 +1,13 @@
+{
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver resolver=new SourcePathResolver(ruleResolver);
+  tmp.getRootPath().resolve("a-fs").toFile().mkdir();
+  tmp.getRootPath().resolve("b-fs").toFile().mkdir();
+  tmp.getRootPath().resolve("c-fs").toFile().mkdir();
+  ProjectFilesystem fsOne=new ProjectFilesystem(tmp.getRootPath().resolve("a-fs"));
+  ProjectFilesystem fsTwo=new ProjectFilesystem(tmp.getRootPath().resolve("b-fs"));
+  ProjectFilesystem fsThree=new ProjectFilesystem(tmp.getRootPath().resolve("c-fs"));
+  ImmutableBiMap<SourcePath,Path> expected=ImmutableBiMap.<SourcePath,Path>builder().put(new FakeSourcePath(fsOne,"a/one.a"),Paths.get("a/one.a")).put(new FakeSourcePath(fsOne,"a/two"),Paths.get("a/two")).put(new FakeSourcePath(fsOne,"a/two-1"),Paths.get("a/two-1")).put(new FakeSourcePath(fsTwo,"a/one.a"),Paths.get("a/one-1.a")).put(new FakeSourcePath(fsTwo,"a/two"),Paths.get("a/two-2")).put(new FakeSourcePath(fsThree,"a/two"),Paths.get("a/two-3")).build();
+  ImmutableBiMap<SourcePath,Path> resolvedDuplicates=SymlinkTree.resolveDuplicateRelativePaths(ImmutableSortedSet.copyOf(expected.keySet()),resolver);
+  assertThat(resolvedDuplicates,Matchers.equalTo(expected));
+}
