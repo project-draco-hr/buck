@@ -3,12 +3,14 @@
     filesystem.deleteRecursivelyIfExists(destDir);
   }
   filesystem.mkdirs(destDir);
-  filesystem.walkRelativeFileTree(srcDir,new SimpleFileVisitor<Path>(){
-    @Override public FileVisitResult visitFile(    Path srcPath,    BasicFileAttributes attributes) throws IOException {
-      if (pred.apply(srcPath)) {
-        Path destPath=destDir.resolve(srcDir.relativize(srcPath));
+  final Path absoluteSrcDir=filesystem.resolve(srcDir);
+  final Path absoluteDestDir=filesystem.resolve(destDir);
+  filesystem.walkFileTree(absoluteSrcDir,new SimpleFileVisitor<Path>(){
+    @Override public FileVisitResult visitFile(    Path absoluteSrcPath,    BasicFileAttributes attributes) throws IOException {
+      if (pred.apply(filesystem.getRootPath().relativize(absoluteSrcPath))) {
+        Path destPath=absoluteDestDir.resolve(absoluteSrcDir.relativize(absoluteSrcPath));
         filesystem.createParentDirs(destPath);
-        filesystem.copy(srcPath,destPath,ProjectFilesystem.CopySourceMode.FILE);
+        filesystem.copy(absoluteSrcPath,destPath,ProjectFilesystem.CopySourceMode.FILE);
       }
       return FileVisitResult.CONTINUE;
     }
