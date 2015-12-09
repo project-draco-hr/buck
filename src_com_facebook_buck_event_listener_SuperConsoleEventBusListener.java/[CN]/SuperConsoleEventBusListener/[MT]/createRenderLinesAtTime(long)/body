@@ -9,12 +9,12 @@
     String jobSummary=null;
     if (ruleCount.isPresent()) {
       List<String> columns=Lists.newArrayList();
-      columns.add(String.format("%d/%d JOBS",numRulesCompleted.get(),ruleCount.get()));
-      columns.add(String.format("%d UPDATED",updated.get()));
+      columns.add(String.format(locale,"%d/%d JOBS",numRulesCompleted.get(),ruleCount.get()));
+      columns.add(String.format(locale,"%d UPDATED",updated.get()));
       if (ruleCount.isPresent() && ruleCount.get() > 0) {
-        columns.add(String.format("%.1f%% CACHE MISS",100 * (double)cacheMisses.get() / ruleCount.get()));
+        columns.add(String.format(locale,"%.1f%% CACHE MISS",100 * (double)cacheMisses.get() / ruleCount.get()));
         if (cacheErrors.get() > 0) {
-          columns.add(String.format("%.1f%% CACHE ERRORS",100 * (double)cacheErrors.get() / updated.get()));
+          columns.add(String.format(locale,"%.1f%% CACHE ERRORS",100 * (double)cacheErrors.get() / updated.get()));
         }
       }
       jobSummary="(" + Joiner.on(", ").join(columns) + ")";
@@ -23,19 +23,19 @@
     if (buildFinished != null && webServer.isPresent()) {
       Optional<Integer> port=webServer.get().getPort();
       if (port.isPresent()) {
-        buildTrace=String.format("Details: http://localhost:%s/trace/%s",port.get(),buildFinished.getBuildId());
+        buildTrace=String.format(locale,"Details: http://localhost:%s/trace/%s",port.get(),buildFinished.getBuildId());
       }
     }
     String suffix=Joiner.on(" ").join(FluentIterable.of(new String[]{jobSummary,buildTrace}).filter(Predicates.notNull()));
     Optional<String> suffixOptional=suffix.isEmpty() ? Optional.<String>absent() : Optional.of(suffix);
     long buildTime=logEventPair("BUILDING",suffixOptional,currentTimeMillis,parseTime,buildStarted,buildFinished,getApproximateBuildProgress(),lines);
     if (buildTime == UNFINISHED_EVENT_PAIR) {
-      ThreadStateRenderer renderer=new BuildThreadStateRenderer(ansi,FORMAT_TIME_FUNCTION,currentTimeMillis,threadsToRunningBuildRuleEvent,threadsToRunningStep,accumulatedRuleTime);
+      ThreadStateRenderer renderer=new BuildThreadStateRenderer(ansi,formatTimeFunction,currentTimeMillis,threadsToRunningBuildRuleEvent,threadsToRunningStep,accumulatedRuleTime);
       renderLines(renderer,lines);
     }
     long testRunTime=logEventPair("TESTING",renderTestSuffix(),currentTimeMillis,0,testRunStarted.get(),testRunFinished.get(),Optional.<Double>absent(),lines);
     if (testRunTime == UNFINISHED_EVENT_PAIR) {
-      ThreadStateRenderer renderer=new TestThreadStateRenderer(ansi,FORMAT_TIME_FUNCTION,currentTimeMillis,threadsToRunningTestRuleEvent,threadsToRunningTestSummaryEvent,threadsToRunningStep,accumulatedRuleTime);
+      ThreadStateRenderer renderer=new TestThreadStateRenderer(ansi,formatTimeFunction,currentTimeMillis,threadsToRunningTestRuleEvent,threadsToRunningTestSummaryEvent,threadsToRunningStep,accumulatedRuleTime);
       renderLines(renderer,lines);
     }
     logEventPair("INSTALLING",Optional.<String>absent(),currentTimeMillis,0L,installStarted,installFinished,Optional.<Double>absent(),lines);
