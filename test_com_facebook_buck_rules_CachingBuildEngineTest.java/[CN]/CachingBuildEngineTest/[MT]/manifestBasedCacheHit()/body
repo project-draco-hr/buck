@@ -31,8 +31,10 @@
   Manifest manifest=new Manifest();
   manifest.addEntry(fileHashCache,artifactKey,pathResolver,ImmutableSet.<SourcePath>of(new PathSourcePath(filesystem,input)),ImmutableSet.<SourcePath>of(new PathSourcePath(filesystem,input)));
   ByteArrayOutputStream byteArrayOutputStream=new ByteArrayOutputStream();
-  manifest.serialize(byteArrayOutputStream);
-  cache.store(ImmutableSet.of(cachingBuildEngine.getManifestRuleKey(rule)),ImmutableMap.<String,String>of(),byteArrayOutputStream.toByteArray());
+  try (GZIPOutputStream outputStream=new GZIPOutputStream(byteArrayOutputStream)){
+    manifest.serialize(outputStream);
+  }
+   cache.store(ImmutableSet.of(cachingBuildEngine.getManifestRuleKey(rule)),ImmutableMap.<String,String>of(),byteArrayOutputStream.toByteArray());
   Path artifact=tmp.newFile("artifact.zip").toPath();
   writeEntriesToZip(artifact,ImmutableMap.of(BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS).toString(),new ObjectMapper().writeValueAsString(ImmutableList.of(output.toString())),output.toString(),"stuff"));
   cache.store(ImmutableSet.of(artifactKey),ImmutableMap.<String,String>of(),artifact);

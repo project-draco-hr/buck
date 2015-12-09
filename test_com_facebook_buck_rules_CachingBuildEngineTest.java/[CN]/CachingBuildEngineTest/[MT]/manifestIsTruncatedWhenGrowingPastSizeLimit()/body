@@ -29,8 +29,10 @@
   CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DependencySchedulingOrder.RANDOM,CachingBuildEngine.DepFiles.CACHE,1L,pathResolver,Functions.constant(new CachingBuildEngine.RuleKeyFactories(factory,factory,factory,depFilefactory)));
   Manifest manifest=Manifest.fromMap(ImmutableMap.of(new RuleKey("abcd"),ImmutableMap.of("some/path.h",HashCode.fromInt(12))));
   ByteArrayOutputStream byteArrayOutputStream=new ByteArrayOutputStream();
-  manifest.serialize(byteArrayOutputStream);
-  cache.store(ImmutableSet.of(cachingBuildEngine.getManifestRuleKey(rule)),ImmutableMap.<String,String>of(),byteArrayOutputStream.toByteArray());
+  try (GZIPOutputStream outputStream=new GZIPOutputStream(byteArrayOutputStream)){
+    manifest.serialize(outputStream);
+  }
+   cache.store(ImmutableSet.of(cachingBuildEngine.getManifestRuleKey(rule)),ImmutableMap.<String,String>of(),byteArrayOutputStream.toByteArray());
   BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
   assertThat(getSuccess(result),equalTo(BuildRuleSuccessType.BUILT_LOCALLY));
   OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(target,filesystem);
