@@ -1,0 +1,17 @@
+{
+  FileSystem vfs=Jimfs.newFileSystem(Configuration.unix());
+  Path dirToDelete=vfs.getPath("/tmp/fake-tmp-dir");
+  Path fooDir=dirToDelete.resolve("foo");
+  Path fooBarDir=fooDir.resolve("bar");
+  Files.createDirectories(fooBarDir.resolve("baz"));
+  Path fooBarBlechTxtFile=fooBarDir.resolve("blech.txt");
+  Files.write(fooBarBlechTxtFile,"hello world\n".getBytes(UTF_8));
+  AsynchronousDirectoryContentsCleaner cleaner=new AsynchronousDirectoryContentsCleaner(dirToDelete,MoreExecutors.directExecutor());
+  assertThat(Files.exists(dirToDelete),is(true));
+  assertThat(Files.exists(fooBarDir),is(true));
+  assertThat(Files.exists(fooBarBlechTxtFile),is(true));
+  cleaner.startCleaningDirectory();
+  assertThat(Files.exists(dirToDelete),is(true));
+  assertThat(Files.exists(fooBarDir),is(false));
+  assertThat(Files.exists(fooBarBlechTxtFile),is(false));
+}
