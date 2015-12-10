@@ -24,6 +24,7 @@
   BuckConfig buckConfig=new BuckConfig(rawConfig,filesystem,architecture,platform,clientEnvironment);
   final Console console=new Console(verbosity,stdOut,stdErr,buckConfig.createAnsi(color));
   boolean commandSemaphoreAcquired=false;
+  boolean shouldCleanUpTrash=false;
   if (!command.isReadOnly()) {
     commandSemaphoreAcquired=commandSemaphore.tryAcquire();
     if (!commandSemaphoreAcquired) {
@@ -31,10 +32,8 @@
     }
     Optional<String> currentVersion=filesystem.readFileIfItExists(BuckConstant.CURRENT_VERSION_FILE);
     if (!currentVersion.isPresent() || !currentVersion.get().equals(BuckVersion.getVersion())) {
-      filesystem.deleteRecursivelyIfExists(BuckConstant.ANNOTATION_PATH);
-      filesystem.deleteRecursivelyIfExists(BuckConstant.GEN_PATH);
-      filesystem.deleteRecursivelyIfExists(BuckConstant.SCRATCH_PATH);
-      filesystem.deleteRecursivelyIfExists(BuckConstant.RES_PATH);
+      moveToTrash(filesystem,console,buildId,BuckConstant.ANNOTATION_PATH,BuckConstant.GEN_PATH,BuckConstant.SCRATCH_PATH,BuckConstant.RES_PATH);
+      shouldCleanUpTrash=true;
       filesystem.mkdirs(BuckConstant.CURRENT_VERSION_FILE.getParent());
       filesystem.writeContentsToPath(BuckVersion.getVersion(),BuckConstant.CURRENT_VERSION_FILE);
     }
@@ -66,6 +65,9 @@
     watchman=Watchman.NULL_WATCHMAN;
   }
   final boolean isDaemon=context.isPresent() && (watchman != Watchman.NULL_WATCHMAN);
+  if (!isDaemon && shouldCleanUpTrash) {
+    TRASH_CLEANER.startCleaningDirectory();
+  }
   KnownBuildRuleTypesFactory factory=new KnownBuildRuleTypesFactory(processExecutor,androidDirectoryResolver,testTempDirOverride);
   Cell rootCell=Cell.createCell(filesystem,console,watchman,buckConfig,factory,androidDirectoryResolver,clock);
   int exitCode;
@@ -159,6 +161,9 @@
  finally {
     if (commandSemaphoreAcquired) {
       commandSemaphore.release();
+    }
+    if (isDaemon && shouldCleanUpTrash) {
+      TRASH_CLEANER.startCleaningDirectory();
     }
   }
   if (context.isPresent() && !rootCell.getBuckConfig().getFlushEventsBeforeExit()) {
