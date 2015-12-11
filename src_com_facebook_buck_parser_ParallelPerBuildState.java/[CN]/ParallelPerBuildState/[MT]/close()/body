@@ -2,13 +2,17 @@
   stdout.close();
   stderr.close();
   BuildFileParseException lastSeen=null;
-  for (  ProjectBuildFileParser parser : parsers.values()) {
-    try {
-      parser.close();
+  try {
+    closer.close();
+  }
+ catch (  IOException e) {
+    if (e.getCause() instanceof BuildFileParseException) {
+      lastSeen=(BuildFileParseException)e.getCause();
     }
- catch (    BuildFileParseException e) {
-      lastSeen=e;
+    if (e.getCause() instanceof InterruptedException) {
+      throw (InterruptedException)e.getCause();
     }
+    Throwables.propagate(e);
   }
   LOG.debug("Cleaning cache of build files with inputs under symlink %s",buildInputPathsUnderSymlink);
   Set<Path> buildInputPathsUnderSymlinkCopy=new HashSet<>(buildInputPathsUnderSymlink);

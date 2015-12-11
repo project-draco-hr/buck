@@ -1,9 +1,21 @@
 {
-  ProjectBuildFileParser parser=parsers.get(cell);
-  if (parser == null) {
-    parser=cell.createBuildFileParser(marshaller,console,eventBus);
-    parser.setEnableProfiling(enableProfiling);
-    parsers.put(cell,parser);
+  Map<Cell,ProjectBuildFileParser> threadLocalParsers=parsers.get();
+  if (threadLocalParsers.containsKey(cell)) {
+    return threadLocalParsers.get(cell);
   }
+  final ProjectBuildFileParser parser=cell.createBuildFileParser(marshaller,console,eventBus);
+  parser.setEnableProfiling(enableProfiling);
+  threadLocalParsers.put(cell,parser);
+  closer.register(new Closeable(){
+    @Override public void close() throws IOException {
+      try {
+        parser.close();
+      }
+ catch (      BuildFileParseException|InterruptedException e) {
+        new IOException(e);
+      }
+    }
+  }
+);
   return parser;
 }
