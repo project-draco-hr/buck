@@ -1,0 +1,31 @@
+{
+  if (!WatchEvents.isPathChangeEvent(event)) {
+    LOG.debug("Parser invalidating entire cache on overflow.");
+    invalidateAllCaches();
+    return;
+  }
+  Path path=(Path)event.context();
+  for (  Cell cell : knownCells) {
+    try {
+      if (isPathCreateOrDeleteEvent(event)) {
+        BuildFileTree buildFiles=buildFileTrees.get(cell);
+        if (path.endsWith(cell.getBuildFileName())) {
+          buildFileTrees.invalidate(cell);
+        }
+        if (!isTempFile(cell,path)) {
+          invalidateContainingBuildFile(cell,buildFiles,path);
+        }
+        LOG.verbose("Invalidating dependents for path %s, cache state %s",path,this);
+      }
+    }
+ catch (    ExecutionException|UncheckedExecutionException e) {
+      try {
+        throw propagate(e);
+      }
+ catch (      BuildFileParseException bfpe) {
+        LOG.warn("Unable to parse already parsed build file.",bfpe);
+      }
+    }
+  }
+  invalidatePath(path);
+}
