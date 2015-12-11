@@ -1,6 +1,9 @@
 {
   while (shouldWaitForWork()) {
     try (BuildTargetProcessingScope processingScope=startProcessingBuildTarget()){
+      if (parsedBuildTargets.contains(processingScope.getBuildTarget())) {
+        continue;
+      }
       TargetNode<?> node;
       try (SimplePerfEvent.Scope scope=Parser.getTargetNodeEventScope(eventBus,processingScope.getBuildTarget())){
         try {
@@ -10,9 +13,14 @@
           abortDoingMoreWork();
           return;
         }
-        processingScope.addDepsToProcess(node.getDeps());
       }
-     }
+       processingScope.addDepsToProcess(FluentIterable.from(node.getDeps()).filter(new Predicate<BuildTarget>(){
+        @Override public boolean apply(        BuildTarget buildTarget){
+          return !parsedBuildTargets.contains(buildTarget) && !pendingBuildTargets.contains(buildTarget);
+        }
+      }
+).toSet());
+    }
  catch (    TimeoutException e) {
       continue;
     }
