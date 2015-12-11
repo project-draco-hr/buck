@@ -1,19 +1,18 @@
 {
   AndroidPackageableCollection packageableCollection=enhancementResult.getPackageableCollection();
-  ImmutableSet<SourcePath> classpathEntriesToDex;
+  ImmutableSet<Path> classpathEntriesToDex;
   if (preprocessJavaClassesBash.isPresent()) {
     final Path preprocessJavaClassesInDir=getBinPath("java_classes_preprocess_in_%s");
     final Path preprocessJavaClassesOutDir=getBinPath("java_classes_preprocess_out_%s");
     steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),preprocessJavaClassesInDir));
     steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),preprocessJavaClassesOutDir));
-    ImmutableBiMap<SourcePath,Path> symlinkMap=SymlinkTree.resolveDuplicateRelativePaths(ImmutableSortedSet.copyOf(enhancementResult.getClasspathEntriesToDex()),getResolver());
-    steps.add(new SymlinkTreeStep(getProjectFilesystem(),preprocessJavaClassesInDir,ImmutableMap.copyOf(Maps.transformValues(symlinkMap.inverse(),getResolver().getAbsolutePathFunction()))));
-    classpathEntriesToDex=FluentIterable.from(symlinkMap.values()).transform(new Function<Path,Path>(){
-      @Override public Path apply(      Path input){
-        return preprocessJavaClassesOutDir.resolve(input);
+    steps.add(new SymlinkFilesIntoDirectoryStep(getProjectFilesystem(),getProjectFilesystem().getRootPath(),enhancementResult.getClasspathEntriesToDex(),preprocessJavaClassesInDir));
+    classpathEntriesToDex=FluentIterable.from(enhancementResult.getClasspathEntriesToDex()).transform(new Function<Path,Path>(){
+      @Override public Path apply(      Path classpathEntry){
+        return preprocessJavaClassesOutDir.resolve(classpathEntry);
       }
     }
-).transform(SourcePaths.getToBuildTargetSourcePath(getBuildTarget())).toSet();
+).toSet();
     AbstractGenruleStep.CommandString commandString=new AbstractGenruleStep.CommandString(Optional.<String>absent(),preprocessJavaClassesBash.transform(macroExpander),Optional.<String>absent());
     steps.add(new AbstractGenruleStep(this.getBuildTarget(),commandString,getProjectFilesystem().getRootPath().resolve(preprocessJavaClassesInDir)){
       @Override protected void addEnvironmentVariables(      ExecutionContext context,      ImmutableMap.Builder<String,String> environmentVariablesBuilder){
@@ -31,7 +30,7 @@
     classpathEntriesToDex=enhancementResult.getClasspathEntriesToDex();
   }
   if (packageType.isBuildWithObfuscation()) {
-    classpathEntriesToDex=addProguardCommands(classpathEntriesToDex,ImmutableSet.copyOf(getResolver().getAllAbsolutePaths(packageableCollection.getProguardConfigs())),steps,buildableContext);
+    classpathEntriesToDex=addProguardCommands(classpathEntriesToDex,ImmutableSet.copyOf(getResolver().deprecatedAllPaths(packageableCollection.getProguardConfigs())),steps,buildableContext);
   }
   Supplier<Map<String,HashCode>> classNamesToHashesSupplier;
   boolean classFilesHaveChanged=preprocessJavaClassesBash.isPresent() || packageType.isBuildWithObfuscation();
@@ -45,7 +44,7 @@
   Optional<PreDexMerge> preDexMerge=enhancementResult.getPreDexMerge();
   if (!preDexMerge.isPresent()) {
     steps.add(new MkdirStep(getProjectFilesystem(),primaryDexPath.getParent()));
-    addDexingSteps(FluentIterable.from(classpathEntriesToDex).transform(getResolver().getAbsolutePathFunction()).toSet(),classNamesToHashesSupplier,secondaryDexDirectoriesBuilder,steps,primaryDexPath,dexReorderToolFile,dexReorderDataDumpFile);
+    addDexingSteps(classpathEntriesToDex,classNamesToHashesSupplier,secondaryDexDirectoriesBuilder,steps,primaryDexPath,dexReorderToolFile,dexReorderDataDumpFile);
   }
  else   if (!ExopackageMode.enabledForSecondaryDexes(exopackageModes)) {
     secondaryDexDirectoriesBuilder.addAll(preDexMerge.get().getSecondaryDexDirectories());

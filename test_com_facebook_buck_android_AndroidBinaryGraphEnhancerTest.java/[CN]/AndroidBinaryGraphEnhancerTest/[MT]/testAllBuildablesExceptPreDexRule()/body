@@ -2,7 +2,6 @@
   BuildTarget buildConfigBuildTarget=BuildTargetFactory.newInstance("//java/com/example:cfg");
   BuildRuleParams buildConfigParams=new FakeBuildRuleParamsBuilder(buildConfigBuildTarget).build();
   BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
-  SourcePathResolver resolver=new SourcePathResolver(ruleResolver);
   AndroidBuildConfigJavaLibrary buildConfigJavaLibrary=AndroidBuildConfigDescription.createBuildRule(buildConfigParams,"com.example.buck",BuildConfigFields.empty(),Optional.<SourcePath>absent(),false,ANDROID_JAVAC_OPTIONS,ruleResolver);
   BuildTarget apkTarget=BuildTargetFactory.newInstance("//java/com/example:apk");
   BuildRuleParams originalParams=new FakeBuildRuleParamsBuilder(apkTarget).setDeclaredDeps(ImmutableSortedSet.<BuildRule>of(buildConfigJavaLibrary)).build();
@@ -11,7 +10,7 @@
   replay(keystore);
   AndroidGraphEnhancementResult result=graphEnhancer.createAdditionalBuildables();
   String flavor="buildconfig_com_example_buck";
-  assertEquals("The only classpath entry to dex should be the one from the AndroidBuildConfigJavaLibrary" + " created via graph enhancement.",ImmutableSet.of(Paths.get("buck-out/gen/java/com/example/lib__apk#" + flavor + "__output/apk#"+ flavor+ ".jar")),FluentIterable.from(result.getClasspathEntriesToDex()).transform(resolver.getRelativePathFunction()).toSet());
+  assertEquals("The only classpath entry to dex should be the one from the AndroidBuildConfigJavaLibrary" + " created via graph enhancement.",ImmutableSet.of(Paths.get("buck-out/gen/java/com/example/lib__apk#" + flavor + "__output/apk#"+ flavor+ ".jar")),result.getClasspathEntriesToDex());
   BuildTarget enhancedBuildConfigTarget=BuildTarget.builder(apkTarget).addFlavors(ImmutableFlavor.of(flavor)).build();
   BuildRule enhancedBuildConfigRule=ruleResolver.getRule(enhancedBuildConfigTarget);
   assertTrue(enhancedBuildConfigRule instanceof AndroidBuildConfigJavaLibrary);
