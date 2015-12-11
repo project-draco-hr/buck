@@ -10,28 +10,6 @@
     final Path binaryOutputPath=binary.get().getPathToOutput();
     Preconditions.checkNotNull(binaryOutputPath);
     stepsBuilder.add(CopyStep.forFile(getProjectFilesystem(),binaryOutputPath,bundleBinaryPath));
-    if (debugInfoFormat == AppleDebugFormat.DWARF_AND_DSYM) {
-      buildableContext.recordArtifact(dsymPath);
-      stepsBuilder.add(new DsymStep(getProjectFilesystem(),dsymutil.getEnvironment(getResolver()),dsymutil.getCommandPrefix(getResolver()),bundleBinaryPath,dsymPath));
-    }
-    stepsBuilder.add(new Step(){
-      @Override public int execute(      ExecutionContext context) throws IOException, InterruptedException {
-        if (!CodeSigning.hasValidSignature(context.getProcessExecutor(),binaryOutputPath)) {
-          return (new DefaultShellStep(getProjectFilesystem().getRootPath(),ImmutableList.<String>builder().addAll(strip.getCommandPrefix(getResolver())).add("-S").add(getProjectFilesystem().resolve(bundleBinaryPath).toString()).build(),strip.getEnvironment(getResolver()))).execute(context);
-        }
- else {
-          LOG.info("Not stripping code-signed binary.");
-          return 0;
-        }
-      }
-      @Override public String getShortName(){
-        return "strip binary";
-      }
-      @Override public String getDescription(      ExecutionContext context){
-        return String.format("strip debug symbols from binary '%s'",bundleRoot);
-      }
-    }
-);
   }
   Path resourcesDestinationPath=bundleRoot.resolve(this.destinations.getResourcesPath());
   if (!Iterables.isEmpty(Iterables.concat(resourceDirs,dirsContainingResourceDirs,resourceFiles))) {
