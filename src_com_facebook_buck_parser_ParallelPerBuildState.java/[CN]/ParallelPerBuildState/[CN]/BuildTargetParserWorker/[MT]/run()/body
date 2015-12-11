@@ -1,0 +1,24 @@
+{
+  while (shouldWaitForWork()) {
+    try (BuildTargetProcessingScope processingScope=startProcessingBuildTarget()){
+      TargetNode<?> node;
+      try (SimplePerfEvent.Scope scope=Parser.getTargetNodeEventScope(eventBus,processingScope.getBuildTarget())){
+        try {
+          node=getTargetNode(processingScope.getBuildTarget());
+        }
+ catch (        BuildFileParseException|BuildTargetException|IOException e) {
+          abortDoingMoreWork();
+          return;
+        }
+        processingScope.addDepsToProcess(node.getDeps());
+      }
+     }
+ catch (    TimeoutException e) {
+      continue;
+    }
+catch (    InterruptedException e) {
+      abortDoingMoreWork();
+      return;
+    }
+  }
+}
