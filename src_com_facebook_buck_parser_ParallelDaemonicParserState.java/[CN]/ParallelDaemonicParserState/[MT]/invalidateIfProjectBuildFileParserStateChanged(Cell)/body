@@ -1,19 +1,25 @@
 {
   ImmutableMap<String,String> cellEnv=cell.getBuckConfig().getEnvironment();
   Iterable<String> defaultIncludes=new ParserConfig(cell.getBuckConfig()).getDefaultIncludes();
-  Iterable<String> expected=cachedIncludes.get(cell.getRoot());
   boolean invalidateCaches=false;
-  if (!cellEnv.equals(cachedEnvironment)) {
-    invalidateCaches=true;
+  try (AutoCloseableLock updateLock=cachedStateLock.updateLock()){
+    Iterable<String> expected=cachedIncludes.get(cell.getRoot());
+    if (!cellEnv.equals(cachedEnvironment)) {
+      invalidateCaches=true;
+    }
+ else     if (expected == null || !Iterables.elementsEqual(defaultIncludes,expected)) {
+      invalidateCaches=true;
+    }
+    if (!invalidateCaches) {
+      return;
+    }
+    try (AutoCloseableLock writeLock=cachedStateLock.writeLock()){
+      cachedEnvironment=cellEnv;
+      cachedIncludes.put(cell.getRoot(),defaultIncludes);
+    }
+   }
+ synchronized (this) {
+    invalidateAllCaches();
+    knownCells.add(cell);
   }
- else   if (expected == null || !Iterables.elementsEqual(defaultIncludes,expected)) {
-    invalidateCaches=true;
-  }
-  if (!invalidateCaches) {
-    return;
-  }
-  invalidateAllCaches();
-  cachedEnvironment=cellEnv;
-  cachedIncludes.put(cell.getRoot(),defaultIncludes);
-  knownCells.add(cell);
 }
