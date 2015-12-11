@@ -4,13 +4,13 @@
     return 1;
   }
   BuckQueryEnvironment env=new BuckQueryEnvironment(params,getEnableProfiling());
-  try {
+  try (CommandThreadManager pool=new CommandThreadManager("Query",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
     String queryFormat=arguments.remove(0);
     if (queryFormat.contains("%s")) {
-      return runMultipleQuery(params,env,queryFormat,arguments,shouldGenerateJsonOutput());
+      return runMultipleQuery(params,env,pool.getExecutor(),queryFormat,arguments,shouldGenerateJsonOutput());
     }
  else {
-      return runSingleQuery(params,env,queryFormat);
+      return runSingleQuery(params,env,pool.getExecutor(),queryFormat);
     }
   }
  catch (  QueryException e) {

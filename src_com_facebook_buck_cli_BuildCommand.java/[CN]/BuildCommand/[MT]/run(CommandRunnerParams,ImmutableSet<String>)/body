@@ -17,11 +17,13 @@
  else {
     params.getBuckEventBus().post(started);
   }
-  Pair<ActionGraph,BuildRuleResolver> actionGraphAndResolver=createActionGraphAndResolver(params);
-  if (actionGraphAndResolver == null) {
-    return 1;
+  try (CommandThreadManager pool=new CommandThreadManager("Build",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
+    Pair<ActionGraph,BuildRuleResolver> actionGraphAndResolver=createActionGraphAndResolver(params,pool.getExecutor());
+    if (actionGraphAndResolver == null) {
+      return 1;
+    }
+    int exitCode=executeBuild(params,actionGraphAndResolver,pool.getExecutor());
+    params.getBuckEventBus().post(BuildEvent.finished(started,exitCode));
+    return exitCode;
   }
-  int exitCode=executeBuild(params,actionGraphAndResolver);
-  params.getBuckEventBus().post(BuildEvent.finished(started,exitCode));
-  return exitCode;
-}
+ }

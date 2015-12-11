@@ -1,15 +1,15 @@
 {
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"cxx",tmp);
   workspace.setUp();
-  TypeCoercerFactory typeCoercerFactory=new DefaultTypeCoercerFactory();
-  Parser parser=new Parser(typeCoercerFactory,new ConstructorArgMarshaller(typeCoercerFactory));
   BuckEventBus eventBus=BuckEventBusFactory.newInstance();
   ProjectFilesystem filesystem=new ProjectFilesystem(workspace.getDestPath());
   Path compiler=new ExecutableFinder().getExecutable(Paths.get("echo"),ImmutableMap.copyOf(System.getenv()));
   BuckConfig config=FakeBuckConfig.builder().setFilesystem(filesystem).setSections("[thrift]","compiler = " + compiler,"compiler2 = " + compiler,"cpp_library = //thrift:fake","cpp_reflection_library = //thrift:fake").build();
+  TypeCoercerFactory typeCoercerFactory=new DefaultTypeCoercerFactory();
+  Parser parser=new Parser(new ParserConfig(config),typeCoercerFactory,new ConstructorArgMarshaller(typeCoercerFactory));
   Cell cell=Cell.createCell(filesystem,new TestConsole(),Watchman.NULL_WATCHMAN,config,new KnownBuildRuleTypesFactory(new ProcessExecutor(new TestConsole()),new FakeAndroidDirectoryResolver(),Optional.<Path>absent()),new FakeAndroidDirectoryResolver(),new DefaultClock());
   BuildTarget target=BuildTargetFactory.newInstance(filesystem,"//thrift:exe");
-  TargetGraph targetGraph=parser.buildTargetGraph(eventBus,cell,false,ImmutableSet.of(target));
+  TargetGraph targetGraph=parser.buildTargetGraph(eventBus,cell,false,Executors.newSingleThreadExecutor(),ImmutableSet.of(target));
   TargetNodeToBuildRuleTransformer transformer=new BuildTargetNodeToBuildRuleTransformer();
   Pair<ActionGraph,BuildRuleResolver> actionGraphAndResolver=new TargetGraphToActionGraph(eventBus,transformer).apply(targetGraph);
   BuildRuleResolver ruleResolver=actionGraphAndResolver.getSecond();

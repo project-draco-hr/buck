@@ -8,8 +8,8 @@
     params.getBuckEventBus().post(ConsoleEvent.info("'buck audit dependencies' is deprecated. Please use 'buck query' instead.\n" + "The equivalent 'buck query' command is:\n$ %s\n\nThe query language is documented at " + "https://buckbuild.com/command/query.html",QueryCommand.buildAuditDependenciesQueryExpression(getArguments(),shouldShowTransitiveDependencies(),shouldIncludeTests(),shouldGenerateJsonOutput())));
   }
   BuckQueryEnvironment env=new BuckQueryEnvironment(params,getEnableProfiling());
-  try {
-    return QueryCommand.runMultipleQuery(params,env,QueryCommand.getAuditDependenciesQueryFormat(shouldShowTransitiveDependencies(),shouldIncludeTests()),getArgumentsFormattedAsBuildTargets(params.getBuckConfig()),shouldGenerateJsonOutput());
+  try (CommandThreadManager pool=new CommandThreadManager("Audit",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
+    return QueryCommand.runMultipleQuery(params,env,pool.getExecutor(),QueryCommand.getAuditDependenciesQueryFormat(shouldShowTransitiveDependencies(),shouldIncludeTests()),getArgumentsFormattedAsBuildTargets(params.getBuckConfig()),shouldGenerateJsonOutput());
   }
  catch (  QueryException e) {
     if (e.getCause() instanceof InterruptedException) {

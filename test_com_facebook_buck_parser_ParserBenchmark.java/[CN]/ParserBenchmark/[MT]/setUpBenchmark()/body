@@ -15,10 +15,15 @@
     Files.createFile(javaFile);
     Files.write(javaFile,String.format("package com.facebook.target_%d; class A {}",i).getBytes("UTF-8"));
   }
-  BuckConfig config=FakeBuckConfig.builder().setFilesystem(filesystem).build();
+  ImmutableMap.Builder<String,ImmutableMap<String,String>> configSectionsBuilder=ImmutableMap.builder();
+  if (threadCount > 1) {
+    configSectionsBuilder.put("project",ImmutableMap.of("parallel_parsing","true","parsing_threads",Integer.toString(threadCount)));
+  }
+  BuckConfig config=FakeBuckConfig.builder().setFilesystem(filesystem).setSections(configSectionsBuilder.build()).build();
   cell=new TestCellBuilder().setFilesystem(filesystem).setBuckConfig(config).build();
   eventBus=BuckEventBusFactory.newInstance();
+  executorService=Executors.newFixedThreadPool(threadCount);
   DefaultTypeCoercerFactory typeCoercerFactory=new DefaultTypeCoercerFactory();
   ConstructorArgMarshaller marshaller=new ConstructorArgMarshaller(typeCoercerFactory);
-  parser=new Parser(typeCoercerFactory,marshaller);
+  parser=new Parser(new ParserConfig(config),typeCoercerFactory,marshaller);
 }

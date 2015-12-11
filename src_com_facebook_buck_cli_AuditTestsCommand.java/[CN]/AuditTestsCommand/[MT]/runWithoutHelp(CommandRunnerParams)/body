@@ -8,8 +8,8 @@
     params.getBuckEventBus().post(ConsoleEvent.info("'buck audit tests' is deprecated. Please use 'buck query' instead. e.g.\n\t%s\n\n" + "The query language is documented at https://buckbuild.com/command/query.html",QueryCommand.buildAuditTestsQueryExpression(getArguments(),shouldGenerateJsonOutput())));
   }
   BuckQueryEnvironment env=new BuckQueryEnvironment(params,getEnableProfiling());
-  try {
-    return QueryCommand.runMultipleQuery(params,env,"testsof('%s')",getArgumentsFormattedAsBuildTargets(params.getBuckConfig()),shouldGenerateJsonOutput());
+  try (CommandThreadManager pool=new CommandThreadManager("Audit",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
+    return QueryCommand.runMultipleQuery(params,env,pool.getExecutor(),"testsof('%s')",getArgumentsFormattedAsBuildTargets(params.getBuckConfig()),shouldGenerateJsonOutput());
   }
  catch (  QueryException e) {
     if (e.getCause() instanceof InterruptedException) {

@@ -1,0 +1,20 @@
+{
+  QueryExpression from=args.get(0).getExpression();
+  QueryExpression to=args.get(1).getExpression();
+  Set<T> fromSet=from.eval(env,executor);
+  Set<T> toSet=to.eval(env,executor);
+  env.buildTransitiveClosure(fromSet,Integer.MAX_VALUE,executor);
+  Set<T> reachableFromX=env.getTransitiveClosure(fromSet);
+  Set<T> result=MoreSets.intersection(reachableFromX,toSet);
+  Collection<T> worklist=result;
+  while (!worklist.isEmpty()) {
+    Collection<T> reverseDeps=env.getReverseDeps(worklist);
+    worklist=Lists.newArrayList();
+    for (    T target : reverseDeps) {
+      if (reachableFromX.contains(target) && result.add(target)) {
+        worklist.add(target);
+      }
+    }
+  }
+  return result;
+}

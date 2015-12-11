@@ -1,0 +1,56 @@
+{
+  LOG.debug("Getting target hash for %s",matchingBuildTargets);
+  ProjectGraphParser projectGraphParser=ProjectGraphParsers.createProjectGraphParser(params.getParser(),params.getCell(),params.getBuckEventBus(),getEnableProfiling());
+  TargetGraph projectGraph=projectGraphParser.buildTargetGraphForTargetNodeSpecs(Iterables.transform(matchingBuildTargets,BuildTargetSpec.TO_BUILD_TARGET_SPEC),executor);
+  LOG.debug("Built project graph with nodes: %s",projectGraph.getNodes());
+  Iterable<BuildTarget> matchingBuildTargetsWithTests;
+  final TargetGraph projectGraphWithTests;
+  if (isDetectTestChanges()) {
+    ImmutableSet<BuildTarget> explicitTestTargets;
+    explicitTestTargets=TargetGraphAndTargets.getExplicitTestTargets(matchingBuildTargets,projectGraph,true);
+    LOG.debug("Got explicit test targets: %s",explicitTestTargets);
+    matchingBuildTargetsWithTests=Sets.union(matchingBuildTargets,explicitTestTargets);
+    projectGraphWithTests=projectGraphParser.buildTargetGraphForTargetNodeSpecs(Iterables.transform(matchingBuildTargetsWithTests,BuildTargetSpec.TO_BUILD_TARGET_SPEC),executor);
+  }
+ else {
+    matchingBuildTargetsWithTests=matchingBuildTargets;
+    projectGraphWithTests=projectGraph;
+  }
+  TargetHashFileMode targetHashFileMode=getTargetHashFileMode();
+  FileHashLoader fileHashLoader=null;
+switch (targetHashFileMode) {
+case PATHS_AND_CONTENTS:
+    fileHashLoader=params.getFileHashCache();
+  break;
+case PATHS_ONLY:
+fileHashLoader=new FilePathHashLoader(params.getCell().getRoot(),getTargetHashModifiedPaths());
+break;
+}
+if (fileHashLoader == null) {
+throw new IllegalStateException("Invalid value for target hash file mode: " + targetHashFileMode);
+}
+ImmutableMap<BuildTarget,HashCode> buildTargetHashes=TargetGraphHashing.hashTargetGraph(params.getCell().getFilesystem(),projectGraphWithTests,fileHashLoader,matchingBuildTargetsWithTests);
+for (BuildTarget target : matchingBuildTargets) {
+TargetNode<?> targetNode=Preconditions.checkNotNull(projectGraphWithTests.get(target),"Could not find target %s in project graph",target);
+ImmutableSet<TargetNode<?>> dependencyClosure=getDependencyClosure(projectGraphWithTests,targetNode);
+Hasher hasher=Hashing.sha1().newHasher();
+ImmutableSortedSet.Builder<TargetNode<?>> nodesWithDepsAndTests=ImmutableSortedSet.naturalOrder();
+nodesWithDepsAndTests.addAll(dependencyClosure);
+if (isDetectTestChanges()) {
+nodesWithDepsAndTests.addAll(FluentIterable.from(dependencyClosure).transformAndConcat(new Function<TargetNode<?>,Iterable<TargetNode<?>>>(){
+@Override public Iterable<TargetNode<?>> apply(TargetNode<?> node){
+  return projectGraphWithTests.getAll(TargetNodes.getTestTargetsForNode(node));
+}
+}
+));
+}
+LOG.debug("Hashing target %s with dependent nodes %s",target,nodesWithDepsAndTests.build());
+for (TargetNode<?> nodeToHash : nodesWithDepsAndTests.build()) {
+HashCode dependencyHash=buildTargetHashes.get(nodeToHash.getBuildTarget());
+Preconditions.checkNotNull(dependencyHash,"Couldn't get hash for node: %s",nodeToHash);
+hasher.putBytes(dependencyHash.asBytes());
+}
+params.getConsole().getStdOut().format("%s %s\n",target.getFullyQualifiedName(),hasher.hash().toString());
+}
+return 0;
+}

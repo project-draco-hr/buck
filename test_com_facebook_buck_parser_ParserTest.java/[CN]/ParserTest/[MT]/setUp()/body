@@ -13,10 +13,19 @@
   filesystem=new ProjectFilesystem(root);
   cellRoot=filesystem.getRootPath();
   eventBus=BuckEventBusFactory.newInstance();
-  BuckConfig config=FakeBuckConfig.builder().setFilesystem(filesystem).setSections("[buildfile]","includes = //java/com/facebook/defaultIncludeFile","[project]","temp_files = .*\\.swp$").build();
+  ImmutableMap.Builder<String,ImmutableMap<String,String>> configSectionsBuilder=ImmutableMap.builder();
+  configSectionsBuilder.put("buildfile",ImmutableMap.of("includes","//java/com/facebook/defaultIncludeFile"));
+  if (parallelParsing) {
+    configSectionsBuilder.put("project",ImmutableMap.of("temp_files",".*\\.swp$","parallel_parsing","true"));
+  }
+ else {
+    configSectionsBuilder.put("project",ImmutableMap.of("temp_files",".*\\.swp$"));
+  }
+  BuckConfig config=FakeBuckConfig.builder().setFilesystem(filesystem).setSections(configSectionsBuilder.build()).build();
   cell=new TestCellBuilder().setFilesystem(filesystem).setBuckConfig(config).build();
   DefaultTypeCoercerFactory typeCoercerFactory=new DefaultTypeCoercerFactory();
-  parser=new Parser(typeCoercerFactory,new ConstructorArgMarshaller(typeCoercerFactory));
+  parser=new Parser(new ParserConfig(cell.getBuckConfig()),typeCoercerFactory,new ConstructorArgMarshaller(typeCoercerFactory));
   counter=new ParseEventStartedCounter();
   eventBus.register(counter);
+  executorService=Executors.newFixedThreadPool(threads);
 }
