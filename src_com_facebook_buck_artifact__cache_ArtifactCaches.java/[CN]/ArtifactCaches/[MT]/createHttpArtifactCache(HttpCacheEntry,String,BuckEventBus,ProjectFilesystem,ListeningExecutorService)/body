@@ -19,5 +19,23 @@
   client.setConnectionPool(new ConnectionPool(200,TimeUnit.MINUTES.toMillis(5)));
   OkHttpClient fetchClient=client.clone();
   fetchClient.setReadTimeout(timeoutSeconds,TimeUnit.SECONDS);
+  final ImmutableMap<String,String> readHeaders=cacheDescription.getReadHeaders();
+  final ImmutableMap<String,String> writeHeaders=cacheDescription.getWriteHeaders();
+  if (!writeHeaders.isEmpty()) {
+    client.networkInterceptors().add(new Interceptor(){
+      @Override public Response intercept(      Chain chain) throws IOException {
+        return chain.proceed(addHeadersToBuilder(chain.request().newBuilder(),writeHeaders).build());
+      }
+    }
+);
+  }
+  if (!readHeaders.isEmpty()) {
+    fetchClient.networkInterceptors().add(new Interceptor(){
+      @Override public Response intercept(      Chain chain) throws IOException {
+        return chain.proceed(addHeadersToBuilder(chain.request().newBuilder(),readHeaders).build());
+      }
+    }
+);
+  }
   return new HttpArtifactCache(cacheName,fetchClient,client,url,doStore,projectFilesystem,buckEventBus,httpWriteExecutorService);
 }
