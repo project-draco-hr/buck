@@ -1,3 +1,10 @@
 {
-  return ImmutableList.of(new MakeCleanDirectoryStep(getProjectFilesystem(),getPathToTestOutputDirectory()),new GoTestStep(getProjectFilesystem(),ImmutableList.<String>builder().addAll(testMain.getExecutableCommand().getCommandPrefix(getResolver())).add("-test.v").add("-test.timeout",executionContext.getDefaultTestTimeoutMillis() + "ms").build(),testMain.getExecutableCommand().getEnvironment(getResolver()),getPathToTestExitCode(),testRuleTimeoutMs,getPathToTestResults()));
+  Optional<Long> processTimeoutMs=testRuleTimeoutMs.isPresent() ? Optional.of(testRuleTimeoutMs.get() + PROCESS_TIMEOUT_EXTRA_MS) : Optional.<Long>absent();
+  ImmutableList.Builder<String> args=ImmutableList.<String>builder();
+  args.addAll(testMain.getExecutableCommand().getCommandPrefix(getResolver()));
+  args.add("-test.v");
+  if (testRuleTimeoutMs.isPresent()) {
+    args.add("-test.timeout",testRuleTimeoutMs.get() + "ms");
+  }
+  return ImmutableList.of(new MakeCleanDirectoryStep(getProjectFilesystem(),getPathToTestOutputDirectory()),new GoTestStep(getProjectFilesystem(),args.build(),testMain.getExecutableCommand().getEnvironment(getResolver()),getPathToTestExitCode(),processTimeoutMs,getPathToTestResults()));
 }
