@@ -1,10 +1,25 @@
 {
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
+  commands.add(new RmStep(getProjectFilesystem(),pathToOutputFile,true));
   commands.add(new MakeCleanDirectoryStep(getProjectFilesystem(),temp));
   Path payloadDir=temp.resolve("Payload");
   commands.add(new MkdirStep(getProjectFilesystem(),payloadDir));
-  commands.add(new RmStep(getProjectFilesystem(),pathToOutputFile,true));
-  commands.add(CopyStep.forDirectory(getProjectFilesystem(),bundle.getPathToOutput(),payloadDir,CopyStep.DirectoryMode.DIRECTORY_AND_CONTENTS));
+  Path bundleOutputPath=bundle.getPathToOutput();
+  commands.add(CopyStep.forDirectory(getProjectFilesystem(),bundleOutputPath,payloadDir,CopyStep.DirectoryMode.DIRECTORY_AND_CONTENTS));
+  for (  BuildRule rule : bundle.getDeps()) {
+    if (rule instanceof BuildRuleWithAppleBundle) {
+      AppleBundle appleBundle=((BuildRuleWithAppleBundle)rule).getAppleBundle();
+      if (appleBundle.getBinary().isPresent() && appleBundle.getPlatformName().startsWith("watch")) {
+        BuildRule binary=appleBundle.getBinary().get();
+        if (binary instanceof WriteFile) {
+          commands.add(new MkdirStep(getProjectFilesystem(),temp.resolve("Symbols")));
+          Path watchKitSupportDir=temp.resolve("WatchKitSupport2");
+          commands.add(new MkdirStep(getProjectFilesystem(),watchKitSupportDir));
+          commands.add(new WriteFileStep(getProjectFilesystem(),ByteSource.wrap(((WriteFile)binary).getFileContents()),watchKitSupportDir.resolve("WK"),true));
+        }
+      }
+    }
+  }
   commands.add(new MkdirStep(getProjectFilesystem(),pathToOutputFile.getParent()));
   commands.add(new ZipStep(getProjectFilesystem(),pathToOutputFile,ImmutableSet.<Path>of(),false,ZipStep.DEFAULT_COMPRESSION_LEVEL,temp));
   buildableContext.recordArtifact(getPathToOutput());
