@@ -11,11 +11,13 @@
     params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
     return 1;
   }
-  exitCode=super.run(params,installHelperTargets);
-  if (exitCode != 0) {
-    return exitCode;
+  try (CommandThreadManager pool=new CommandThreadManager("Install",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
+    exitCode=super.run(params,pool.getExecutor(),installHelperTargets);
+    if (exitCode != 0) {
+      return exitCode;
+    }
   }
-  try {
+   try {
     exitCode=install(params);
   }
  catch (  NoSuchBuildTargetException e) {
