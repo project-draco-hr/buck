@@ -7,6 +7,7 @@ def main():
     parser.add_option('--allow_empty_globs', action='store_true', dest='allow_empty_globs', help='Tells the parser not to raise an error when glob returns no results.')
     parser.add_option('--use_watchman_glob', action='store_true', dest='use_watchman_glob', help='Invokes `watchman query` to get lists of files instead of globbing in-process.')
     parser.add_option('--watchman_watch_root', action='store', type='string', dest='watchman_watch_root', help='Path to root of watchman watch as returned by `watchman watch-project`.')
+    parser.add_option('--watchman_socket_path', action='store', type='string', dest='watchman_socket_path', help='Path to Unix domain socket/named pipe as returned by `watchman get-sockname`.')
     parser.add_option('--watchman_project_prefix', action='store', type='string', dest='watchman_project_prefix', help='Relative project prefix as returned by `watchman watch-project`.')
     parser.add_option('--watchman_query_timeout_ms', action='store', type='int', dest='watchman_query_timeout_ms', help='Maximum time in milliseconds to wait for watchman query to respond.')
     parser.add_option('--include', action='append', dest='include')
@@ -21,6 +22,9 @@ def main():
         client_args = {}
         if (options.watchman_query_timeout_ms is not None):
             client_args['timeout'] = max(0.0, (options.watchman_query_timeout_ms / 1000.0))
+        if (options.watchman_socket_path is not None):
+            client_args['sockpath'] = options.watchman_socket_path
+            client_args['transport'] = 'local'
         watchman_client = pywatchman.client(**client_args)
         watchman_error = pywatchman.WatchmanError
     buildFileProcessor = BuildFileProcessor(project_root, options.watchman_watch_root, options.watchman_project_prefix, options.build_file_name, options.allow_empty_globs, watchman_client, watchman_error, implicit_includes=(options.include or []))
