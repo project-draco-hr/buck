@@ -1,0 +1,23 @@
+{
+  ListenableFuture<Optional<Map<String,Object>>> future=listeningExecutorService.submit(new Callable<Optional<Map<String,Object>>>(){
+    @Override public Optional<Map<String,Object>> call() throws IOException {
+      return sendWatchmanQuery(query);
+    }
+  }
+);
+  try {
+    long startTimeNanos=clock.nanoTime();
+    Optional<Map<String,Object>> result=waitForQueryNotifyingUserIfSlow(future,timeoutNanos,POLL_TIME_NANOS,query);
+    long elapsedNanos=clock.nanoTime() - startTimeNanos;
+    LOG.debug("Query %s returned in %d ms",query,TimeUnit.NANOSECONDS.toMillis(elapsedNanos));
+    return result;
+  }
+ catch (  ExecutionException e) {
+    if (e.getCause() instanceof IOException) {
+      throw (IOException)e.getCause();
+    }
+ else {
+      throw new RuntimeException(e);
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
   SettableFakeClock clock=new SettableFakeClock(0,0);
-  FakeListeningProcessExecutor executor=new FakeListeningProcessExecutor(ImmutableMultimap.<ProcessExecutorParams,FakeListeningProcessState>builder().putAll(ProcessExecutorParams.ofCommand(exe,"version"),FakeListeningProcessState.ofStdout("{\"version\":\"3.4.0\"}"),FakeListeningProcessState.ofExit(0)).putAll(ProcessExecutorParams.ofCommand(exe,"watch-project",root),FakeListeningProcessState.ofStdout("{\"version\":\"3.4.0\",\"watch\":\"" + root + "\"}"),FakeListeningProcessState.ofExit(0)).build(),clock);
-  Watchman watchman=Watchman.build(executor,Paths.get(root),env,finder,new TestConsole(),clock);
+  FakeListeningProcessExecutor executor=new FakeListeningProcessExecutor(ImmutableMultimap.<ProcessExecutorParams,FakeListeningProcessState>builder().putAll(ProcessExecutorParams.ofCommand(exe,"--output-encoding=bser","get-sockname"),FakeListeningProcessState.ofStdoutBytes(bserSerialized(ImmutableMap.of("version","3.4.0","sockname","/path/to/sock"))),FakeListeningProcessState.ofExit(0)).build(),clock);
+  Watchman watchman=Watchman.build(executor,fakeWatchmanConnector(Paths.get("/path/to/sock"),0,ImmutableMap.of(ImmutableList.of("watch-project",root),ImmutableMap.of("version","3.4.0","watch",root))),Paths.get(root),env,finder,new TestConsole(),clock);
   assertEquals("3.4.0",watchman.getVersion().get());
   assertEquals(root,watchman.getWatchRoot().get());
   assertEquals(Optional.absent(),watchman.getProjectPrefix());
