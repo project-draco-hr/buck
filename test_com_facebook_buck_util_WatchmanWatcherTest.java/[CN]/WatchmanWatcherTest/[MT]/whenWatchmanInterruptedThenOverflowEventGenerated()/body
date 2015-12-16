@@ -4,8 +4,7 @@
   EventBus eventBus=createStrictMock(EventBus.class);
   eventBus.post(capture(eventCapture));
   replay(eventBus);
-  FakeProcess fakeProcess=new FakeProcess(0,"","",Optional.of(new InterruptedException(message)));
-  WatchmanWatcher watcher=createWatcher(eventBus,fakeProcess,new IncrementingFakeClock(),new ObjectMapper());
+  WatchmanWatcher watcher=createWatcher(eventBus,new FakeWatchmanClient(0,ImmutableMap.of(FAKE_QUERY,ImmutableMap.<String,Object>of()),new InterruptedException(message)),200,10000);
   try {
     watcher.postEvents(new BuckEventBus(new FakeClock(0),new BuildId()),ImmutableSet.<String>builder());
   }
@@ -13,8 +12,6 @@
     assertEquals("Should be test interruption.",e.getMessage(),message);
   }
   verify(eventBus);
-  assertTrue("Watchman query process should be destroyed.",fakeProcess.isDestroyed());
-  assertTrue("Watchman query process should be waited for.",fakeProcess.isWaitedFor());
   assertTrue(Thread.currentThread().isInterrupted());
   assertEquals("Should be overflow event.",StandardWatchEventKinds.OVERFLOW,eventCapture.getValue().kind());
 }

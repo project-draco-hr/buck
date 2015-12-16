@@ -1,12 +1,12 @@
 {
-  String watchmanOutput=Joiner.on('\n').join("{\"files\": [","{","\"name\": \"foo/bar/baz\"","},","{","\"name\": \"foo/bar/boz\"","}","]}");
+  ImmutableMap<String,Object> watchmanOutput=ImmutableMap.<String,Object>of("files",ImmutableList.of(ImmutableMap.<String,Object>of("name","foo/bar/baz"),ImmutableMap.<String,Object>of("name","foo/bar/boz")));
   EventBus eventBus=createStrictMock(EventBus.class);
   Capture<WatchEvent<Path>> firstEvent=newCapture();
   Capture<WatchEvent<Path>> secondEvent=newCapture();
   eventBus.post(capture(firstEvent));
   eventBus.post(capture(secondEvent));
   replay(eventBus);
-  WatchmanWatcher watcher=createWatcher(eventBus,new FakeProcess(0,watchmanOutput,""),new IncrementingFakeClock(),new ObjectMapper());
+  WatchmanWatcher watcher=createWatcher(eventBus,watchmanOutput);
   watcher.postEvents(new BuckEventBus(new FakeClock(0),new BuildId()),ImmutableSet.<String>builder());
   verify(eventBus);
   assertEquals("Path should match watchman output.","foo/bar/baz",firstEvent.getValue().context().toString());

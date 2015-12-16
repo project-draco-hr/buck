@@ -1,12 +1,12 @@
 {
   String message="Find me!";
-  String watchmanOutput=Joiner.on('\n').join("{\"files\": [","{","\"warning\": \"" + message + "\"","}","]}");
+  ImmutableMap<String,Object> watchmanOutput=ImmutableMap.<String,Object>of("files",ImmutableList.of(),"warning",message);
   Capture<ConsoleEvent> eventCapture=newCapture();
   EventBus eventBus=new EventBus("watchman test");
   BuckEventBus buckEventBus=createStrictMock(BuckEventBus.class);
   buckEventBus.post(capture(eventCapture));
   replay(buckEventBus);
-  WatchmanWatcher watcher=createWatcher(eventBus,new FakeProcess(0,watchmanOutput,""),new IncrementingFakeClock(),new ObjectMapper(),10000,10000);
+  WatchmanWatcher watcher=createWatcher(eventBus,watchmanOutput);
   watcher.postEvents(buckEventBus,ImmutableSet.<String>builder());
   verify(buckEventBus);
   assertThat(eventCapture.getValue().getMessage(),Matchers.containsString(message));

@@ -3,13 +3,13 @@
   EventBus eventBus=createStrictMock(EventBus.class);
   eventBus.post(capture(eventCapture));
   replay(eventBus);
-  WatchmanWatcher watcher=createWatcher(eventBus,new FakeProcess(1,"",""),new IncrementingFakeClock(),new ObjectMapper());
+  WatchmanWatcher watcher=createWatcher(eventBus,new FakeWatchmanClient(0,ImmutableMap.of(FAKE_QUERY,ImmutableMap.<String,Object>of()),new IOException("oops")),200,10000);
   try {
     watcher.postEvents(new BuckEventBus(new FakeClock(0),new BuildId()),ImmutableSet.<String>builder());
     fail("Should have thrown IOException.");
   }
- catch (  WatchmanWatcherException e) {
-    assertTrue("Should be watchman error",e.getMessage().startsWith("Watchman failed"));
+ catch (  IOException e) {
+    assertTrue("Should be expected error",e.getMessage().startsWith("oops"));
   }
   verify(eventBus);
   assertEquals("Should be overflow event.",StandardWatchEventKinds.OVERFLOW,eventCapture.getValue().kind());
