@@ -1,20 +1,17 @@
 {
-  ImmutableSet<BuildTarget> passedInTargetsSet;
-  ProjectGraphParser projectGraphParser;
+  Ide projectIde=getIdeFromBuckConfig(params.getBuckConfig()).orNull();
+  boolean useExperimentalProjectGeneration=isExperimentalIntelliJProjectGenerationEnabled() || projectIde == Ide.XCODE;
   try (CommandThreadManager pool=new CommandThreadManager("Project",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
-    Pair<ImmutableSet<BuildTarget>,TargetGraph> traversalResult=null;
+    ImmutableSet<BuildTarget> passedInTargetsSet;
+    TargetGraph projectGraph;
     try {
-      traversalResult=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),pool.getExecutor(),parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),getArguments()));
+      passedInTargetsSet=params.getParser().resolveTargetSpecs(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),getArguments()));
+      projectGraph=getProjectGraphForIde(params,pool.getExecutor(),passedInTargetsSet,useExperimentalProjectGeneration);
     }
  catch (    BuildTargetException|BuildFileParseException|HumanReadableException e) {
       params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
       return 1;
     }
-    passedInTargetsSet=traversalResult.getFirst();
-    projectGraphParser=ProjectGraphParsers.createProjectGraphParser(params.getParser(),params.getCell(),params.getBuckEventBus(),getEnableProfiling());
-    Ide projectIde=getIdeFromBuckConfig(params.getBuckConfig()).orNull();
-    boolean useExperimentalProjectGeneration=isExperimentalIntelliJProjectGenerationEnabled() || projectIde == Ide.XCODE;
-    TargetGraph projectGraph=projectGraphParser.buildTargetGraphForTargetNodeSpecs(getTargetNodeSpecsForIde(passedInTargetsSet,useExperimentalProjectGeneration),pool.getExecutor());
     projectIde=getIdeBasedOnPassedInTargetsAndProjectGraph(params.getBuckConfig(),passedInTargetsSet,Optional.of(projectGraph));
     if (projectIde == ProjectCommand.Ide.XCODE) {
       useExperimentalProjectGeneration=true;
@@ -32,7 +29,14 @@
  else {
       graphRoots=getRootsFromPredicate(projectGraph,projectPredicates.getProjectRootsPredicate());
     }
-    TargetGraphAndTargets targetGraphAndTargets=createTargetGraph(projectGraph,graphRoots,projectGraphParser,projectPredicates.getAssociatedProjectPredicate(),isWithTests(),isWithDependenciesTests(),useExperimentalProjectGeneration,pool.getExecutor());
+    TargetGraphAndTargets targetGraphAndTargets;
+    try {
+      targetGraphAndTargets=createTargetGraph(params,projectGraph,graphRoots,projectPredicates.getAssociatedProjectPredicate(),isWithTests(),isWithDependenciesTests(),useExperimentalProjectGeneration,pool.getExecutor());
+    }
+ catch (    BuildFileParseException|HumanReadableException e) {
+      params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
+      return 1;
+    }
     if (getDryRun()) {
       for (      TargetNode<?> targetNode : targetGraphAndTargets.getTargetGraph().getNodes()) {
         params.getConsole().getStdOut().println(targetNode.toString());
