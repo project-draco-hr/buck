@@ -3,7 +3,9 @@
   boolean isAnyAssumptionViolated=false;
   ListMultimap<TestResults,TestCaseSummary> failingTests=ArrayListMultimap.create();
   int numFailures=0;
+  ImmutableList.Builder<Path> testLogPathsBuilder=ImmutableList.builder();
   for (  TestResults summary : completedResults) {
+    testLogPathsBuilder.addAll(summary.getTestLogPaths());
     if (!summary.isSuccess()) {
       isAllTestsPassed=false;
       numFailures+=summary.getFailureCount();
@@ -16,10 +18,21 @@
       }
     }
   }
+  ImmutableList<Path> testLogPaths=testLogPathsBuilder.build();
   if (completedResults.isEmpty()) {
     addTo.add(ansi.asHighlightedFailureText("NO TESTS RAN"));
   }
  else   if (isAllTestsPassed) {
+    if (testLogsPath.isPresent() && verbosity != Verbosity.SILENT) {
+      try {
+        if (MoreFiles.concatenateFiles(testLogsPath.get(),testLogPaths)) {
+          addTo.add("Updated test logs: " + testLogsPath.get().toString());
+        }
+      }
+ catch (      IOException e) {
+        LOG.warn(e,"Could not concatenate test logs %s to %s",testLogPaths,testLogsPath.get());
+      }
+    }
     if (isAnyAssumptionViolated) {
       addTo.add(ansi.asHighlightedWarningText("TESTS PASSED (with some assumption violations)"));
     }

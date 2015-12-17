@@ -3,14 +3,9 @@
     addTo.add("");
     addTo.add(String.format(locale,"Results for %s (%d/%d) %s",results.getBuildTarget().getFullyQualifiedName(),results.getSequenceNumber(),results.getTotalNumberOfTests(),verbosity));
   }
-  boolean appendLogToSummaryOnSuccess=results.getTestCases().size() == 1 && results.getTestLogPaths().size() == 1 && Files.exists(results.getTestLogPaths().get(0)) && verbosity != Verbosity.SILENT;
-  boolean shouldListLogsAfterTests=!appendLogToSummaryOnSuccess;
   boolean shouldReportLogSummaryAfterTests=false;
   for (  TestCaseSummary testCase : results.getTestCases()) {
     StringBuilder oneLineSummary=new StringBuilder(testCase.getOneLineSummary(locale,results.getDependenciesPassTheirTests(),ansi));
-    if (appendLogToSummaryOnSuccess && testCase.isSuccess()) {
-      oneLineSummary.append("  Logs: ").append(results.getTestLogPaths().get(0).toString());
-    }
     addTo.add(oneLineSummary.toString());
     if (testCase.isSuccess()) {
       continue;
@@ -20,21 +15,15 @@
         continue;
       }
       if (!testResult.isSuccess()) {
-        shouldListLogsAfterTests=false;
         shouldReportLogSummaryAfterTests=true;
         reportResultSummary(addTo,testResult);
       }
     }
   }
-  if (verbosity != Verbosity.SILENT) {
+  if (shouldReportLogSummaryAfterTests && verbosity != Verbosity.SILENT) {
     for (    Path testLogPath : results.getTestLogPaths()) {
       if (Files.exists(testLogPath)) {
-        if (shouldReportLogSummaryAfterTests) {
-          reportLogSummary(locale,addTo,testLogPath,summaryVerbosity.getMaxDebugLogLines().or(DEFAULT_MAX_LOG_LINES));
-        }
-        if (shouldListLogsAfterTests) {
-          addTo.add("Logs: " + testLogPath.toString());
-        }
+        reportLogSummary(locale,addTo,testLogPath,summaryVerbosity.getMaxDebugLogLines().or(DEFAULT_MAX_LOG_LINES));
       }
     }
   }
