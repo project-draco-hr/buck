@@ -1,7 +1,7 @@
 {
   while (shouldWaitForWork()) {
     try (BuildTargetProcessingScope processingScope=startProcessingBuildTarget()){
-      if (parsedBuildTargets.contains(processingScope.getBuildTarget())) {
+      if (permState.hasCachedTargetNodeForBuildTarget(processingScope.getBuildTarget())) {
         continue;
       }
       TargetNode<?> node;
@@ -14,12 +14,7 @@
           return;
         }
       }
-       processingScope.addDepsToProcess(FluentIterable.from(node.getDeps()).filter(new Predicate<BuildTarget>(){
-        @Override public boolean apply(        BuildTarget buildTarget){
-          return !parsedBuildTargets.contains(buildTarget) && !pendingBuildTargets.contains(buildTarget);
-        }
-      }
-).toSet());
+       processingScope.addDepsToProcess(FluentIterable.from(node.getDeps()).filter(permState.getHasCachedTargetNodeForBuildTargetPredicate()).toSet());
     }
  catch (    TimeoutException e) {
       continue;
