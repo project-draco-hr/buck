@@ -1,5 +1,6 @@
 {
-  Path outputDir=getPathToOutput();
+  final Path outputDir=getPathToOutput();
+  final Path output=outputDir.resolve(getLibraryName());
   String shortName=getBuildTarget().getShortName();
   buildableContext.recordArtifact(outputDir.resolve(getLibraryName()));
   buildableContext.recordArtifact(outputDir.resolve(shortName + ".h"));
@@ -7,6 +8,15 @@
   ImmutableList.Builder<Step> commands=ImmutableList.builder();
   commands.add(new MakeCleanDirectoryStep(getProjectFilesystem(),outputDir));
   commands.add(new HalideCompilerStep(getProjectFilesystem().getRootPath(),halideCompiler.getEnvironment(getResolver()),halideCompiler.getCommandPrefix(getResolver()),outputDir,shortName,halideBuckConfig.getHalideTargetForPlatform(cxxPlatform)));
-  commands.add(new ArchiveStep(getProjectFilesystem().getRootPath(),archiver.getEnvironment(getResolver()),archiver.getCommandPrefix(getResolver()),outputDir.resolve(getLibraryName()),ImmutableList.of(outputDir.resolve(shortName + ".o"))));
+  commands.add(new ArchiveStep(getProjectFilesystem().getRootPath(),archiver.getEnvironment(getResolver()),archiver.getCommandPrefix(getResolver()),output,ImmutableList.of(outputDir.resolve(shortName + ".o"))));
+  commands.add(new ShellStep(getProjectFilesystem().getRootPath()){
+    @Override protected ImmutableList<String> getShellCommandInternal(    ExecutionContext context){
+      return ImmutableList.<String>builder().addAll(cxxPlatform.getRanlib().getCommandPrefix(getResolver())).add(output.toString()).build();
+    }
+    @Override public String getShortName(){
+      return "ranlib";
+    }
+  }
+);
   return commands.build();
 }
