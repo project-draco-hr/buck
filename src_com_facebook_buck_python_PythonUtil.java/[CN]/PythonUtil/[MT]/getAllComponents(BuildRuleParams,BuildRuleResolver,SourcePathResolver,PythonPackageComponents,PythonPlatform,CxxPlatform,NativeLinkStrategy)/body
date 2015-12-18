@@ -1,0 +1,63 @@
+{
+  final PythonPackageComponents.Builder allComponents=new PythonPackageComponents.Builder(params.getBuildTarget());
+  final Map<BuildTarget,CxxPythonExtension> extensions=new LinkedHashMap<>();
+  final Map<BuildTarget,SharedNativeLinkTarget> nativeLinkTargetRoots=new LinkedHashMap<>();
+  final Map<BuildTarget,NativeLinkable> nativeLinkableRoots=new LinkedHashMap<>();
+  final Set<BuildTarget> excludedNativeLinkableRoots=new LinkedHashSet<>();
+  allComponents.addComponent(packageComponents,params.getBuildTarget());
+  new AbstractBreadthFirstThrowingTraversal<BuildRule,NoSuchBuildTargetException>(params.getDeps()){
+    private final ImmutableList<BuildRule> empty=ImmutableList.of();
+    @Override public Iterable<BuildRule> visit(    BuildRule rule) throws NoSuchBuildTargetException {
+      Iterable<BuildRule> deps=empty;
+      Optional<SharedNativeLinkTarget> linkTarget=NativeLinkables.getSharedNativeLinkTarget(rule,cxxPlatform);
+      if (rule instanceof CxxPythonExtension) {
+        extensions.put(rule.getBuildTarget(),(CxxPythonExtension)rule);
+      }
+ else       if (rule instanceof PythonPackagable) {
+        PythonPackagable packagable=(PythonPackagable)rule;
+        PythonPackageComponents comps=packagable.getPythonPackageComponents(pythonPlatform,cxxPlatform);
+        allComponents.addComponent(comps,rule.getBuildTarget());
+        if (hasNativeCode(cxxPlatform,comps)) {
+          for (          BuildRule dep : rule.getDeps()) {
+            if (dep instanceof NativeLinkable) {
+              NativeLinkable linkable=(NativeLinkable)dep;
+              excludedNativeLinkableRoots.add(linkable.getBuildTarget());
+            }
+          }
+        }
+        deps=rule.getDeps();
+      }
+ else       if (linkTarget.isPresent()) {
+        nativeLinkTargetRoots.put(linkTarget.get().getBuildTarget(),linkTarget.get());
+      }
+ else       if (rule instanceof NativeLinkable) {
+        nativeLinkableRoots.put(rule.getBuildTarget(),(NativeLinkable)rule);
+      }
+      return deps;
+    }
+  }
+.start();
+  ImmutableMap<String,SourcePath> sharedLibs;
+  if (nativeLinkStrategy == NativeLinkStrategy.MERGED) {
+    List<SharedNativeLinkTarget> includedNativeLinkTargetRoots=new ArrayList<>();
+    for (    Map.Entry<BuildTarget,SharedNativeLinkTarget> ent : nativeLinkTargetRoots.entrySet()) {
+      if (!excludedNativeLinkableRoots.contains(ent.getKey())) {
+        includedNativeLinkTargetRoots.add(ent.getValue());
+      }
+    }
+    for (    CxxPythonExtension extension : extensions.values()) {
+      includedNativeLinkTargetRoots.add(extension.getNativeLinkTarget(pythonPlatform));
+    }
+    sharedLibs=Omnibus.getSharedLibraries(params,ruleResolver,pathResolver,cxxPlatform,includedNativeLinkTargetRoots,nativeLinkableRoots.values());
+  }
+ else {
+    for (    Map.Entry<BuildTarget,CxxPythonExtension> entry : extensions.entrySet()) {
+      allComponents.addComponent(entry.getValue().getPythonPackageComponents(pythonPlatform,cxxPlatform),entry.getKey());
+    }
+    sharedLibs=NativeLinkables.getTransitiveSharedLibraries(cxxPlatform,params.getDeps(),Predicates.instanceOf(PythonPackagable.class));
+  }
+  for (  Map.Entry<String,SourcePath> ent : sharedLibs.entrySet()) {
+    allComponents.addNativeLibraries(Paths.get(ent.getKey()),ent.getValue(),params.getBuildTarget());
+  }
+  return allComponents.build();
+}
