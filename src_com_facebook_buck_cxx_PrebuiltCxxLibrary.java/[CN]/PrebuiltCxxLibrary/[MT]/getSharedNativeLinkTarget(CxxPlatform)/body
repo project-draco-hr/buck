@@ -1,0 +1,20 @@
+{
+  if (getPreferredLinkage(cxxPlatform) == Linkage.SHARED) {
+    return Optional.absent();
+  }
+  return Optional.<SharedNativeLinkTarget>of(new SharedNativeLinkTarget(){
+    @Override public BuildTarget getBuildTarget(){
+      return PrebuiltCxxLibrary.this.getBuildTarget();
+    }
+    @Override public Iterable<? extends NativeLinkable> getSharedNativeLinkTargetDeps(    CxxPlatform cxxPlatform){
+      return Iterables.concat(getNativeLinkableDeps(cxxPlatform),getNativeLinkableExportedDeps(cxxPlatform));
+    }
+    @Override public String getSharedNativeLinkTargetLibraryName(    CxxPlatform cxxPlatform){
+      return getSoname(cxxPlatform);
+    }
+    @Override public NativeLinkableInput getSharedNativeLinkTargetInput(    CxxPlatform cxxPlatform) throws NoSuchBuildTargetException {
+      return NativeLinkableInput.builder().addAllArgs(StringArg.from(exportedLinkerFlags.apply(cxxPlatform))).addAllArgs(cxxPlatform.getLd().linkWhole(new SourcePathArg(getResolver(),new PathSourcePath(params.getProjectFilesystem(),getStaticPicLibrary(cxxPlatform).get())))).build();
+    }
+  }
+);
+}
