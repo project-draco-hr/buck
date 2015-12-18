@@ -1,0 +1,29 @@
+def __iter__(self):
+    component_re = re.compile('(\\d+ | [a-z]+ | \\.| -)', re.VERBOSE)
+    replace = {'pre': 'c', 'preview': 'c', '-': 'final-', 'rc': 'c', 'dev': '@', }.get
+
+    def _parse_version_parts(s):
+        for part in component_re.split(s):
+            part = replace(part, part)
+            if ((not part) or (part == '.')):
+                continue
+            if (part[:1] in '0123456789'):
+                yield part.zfill(8)
+            else:
+                yield ('*' + part)
+        yield '*final'
+
+    def old_parse_version(s):
+        parts = []
+        for part in _parse_version_parts(s.lower()):
+            if part.startswith('*'):
+                if (part < '*final'):
+                    while (parts and (parts[(-1)] == '*final-')):
+                        parts.pop()
+                while (parts and (parts[(-1)] == '00000000')):
+                    parts.pop()
+            parts.append(part)
+        return tuple(parts)
+    warnings.warn('You have iterated over the result of pkg_resources.parse_version. This is a legacy behavior which is inconsistent with the new version class introduced in setuptools 8.0. In most cases, conversion to a tuple is unnecessary. For comparison of versions, sort the Version instances directly. If you have another use case requiring the tuple, please file a bug with the setuptools project describing that need.', RuntimeWarning, stacklevel=1)
+    for part in old_parse_version(str(self)):
+        yield part

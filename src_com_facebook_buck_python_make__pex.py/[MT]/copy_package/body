@@ -1,0 +1,14 @@
+def copy_package(pex_builder, package, resource='', prefix=''):
+    '\n    Copies the code of a package to the pex using the pkg_resources API.\n    '
+    if pkg_resources.resource_isdir(package, resource):
+        for entry in pkg_resources.resource_listdir(package, resource):
+            copy_package(pex_builder, package, os.path.join(resource, entry), prefix)
+    else:
+        if ((not resource.endswith('.py')) or ('tests' in resource)):
+            return
+        target_path = os.path.join(package, resource)
+        with closable_named_temporary_file() as fp:
+            with pkg_resources.resource_stream(package, resource) as r:
+                shutil.copyfileobj(r, fp)
+                fp.close()
+                pex_builder.add_source(fp.name, os.path.join(prefix, target_path))

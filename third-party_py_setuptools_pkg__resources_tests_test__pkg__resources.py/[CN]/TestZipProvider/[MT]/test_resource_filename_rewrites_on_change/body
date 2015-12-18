@@ -1,0 +1,17 @@
+def test_resource_filename_rewrites_on_change(self):
+    '\n        If a previous call to get_resource_filename has saved the file, but\n        the file has been subsequently mutated with different file of the\n        same size and modification time, it should not be overwritten on a\n        subsequent call to get_resource_filename.\n        '
+    import mod
+    manager = pkg_resources.ResourceManager()
+    zp = pkg_resources.ZipProvider(mod)
+    filename = zp.get_resource_filename(manager, 'data.dat')
+    actual = datetime.datetime.fromtimestamp(os.stat(filename).st_mtime)
+    assert (actual == self.ref_time)
+    f = open(filename, 'w')
+    f.write('hello, world?')
+    f.close()
+    ts = timestamp(self.ref_time)
+    os.utime(filename, (ts, ts))
+    filename = zp.get_resource_filename(manager, 'data.dat')
+    f = open(filename)
+    assert (f.read() == 'hello, world!')
+    manager.cleanup_resources()

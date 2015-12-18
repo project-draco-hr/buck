@@ -1,0 +1,25 @@
+def testResolve(self):
+    ad = pkg_resources.Environment([])
+    ws = WorkingSet([])
+    assert (list(ws.resolve([], ad)) == [])
+    with pytest.raises(pkg_resources.DistributionNotFound):
+        ws.resolve(parse_requirements('Foo'), ad)
+    Foo = Distribution.from_filename('/foo_dir/Foo-1.2.egg', metadata=Metadata(('depends.txt', '[bar]\nBaz>=2.0')))
+    ad.add(Foo)
+    ad.add(Distribution.from_filename('Foo-0.9.egg'))
+    for i in range(3):
+        targets = list(ws.resolve(parse_requirements('Foo'), ad))
+        assert (targets == [Foo])
+        list(map(ws.add, targets))
+    with pytest.raises(VersionConflict):
+        ws.resolve(parse_requirements('Foo==0.9'), ad)
+    ws = WorkingSet([])
+    with pytest.raises(pkg_resources.DistributionNotFound):
+        ws.resolve(parse_requirements('Foo[bar]'), ad)
+    Baz = Distribution.from_filename('/foo_dir/Baz-2.1.egg', metadata=Metadata(('depends.txt', 'Foo')))
+    ad.add(Baz)
+    assert (list(ws.resolve(parse_requirements('Foo[bar]'), ad)) == [Foo, Baz])
+    with pytest.raises(VersionConflict) as vc:
+        ws.resolve(parse_requirements('Foo==1.2\nFoo!=1.2'), ad)
+    msg = 'Foo 0.9 is installed but Foo==1.2 is required'
+    assert (vc.value.report() == msg)

@@ -1,0 +1,44 @@
+def parse_requirements(strs):
+    'Yield ``Requirement`` objects for each specification in `strs`\n\n    `strs` must be a string, or a (possibly-nested) iterable thereof.\n    '
+    lines = iter(yield_lines(strs))
+
+    def scan_list(ITEM, TERMINATOR, line, p, groups, item_name):
+        items = []
+        while (not TERMINATOR(line, p)):
+            if CONTINUE(line, p):
+                try:
+                    line = next(lines)
+                    p = 0
+                except StopIteration:
+                    msg = '\\ must not appear on the last nonblank line'
+                    raise RequirementParseError(msg)
+            match = ITEM(line, p)
+            if (not match):
+                msg = (('Expected ' + item_name) + ' in')
+                raise RequirementParseError(msg, line, 'at', line[p:])
+            items.append(match.group(*groups))
+            p = match.end()
+            match = COMMA(line, p)
+            if match:
+                p = match.end()
+            elif (not TERMINATOR(line, p)):
+                msg = "Expected ',' or end-of-list in"
+                raise RequirementParseError(msg, line, 'at', line[p:])
+        match = TERMINATOR(line, p)
+        if match:
+            p = match.end()
+        return (line, p, items)
+    for line in lines:
+        match = DISTRO(line)
+        if (not match):
+            raise RequirementParseError('Missing distribution spec', line)
+        project_name = match.group(1)
+        p = match.end()
+        extras = []
+        match = OBRACKET(line, p)
+        if match:
+            p = match.end()
+            (line, p, extras) = scan_list(DISTRO, CBRACKET, line, p, (1,), "'extra' name")
+        (line, p, specs) = scan_list(VERSION, LINE_END, line, p, (1, 2), 'version spec')
+        specs = [(op, val) for (op, val) in specs]
+        yield Requirement(project_name, specs, extras)

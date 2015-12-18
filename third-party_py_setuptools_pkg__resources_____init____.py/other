@@ -1,0 +1,114 @@
+'\nPackage resource API\n--------------------\n\nA resource is a logical file contained within a package, or a logical\nsubdirectory thereof.  The package resource API expects resource names\nto have their path parts separated with ``/``, *not* whatever the local\npath separator is.  Do not use os.path operations to manipulate resource\nnames being passed into the API.\n\nThe package resource API is designed to work with normal filesystem packages,\n.egg files, and unpacked .egg files.  It can also work in a limited way with\n.zip files and with custom PEP 302 loaders that support the ``get_data()``\nmethod.\n'
+from __future__ import absolute_import
+import sys
+import os
+import io
+import time
+import re
+import types
+import zipfile
+import zipimport
+import warnings
+import stat
+import functools
+import pkgutil
+import token
+import symbol
+import operator
+import platform
+import collections
+import plistlib
+import email.parser
+import tempfile
+import textwrap
+from pkgutil import get_importer
+try:
+    import _imp
+except ImportError:
+    import imp as _imp
+PY3 = (sys.version_info > (3,))
+PY2 = (not PY3)
+if PY3:
+    from urllib.parse import urlparse, urlunparse
+if PY2:
+    from urlparse import urlparse, urlunparse
+if PY3:
+    string_types = (str,)
+else:
+    string_types = (str, eval('unicode'))
+iteritems = ((lambda i: i.items()) if PY3 else (lambda i: i.iteritems()))
+from os import utime
+try:
+    from os import mkdir, rename, unlink
+    WRITE_SUPPORT = True
+except ImportError:
+    WRITE_SUPPORT = False
+from os import open as os_open
+from os.path import isdir, split
+if ((sys.version_info >= (3, 3)) and (sys.implementation.name == 'cpython')):
+    import importlib.machinery as importlib_machinery
+else:
+    importlib_machinery = None
+try:
+    import parser
+except ImportError:
+    pass
+try:
+    import pkg_resources._vendor.packaging.version
+    import pkg_resources._vendor.packaging.specifiers
+    packaging = pkg_resources._vendor.packaging
+except ImportError:
+    import packaging.version
+    import packaging.specifiers
+if ((3, 0) < sys.version_info < (3, 3)):
+    msg = 'Support for Python 3.0-3.2 has been dropped. Future versions will fail here.'
+    warnings.warn(msg)
+require = None
+working_set = None
+_state_vars = {}
+_sget_none = _sset_none = (lambda *args: None)
+__all__ = ['require', 'run_script', 'get_provider', 'get_distribution', 'load_entry_point', 'get_entry_map', 'get_entry_info', 'iter_entry_points', 'resource_string', 'resource_stream', 'resource_filename', 'resource_listdir', 'resource_exists', 'resource_isdir', 'declare_namespace', 'working_set', 'add_activation_listener', 'find_distributions', 'set_extraction_path', 'cleanup_resources', 'get_default_cache', 'Environment', 'WorkingSet', 'ResourceManager', 'Distribution', 'Requirement', 'EntryPoint', 'ResolutionError', 'VersionConflict', 'DistributionNotFound', 'UnknownExtra', 'ExtractionError', 'PEP440Warning', 'parse_requirements', 'parse_version', 'safe_name', 'safe_version', 'get_platform', 'compatible_platforms', 'yield_lines', 'split_sections', 'safe_extra', 'to_filename', 'invalid_marker', 'evaluate_marker', 'ensure_directory', 'normalize_path', 'EGG_DIST', 'BINARY_DIST', 'SOURCE_DIST', 'CHECKOUT_DIST', 'DEVELOP_DIST', 'IMetadataProvider', 'IResourceProvider', 'FileMetadata', 'PathMetadata', 'EggMetadata', 'EmptyProvider', 'empty_provider', 'NullProvider', 'EggProvider', 'DefaultProvider', 'ZipProvider', 'register_finder', 'register_namespace_handler', 'register_loader_type', 'fixup_namespace_packages', 'get_importer', 'run_main', 'AvailableDistributions']
+_provider_factories = {}
+PY_MAJOR = sys.version[:3]
+EGG_DIST = 3
+BINARY_DIST = 2
+SOURCE_DIST = 1
+CHECKOUT_DIST = 0
+DEVELOP_DIST = (-1)
+macosVersionString = re.compile('macosx-(\\d+)\\.(\\d+)-(.*)')
+darwinVersionString = re.compile('darwin-(\\d+)\\.(\\d+)\\.(\\d+)-(.*)')
+get_platform = get_build_platform
+run_main = run_script
+AvailableDistributions = Environment
+invalid_marker = MarkerEvaluation.is_invalid_marker
+evaluate_marker = MarkerEvaluation.evaluate_marker
+register_loader_type(object, NullProvider)
+register_loader_type(type(None), DefaultProvider)
+if (importlib_machinery is not None):
+    register_loader_type(importlib_machinery.SourceFileLoader, DefaultProvider)
+empty_provider = EmptyProvider()
+register_loader_type(zipimport.zipimporter, ZipProvider)
+_declare_state('dict', _distribution_finders={})
+register_finder(zipimport.zipimporter, find_eggs_in_zip)
+register_finder(object, find_nothing)
+register_finder(pkgutil.ImpImporter, find_on_path)
+if (importlib_machinery is not None):
+    register_finder(importlib_machinery.FileFinder, find_on_path)
+_declare_state('dict', _namespace_handlers={})
+_declare_state('dict', _namespace_packages={})
+register_namespace_handler(pkgutil.ImpImporter, file_ns_handler)
+register_namespace_handler(zipimport.zipimporter, file_ns_handler)
+if (importlib_machinery is not None):
+    register_namespace_handler(importlib_machinery.FileFinder, file_ns_handler)
+register_namespace_handler(object, null_ns_handler)
+LINE_END = re.compile('\\s*(#.*)?$').match
+CONTINUE = re.compile('\\s*\\\\\\s*(#.*)?$').match
+DISTRO = re.compile('\\s*((\\w|[-.])+)').match
+VERSION = re.compile('\\s*(<=?|>=?|===?|!=|~=)\\s*((\\w|[-.*_!+])+)').match
+COMMA = re.compile('\\s*,').match
+OBRACKET = re.compile('\\s*\\[').match
+CBRACKET = re.compile('\\s*\\]').match
+MODULE = re.compile('\\w+(\\.\\w+)*$').match
+EGG_NAME = re.compile('\n    (?P<name>[^-]+) (\n        -(?P<ver>[^-]+) (\n            -py(?P<pyver>[^-]+) (\n                -(?P<plat>.+)\n            )?\n        )?\n    )?\n    ', (re.VERBOSE | re.IGNORECASE)).match
+_distributionImpl = {'.egg': Distribution, '.egg-info': Distribution, '.dist-info': DistInfoDistribution, }
+warnings.filterwarnings('ignore', category=PEP440Warning, append=True)

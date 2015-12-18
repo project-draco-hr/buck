@@ -1,0 +1,36 @@
+def resolve(self, requirements, env=None, installer=None, replace_conflicting=False):
+    'List all distributions needed to (recursively) meet `requirements`\n\n        `requirements` must be a sequence of ``Requirement`` objects.  `env`,\n        if supplied, should be an ``Environment`` instance.  If\n        not supplied, it defaults to all distributions available within any\n        entry or distribution in the working set.  `installer`, if supplied,\n        will be invoked with each requirement that cannot be met by an\n        already-installed distribution; it should return a ``Distribution`` or\n        ``None``.\n\n        Unless `replace_conflicting=True`, raises a VersionConflict exception if\n        any requirements are found on the path that have the correct name but\n        the wrong version.  Otherwise, if an `installer` is supplied it will be\n        invoked to obtain the correct version of the requirement and activate\n        it.\n        '
+    requirements = list(requirements)[::(-1)]
+    processed = {}
+    best = {}
+    to_activate = []
+    required_by = collections.defaultdict(set)
+    while requirements:
+        req = requirements.pop(0)
+        if (req in processed):
+            continue
+        dist = best.get(req.key)
+        if (dist is None):
+            dist = self.by_key.get(req.key)
+            if ((dist is None) or ((dist not in req) and replace_conflicting)):
+                ws = self
+                if (env is None):
+                    if (dist is None):
+                        env = Environment(self.entries)
+                    else:
+                        env = Environment([])
+                        ws = WorkingSet([])
+                dist = best[req.key] = env.best_match(req, ws, installer)
+                if (dist is None):
+                    requirers = required_by.get(req, None)
+                    raise DistributionNotFound(req, requirers)
+            to_activate.append(dist)
+        if (dist not in req):
+            dependent_req = required_by[req]
+            raise VersionConflict(dist, req).with_context(dependent_req)
+        new_requirements = dist.requires(req.extras)[::(-1)]
+        requirements.extend(new_requirements)
+        for new_requirement in new_requirements:
+            required_by[new_requirement].add(req.project_name)
+        processed[req] = True
+    return to_activate

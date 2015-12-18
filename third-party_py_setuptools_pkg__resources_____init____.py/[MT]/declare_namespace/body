@@ -1,0 +1,22 @@
+def declare_namespace(packageName):
+    "Declare that package 'packageName' is a namespace package"
+    _imp.acquire_lock()
+    try:
+        if (packageName in _namespace_packages):
+            return
+        (path, parent) = (sys.path, None)
+        if ('.' in packageName):
+            parent = '.'.join(packageName.split('.')[:(-1)])
+            declare_namespace(parent)
+            if (parent not in _namespace_packages):
+                __import__(parent)
+            try:
+                path = sys.modules[parent].__path__
+            except AttributeError:
+                raise TypeError('Not a package:', parent)
+        _namespace_packages.setdefault(parent, []).append(packageName)
+        _namespace_packages.setdefault(packageName, [])
+        for path_item in path:
+            _handle_ns(packageName, path_item)
+    finally:
+        _imp.release_lock()
