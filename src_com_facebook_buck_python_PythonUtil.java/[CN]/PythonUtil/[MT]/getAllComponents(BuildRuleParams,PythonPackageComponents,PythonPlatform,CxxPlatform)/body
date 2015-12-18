@@ -1,27 +1,17 @@
 {
   final PythonPackageComponents.Builder components=new PythonPackageComponents.Builder(params.getBuildTarget());
   components.addComponent(packageComponents,params.getBuildTarget());
-  try {
-    new AbstractBreadthFirstTraversal<BuildRule>(params.getDeps()){
-      @Override public ImmutableSortedSet<BuildRule> visit(      BuildRule rule){
-        if (rule instanceof PythonPackagable) {
-          PythonPackagable lib=(PythonPackagable)rule;
-          try {
-            components.addComponent(lib.getPythonPackageComponents(pythonPlatform,cxxPlatform),rule.getBuildTarget());
-          }
- catch (          NoSuchBuildTargetException e) {
-            throw new ClosureException(e);
-          }
-          return FluentIterable.from(rule.getDeps()).filter(Predicates.instanceOf(PythonPackagable.class)).toSortedSet(Ordering.natural());
-        }
-        return ImmutableSortedSet.of();
+  new AbstractBreadthFirstThrowingTraversal<BuildRule,NoSuchBuildTargetException>(params.getDeps()){
+    @Override public ImmutableSortedSet<BuildRule> visit(    BuildRule rule) throws NoSuchBuildTargetException {
+      if (rule instanceof PythonPackagable) {
+        PythonPackagable lib=(PythonPackagable)rule;
+        components.addComponent(lib.getPythonPackageComponents(pythonPlatform,cxxPlatform),rule.getBuildTarget());
+        return FluentIterable.from(rule.getDeps()).filter(Predicates.instanceOf(PythonPackagable.class)).toSortedSet(Ordering.natural());
       }
+      return ImmutableSortedSet.of();
     }
+  }
 .start();
-  }
- catch (  ClosureException e) {
-    throw (NoSuchBuildTargetException)e.getException();
-  }
   ImmutableMap<String,SourcePath> sharedLibs=NativeLinkables.getTransitiveSharedLibraries(cxxPlatform,params.getDeps(),Predicates.instanceOf(PythonPackagable.class));
   for (  Map.Entry<String,SourcePath> ent : sharedLibs.entrySet()) {
     components.addNativeLibraries(Paths.get(ent.getKey()),ent.getValue(),params.getBuildTarget());

@@ -1,26 +1,15 @@
 {
   final ImmutableSet.Builder<CxxInferAnalyze> depsBuilder=ImmutableSet.builder();
-  AbstractBreadthFirstTraversal<BuildRule> visitor=new AbstractBreadthFirstTraversal<BuildRule>(deps){
-    @Override public ImmutableSet<BuildRule> visit(    BuildRule buildRule){
+  new AbstractBreadthFirstThrowingTraversal<BuildRule,NoSuchBuildTargetException>(deps){
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule buildRule) throws NoSuchBuildTargetException {
       if (buildRule instanceof CxxLibrary) {
         CxxLibrary library=(CxxLibrary)buildRule;
-        try {
-          depsBuilder.add((CxxInferAnalyze)library.requireBuildRule(INFER_ANALYZE,cxxPlatform.getFlavor()));
-        }
- catch (        NoSuchBuildTargetException e) {
-          throw new ClosureException(e);
-        }
+        depsBuilder.add((CxxInferAnalyze)library.requireBuildRule(INFER_ANALYZE,cxxPlatform.getFlavor()));
         return buildRule.getDeps();
       }
       return ImmutableSet.of();
     }
   }
-;
-  try {
-    visitor.start();
-  }
- catch (  ClosureException e) {
-    throw (NoSuchBuildTargetException)e.getException();
-  }
+.start();
   return depsBuilder.build();
 }
