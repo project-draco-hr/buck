@@ -1,0 +1,11 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  new CxxLibraryBuilder(PYTHON2_DEP_TARGET).build(resolver);
+  new CxxLibraryBuilder(PYTHON3_DEP_TARGET).build(resolver);
+  CxxLibrary dep=(CxxLibrary)new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:dep")).build(resolver);
+  CxxPythonExtensionBuilder builder=new CxxPythonExtensionBuilder(BuildTargetFactory.newInstance("//:rule"),new FlavorDomain<>("Python Platform",ImmutableMap.of(PY2.getFlavor(),PY2,PY3.getFlavor(),PY3)),new CxxBuckConfig(FakeBuckConfig.builder().build()),CxxTestBuilder.createDefaultPlatforms());
+  CxxPythonExtension rule=(CxxPythonExtension)builder.setDeps(ImmutableSortedSet.of(dep.getBuildTarget())).build(resolver);
+  SharedNativeLinkTarget sharedNativeLinkTarget=rule.getNativeLinkTarget(PY2);
+  assertThat(ImmutableList.copyOf(sharedNativeLinkTarget.getSharedNativeLinkTargetDeps(CxxPlatformUtils.DEFAULT_PLATFORM)),Matchers.<NativeLinkable>hasItem(dep));
+  assertThat(ImmutableList.copyOf(sharedNativeLinkTarget.getSharedNativeLinkTargetDeps(CxxPlatformUtils.DEFAULT_PLATFORM)),Matchers.hasItem((NativeLinkable)resolver.getRule(PY2.getCxxLibrary().get())));
+}

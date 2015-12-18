@@ -1,28 +1,2 @@
 {
-  final Optional<Map.Entry<Flavor,Type>> type=LIBRARY_TYPE.getFlavorAndValue(params.getBuildTarget());
-  Optional<Map.Entry<Flavor,CxxPlatform>> platform=cxxPlatforms.getFlavorAndValue(params.getBuildTarget());
-  final Optional<Map.Entry<Flavor,PythonPlatform>> pythonPlatform=pythonPlatforms.getFlavorAndValue(params.getBuildTarget());
-  if (type.isPresent() && platform.isPresent() && pythonPlatform.isPresent()) {
-    Preconditions.checkState(type.get().getValue() == Type.EXTENSION);
-    return createExtensionBuildRule(params.copyWithExtraDeps(new Supplier<ImmutableSortedSet<BuildRule>>(){
-      @Override public ImmutableSortedSet<BuildRule> get(){
-        BuildRule relevantCxxLibrary=ruleResolver.getRule(pythonPlatform.get().getValue().getCxxLibrary().get());
-        Set<BuildRule> extraDeps=Sets.newHashSet(params.getExtraDeps().get());
-        for (        PythonPlatform python : pythonPlatforms.getValues()) {
-          Optional<BuildTarget> cxxLibraryTarget=python.getCxxLibrary();
-          if (cxxLibraryTarget.isPresent()) {
-            Optional<BuildRule> cxxLibrary=ruleResolver.getRuleOptional(cxxLibraryTarget.get());
-            if (cxxLibrary.isPresent() && !cxxLibrary.get().equals(relevantCxxLibrary)) {
-              extraDeps.remove(cxxLibrary.get());
-            }
-          }
-        }
-        return ImmutableSortedSet.copyOf(extraDeps);
-      }
-    }
-),ruleResolver,pythonPlatform.get().getValue(),platform.get().getValue(),args);
-  }
-  SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
-  Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);
-  return new CxxPythonExtension(params,ruleResolver,pathResolver,baseModule.resolve(getExtensionName(params.getBuildTarget())));
 }
