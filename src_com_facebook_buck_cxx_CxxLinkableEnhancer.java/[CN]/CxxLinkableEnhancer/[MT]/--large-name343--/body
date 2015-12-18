@@ -1,14 +1,12 @@
 {
   Preconditions.checkState(!soname.isPresent() || SONAME_REQUIRED_LINK_TYPES.contains(linkType));
   Preconditions.checkState(!bundleLoader.isPresent() || linkType == Linker.LinkType.MACH_O_BUNDLE);
-  Linker linker=cxxPlatform.getLd();
   ImmutableList.Builder<NativeLinkableInput> nativeLinkableInputs=ImmutableList.builder();
   for (  NativeLinkable nativeLinkable : Maps.filterKeys(NativeLinkables.getNativeLinkables(cxxPlatform,FluentIterable.from(nativeLinkableDeps).filter(NativeLinkable.class),depType),Predicates.not(Predicates.in(blacklist))).values()) {
     nativeLinkableInputs.add(NativeLinkables.getNativeLinkableInput(cxxPlatform,depType,nativeLinkable));
   }
   NativeLinkableInput linkableInput=NativeLinkableInput.concat(nativeLinkableInputs.build());
   ImmutableList.Builder<Arg> argsBuilder=ImmutableList.builder();
-  argsBuilder.addAll(SanitizedArg.from(cxxPlatform.getDebugPathSanitizer().sanitize(Optional.<Path>absent()),cxxPlatform.getLdflags()));
   if (linkType == Linker.LinkType.SHARED) {
     argsBuilder.add(new StringArg("-shared"));
   }
@@ -19,18 +17,12 @@
     }
   }
   if (soname.isPresent()) {
-    argsBuilder.addAll(StringArg.from(linker.soname(soname.get())));
+    argsBuilder.addAll(StringArg.from(cxxPlatform.getLd().soname(soname.get())));
   }
   argsBuilder.addAll(args);
   argsBuilder.addAll(linkableInput.getArgs());
   addSharedLibrariesLinkerArgs(cxxPlatform,resolver,ImmutableSortedSet.copyOf(linkableInput.getLibraries()),argsBuilder);
   addFrameworkLinkerArgs(cxxPlatform,resolver,mergeFrameworks(linkableInput,frameworks),argsBuilder);
-  argsBuilder.addAll(StringArg.from(cxxPlatform.getRuntimeLdflags().get(depType)));
   final ImmutableList<Arg> allArgs=argsBuilder.build();
-  return new CxxLink(params.copyWithChanges(target,new Supplier<ImmutableSortedSet<BuildRule>>(){
-    @Override public ImmutableSortedSet<BuildRule> get(){
-      return FluentIterable.from(allArgs).transformAndConcat(Arg.getDepsFunction(resolver)).toSortedSet(Ordering.natural());
-    }
-  }
-,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),resolver,cxxPlatform.getLd(),output,allArgs);
+  return createCxxLinkableBuildRule(cxxPlatform,params,resolver,target,output,allArgs,depType);
 }

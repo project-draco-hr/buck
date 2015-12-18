@@ -1,0 +1,29 @@
+{
+  ImmutableList.Builder<Arg> argsBuilder=ImmutableList.builder();
+  NativeLinkableInput input=root.getSharedNativeLinkTargetInput(cxxPlatform);
+  argsBuilder.addAll(input.getArgs());
+  ImmutableMap<BuildTarget,NativeLinkable> deps=NativeLinkables.getNativeLinkables(cxxPlatform,root.getSharedNativeLinkTargetDeps(cxxPlatform),Linker.LinkableDepType.SHARED);
+  boolean alreadyAddedOmnibusToArgs=false;
+  for (  Map.Entry<BuildTarget,NativeLinkable> entry : deps.entrySet()) {
+    BuildTarget target=entry.getKey();
+    if (spec.getRoots().containsKey(target)) {
+      argsBuilder.add(new SourcePathArg(pathResolver,new BuildTargetSourcePath(getRootTarget(params.getBuildTarget(),target))));
+      continue;
+    }
+    if (spec.getBody().containsKey(target)) {
+      if (!alreadyAddedOmnibusToArgs) {
+        argsBuilder.add(new SourcePathArg(pathResolver,omnibus));
+        alreadyAddedOmnibusToArgs=true;
+      }
+      continue;
+    }
+    Preconditions.checkState(spec.getExcluded().containsKey(target));
+    NativeLinkable nativeLinkable=entry.getValue();
+    NativeLinkableInput depInput=NativeLinkables.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.SHARED,nativeLinkable);
+    argsBuilder.addAll(depInput.getArgs());
+  }
+  BuildTarget rootTarget=getRootTarget(params.getBuildTarget(),root.getBuildTarget());
+  String rootSoname=root.getSharedNativeLinkTargetLibraryName(cxxPlatform);
+  ruleResolver.addToIndex(CxxLinkableEnhancer.createCxxLinkableSharedBuildRule(cxxPlatform,params,pathResolver,rootTarget,BuildTargets.getGenPath(rootTarget,"%s").resolve(rootSoname),rootSoname,argsBuilder.build()));
+  return ImmutableSharedLibrary.of(rootSoname,new BuildTargetSourcePath(rootTarget));
+}
