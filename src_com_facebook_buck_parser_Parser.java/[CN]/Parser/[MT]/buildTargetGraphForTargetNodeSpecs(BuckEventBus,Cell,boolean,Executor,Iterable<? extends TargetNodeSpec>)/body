@@ -1,7 +1,16 @@
 {
-  try (PerBuildState state=new SerialPerBuildState(permState,marshaller,eventBus,rootCell,enableProfiling)){
-    ImmutableSet<BuildTarget> buildTargets=resolveTargetSpecs(state,rootCell,targetNodeSpecs);
-    TargetGraph graph=buildTargetGraph(eventBus,rootCell,enableProfiling,executor,buildTargets);
+  ParserConfig parserConfig=new ParserConfig(rootCell.getBuckConfig());
+  if (parserConfig.getEnableParallelParsing()) {
+    Preconditions.checkState(permState instanceof ParallelDaemonicParserState);
+    try (ParallelPerBuildState state=new ParallelPerBuildState((ParallelDaemonicParserState)permState,marshaller,eventBus,rootCell,enableProfiling)){
+      ImmutableSet<BuildTarget> buildTargets=resolveTargetSpecsInParallel(state,rootCell,executor,parserConfig,targetNodeSpecs);
+      TargetGraph graph=buildTargetGraphInParallel(eventBus,rootCell,enableProfiling,executor,buildTargets);
+      return new Pair<>(buildTargets,graph);
+    }
+   }
+  try (SerialPerBuildState state=new SerialPerBuildState(permState,marshaller,eventBus,rootCell,enableProfiling)){
+    ImmutableSet<BuildTarget> buildTargets=resolveTargetSpecsSerially(state,rootCell,targetNodeSpecs);
+    TargetGraph graph=buildTargetGraphSerially(eventBus,rootCell,enableProfiling,buildTargets);
     return new Pair<>(buildTargets,graph);
   }
  }

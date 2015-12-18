@@ -3,15 +3,15 @@
   if (exitCode != 0) {
     return exitCode;
   }
-  ImmutableSet<String> installHelperTargets;
-  try {
-    installHelperTargets=getInstallHelperTargets(params);
-  }
- catch (  BuildTargetException|BuildFileParseException e) {
-    params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
-    return 1;
-  }
   try (CommandThreadManager pool=new CommandThreadManager("Install",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
+    ImmutableSet<String> installHelperTargets;
+    try {
+      installHelperTargets=getInstallHelperTargets(params,pool.getExecutor());
+    }
+ catch (    BuildTargetException|BuildFileParseException e) {
+      params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
+      return 1;
+    }
     exitCode=super.run(params,pool.getExecutor(),installHelperTargets);
     if (exitCode != 0) {
       return exitCode;
