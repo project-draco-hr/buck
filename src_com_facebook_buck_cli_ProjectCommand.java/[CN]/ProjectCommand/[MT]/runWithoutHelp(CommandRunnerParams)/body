@@ -1,12 +1,13 @@
 {
   Ide projectIde=getIdeFromBuckConfig(params.getBuckConfig()).orNull();
-  boolean useExperimentalProjectGeneration=isExperimentalIntelliJProjectGenerationEnabled() || projectIde == Ide.XCODE;
+  boolean needsFullRecursiveParse=!isExperimentalIntelliJProjectGenerationEnabled() && projectIde != Ide.XCODE;
   try (CommandThreadManager pool=new CommandThreadManager("Project",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
     ImmutableSet<BuildTarget> passedInTargetsSet;
     TargetGraph projectGraph;
     try {
       passedInTargetsSet=params.getParser().resolveTargetSpecs(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),getArguments()));
-      projectGraph=getProjectGraphForIde(params,pool.getExecutor(),passedInTargetsSet,useExperimentalProjectGeneration);
+      needsFullRecursiveParse=needsFullRecursiveParse || passedInTargetsSet.isEmpty();
+      projectGraph=getProjectGraphForIde(params,pool.getExecutor(),passedInTargetsSet,needsFullRecursiveParse);
     }
  catch (    BuildTargetException|BuildFileParseException|HumanReadableException e) {
       params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
@@ -14,14 +15,13 @@
     }
     projectIde=getIdeBasedOnPassedInTargetsAndProjectGraph(params.getBuckConfig(),passedInTargetsSet,Optional.of(projectGraph));
     if (projectIde == ProjectCommand.Ide.XCODE) {
-      useExperimentalProjectGeneration=true;
       checkForAndKillXcodeIfRunning(params,getIdePrompt(params.getBuckConfig()));
     }
     ProjectPredicates projectPredicates=ProjectPredicates.forIde(projectIde);
     ImmutableSet<BuildTarget> graphRoots;
     if (!passedInTargetsSet.isEmpty()) {
       ImmutableSet<BuildTarget> supplementalGraphRoots=ImmutableSet.of();
-      if (projectIde == Ide.INTELLIJ && !useExperimentalProjectGeneration) {
+      if (projectIde == Ide.INTELLIJ && needsFullRecursiveParse) {
         supplementalGraphRoots=getRootBuildTargetsForIntelliJ(projectIde,projectGraph,projectPredicates);
       }
       graphRoots=Sets.union(passedInTargetsSet,supplementalGraphRoots).immutableCopy();
@@ -31,7 +31,7 @@
     }
     TargetGraphAndTargets targetGraphAndTargets;
     try {
-      targetGraphAndTargets=createTargetGraph(params,projectGraph,graphRoots,projectPredicates.getAssociatedProjectPredicate(),isWithTests(),isWithDependenciesTests(),useExperimentalProjectGeneration,pool.getExecutor());
+      targetGraphAndTargets=createTargetGraph(params,projectGraph,graphRoots,projectPredicates.getAssociatedProjectPredicate(),isWithTests(),isWithDependenciesTests(),needsFullRecursiveParse,pool.getExecutor());
     }
  catch (    BuildFileParseException|HumanReadableException e) {
       params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
