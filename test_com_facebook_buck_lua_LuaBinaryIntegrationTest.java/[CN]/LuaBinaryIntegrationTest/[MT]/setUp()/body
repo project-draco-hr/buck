@@ -4,15 +4,16 @@
   Optional<Path> luaOptional=fakeConfig.getSystemLua();
   assumeTrue(luaOptional.isPresent());
   lua=luaOptional.get();
+  CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(Platform.detect(),new CxxBuckConfig(FakeBuckConfig.builder().build()));
+  ProcessBuilder builder=new ProcessBuilder();
+  builder.command(ImmutableList.<String>builder().addAll(cxxPlatform.getCc().getCommandPrefix(new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer())))).add("-includelua.h","-E","-").build());
+  builder.redirectInput(ProcessBuilder.Redirect.PIPE);
+  Process process=builder.start();
+  process.getOutputStream().close();
+  int exitCode=process.waitFor();
+  luaDevel=exitCode == 0;
   if (starterType == LuaBinaryDescription.StarterType.NATIVE) {
-    CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(Platform.detect(),new CxxBuckConfig(FakeBuckConfig.builder().build()));
-    ProcessBuilder builder=new ProcessBuilder();
-    builder.command(ImmutableList.<String>builder().addAll(cxxPlatform.getCc().getCommandPrefix(new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer())))).add("-includelua.h","-E","-").build());
-    builder.redirectInput(ProcessBuilder.Redirect.PIPE);
-    Process process=builder.start();
-    process.getOutputStream().close();
-    int exitCode=process.waitFor();
-    assumeTrue("Lua devel package required for native starter",exitCode == 0);
+    assumeTrue("Lua devel package required for native starter",luaDevel);
   }
   workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"lua_binary",tmp);
   workspace.setUp();

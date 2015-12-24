@@ -1,0 +1,28 @@
+{
+  Optional<Map.Entry<Flavor,CxxPlatform>> platform=cxxPlatforms.getFlavorAndValue(params.getBuildTarget());
+  if (platform.isPresent()) {
+    return createExtensionBuildRule(params,resolver,platform.get().getValue(),args);
+  }
+  final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  return new CxxLuaExtension(params,pathResolver){
+    @Override public String getModule(    CxxPlatform cxxPlatform){
+      String baseModule=LuaUtil.getBaseModule(params.getBuildTarget(),args.baseModule);
+      String name=getExtensionName(params.getBuildTarget(),cxxPlatform);
+      return baseModule.isEmpty() ? name : baseModule + File.separator + name;
+    }
+    @Override public SourcePath getExtension(    CxxPlatform cxxPlatform) throws NoSuchBuildTargetException {
+      BuildRule rule=resolver.requireRule(BuildTarget.builder(getBuildTarget()).addFlavors(cxxPlatform.getFlavor()).build());
+      return new BuildTargetSourcePath(rule.getBuildTarget());
+    }
+    @Override public Iterable<? extends NativeLinkable> getSharedNativeLinkTargetDeps(    CxxPlatform cxxPlatform){
+      return FluentIterable.from(params.getDeclaredDeps().get()).filter(NativeLinkable.class);
+    }
+    @Override public String getSharedNativeLinkTargetLibraryName(    CxxPlatform cxxPlatform){
+      return getExtensionName(params.getBuildTarget(),cxxPlatform);
+    }
+    @Override public NativeLinkableInput getSharedNativeLinkTargetInput(    CxxPlatform cxxPlatform) throws NoSuchBuildTargetException {
+      return NativeLinkableInput.builder().addAllArgs(getExtensionArgs(params,resolver,pathResolver,cxxPlatform,args)).addAllFrameworks(args.frameworks.or(ImmutableSortedSet.<FrameworkPath>of())).build();
+    }
+  }
+;
+}
