@@ -1,0 +1,34 @@
+{
+  final Path output=getUndefinedSymbolsPath();
+  buildableContext.recordArtifact(output);
+  final ShellStep shellStep=new DefaultShellStep(getProjectFilesystem().getRootPath(),ImmutableList.<String>builder().addAll(nm.getCommandPrefix(getResolver())).add("-A").add("-P").add("-g").add("-u").addAll(FluentIterable.from(inputs).transform(getResolver().getAbsolutePathFunction()).transform(Functions.toStringFunction())).build(),nm.getEnvironment(getResolver())){
+    @Override protected void addOptions(    ExecutionContext context,    ImmutableSet.Builder<ProcessExecutor.Option> options){
+      options.add(ProcessExecutor.Option.EXPECTING_STD_OUT);
+    }
+  }
+;
+  MkdirStep mkdirStep=new MkdirStep(getProjectFilesystem(),output.getParent());
+  WriteFileStep writeFileStep=new WriteFileStep(getProjectFilesystem(),new ByteSource(){
+    @Override public InputStream openStream() throws IOException {
+      Set<String> symbols=new LinkedHashSet<>();
+      Pattern pattern=Pattern.compile("^\\S+: (?<name>\\S+) .*");
+      try (BufferedReader reader=new BufferedReader(new StringReader(shellStep.getStdout()))){
+        String line;
+        while ((line=reader.readLine()) != null) {
+          Matcher matcher=pattern.matcher(line);
+          if (matcher.matches()) {
+            symbols.add(matcher.group("name"));
+          }
+        }
+      }
+       StringBuilder builder=new StringBuilder();
+      for (      String symbol : symbols) {
+        builder.append(symbol);
+        builder.append(System.lineSeparator());
+      }
+      return new ByteArrayInputStream(builder.toString().getBytes(Charsets.UTF_8));
+    }
+  }
+,output,true);
+  return ImmutableList.of(shellStep,mkdirStep,writeFileStep);
+}

@@ -1,0 +1,23 @@
+{
+  final Path linkerScript=getLinkerScript();
+  buildableContext.recordArtifact(linkerScript);
+  return ImmutableList.of(new MkdirStep(getProjectFilesystem(),linkerScript.getParent()),new WriteFileStep(getProjectFilesystem(),new Supplier<String>(){
+    @Override public String get(){
+      Set<String> symbols=new LinkedHashSet<>();
+      for (      SourcePath path : symbolFiles) {
+        try {
+          symbols.addAll(Files.readAllLines(getResolver().getAbsolutePath(path),Charsets.UTF_8));
+        }
+ catch (        IOException e) {
+          throw Throwables.propagate(e);
+        }
+      }
+      List<String> lines=new ArrayList<>();
+      for (      String symbol : symbols) {
+        lines.add(String.format("EXTERN(\"%s\")",symbol));
+      }
+      return Joiner.on(System.lineSeparator()).join(lines);
+    }
+  }
+,linkerScript,false));
+}
