@@ -37,7 +37,6 @@
     }
   }
 .start();
-  ImmutableMap<String,SourcePath> sharedLibs;
   if (nativeLinkStrategy == NativeLinkStrategy.MERGED) {
     List<SharedNativeLinkTarget> includedNativeLinkTargetRoots=new ArrayList<>();
     for (    Map.Entry<BuildTarget,SharedNativeLinkTarget> ent : nativeLinkTargetRoots.entrySet()) {
@@ -45,19 +44,34 @@
         includedNativeLinkTargetRoots.add(ent.getValue());
       }
     }
+    Map<BuildTarget,CxxPythonExtension> includedExtensions=new LinkedHashMap<>();
     for (    CxxPythonExtension extension : extensions.values()) {
-      includedNativeLinkTargetRoots.add(extension.getNativeLinkTarget(pythonPlatform));
+      SharedNativeLinkTarget target=extension.getNativeLinkTarget(pythonPlatform);
+      includedExtensions.put(target.getBuildTarget(),extension);
+      includedNativeLinkTargetRoots.add(target);
     }
-    sharedLibs=Omnibus.getSharedLibraries(params,ruleResolver,pathResolver,cxxPlatform,includedNativeLinkTargetRoots,nativeLinkableRoots.values());
+    OmnibusLibraries libraries=Omnibus.getSharedLibraries(params,ruleResolver,pathResolver,cxxPlatform,includedNativeLinkTargetRoots,nativeLinkableRoots.values());
+    for (    Map.Entry<BuildTarget,SharedLibrary> root : libraries.getRoots().entrySet()) {
+      CxxPythonExtension extension=includedExtensions.get(root.getKey());
+      if (extension != null) {
+        allComponents.addModule(extension.getModule(),root.getValue().getPath(),root.getKey());
+      }
+ else {
+        allComponents.addNativeLibraries(Paths.get(root.getValue().getSoname()),root.getValue().getPath(),root.getKey());
+      }
+    }
+    for (    SharedLibrary library : libraries.getLibraries()) {
+      allComponents.addNativeLibraries(Paths.get(library.getSoname()),library.getPath(),params.getBuildTarget());
+    }
   }
  else {
     for (    Map.Entry<BuildTarget,CxxPythonExtension> entry : extensions.entrySet()) {
       allComponents.addComponent(entry.getValue().getPythonPackageComponents(pythonPlatform,cxxPlatform),entry.getKey());
     }
-    sharedLibs=NativeLinkables.getTransitiveSharedLibraries(cxxPlatform,params.getDeps(),Predicates.instanceOf(PythonPackagable.class));
-  }
-  for (  Map.Entry<String,SourcePath> ent : sharedLibs.entrySet()) {
-    allComponents.addNativeLibraries(Paths.get(ent.getKey()),ent.getValue(),params.getBuildTarget());
+    ImmutableMap<String,SourcePath> libs=NativeLinkables.getTransitiveSharedLibraries(cxxPlatform,params.getDeps(),Predicates.instanceOf(PythonPackagable.class));
+    for (    Map.Entry<String,SourcePath> ent : libs.entrySet()) {
+      allComponents.addNativeLibraries(Paths.get(ent.getKey()),ent.getValue(),params.getBuildTarget());
+    }
   }
   return allComponents.build();
 }

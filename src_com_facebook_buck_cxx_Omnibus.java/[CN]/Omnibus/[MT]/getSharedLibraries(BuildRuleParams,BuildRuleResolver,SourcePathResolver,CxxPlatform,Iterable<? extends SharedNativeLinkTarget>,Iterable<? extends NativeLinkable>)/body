@@ -1,18 +1,20 @@
 {
-  ImmutableMap.Builder<String,SourcePath> libs=ImmutableMap.builder();
+  OmnibusLibraries.Builder libs=OmnibusLibraries.builder();
   OmnibusSpec spec=buildSpec(cxxPlatform,nativeLinkTargetRoots,nativeLinkableRoots);
   SourcePath dummyOmnibus=createDummyOmnibus(params,ruleResolver,pathResolver,cxxPlatform);
   for (  SharedNativeLinkTarget root : spec.getRoots().values()) {
     SharedLibrary lib=createRoot(params,ruleResolver,pathResolver,cxxPlatform,spec,dummyOmnibus,root);
-    libs.put(lib.getSoname(),lib.getPath());
+    libs.putRoots(root.getBuildTarget(),lib);
   }
   if (!spec.getBody().isEmpty()) {
     SharedLibrary omnibus=createOmnibus(params,ruleResolver,pathResolver,cxxPlatform,spec);
-    libs.put(omnibus.getSoname(),omnibus.getPath());
+    libs.addLibraries(omnibus);
   }
   for (  NativeLinkable nativeLinkable : spec.getExcluded().values()) {
     if (nativeLinkable.getPreferredLinkage(cxxPlatform) != NativeLinkable.Linkage.STATIC) {
-      libs.putAll(nativeLinkable.getSharedLibraries(cxxPlatform));
+      for (      Map.Entry<String,SourcePath> ent : nativeLinkable.getSharedLibraries(cxxPlatform).entrySet()) {
+        libs.addLibraries(SharedLibrary.of(ent.getKey(),ent.getValue()));
+      }
     }
   }
   return libs.build();
