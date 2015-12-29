@@ -22,6 +22,7 @@
             if (dep instanceof NativeLinkable) {
               NativeLinkable linkable=(NativeLinkable)dep;
               excludedNativeLinkableRoots.add(linkable.getBuildTarget());
+              nativeLinkableRoots.put(linkable.getBuildTarget(),linkable);
             }
           }
         }
@@ -38,19 +39,19 @@
   }
 .start();
   if (nativeLinkStrategy == NativeLinkStrategy.MERGED) {
-    List<SharedNativeLinkTarget> includedNativeLinkTargetRoots=new ArrayList<>();
+    Map<BuildTarget,SharedNativeLinkTarget> includedNativeLinkTargetRoots=new LinkedHashMap<>();
     for (    Map.Entry<BuildTarget,SharedNativeLinkTarget> ent : nativeLinkTargetRoots.entrySet()) {
       if (!excludedNativeLinkableRoots.contains(ent.getKey())) {
-        includedNativeLinkTargetRoots.add(ent.getValue());
+        includedNativeLinkTargetRoots.put(ent.getKey(),ent.getValue());
       }
     }
     Map<BuildTarget,CxxPythonExtension> includedExtensions=new LinkedHashMap<>();
     for (    CxxPythonExtension extension : extensions.values()) {
       SharedNativeLinkTarget target=extension.getNativeLinkTarget(pythonPlatform);
       includedExtensions.put(target.getBuildTarget(),extension);
-      includedNativeLinkTargetRoots.add(target);
+      includedNativeLinkTargetRoots.put(target.getBuildTarget(),target);
     }
-    OmnibusLibraries libraries=Omnibus.getSharedLibraries(params,ruleResolver,pathResolver,cxxPlatform,includedNativeLinkTargetRoots,nativeLinkableRoots.values());
+    OmnibusLibraries libraries=Omnibus.getSharedLibraries(params,ruleResolver,pathResolver,cxxPlatform,includedNativeLinkTargetRoots.values(),Maps.filterKeys(nativeLinkableRoots,Predicates.not(Predicates.in(includedNativeLinkTargetRoots.keySet()))).values());
     for (    Map.Entry<BuildTarget,SharedLibrary> root : libraries.getRoots().entrySet()) {
       CxxPythonExtension extension=includedExtensions.get(root.getKey());
       if (extension != null) {
