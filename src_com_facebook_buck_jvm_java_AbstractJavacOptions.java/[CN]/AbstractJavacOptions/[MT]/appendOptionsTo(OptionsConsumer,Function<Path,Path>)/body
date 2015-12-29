@@ -1,0 +1,37 @@
+{
+  optionsConsumer.addOptionValue("source",getSourceLevel());
+  optionsConsumer.addOptionValue("target",getTargetLevel());
+  optionsConsumer.addOptionValue("sourcepath","");
+  if (isDebug()) {
+    optionsConsumer.addFlag("g");
+  }
+  if (isVerbose()) {
+    optionsConsumer.addFlag("verbose");
+  }
+  if (getBootclasspath().isPresent()) {
+    optionsConsumer.addOptionValue("bootclasspath",getBootclasspath().get());
+  }
+ else {
+    String bcp=getSourceToBootclasspath().get(getSourceLevel());
+    if (bcp != null) {
+      optionsConsumer.addOptionValue("bootclasspath",bcp);
+    }
+  }
+  if (!getAnnotationProcessingParams().isEmpty()) {
+    Path generateTo=getAnnotationProcessingParams().getGeneratedSourceFolderName();
+    if (generateTo != null) {
+      optionsConsumer.addOptionValue("s",pathRelativizer.apply(generateTo).toString());
+    }
+    optionsConsumer.addOptionValue("processorpath",Joiner.on(File.pathSeparator).join(FluentIterable.from(getAnnotationProcessingParams().getSearchPathElements()).transform(pathRelativizer).transform(Functions.toStringFunction())));
+    if (!getAnnotationProcessingParams().getNames().isEmpty()) {
+      optionsConsumer.addOptionValue("processor",Joiner.on(',').join(getAnnotationProcessingParams().getNames()));
+    }
+    for (    String parameter : getAnnotationProcessingParams().getParameters()) {
+      optionsConsumer.addFlag("A" + parameter);
+    }
+    if (getAnnotationProcessingParams().getProcessOnly()) {
+      optionsConsumer.addFlag("proc:only");
+    }
+  }
+  optionsConsumer.addExtras(getExtraArguments());
+}
