@@ -1,0 +1,16 @@
+{
+  List<Pair<URI,Long>> serverLatencies=Lists.newArrayList();
+  for (  ServerHealthState state : servers.values()) {
+    if (state.getErrorsPerSecond(epochMillis,errorCheckTimeRangeMillis) < maxErrorsPerSecond) {
+      long latencyMillis=state.getLatencyMillis(epochMillis,latencyCheckTimeRangeMillis);
+      if (latencyMillis <= maxAcceptableLatencyMillis) {
+        serverLatencies.add(new Pair<>(state.getServer(),latencyMillis));
+      }
+    }
+  }
+  if (serverLatencies.size() == 0) {
+    throw new NoHealthyServersException(String.format("No servers available. Too many errors reported by all servers in the pool: [%s]",Joiner.on(", ").join(FluentIterable.from(servers.keySet()).transform(Functions.toStringFunction()))));
+  }
+  Collections.sort(serverLatencies,LATENCY_COMPARATOR);
+  return serverLatencies.get(0).getFirst();
+}

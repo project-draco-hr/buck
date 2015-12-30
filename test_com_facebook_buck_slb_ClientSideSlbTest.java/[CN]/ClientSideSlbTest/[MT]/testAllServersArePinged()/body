@@ -1,0 +1,12 @@
+{
+  Capture<Runnable> capture=EasyMock.newCapture();
+  EasyMock.expect(mockScheduler.scheduleWithFixedDelay(EasyMock.capture(capture),EasyMock.anyLong(),EasyMock.anyLong(),EasyMock.anyObject(TimeUnit.class))).andReturn(mockFuture).once();
+  Call mockCall=EasyMock.createMock(Call.class);
+  EasyMock.expect(mockCall.execute()).andReturn(null).times(SERVERS.size());
+  EasyMock.expect(mockClient.newCall(EasyMock.anyObject(Request.class))).andReturn(mockCall).times(SERVERS.size());
+  EasyMock.replay(mockClient,mockCall,mockScheduler);
+  try (ClientSideSlb slb=new ClientSideSlb(config)){
+    Runnable healthCheckLoop=capture.getValue();
+    healthCheckLoop.run();
+  }
+ }

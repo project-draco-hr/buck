@@ -1,15 +1,15 @@
 {
-  Request request=new Request.Builder().url(new URL(uri.toURL(),"artifacts/key/" + ruleKey.toString())).get().build();
-  Response response=fetchCall(request);
+  Request.Builder requestBuilder=new Request.Builder().get();
+  Response response=fetchCall("/artifacts/key/" + ruleKey.toString(),requestBuilder);
   eventBuilder.setResponseSizeBytes(response.body().contentLength());
   try (DataInputStream input=new DataInputStream(new FullyReadOnCloseInputStream(response.body().byteStream()))){
     if (response.code() == HttpURLConnection.HTTP_NOT_FOUND) {
-      LOGGER.info("fetch(%s, %s): cache miss",uri,ruleKey);
+      LOGGER.info("fetch(%s, %s): cache miss",response.request().urlString(),ruleKey);
       return CacheResult.miss();
     }
     if (response.code() != HttpURLConnection.HTTP_OK) {
       String msg=String.format("unexpected response: %d",response.code());
-      reportFailure("fetch(%s, %s): %s",uri,ruleKey,msg);
+      reportFailure("fetch(%s, %s): %s",response.request().urlString(),ruleKey,msg);
       eventBuilder.setErrorMessage(msg);
       return CacheResult.error(name,msg);
     }
@@ -23,19 +23,19 @@
     eventBuilder.setArtifactContentHash(fetchedData.getArtifactOnlyHashCode().toString());
     if (!fetchedData.getRuleKeys().contains(ruleKey)) {
       String msg="incorrect key name";
-      reportFailure("fetch(%s, %s): %s",uri,ruleKey,msg);
+      reportFailure("fetch(%s, %s): %s",response.request().urlString(),ruleKey,msg);
       eventBuilder.setErrorMessage(msg);
       return CacheResult.error(name,msg);
     }
     if (!fetchedData.getExpectedHashCode().equals(fetchedData.getActualHashCode())) {
       String msg="artifact had invalid checksum";
-      reportFailure("fetch(%s, %s): %s",uri,ruleKey,msg);
+      reportFailure("fetch(%s, %s): %s",response.request().urlString(),ruleKey,msg);
       projectFilesystem.deleteFileAtPath(temp);
       eventBuilder.setErrorMessage(msg);
       return CacheResult.error(name,msg);
     }
     projectFilesystem.move(temp,file,StandardCopyOption.REPLACE_EXISTING);
-    LOGGER.info("fetch(%s, %s): cache hit",uri,ruleKey);
+    LOGGER.info("fetch(%s, %s): cache hit",response.request().urlString(),ruleKey);
     return CacheResult.hit(name,fetchedData.getMetadata());
   }
  }

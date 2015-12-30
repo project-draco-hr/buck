@@ -1,0 +1,56 @@
+{
+  OkHttpClient storeClient=new OkHttpClient();
+  storeClient.networkInterceptors().add(new Interceptor(){
+    @Override public Response intercept(    Chain chain) throws IOException {
+      return chain.proceed(chain.request().newBuilder().addHeader("X-BuckCache-User",System.getProperty("user.name","<unknown>")).addHeader("X-BuckCache-Host",hostToReportToRemote).build());
+    }
+  }
+);
+  int timeoutSeconds=cacheDescription.getTimeoutSeconds();
+  storeClient.setConnectTimeout(timeoutSeconds,TimeUnit.SECONDS);
+  storeClient.setConnectionPool(new ConnectionPool(200,TimeUnit.MINUTES.toMillis(5)));
+  OkHttpClient fetchClient=storeClient.clone();
+  fetchClient.setReadTimeout(timeoutSeconds,TimeUnit.SECONDS);
+  final ImmutableMap<String,String> readHeaders=cacheDescription.getReadHeaders();
+  final ImmutableMap<String,String> writeHeaders=cacheDescription.getWriteHeaders();
+  if (!writeHeaders.isEmpty()) {
+    storeClient.networkInterceptors().add(new Interceptor(){
+      @Override public Response intercept(      Chain chain) throws IOException {
+        return chain.proceed(addHeadersToBuilder(chain.request().newBuilder(),writeHeaders).build());
+      }
+    }
+);
+  }
+  if (!readHeaders.isEmpty()) {
+    fetchClient.networkInterceptors().add(new Interceptor(){
+      @Override public Response intercept(      Chain chain) throws IOException {
+        return chain.proceed(addHeadersToBuilder(chain.request().newBuilder(),readHeaders).build());
+      }
+    }
+);
+  }
+  HttpService fetchService=null;
+  HttpService storeService=null;
+switch (config.getLoadBalancingType()) {
+case CLIENT_SLB:
+    HttpLoadBalancer clientSideSlb=config.getSlbConfig().createHttpClientSideSlb(new DefaultClock());
+  fetchService=new LoadBalancedService(clientSideSlb,fetchClient);
+storeService=new LoadBalancedService(clientSideSlb,storeClient);
+break;
+case SINGLE_SERVER:
+URI url=cacheDescription.getUrl();
+fetchService=new SingleUriService(url,fetchClient);
+storeService=new SingleUriService(url,storeClient);
+break;
+default :
+throw new IllegalArgumentException("Unknown HttpLoadBalancer type: " + config.getLoadBalancingType());
+}
+String cacheName=cacheDescription.getName().transform(new Function<String,String>(){
+@Override public String apply(String input){
+return "http-" + input;
+}
+}
+).or("http");
+boolean doStore=cacheDescription.getCacheReadMode().isDoStore();
+return new HttpArtifactCache(cacheName,fetchService,storeService,doStore,projectFilesystem,buckEventBus,httpWriteExecutorService);
+}

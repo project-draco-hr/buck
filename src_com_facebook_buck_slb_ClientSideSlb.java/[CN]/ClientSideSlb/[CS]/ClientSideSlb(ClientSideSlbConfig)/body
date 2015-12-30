@@ -1,0 +1,18 @@
+{
+  this.clock=config.getClock();
+  this.pingEndpoint=Preconditions.checkNotNull(config.getPingEndpoint());
+  this.serverPool=Preconditions.checkNotNull(config.getServerPool());
+  Preconditions.checkArgument(serverPool.size() > 0,"No server URLs passed.");
+  this.healthManager=new ServerHealthManager(this.serverPool,config.getErrorCheckTimeRangeMillis(),config.getMaxErrorsPerSecond(),config.getLatencyCheckTimeRangeMillis(),config.getMaxAcceptableLatencyMillis());
+  this.pingClient=config.getPingHttpClient();
+  this.pingClient.setConnectTimeout(config.getConnectionTimeoutMillis(),TimeUnit.MILLISECONDS);
+  this.pingClient.setReadTimeout(config.getConnectionTimeoutMillis(),TimeUnit.MILLISECONDS);
+  this.pingClient.setWriteTimeout(config.getConnectionTimeoutMillis(),TimeUnit.MILLISECONDS);
+  this.schedulerService=config.getSchedulerService();
+  backgroundHealthChecker=this.schedulerService.scheduleWithFixedDelay(new Runnable(){
+    @Override public void run(){
+      backgroundThreadCallForHealthCheck();
+    }
+  }
+,0,config.getHealthCheckIntervalMillis(),TimeUnit.MILLISECONDS);
+}
