@@ -1,0 +1,16 @@
+{
+  final ProjectFilesystem cellFilesystem=params.getCell().getFilesystem();
+  final Path rootPath=cellFilesystem.getRootPath();
+  Preconditions.checkState(rootPath.isAbsolute());
+  ImmutableSet.Builder<QueryTarget> builder=ImmutableSet.builder();
+  for (  QueryTarget target : targets) {
+    Preconditions.checkState(target instanceof QueryBuildTarget);
+    BuildTarget buildTarget=((QueryBuildTarget)target).getBuildTarget();
+    Optional<Path> path=buildFileTree.getBasePathOfAncestorTarget(buildTarget.getBasePath());
+    Preconditions.checkState(path.isPresent());
+    Path buildFilePath=MorePaths.relativize(rootPath,cellFilesystem.resolve(path.get()).resolve(params.getCell().getBuildFileName()));
+    Preconditions.checkState(cellFilesystem.exists(buildFilePath));
+    builder.add(QueryFileTarget.of(buildFilePath));
+  }
+  return builder.build();
+}
