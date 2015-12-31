@@ -1,2 +1,43 @@
 {
+  final Optional<Map.Entry<Flavor,Type>> type=LIBRARY_TYPE.getFlavorAndValue(params.getBuildTarget());
+  Optional<Map.Entry<Flavor,CxxPlatform>> platform=cxxPlatforms.getFlavorAndValue(params.getBuildTarget());
+  final Optional<Map.Entry<Flavor,PythonPlatform>> pythonPlatform=pythonPlatforms.getFlavorAndValue(params.getBuildTarget());
+  if (type.isPresent() && platform.isPresent() && pythonPlatform.isPresent()) {
+    Preconditions.checkState(type.get().getValue() == Type.EXTENSION);
+    return createExtensionBuildRule(params.copyWithExtraDeps(removeUnusedPlatformDeps(ruleResolver,pythonPlatform.get().getValue(),params.getExtraDeps())),ruleResolver,pythonPlatform.get().getValue(),platform.get().getValue(),args);
+  }
+  final SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
+  Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);
+  final Path module=baseModule.resolve(getExtensionName(params.getBuildTarget()));
+  return new CxxPythonExtension(params,pathResolver){
+    @Override protected BuildRule getExtension(    PythonPlatform pythonPlatform,    CxxPlatform cxxPlatform) throws NoSuchBuildTargetException {
+      return ruleResolver.requireRule(getBuildTarget().withFlavors(pythonPlatform.getFlavor(),cxxPlatform.getFlavor(),CxxDescriptionEnhancer.SHARED_FLAVOR));
+    }
+    @Override public Path getModule(){
+      return module;
+    }
+    @Override public PythonPackageComponents getPythonPackageComponents(    PythonPlatform pythonPlatform,    CxxPlatform cxxPlatform) throws NoSuchBuildTargetException {
+      BuildRule extension=getExtension(pythonPlatform,cxxPlatform);
+      SourcePath output=new BuildTargetSourcePath(extension.getBuildTarget());
+      return PythonPackageComponents.of(ImmutableMap.of(module,output),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),Optional.of(false));
+    }
+    @Override public SharedNativeLinkTarget getNativeLinkTarget(    final PythonPlatform pythonPlatform){
+      return new SharedNativeLinkTarget(){
+        @Override public BuildTarget getBuildTarget(){
+          return BuildTarget.builder(params.getBuildTarget()).addFlavors(pythonPlatform.getFlavor()).build();
+        }
+        @Override public Iterable<? extends NativeLinkable> getSharedNativeLinkTargetDeps(        CxxPlatform cxxPlatform){
+          return FluentIterable.from(params.getDeclaredDeps().get()).filter(NativeLinkable.class).append(ruleResolver.getRuleOptionalWithType(pythonPlatform.getCxxLibrary().get().getBuildTarget(),NativeLinkable.class).get());
+        }
+        @Override public String getSharedNativeLinkTargetLibraryName(        CxxPlatform cxxPlatform){
+          return getExtensionName(params.getBuildTarget());
+        }
+        @Override public NativeLinkableInput getSharedNativeLinkTargetInput(        CxxPlatform cxxPlatform) throws NoSuchBuildTargetException {
+          return NativeLinkableInput.builder().addAllArgs(getExtensionArgs(params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addFlavors(pythonPlatform.getFlavor()).addFlavors(CxxDescriptionEnhancer.SHARED_FLAVOR).build(),params.getDeclaredDeps(),removeUnusedPlatformDeps(ruleResolver,pythonPlatform,params.getExtraDeps())),ruleResolver,pathResolver,cxxPlatform,args)).addAllFrameworks(args.frameworks.or(ImmutableSortedSet.<FrameworkPath>of())).build();
+        }
+      }
+;
+    }
+  }
+;
 }
