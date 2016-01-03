@@ -6,11 +6,16 @@
   int previousResourceId=strings.firstKey();
   outputStream.writeInt(previousResourceId);
   try (ByteArrayOutputStream dataStream=new ByteArrayOutputStream()){
-    for (    Map.Entry<Integer,String> entry : strings.entrySet()) {
-      byte[] resourceBytes=getUnescapedStringBytes(entry.getValue());
+    for (    Map.Entry<Integer,EnumMap<Gender,String>> entry : strings.entrySet()) {
       writeShort(outputStream,entry.getKey() - previousResourceId);
-      writeShort(outputStream,resourceBytes.length);
-      dataStream.write(resourceBytes,0,resourceBytes.length);
+      EnumMap<Gender,String> genderMap=entry.getValue();
+      outputStream.writeByte(genderMap.size());
+      for (      Map.Entry<Gender,String> gender : genderMap.entrySet()) {
+        outputStream.writeByte(gender.getKey().ordinal());
+        byte[] genderValue=getUnescapedStringBytes(gender.getValue());
+        writeShort(outputStream,genderValue.length);
+        dataStream.write(genderValue);
+      }
       previousResourceId=entry.getKey();
     }
     outputStream.write(dataStream.toByteArray());

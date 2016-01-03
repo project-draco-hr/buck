@@ -1,11 +1,20 @@
 {
-  String xmlInput="<string name='name1'>1</string>" + "<plurals name='name1'>" + "<item quantity='one'>2</item>"+ "<item quantity='other'>3</item>"+ "</plurals>"+ "<string-array name='name1'>"+ "<item>4</item>"+ "<item>5</item>"+ "</string-array>";
+  String xmlInput="<string name='name1' gender='unknown'>1</string>" + "<string name='name1_f1gender' gender='female'>1 f1</string>" + "<plurals name='name1' gender='unknown'>"+ "<item quantity='one'>2</item>"+ "<item quantity='other'>3</item>"+ "</plurals>"+ "<plurals name='name1_f1gender' gender='female'>"+ "<item quantity='one'>2 f1</item>"+ "<item quantity='other'>3 f1</item>"+ "</plurals>"+ "<string-array name='name1' gender='unknown'>"+ "<item>4</item>"+ "<item>5</item>"+ "</string-array>"+ "<string-array name='name1_f1gender' gender='female'>"+ "<item>4 f1</item>"+ "<item>5 f1</item>"+ "</string-array>";
   NodeList stringNodes=XmlDomParser.parse(createResourcesXml(xmlInput)).getElementsByTagName("string");
   NodeList pluralsNodes=XmlDomParser.parse(createResourcesXml(xmlInput)).getElementsByTagName("plurals");
   NodeList arrayNodes=XmlDomParser.parse(createResourcesXml(xmlInput)).getElementsByTagName("string-array");
-  Map<Integer,String> stringMap=Maps.newTreeMap();
-  Map<Integer,ImmutableMap<String,String>> pluralsMap=Maps.newTreeMap();
-  Map<Integer,ImmutableList<String>> arraysMap=Maps.newTreeMap();
+  Map<Integer,EnumMap<Gender,String>> stringMap=Maps.newTreeMap();
+  Map<Integer,EnumMap<Gender,ImmutableMap<String,String>>> pluralsMap=Maps.newTreeMap();
+  Map<Integer,EnumMap<Gender,ImmutableList<String>>> arraysMap=Maps.newTreeMap();
+  EnumMap<Gender,String> map1=Maps.newEnumMap(Gender.class);
+  map1.put(Gender.unknown,"1");
+  map1.put(Gender.female,"1 f1");
+  EnumMap<Gender,Map<String,String>> map2=Maps.newEnumMap(Gender.class);
+  map2.put(Gender.unknown,ImmutableMap.of("one","2","other","3"));
+  map2.put(Gender.female,ImmutableMap.of("one","2 f1","other","3 f1"));
+  EnumMap<Gender,ImmutableList<String>> map3=Maps.newEnumMap(Gender.class);
+  map3.put(Gender.unknown,ImmutableList.of("4","5"));
+  map3.put(Gender.female,ImmutableList.of("4 f1","5 f1"));
   CompileStringsStep step=createNonExecutingStep();
   step.addStringResourceNameToIdMap(ImmutableMap.of("name1",1));
   step.addPluralsResourceNameToIdMap(ImmutableMap.of("name1",2));
@@ -13,7 +22,7 @@
   step.scrapeStringNodes(stringNodes,stringMap);
   step.scrapePluralsNodes(pluralsNodes,pluralsMap);
   step.scrapeStringArrayNodes(arrayNodes,arraysMap);
-  assertEquals("Incorrect map of resource id to string.",ImmutableMap.of(1,"1"),stringMap);
-  assertEquals("Incorrect map of resource id to plurals.",ImmutableMap.of(2,ImmutableMap.of("one","2","other","3")),pluralsMap);
-  assertEquals("Incorrect map of resource id to string arrays.",ImmutableMap.of(3,ImmutableList.of("4","5")),arraysMap);
+  assertEquals("Incorrect map of resource id to string.",ImmutableMap.of(1,map1),stringMap);
+  assertEquals("Incorrect map of resource id to plurals.",ImmutableMap.of(2,map2),pluralsMap);
+  assertEquals("Incorrect map of resource id to string arrays.",ImmutableMap.of(3,map3),arraysMap);
 }

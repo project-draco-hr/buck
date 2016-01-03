@@ -6,15 +6,20 @@
   int previousResourceId=plurals.firstKey();
   outputStream.writeInt(previousResourceId);
   try (ByteArrayOutputStream dataStream=new ByteArrayOutputStream()){
-    for (    Map.Entry<Integer,ImmutableMap<String,String>> entry : plurals.entrySet()) {
+    for (    Map.Entry<Integer,EnumMap<Gender,ImmutableMap<String,String>>> entry : plurals.entrySet()) {
       writeShort(outputStream,entry.getKey() - previousResourceId);
-      ImmutableMap<String,String> categoryMap=entry.getValue();
-      outputStream.writeByte(categoryMap.size());
-      for (      Map.Entry<String,String> cat : categoryMap.entrySet()) {
-        outputStream.writeByte(Preconditions.checkNotNull(PLURAL_CATEGORY_MAP.get(cat.getKey())).byteValue());
-        byte[] pluralValue=getUnescapedStringBytes(cat.getValue());
-        writeShort(outputStream,pluralValue.length);
-        dataStream.write(pluralValue);
+      EnumMap<Gender,ImmutableMap<String,String>> genderMap=entry.getValue();
+      outputStream.writeByte(genderMap.size());
+      for (      Map.Entry<Gender,ImmutableMap<String,String>> gender : genderMap.entrySet()) {
+        outputStream.writeByte(gender.getKey().ordinal());
+        ImmutableMap<String,String> categoryMap=gender.getValue();
+        outputStream.writeByte(categoryMap.size());
+        for (        Map.Entry<String,String> cat : categoryMap.entrySet()) {
+          outputStream.writeByte(Preconditions.checkNotNull(PLURAL_CATEGORY_MAP.get(cat.getKey())).byteValue());
+          byte[] pluralValue=getUnescapedStringBytes(cat.getValue());
+          writeShort(outputStream,pluralValue.length);
+          dataStream.write(pluralValue);
+        }
       }
       previousResourceId=entry.getKey();
     }

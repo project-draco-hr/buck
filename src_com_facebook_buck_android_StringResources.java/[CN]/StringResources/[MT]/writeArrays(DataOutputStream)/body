@@ -6,16 +6,21 @@
   int previousResourceId=arrays.firstKey();
   outputStream.writeInt(previousResourceId);
   try (ByteArrayOutputStream dataStream=new ByteArrayOutputStream()){
-    for (    int resourceId : arrays.keySet()) {
-      writeShort(outputStream,resourceId - previousResourceId);
-      ImmutableList<String> arrayValues=arrays.get(resourceId);
-      outputStream.writeInt(arrayValues.size());
-      for (      String arrayValue : arrayValues) {
-        byte[] byteValue=getUnescapedStringBytes(arrayValue);
-        writeShort(outputStream,byteValue.length);
-        dataStream.write(byteValue);
+    for (    Map.Entry<Integer,EnumMap<Gender,ImmutableList<String>>> entry : arrays.entrySet()) {
+      writeShort(outputStream,entry.getKey() - previousResourceId);
+      EnumMap<Gender,ImmutableList<String>> genderMap=entry.getValue();
+      outputStream.writeByte(genderMap.size());
+      for (      Map.Entry<Gender,ImmutableList<String>> gender : genderMap.entrySet()) {
+        outputStream.writeByte(gender.getKey().ordinal());
+        ImmutableList<String> arrayElements=gender.getValue();
+        outputStream.writeByte(arrayElements.size());
+        for (        String arrayValue : arrayElements) {
+          byte[] byteValue=getUnescapedStringBytes(arrayValue);
+          writeShort(outputStream,byteValue.length);
+          dataStream.write(byteValue);
+        }
       }
-      previousResourceId=resourceId;
+      previousResourceId=entry.getKey();
     }
     outputStream.write(dataStream.toByteArray());
   }

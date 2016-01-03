@@ -1,0 +1,27 @@
+{
+  for (int i=0; i < pluralNodes.getLength(); ++i) {
+    Element element=(Element)pluralNodes.item(i);
+    String resourceName=element.getAttribute("name");
+    Gender gender=getGender(element);
+    Integer resourceId=getResourceId(resourceName,gender,pluralsResourceNameToIdMap);
+    if (resourceId == null) {
+      continue;
+    }
+    EnumMap<Gender,ImmutableMap<String,String>> genderMap=pluralsMap.get(resourceId);
+    if (genderMap == null) {
+      genderMap=Maps.newEnumMap(Gender.class);
+    }
+ else     if (genderMap.containsKey(gender)) {
+      continue;
+    }
+    ImmutableMap.Builder<String,String> quantityToStringBuilder=ImmutableMap.builder();
+    NodeList itemNodes=element.getElementsByTagName("item");
+    for (int j=0; j < itemNodes.getLength(); ++j) {
+      Node itemNode=itemNodes.item(j);
+      String quantity=itemNode.getAttributes().getNamedItem("quantity").getNodeValue();
+      quantityToStringBuilder.put(quantity,itemNode.getTextContent());
+    }
+    genderMap.put(gender,quantityToStringBuilder.build());
+    pluralsMap.put(resourceId,genderMap);
+  }
+}
