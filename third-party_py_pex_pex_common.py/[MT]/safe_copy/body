@@ -4,13 +4,19 @@ def safe_copy(source, dest, overwrite=False):
         temp_dest = (dest + uuid4().hex)
         shutil.copyfile(source, temp_dest)
         os.rename(temp_dest, dest)
-    try:
-        os.link(source, dest)
-    except OSError as e:
-        if (e.errno == errno.EEXIST):
-            if overwrite:
+    if hasattr(os, 'link'):
+        try:
+            os.link(source, dest)
+        except OSError as e:
+            if (e.errno == errno.EEXIST):
+                if overwrite:
+                    do_copy()
+            elif (e.errno == errno.EXDEV):
                 do_copy()
-        elif (e.errno == errno.EXDEV):
+            else:
+                raise
+    elif os.path.exists(dest):
+        if overwrite:
             do_copy()
-        else:
-            raise
+    else:
+        do_copy()
