@@ -36,7 +36,7 @@
   }
 ;
   for (  String className : testClassNames) {
-    Class<?> testClass=Class.forName(className);
+    final Class<?> testClass=Class.forName(className);
     Ignore ignore=testClass.getAnnotation(Ignore.class);
     boolean isTestClassIgnored=(ignore != null || !isTestClass(testClass));
     List<TestResult> results;
@@ -45,23 +45,14 @@
     }
  else {
       results=new ArrayList<>();
-      for (      Class<?> suiteClass : getTestClasses(testClass)) {
-        List<TestResult> suiteResults=new ArrayList<>();
-        JUnitCore jUnitCore=new JUnitCore();
-        Runner suite=new Computer().getSuite(createRunnerBuilder(),new Class<?>[]{suiteClass});
-        Request request=Request.runner(suite);
-        request=request.filterWith(filter);
-        jUnitCore.addListener(new TestListener(suiteResults,stdOutLogLevel,stdErrLogLevel));
-        jUnitCore.run(request);
-        if (isDryRun) {
-          suiteResults=getDryRunResults(className,suiteClass);
-        }
-        for (        TestResult result : suiteResults) {
-          results.add(result);
-        }
-      }
+      JUnitCore jUnitCore=new JUnitCore();
+      Runner suite=new Computer().getSuite(createRunnerBuilder(),new Class<?>[]{testClass});
+      Request request=Request.runner(suite);
+      request=request.filterWith(filter);
+      jUnitCore.addListener(new TestListener(results,stdOutLogLevel,stdErrLogLevel));
+      jUnitCore.run(request);
     }
-    results=interpretResults(results);
+    results=interpretResults(className,results);
     if (results != null) {
       writeResult(className,results);
     }
