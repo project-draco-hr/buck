@@ -1,0 +1,13 @@
+def resolve_interpreter(cache, fetchers, interpreter, requirement):
+    "Resolve an interpreter with a specific requirement.\n\n     Given a :class:`PythonInterpreter` and a requirement, return an\n     interpreter with the capability of resolving that requirement or\n     ``None`` if it's not possible to install a suitable requirement."
+    requirement = maybe_requirement(requirement)
+    if interpreter.satisfies([requirement]):
+        return interpreter
+
+    def installer_provider(sdist):
+        return EggInstaller(Archiver.unpack(sdist), strict=(requirement.key != 'setuptools'), interpreter=interpreter)
+    interpreter_dir = os.path.join(cache, str(interpreter.identity))
+    safe_mkdir(interpreter_dir)
+    egg = _resolve_and_link_interpreter(requirement, fetchers, os.path.join(interpreter_dir, requirement.key), installer_provider)
+    if egg:
+        return interpreter.with_extra(egg.name, egg.raw_version, egg.path)

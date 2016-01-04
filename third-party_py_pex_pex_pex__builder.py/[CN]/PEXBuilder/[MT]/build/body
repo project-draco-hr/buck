@@ -1,0 +1,19 @@
+def build(self, filename, bytecode_compile=True):
+    'Package the PEX into a zipfile.\n\n    :param filename: The filename where the PEX should be stored.\n    :param bytecode_compile: If True, precompile .py files into .pyc files.\n\n    If the PEXBuilder is not yet frozen, it will be frozen by ``build``.  This renders the\n    PEXBuilder immutable.\n    '
+    if (not self._frozen):
+        self.freeze(bytecode_compile=bytecode_compile)
+    try:
+        os.unlink((filename + '~'))
+        self._logger.warn(('Previous binary unexpectedly exists, cleaning: %s' % (filename + '~')))
+    except OSError:
+        pass
+    if os.path.dirname(filename):
+        safe_mkdir(os.path.dirname(filename))
+    with open((filename + '~'), 'ab') as pexfile:
+        assert (os.path.getsize(pexfile.name) == 0)
+        pexfile.write(to_bytes(('%s\n' % self._shebang)))
+    self._chroot.zip((filename + '~'), mode='a')
+    if os.path.exists(filename):
+        os.unlink(filename)
+    os.rename((filename + '~'), filename)
+    chmod_plus_x(filename)

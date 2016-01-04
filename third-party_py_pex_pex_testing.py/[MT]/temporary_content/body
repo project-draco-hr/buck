@@ -1,0 +1,14 @@
+@contextlib.contextmanager
+def temporary_content(content_map, interp=None, seed=31337):
+    'Write content to disk where content is map from string => (int, string).\n\n     If target is int, write int random bytes.  Otherwise write contents of string.'
+    random.seed(seed)
+    interp = (interp or {})
+    with temporary_dir() as td:
+        for (filename, size_or_content) in content_map.items():
+            safe_mkdir(os.path.dirname(os.path.join(td, filename)))
+            with open(os.path.join(td, filename), 'wb') as fp:
+                if isinstance(size_or_content, int):
+                    fp.write(random_bytes(size_or_content))
+                else:
+                    fp.write((size_or_content % interp).encode('utf-8'))
+        yield td

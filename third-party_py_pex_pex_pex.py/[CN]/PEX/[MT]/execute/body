@@ -1,0 +1,25 @@
+def execute(self):
+    'Execute the PEX.\n\n    This function makes assumptions that it is the last function called by\n    the interpreter.\n    '
+    teardown_verbosity = self._vars.PEX_TEARDOWN_VERBOSE
+    try:
+        try:
+            with self.patch_sys():
+                working_set = self._activate()
+                TRACER.log('PYTHONPATH contains:')
+                for element in sys.path:
+                    TRACER.log(('  %c %s' % ((' ' if os.path.exists(element) else '*'), element)))
+                TRACER.log('  * - paths that do not exist or will be imported via zipimport')
+                with self.patch_pkg_resources(working_set):
+                    self._wrap_coverage(self._wrap_profiling, self._execute)
+        except Exception:
+            sys.excepthook(*sys.exc_info())
+            raise
+        except SystemExit as se:
+            if ((not isinstance(se.code, int)) and (se.code is not None)):
+                print(se.code, file=sys.stderr)
+            raise
+    finally:
+        if (not teardown_verbosity):
+            sys.stderr.flush()
+            sys.stderr = DevNull()
+            sys.excepthook = (lambda *a, **kw: None)

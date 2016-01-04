@@ -1,0 +1,17 @@
+def interpreter_from_options(options):
+    interpreter = None
+    if options.python:
+        if os.path.exists(options.python):
+            interpreter = PythonInterpreter.from_binary(options.python)
+        else:
+            interpreter = PythonInterpreter.from_env(options.python)
+        if (interpreter is None):
+            die(('Failed to find interpreter: %s' % options.python))
+    else:
+        interpreter = PythonInterpreter.get()
+    with TRACER.timed(('Setting up interpreter %s' % interpreter.binary), V=2):
+        resolve = functools.partial(resolve_interpreter, options.interpreter_cache_dir, options.repos)
+        interpreter = resolve(interpreter, SETUPTOOLS_REQUIREMENT)
+        if (interpreter and options.use_wheel):
+            interpreter = resolve(interpreter, WHEEL_REQUIREMENT)
+        return interpreter

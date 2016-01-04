@@ -1,0 +1,15 @@
+def _activate(self):
+    self.update_candidate_distributions(self.load_internal_cache(self._pex, self._pex_info))
+    if ((not self._pex_info.zip_safe) and os.path.isfile(self._pex)):
+        self.update_module_paths(self.force_local(self._pex, self._pex_info))
+    all_reqs = [Requirement.parse(req) for req in self._pex_info.requirements]
+    working_set = WorkingSet([])
+    resolved = self._resolve(working_set, all_reqs)
+    for dist in resolved:
+        with TRACER.timed(('Activating %s' % dist), V=2):
+            working_set.add(dist)
+            if os.path.isdir(dist.location):
+                with TRACER.timed('Adding sitedir', V=2):
+                    site.addsitedir(dist.location)
+            dist.activate()
+    return working_set

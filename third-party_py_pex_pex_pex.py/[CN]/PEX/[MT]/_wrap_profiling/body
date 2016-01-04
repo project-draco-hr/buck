@@ -1,0 +1,18 @@
+def _wrap_profiling(self, runner, *args):
+    if ((not self._vars.PEX_PROFILE) and (self._vars.PEX_PROFILE_FILENAME is None)):
+        runner(*args)
+        return
+    pex_profile_filename = self._vars.PEX_PROFILE_FILENAME
+    pex_profile_sort = self._vars.PEX_PROFILE_SORT
+    try:
+        import cProfile as profile
+    except ImportError:
+        import profile
+    profiler = profile.Profile()
+    try:
+        return profiler.runcall(runner, *args)
+    finally:
+        if (pex_profile_filename is not None):
+            profiler.dump_stats(pex_profile_filename)
+        else:
+            profiler.print_stats(sort=pex_profile_sort)

@@ -1,0 +1,19 @@
+def _resolve_and_link_interpreter(requirement, fetchers, target_link, installer_provider):
+    if (os.path.exists(target_link) and os.path.exists(os.path.realpath(target_link))):
+        egg = EggPackage(os.path.realpath(target_link))
+        if egg.satisfies(requirement):
+            return egg
+    context = Context.get()
+    iterator = Iterator(fetchers=fetchers, crawler=Crawler(context))
+    links = [link for link in iterator.iter(requirement) if isinstance(link, SourcePackage)]
+    with TRACER.timed(('Interpreter cache resolving %s' % requirement), V=2):
+        for link in links:
+            with TRACER.timed(('Fetching %s' % link), V=3):
+                sdist = context.fetch(link)
+            with TRACER.timed(('Installing %s' % link), V=3):
+                installer = installer_provider(sdist)
+                dist_location = installer.bdist()
+                target_location = os.path.join(os.path.dirname(target_link), os.path.basename(dist_location))
+                shutil.move(dist_location, target_location)
+                _safe_link(target_location, target_link)
+            return EggPackage(target_location)

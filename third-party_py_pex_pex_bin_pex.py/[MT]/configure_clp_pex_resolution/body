@@ -1,0 +1,12 @@
+def configure_clp_pex_resolution(parser, builder):
+    group = OptionGroup(parser, 'Resolver options', 'Tailor how to find, resolve and translate the packages that get put into the PEX environment.')
+    group.add_option('--pypi', '--no-pypi', '--no-index', action='callback', dest='repos', callback=process_pypi_option, callback_args=(builder,), help='Whether to use pypi to resolve dependencies; Default: use pypi')
+    group.add_option('-f', '--find-links', '--repo', metavar='PATH/URL', action='callback', dest='repos', callback=process_find_links, callback_args=(builder,), type=str, help='Additional repository path (directory or URL) to look for requirements.')
+    group.add_option('-i', '--index', '--index-url', metavar='URL', action='callback', dest='repos', callback=process_index_url, callback_args=(builder,), type=str, help='Additional cheeseshop indices to use to satisfy requirements.')
+    group.add_option('--disable-cache', action='callback', dest='cache_dir', callback=process_disable_cache, help='Disable caching in the pex tool entirely.')
+    group.add_option('--cache-dir', dest='cache_dir', default=os.path.expanduser('~/.pex/build'), help='The local cache directory to use for speeding up requirement lookups. [Default: %default]')
+    group.add_option('--cache-ttl', dest='cache_ttl', type=int, default=None, help='The cache TTL to use for inexact requirement specifications.')
+    group.add_option('--wheel', '--no-wheel', '--no-use-wheel', dest='use_wheel', default=True, action='callback', callback=process_precedence, callback_args=(builder,), help='Whether to allow wheel distributions; Default: allow wheels')
+    group.add_option('--build', '--no-build', action='callback', callback=process_precedence, callback_args=(builder,), help='Whether to allow building of distributions from source; Default: allow builds')
+    parser.set_default('repos', [PyPIFetcher()])
+    parser.add_option_group(group)

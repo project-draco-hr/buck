@@ -1,0 +1,38 @@
+def crawl(self, link_or_links, follow_links=False):
+    (links, seen) = (set(), set())
+    queue = Queue()
+    converged = threading.Event()
+
+    def execute():
+        while (not converged.is_set()):
+            try:
+                link = queue.get(timeout=0.01)
+            except Empty:
+                continue
+            if (link not in seen):
+                seen.add(link)
+                try:
+                    (roots, rels) = self.crawl_link(self.context, link)
+                except Exception as e:
+                    TRACER.log(('Unknown exception encountered: %s' % e))
+                    for line in traceback.format_exc().splitlines():
+                        TRACER.log(line)
+                    queue.task_done()
+                    continue
+                links.update(roots)
+                if follow_links:
+                    for rel in rels:
+                        if (rel not in seen):
+                            queue.put(rel)
+            queue.task_done()
+    for link in Link.wrap_iterable(link_or_links):
+        queue.put(link)
+    workers = []
+    for _ in range(self._threads):
+        worker = threading.Thread(target=execute)
+        workers.append(worker)
+        worker.daemon = True
+        worker.start()
+    queue.join()
+    converged.set()
+    return links

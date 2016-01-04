@@ -1,0 +1,14 @@
+def build(self, package, options):
+    context = options.get_context()
+    translator = options.get_translator(self._interpreter, self._platform)
+    with TRACER.timed(('Fetching %s' % package.url), V=2):
+        local_package = Package.from_href(context.fetch(package))
+    if (local_package is None):
+        raise Untranslateable(('Could not fetch package %s' % package))
+    with TRACER.timed(('Translating %s into distribution' % local_package.path), V=2):
+        dist = translator.translate(local_package)
+    if (dist is None):
+        raise Untranslateable(('Package %s is not translateable by %s' % (package, translator)))
+    if (not distribution_compatible(dist, self._interpreter, self._platform)):
+        raise Untranslateable(('Could not get distribution for %s on platform %s.' % (package, self._platform)))
+    return dist

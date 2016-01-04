@@ -1,0 +1,37 @@
+def build_pex(args, options, resolver_option_builder):
+    with TRACER.timed('Resolving interpreter', V=2):
+        interpreter = interpreter_from_options(options)
+    if (interpreter is None):
+        die('Could not find compatible interpreter', CANNOT_SETUP_INTERPRETER)
+    pex_builder = PEXBuilder(path=safe_mkdtemp(), interpreter=interpreter)
+    pex_info = pex_builder.info
+    pex_info.zip_safe = options.zip_safe
+    pex_info.always_write_cache = options.always_write_cache
+    pex_info.ignore_errors = options.ignore_errors
+    pex_info.inherit_path = options.inherit_path
+    resolvables = [Resolvable.get(arg, resolver_option_builder) for arg in args]
+    for requirements_txt in options.requirement_files:
+        resolvables.extend(requirements_from_file(requirements_txt, resolver_option_builder))
+    resolver_kwargs = dict(interpreter=interpreter, platform=options.platform)
+    if options.cache_dir:
+        resolver = CachingResolver(options.cache_dir, options.cache_ttl, **resolver_kwargs)
+    else:
+        resolver = Resolver(**resolver_kwargs)
+    with TRACER.timed('Resolving distributions'):
+        try:
+            resolveds = resolver.resolve(resolvables)
+        except Unsatisfiable as e:
+            die(e)
+    for dist in resolveds:
+        log(('  %s' % dist), v=options.verbosity)
+        pex_builder.add_distribution(dist)
+        pex_builder.add_requirement(dist.as_requirement())
+    if (options.entry_point and options.script):
+        die('Must specify at most one entry point or script.', INVALID_OPTIONS)
+    if options.entry_point:
+        pex_builder.set_entry_point(options.entry_point)
+    elif options.script:
+        pex_builder.set_script(options.script)
+    if options.python_shebang:
+        pex_builder.set_shebang(options.python_shebang)
+    return pex_builder

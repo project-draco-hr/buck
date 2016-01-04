@@ -1,0 +1,26 @@
+@classmethod
+def minimum_sys_path(cls, site_libs):
+    site_distributions = OrderedSet()
+    user_site_distributions = OrderedSet()
+
+    def all_distribution_paths(path):
+        locations = set((dist.location for dist in find_distributions(path)))
+        return ((set([path]) | locations) | set((os.path.realpath(path) for path in locations)))
+    for path_element in sys.path:
+        if cls._tainted_path(path_element, site_libs):
+            TRACER.log(('Tainted path element: %s' % path_element))
+            site_distributions.update(all_distribution_paths(path_element))
+        else:
+            TRACER.log(('Not a tainted path element: %s' % path_element), V=2)
+    user_site_distributions.update(all_distribution_paths(USER_SITE))
+    for path in site_distributions:
+        TRACER.log(('Scrubbing from site-packages: %s' % path))
+    for path in user_site_distributions:
+        TRACER.log(('Scrubbing from user site: %s' % path))
+    scrub_paths = (site_distributions | user_site_distributions)
+    scrubbed_sys_path = list((OrderedSet(sys.path) - scrub_paths))
+    scrub_from_importer_cache = filter((lambda key: any((key.startswith(path) for path in scrub_paths))), sys.path_importer_cache.keys())
+    scrubbed_importer_cache = dict(((key, value) for (key, value) in sys.path_importer_cache.items() if (key not in scrub_from_importer_cache)))
+    for importer_cache_entry in scrub_from_importer_cache:
+        TRACER.log(('Scrubbing from path_importer_cache: %s' % importer_cache_entry), V=2)
+    return (scrubbed_sys_path, scrubbed_importer_cache)

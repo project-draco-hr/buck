@@ -1,0 +1,13 @@
+@classmethod
+def unpack(cls, filename, location=None):
+    path = (location or safe_mkdtemp())
+    ext = cls.get_extension(filename)
+    if (ext is None):
+        raise cls.InvalidArchive(('Unknown archive format: %s' % filename))
+    (archive_class, error_class) = cls.EXTENSIONS[ext]
+    try:
+        with contextlib.closing(archive_class(filename)) as package:
+            package.extractall(path=path)
+    except error_class:
+        raise cls.UnpackError(('Could not extract %s' % filename))
+    return cls.first_nontrivial_dir(path)

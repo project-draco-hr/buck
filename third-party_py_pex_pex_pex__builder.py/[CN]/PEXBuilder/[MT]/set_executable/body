@@ -1,0 +1,13 @@
+def set_executable(self, filename, env_filename=None):
+    'Set the executable for this environment.\n\n    :param filename: The file that should be executed within the PEX environment when the PEX is\n      invoked.\n    :keyword env_filename: (optional) The name that the executable file should be stored as within\n      the PEX.  By default this will be the base name of the given filename.\n\n    The entry point of the PEX may also be specified via ``PEXBuilder.set_entry_point``.\n    '
+    self._ensure_unfrozen('Setting the executable')
+    if self._pex_info.script:
+        raise self.InvalidExecutableSpecification('Cannot set both entry point and script of PEX!')
+    if (env_filename is None):
+        env_filename = os.path.basename(filename)
+    if self._chroot.get('executable'):
+        raise self.InvalidExecutableSpecification('Setting executable on a PEXBuilder that already has one!')
+    self._copy_or_link(filename, env_filename, 'executable')
+    entry_point = env_filename
+    entry_point.replace(os.path.sep, '.')
+    self._pex_info.entry_point = entry_point.rpartition('.')[0]

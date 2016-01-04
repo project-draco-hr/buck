@@ -1,0 +1,24 @@
+def _wrap_coverage(self, runner, *args):
+    if ((not self._vars.PEX_COVERAGE) and (self._vars.PEX_COVERAGE_FILENAME is None)):
+        runner(*args)
+        return
+    try:
+        import coverage
+    except ImportError:
+        die('Could not bootstrap coverage module, aborting.')
+    pex_coverage_filename = self._vars.PEX_COVERAGE_FILENAME
+    if (pex_coverage_filename is not None):
+        cov = coverage.coverage(data_file=pex_coverage_filename)
+    else:
+        cov = coverage.coverage(data_suffix=True)
+    TRACER.log('Starting coverage.')
+    cov.start()
+    try:
+        runner(*args)
+    finally:
+        TRACER.log('Stopping coverage')
+        cov.stop()
+        if pex_coverage_filename:
+            cov.save()
+        else:
+            cov.report(show_missing=False, ignore_errors=True, file=sys.stdout)

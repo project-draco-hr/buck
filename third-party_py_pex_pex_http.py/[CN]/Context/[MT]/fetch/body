@@ -1,0 +1,12 @@
+def fetch(self, link, into=None):
+    'Fetch the binary content associated with the link and write to a file.\n\n    :param link: The :class:`Link` to fetch.\n    :keyword into: If specified, write into the directory ``into``.  If ``None``, creates a new\n      temporary directory that persists for the duration of the interpreter.\n    '
+    target = os.path.join((into or safe_mkdtemp()), link.filename)
+    if os.path.exists(target):
+        return target
+    with TRACER.timed(('Fetching %s' % link.url), V=2):
+        target_tmp = ('%s.%s' % (target, uuid.uuid4()))
+        with contextlib.closing(self.open(link)) as in_fp:
+            with safe_open(target_tmp, 'wb') as out_fp:
+                shutil.copyfileobj(in_fp, out_fp)
+    os.rename(target_tmp, target)
+    return target

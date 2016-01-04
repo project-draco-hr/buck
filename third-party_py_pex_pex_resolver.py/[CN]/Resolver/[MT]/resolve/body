@@ -1,0 +1,34 @@
+def resolve(self, resolvables, resolvable_set=None):
+    resolvables = [(resolvable, None) for resolvable in resolvables]
+    resolvable_set = (resolvable_set or _ResolvableSet())
+    processed_resolvables = set()
+    processed_packages = {}
+    distributions = {}
+    while resolvables:
+        while resolvables:
+            (resolvable, parent) = resolvables.pop(0)
+            if (resolvable in processed_resolvables):
+                continue
+            packages = self.package_iterator(resolvable, existing=resolvable_set.get(resolvable.name))
+            resolvable_set.merge(resolvable, packages, parent)
+            processed_resolvables.add(resolvable)
+        built_packages = {}
+        for (resolvable, packages, parent) in resolvable_set.packages():
+            assert (len(packages) > 0), ('ResolvableSet.packages(%s) should not be empty' % resolvable)
+            package = next(iter(packages))
+            if (resolvable.name in processed_packages):
+                if (package != processed_packages[resolvable.name]):
+                    raise self.Error(('Ambiguous resolvable: %s' % resolvable))
+                continue
+            if (package not in distributions):
+                dist = self.build(package, resolvable.options)
+                built_package = Package.from_href(dist.location)
+                built_packages[package] = built_package
+                distributions[built_package] = dist
+                package = built_package
+            distribution = distributions[package]
+            processed_packages[resolvable.name] = package
+            new_parent = (('%s->%s' % (parent, resolvable)) if parent else str(resolvable))
+            resolvables.extend(((ResolvableRequirement(req, resolvable.options), new_parent) for req in distribution.requires(extras=resolvable_set.extras(resolvable.name))))
+        resolvable_set = resolvable_set.replace_built(built_packages)
+    return list(distributions.values())

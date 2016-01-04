@@ -1,0 +1,22 @@
+def _prepare_bootstrap(self):
+    wrote_setuptools = False
+    setuptools = DistributionHelper.distribution_from_path(self._interpreter.get_location('setuptools'), name='setuptools')
+    if (setuptools is None):
+        raise RuntimeError('Failed to find setuptools while building pex!')
+    for (fn, content_stream) in DistributionHelper.walk_data(setuptools):
+        if (fn.startswith('pkg_resources') or fn.startswith('_markerlib')):
+            if (not fn.endswith('.pyc')):
+                dst = os.path.join(self.BOOTSTRAP_DIR, fn)
+                self._chroot.write(content_stream.read(), dst, 'bootstrap')
+                wrote_setuptools = True
+    if (not wrote_setuptools):
+        raise RuntimeError('Failed to extract pkg_resources from setuptools.  Perhaps pants was linked with an incompatible setuptools.')
+    libraries = {'pex': '_pex', }
+    for (source_name, target_location) in libraries.items():
+        provider = get_provider(source_name)
+        if (not isinstance(provider, DefaultProvider)):
+            mod = __import__(source_name, fromlist=['ignore'])
+            provider = ZipProvider(mod)
+        for fn in provider.resource_listdir(''):
+            if fn.endswith('.py'):
+                self._chroot.write(provider.get_resource_string(source_name, fn), os.path.join(self.BOOTSTRAP_DIR, target_location, fn), 'bootstrap')

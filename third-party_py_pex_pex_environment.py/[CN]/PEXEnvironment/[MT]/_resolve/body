@@ -1,0 +1,27 @@
+def _resolve(self, working_set, reqs):
+    reqs = reqs[:]
+    unresolved_reqs = set()
+    resolveds = set()
+    for req in reqs:
+        with TRACER.timed(('Resolving %s' % req), V=2):
+            try:
+                resolveds.update(working_set.resolve([req], env=self))
+            except DistributionNotFound as e:
+                TRACER.log(('Failed to resolve a requirement: %s' % e))
+                unresolved_reqs.add(e.args[0].project_name)
+                if ((len(e.args) >= 2) and e.args[1]):
+                    unresolved_reqs.update(e.args[1])
+    unresolved_reqs = set([req.lower() for req in unresolved_reqs])
+    if unresolved_reqs:
+        TRACER.log('Unresolved requirements:')
+        for req in unresolved_reqs:
+            TRACER.log(('  - %s' % req))
+        TRACER.log('Distributions contained within this pex:')
+        if (not self._pex_info.distributions):
+            TRACER.log('  None')
+        else:
+            for dist in self._pex_info.distributions:
+                TRACER.log(('  - %s' % dist))
+        if (not self._pex_info.ignore_errors):
+            die(('Failed to execute PEX file, missing compatible dependencies for:\n%s' % '\n'.join(map(str, unresolved_reqs))))
+    return resolveds

@@ -1,0 +1,11 @@
+def build(self, package, options):
+    if package.remote:
+        package = Package.from_href(options.get_context().fetch(package, into=self.__cache))
+        os.utime(package.path, None)
+    dist = super(CachingResolver, self).build(package, options)
+    target = os.path.join(self.__cache, os.path.basename(dist.location))
+    if (not os.path.exists(target)):
+        shutil.copyfile(dist.location, (target + '~'))
+        os.rename((target + '~'), target)
+    os.utime(target, None)
+    return DistributionHelper.distribution_from_path(target)

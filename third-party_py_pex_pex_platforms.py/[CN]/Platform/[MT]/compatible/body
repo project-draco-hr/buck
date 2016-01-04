@@ -1,0 +1,22 @@
+@classmethod
+def compatible(cls, package, platform):
+    if ((package is None) or (platform is None) or (package == platform)):
+        return True
+    (MAJOR, MINOR, PLATFORM) = range(1, 4)
+    package_match = cls.MACOSX_VERSION_STRING.match(package)
+    platform_match = cls.MACOSX_VERSION_STRING.match(platform)
+    if (not (package_match and platform_match)):
+        return compatible_platforms(package, platform)
+    if (package_match.group(MAJOR) != platform_match.group(MAJOR)):
+        return False
+    if (int(package_match.group(MINOR)) > int(platform_match.group(MINOR))):
+        return False
+    package_platform = package_match.group(PLATFORM)
+    if (package_platform not in cls.MACOSX_PLATFORM_COMPATIBILITY):
+        raise cls.UnknownPlatformError(package_platform)
+    sys_platform = platform_match.group(PLATFORM)
+    if (sys_platform not in cls.MACOSX_PLATFORM_COMPATIBILITY):
+        raise cls.UnknownPlatformError(sys_platform)
+    package_compatibility = set(cls.MACOSX_PLATFORM_COMPATIBILITY[package_platform])
+    system_compatibility = set(cls.MACOSX_PLATFORM_COMPATIBILITY[sys_platform])
+    return bool(package_compatibility.intersection(system_compatibility))
