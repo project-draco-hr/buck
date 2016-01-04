@@ -1,71 +1,28 @@
 {
   JavaCompiler compiler=createCompiler(context,resolver);
   StandardJavaFileManager fileManager=fileManagerFactory.or(DEFAULT_FILE_MANAGER_FACTORY).create(compiler);
-  Iterable<? extends JavaFileObject> compilationUnits=ImmutableSet.of();
   try {
-    compilationUnits=createCompilationUnits(fileManager,filesystem.getAbsolutifier(),javaSourceFilePaths);
-  }
- catch (  IOException e) {
-    close(fileManager,compilationUnits);
-    e.printStackTrace(context.getStdErr());
-    return 1;
-  }
-  if (pathToSrcsList.isPresent()) {
+    Iterable<? extends JavaFileObject> compilationUnits;
     try {
-      filesystem.writeLinesToPath(FluentIterable.from(javaSourceFilePaths).transform(Functions.toStringFunction()).transform(ARGFILES_ESCAPER),pathToSrcsList.get());
+      compilationUnits=createCompilationUnits(fileManager,filesystem.getAbsolutifier(),javaSourceFilePaths);
     }
  catch (    IOException e) {
-      close(fileManager,compilationUnits);
-      context.logError(e,"Cannot write list of .java files to compile to %s file! Terminating compilation.",pathToSrcsList.get());
+      LOG.warn(e,"Error building compilation units");
       return 1;
     }
-  }
-  DiagnosticCollector<JavaFileObject> diagnostics=new DiagnosticCollector<>();
-  List<String> classNamesForAnnotationProcessing=ImmutableList.of();
-  Writer compilerOutputWriter=new PrintWriter(context.getStdErr());
-  JavaCompiler.CompilationTask compilationTask=compiler.getTask(compilerOutputWriter,fileManager,diagnostics,options,classNamesForAnnotationProcessing,compilationUnits);
-  boolean isSuccess=false;
-  BuckTracing.setCurrentThreadTracingInterfaceFromJsr199Javac(new BuckTracingEventBusBridge(context.getBuckEventBus(),invokingRule));
-  try {
-    try (TranslatingJavacPhaseTracer tracer=TranslatingJavacPhaseTracer.setupTracing(invokingRule,context.getClassLoaderCache(),context.getBuckEventBus(),compilationTask);ProcessorBundle bundle=prepareProcessors(context.getBuckEventBus(),compiler.getClass().getClassLoader(),invokingRule,options)){
-      compilationTask.setProcessors(bundle.processors);
-      isSuccess=compilationTask.call();
+    try {
+      return buildWithClasspath(context,filesystem,invokingRule,options,javaSourceFilePaths,pathToSrcsList,compiler,fileManager,compilationUnits);
     }
- catch (    IOException e) {
-      LOG.warn(e,"Unable to close annotation processor class loader. We may be leaking memory.");
-    }
- finally {
-      close(fileManager,compilationUnits);
+  finally {
+      close(compilationUnits);
     }
   }
   finally {
-    BuckTracing.clearCurrentThreadTracingInterfaceFromJsr199Javac();
-  }
-  for (  Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
-    LOG.debug("javac: %s",DiagnosticPrettyPrinter.format(diagnostic));
-  }
-  if (isSuccess) {
-    return 0;
-  }
- else {
-    if (context.getVerbosity().shouldPrintStandardInformation()) {
-      int numErrors=0;
-      int numWarnings=0;
-      for (      Diagnostic<? extends JavaFileObject> diagnostic : diagnostics.getDiagnostics()) {
-        Diagnostic.Kind kind=diagnostic.getKind();
-        if (kind == Diagnostic.Kind.ERROR) {
-          ++numErrors;
-          handleMissingSymbolError(invokingRule,diagnostic,context,filesystem);
-        }
- else         if (kind == Diagnostic.Kind.WARNING || kind == Diagnostic.Kind.MANDATORY_WARNING) {
-          ++numWarnings;
-        }
-        context.getStdErr().println(DiagnosticPrettyPrinter.format(diagnostic));
-      }
-      if (numErrors > 0 || numWarnings > 0) {
-        context.getStdErr().printf("Errors: %d. Warnings: %d.\n",numErrors,numWarnings);
-      }
+    try {
+      fileManager.close();
     }
-    return 1;
+ catch (    IOException e) {
+      LOG.warn(e,"Unable to close java filemanager. We may be leaking memory.");
+    }
   }
 }
