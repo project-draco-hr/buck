@@ -1,4 +1,11 @@
 {
+  final Optional<String> prefix;
+  if (entitlements.isPresent()) {
+    prefix=Optional.of(ProvisioningProfileMetadata.prefixFromEntitlements(entitlements.get()));
+  }
+ else {
+    prefix=Optional.<String>absent();
+  }
   int bestMatchLength=-1;
   Optional<ProvisioningProfileMetadata> bestMatch=Optional.absent();
   for (  ProvisioningProfileMetadata profile : getProvisioningProfiles()) {
@@ -14,6 +21,16 @@
         }
  else {
           match=(bundleID.equals(profileBundleID));
+        }
+        if (entitlements.isPresent()) {
+          ImmutableMap<String,NSObject> entitlementsDict=entitlements.get();
+          ImmutableMap<String,NSObject> profileEntitlements=profile.getEntitlements();
+          for (          Entry<String,NSObject> entry : entitlementsDict.entrySet()) {
+            if (!(entry.getKey().equals("keychain-access-groups") || entry.getKey().equals("application-identifier") || entry.getValue().equals(profileEntitlements.get(entry.getKey())))) {
+              match=false;
+              break;
+            }
+          }
         }
         if (match && profileBundleID.length() > bestMatchLength) {
           bestMatchLength=profileBundleID.length();
