@@ -2,19 +2,19 @@
   LOG.debug("Getting ordered test target nodes for %s",orderedTargetNodes);
   ImmutableSet.Builder<TargetNode<AppleTestDescription.Arg>> testsBuilder=ImmutableSet.builder();
   if (includeProjectTests) {
-    TargetNode<?> mainTargetNode=null;
+    Optional<TargetNode<?>> mainTargetNode=Optional.absent();
     if (mainTarget.isPresent()) {
-      mainTargetNode=targetGraph.get(mainTarget.get());
+      mainTargetNode=targetGraph.getOptional(mainTarget.get());
     }
     for (    TargetNode<?> node : orderedTargetNodes) {
-      if (includeDependenciesTests || (mainTargetNode != null && node.equals(mainTargetNode))) {
+      if (includeDependenciesTests || (mainTargetNode.isPresent() && node.equals(mainTargetNode.get()))) {
         if (!(node.getConstructorArg() instanceof HasTests)) {
           continue;
         }
         for (        BuildTarget explicitTestTarget : ((HasTests)node.getConstructorArg()).getTests()) {
-          TargetNode<?> explicitTestNode=targetGraph.get(explicitTestTarget);
-          if (explicitTestNode != null) {
-            Optional<TargetNode<AppleTestDescription.Arg>> castedNode=explicitTestNode.castArg(AppleTestDescription.Arg.class);
+          Optional<TargetNode<?>> explicitTestNode=targetGraph.getOptional(explicitTestTarget);
+          if (explicitTestNode.isPresent()) {
+            Optional<TargetNode<AppleTestDescription.Arg>> castedNode=explicitTestNode.get().castArg(AppleTestDescription.Arg.class);
             if (castedNode.isPresent()) {
               testsBuilder.add(castedNode.get());
             }
