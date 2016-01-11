@@ -4,23 +4,6 @@
     return createFatBinaryBuildRule(targetGraph,params,resolver,args,fatBinaryInfo.get());
   }
  else {
-    Optional<Path> stubBinaryPath=Optional.absent();
-    Optional<AppleCxxPlatform> appleCxxPlatform=getAppleCxxPlatformFromParams(params);
-    if (appleCxxPlatform.isPresent() && (!args.srcs.isPresent() || args.srcs.get().isEmpty())) {
-      stubBinaryPath=appleCxxPlatform.get().getStubBinary();
-    }
-    if (stubBinaryPath.isPresent()) {
-      try {
-        return new WriteFile(params,new SourcePathResolver(resolver),Files.readAllBytes(stubBinaryPath.get()),BuildTargets.getGenPath(params.getBuildTarget(),"%s"),true);
-      }
- catch (      IOException e) {
-        throw new HumanReadableException("Could not read stub binary " + stubBinaryPath.get());
-      }
-    }
- else {
-      CxxBinaryDescription.Arg delegateArg=delegate.createUnpopulatedConstructorArg();
-      AppleDescriptions.populateCxxBinaryDescriptionArg(new SourcePathResolver(resolver),delegateArg,args,params.getBuildTarget());
-      return delegate.createBuildRule(targetGraph,params,resolver,delegateArg);
-    }
+    return createThinBinary(targetGraph,params,resolver,args);
   }
 }
