@@ -13,8 +13,8 @@
     Path buckFile=cellFilesystem.resolve(basePath.get()).resolve(params.getCell().getBuildFileName());
     Preconditions.checkState(cellFilesystem.exists(buckFile));
     if (!targetNodes.containsKey(buckFile)) {
-      try {
-        targetNodes.put(buckFile,params.getParser().getAllTargetNodes(params.getBuckEventBus(),params.getCell(),false,buckFile));
+      try (CommandThreadManager pool=new CommandThreadManager("AuditOwner",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
+        targetNodes.put(buckFile,params.getParser().getAllTargetNodes(params.getBuckEventBus(),params.getCell(),false,pool.getExecutor(),buckFile));
       }
  catch (      BuildFileParseException e) {
         Path targetBasePath=MorePaths.relativize(rootPath,rootPath.resolve(basePath.get()));

@@ -1,11 +1,27 @@
 {
   ParserConfig parserConfig=new ParserConfig(rootCell.getBuckConfig());
-  if (parserConfig.getEnableParallelParsing()) {
-    try (ParallelPerBuildState state=new ParallelPerBuildState(permState,marshaller,eventBus,rootCell,enableProfiling)){
-      return resolveTargetSpecsInParallel(state,rootCell,executor,parserConfig,specs);
+  try (PerBuildState state=new PerBuildState(permState,marshaller,eventBus,rootCell,enableProfiling)){
+    ImmutableSet.Builder<Path> buildFiles=ImmutableSet.builder();
+    for (    TargetNodeSpec spec : specs) {
+      for (      Path buildFile : spec.getBuildFileSpec().findBuildFiles(rootCell)) {
+        if (!rootCell.getFilesystem().isFile(buildFile)) {
+          throw new MissingBuildFileException(spec,rootCell.getFilesystem().getRootPath().relativize(buildFile));
+        }
+        buildFiles.add(buildFile);
+      }
     }
-   }
-  try (SerialPerBuildState state=new SerialPerBuildState(permState,marshaller,eventBus,rootCell,enableProfiling)){
-    return resolveTargetSpecsSerially(state,rootCell,specs);
+    ImmutableSet<Path> allBuildSpecs=buildFiles.build();
+    if (allBuildSpecs.isEmpty()) {
+      return ImmutableSet.of();
+    }
+    state.startParsing(rootCell,allBuildSpecs,parserConfig,executor);
+    ImmutableSet.Builder<BuildTarget> targets=ImmutableSet.builder();
+    for (    TargetNodeSpec spec : specs) {
+      for (      Path buildFile : spec.getBuildFileSpec().findBuildFiles(rootCell)) {
+        ImmutableSet<TargetNode<?>> nodes=state.getAllTargetNodes(rootCell,buildFile);
+        targets.addAll(spec.filter(nodes));
+      }
+    }
+    return targets.build();
   }
  }

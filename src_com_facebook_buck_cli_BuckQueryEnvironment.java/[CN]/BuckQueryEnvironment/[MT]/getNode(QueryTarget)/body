@@ -1,9 +1,16 @@
 {
   Preconditions.checkState(target instanceof QueryBuildTarget);
+  ExecutorService executor=null;
   try {
-    return params.getParser().getTargetNode(params.getBuckEventBus(),params.getCell(),enableProfiling,((QueryBuildTarget)target).getBuildTarget());
+    executor=Executors.newSingleThreadExecutor();
+    return params.getParser().getTargetNode(params.getBuckEventBus(),params.getCell(),enableProfiling,executor,((QueryBuildTarget)target).getBuildTarget());
   }
  catch (  BuildTargetException|BuildFileParseException|IOException e) {
     throw new QueryException("Error getting target node for %s\n%s",target,e.getMessage());
+  }
+ finally {
+    if (executor != null) {
+      executor.shutdown();
+    }
   }
 }
