@@ -1,0 +1,38 @@
+{
+  ImmutableListMultimap<UnflavoredBuildTarget,UnflavoredBuildTarget> duplicateBuiltinBuileRules=checkForDuplicatePackagedDeps(publishables);
+  if (duplicateBuiltinBuileRules.size() > 0) {
+    StringBuilder sb=new StringBuilder();
+    sb.append("Duplicate transitive dependencies for publishable libraries found!  This means");
+    sb.append(StandardSystemProperty.LINE_SEPARATOR);
+    sb.append("that the following libraries would have multiple copies if these libraries were");
+    sb.append(StandardSystemProperty.LINE_SEPARATOR);
+    sb.append("used together.  The can be resolved by adding a maven URL to each target listed");
+    sb.append(StandardSystemProperty.LINE_SEPARATOR);
+    sb.append("below:");
+    for (    UnflavoredBuildTarget unflavoredBuildTarget : duplicateBuiltinBuileRules.keySet()) {
+      sb.append(StandardSystemProperty.LINE_SEPARATOR);
+      sb.append(unflavoredBuildTarget.getFullyQualifiedName());
+      sb.append(" (referenced by these build targets: ");
+      Joiner.on(", ").appendTo(sb,duplicateBuiltinBuileRules.get(unflavoredBuildTarget));
+      sb.append(")");
+    }
+    throw new DeploymentException(sb.toString());
+  }
+  ImmutableSet.Builder<DeployResult> deployResultBuilder=ImmutableSet.builder();
+  for (  MavenPublishable publishable : publishables) {
+    DefaultArtifact coords=new DefaultArtifact(Preconditions.checkNotNull(publishable.getMavenCoords().get(),"No maven coordinates specified for published rule ",publishable));
+    Path relativePathToOutput=Preconditions.checkNotNull(publishable.getPathToOutput(),"No path to output present in ",publishable);
+    File mainItem=publishable.getProjectFilesystem().resolve(relativePathToOutput).toFile();
+    if (!coords.getClassifier().isEmpty()) {
+      deployResultBuilder.add(publish(coords,ImmutableList.of(mainItem)));
+    }
+    try {
+      File pom=Pom.generatePomFile(publishable).toFile();
+      deployResultBuilder.add(publish(coords,ImmutableList.of(mainItem,pom)));
+    }
+ catch (    IOException e) {
+      throw Throwables.propagate(e);
+    }
+  }
+  return deployResultBuilder.build();
+}

@@ -1,0 +1,15 @@
+{
+  BuildTarget publishableTargetA=BuildTargetFactory.newInstance("//:a").withFlavors(JavaLibrary.MAVEN_JAR);
+  BuildTarget publishableTargetB=BuildTargetFactory.newInstance("//:b").withFlavors(JavaLibrary.MAVEN_JAR);
+  BuildTarget targetC=BuildTargetFactory.newInstance("//:c");
+  BuildTarget targetD=BuildTargetFactory.newInstance("//:d");
+  JavaLibraryBuilder.createBuilder(targetD).build(ruleResolver);
+  JavaLibraryBuilder.createBuilder(targetC).addDep(targetD).build(ruleResolver);
+  MavenPublishable publishableA=(MavenPublishable)JavaLibraryBuilder.createBuilder(publishableTargetA).setMavenCoords(MVN_COORDS_A).addDep(targetC).build(ruleResolver);
+  MavenPublishable publishableB=(MavenPublishable)JavaLibraryBuilder.createBuilder(publishableTargetB).setMavenCoords(MVN_COORDS_B).addDep(targetD).build(ruleResolver);
+  expectedException.expect(DeploymentException.class);
+  expectedException.expectMessage(Matchers.containsString(targetD.getUnflavoredBuildTarget().getFullyQualifiedName()));
+  expectedException.expectMessage(Matchers.containsString(publishableTargetA.getUnflavoredBuildTarget().getFullyQualifiedName()));
+  expectedException.expectMessage(Matchers.containsString(publishableTargetB.getUnflavoredBuildTarget().getFullyQualifiedName()));
+  publisher.publish(ImmutableSet.of(publishableA,publishableB));
+}

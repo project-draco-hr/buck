@@ -1,0 +1,38 @@
+{
+  ImmutableSet.Builder<MavenPublishable> publishables=ImmutableSet.builder();
+  boolean success=true;
+  for (  BuildTarget buildTarget : buildTargets) {
+    BuildRule buildRule=null;
+    try {
+      buildRule=getBuild().getRuleResolver().requireRule(buildTarget);
+    }
+ catch (    NoSuchBuildTargetException e) {
+      Throwables.propagate(e);
+    }
+    Preconditions.checkNotNull(buildRule);
+    if (!(buildRule instanceof MavenPublishable)) {
+      params.getBuckEventBus().post(ConsoleEvent.severe("Cannot publish rule of type %s",buildRule.getClass().getName()));
+      success&=false;
+      continue;
+    }
+    MavenPublishable publishable=(MavenPublishable)buildRule;
+    if (!publishable.getMavenCoords().isPresent()) {
+      params.getBuckEventBus().post(ConsoleEvent.severe("No maven coordinates specified for %s",buildTarget.getUnflavoredBuildTarget().getFullyQualifiedName()));
+      success&=false;
+      continue;
+    }
+    publishables.add(publishable);
+  }
+  Publisher publisher=new Publisher(params.getCell().getFilesystem(),Optional.fromNullable(remoteRepo),dryRun);
+  try {
+    ImmutableSet<DeployResult> deployResults=publisher.publish(publishables.build());
+    for (    DeployResult deployResult : deployResults) {
+      printArtifactsInformation(params,deployResult);
+    }
+  }
+ catch (  DeploymentException e) {
+    params.getConsole().printBuildFailureWithoutStacktraceDontUnwrap(e);
+    return false;
+  }
+  return success;
+}
