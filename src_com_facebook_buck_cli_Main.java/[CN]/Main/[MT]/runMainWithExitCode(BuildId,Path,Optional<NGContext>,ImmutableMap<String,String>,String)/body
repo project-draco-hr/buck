@@ -94,6 +94,8 @@
     ListeningExecutorService httpWriteExecutorService=getHttpWriteExecutorService(cacheBuckConfig);
     VersionControlStatsGenerator vcStatsGenerator=null;
     Locale locale=Locale.getDefault();
+    Map<ExecutionContext.ExecutorPool,ExecutorService> executors=new HashMap<ExecutionContext.ExecutorPool,ExecutorService>();
+    executors.put(ExecutionContext.ExecutorPool.CPU,Executors.newCachedThreadPool());
     try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer,locale,BuckConstant.LOG_PATH.resolve("test.log"));TempDirectoryCreator tempDirectoryCreator=new TempDirectoryCreator(testTempDirOverride);AsyncCloseable asyncCloseable=new AsyncCloseable(diskIoExecutorService);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId)){
       buildEventBus.register(HANG_MONITOR.getHangMonitor());
       ArtifactCache artifactCache=asyncCloseable.closeAsync(ArtifactCaches.newInstance(cacheBuckConfig,buildEventBus,filesystem,executionEnvironment.getWifiSsid(),httpWriteExecutorService));
@@ -140,7 +142,7 @@
           buildEventBus.register(listener);
         }
       }
-      exitCode=command.run(new CommandRunnerParams(console,rootCell,androidPlatformTargetSupplier,artifactCache,buildEventBus,parser,platform,clientEnvironment,rootCell.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,clock,processManager,webServer,buckConfig,fileHashCache));
+      exitCode=command.run(new CommandRunnerParams(console,rootCell,androidPlatformTargetSupplier,artifactCache,buildEventBus,parser,platform,clientEnvironment,rootCell.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,clock,processManager,webServer,buckConfig,fileHashCache,executors));
       closeHttpExecutorService(cacheBuckConfig,Optional.of(buildEventBus),httpWriteExecutorService);
       buildEventBus.post(CommandEvent.finished(startedEvent,exitCode));
     }
@@ -157,6 +159,9 @@
       }
       if (isDaemon && shouldCleanUpTrash) {
         TRASH_CLEANER.startCleaningDirectory();
+      }
+      for (      ExecutionContext.ExecutorPool p : executors.keySet()) {
+        closeExecutorService(p.toString(),executors.get(p),EXECUTOR_SERVICES_TIMEOUT_SECONDS);
       }
     }
     if (context.isPresent() && !rootCell.getBuckConfig().getFlushEventsBeforeExit()) {

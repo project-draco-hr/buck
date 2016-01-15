@@ -15,19 +15,19 @@
   compileBuilder.redirectInput(ProcessBuilder.Redirect.PIPE);
   Process preprocess=null;
   Process compile=null;
-  LineProcessorThread errorProcessorPreprocess=null;
-  LineProcessorThread errorProcessorCompile=null;
-  LineProcessorThread lineDirectiveMunger=null;
+  LineProcessorRunnable errorProcessorPreprocess=null;
+  LineProcessorRunnable errorProcessorCompile=null;
+  LineProcessorRunnable lineDirectiveMunger=null;
   CxxErrorTransformerFactory errorStreamTransformerFactory=createErrorTransformerFactory(context);
   try {
     LOG.debug("Running command (pwd=%s): %s",preprocessBuilder.directory(),getDescription(context));
     preprocess=preprocessBuilder.start();
     compile=compileBuilder.start();
-    errorProcessorPreprocess=errorStreamTransformerFactory.createTransformerThread(preprocess.getErrorStream(),preprocessError);
+    errorProcessorPreprocess=errorStreamTransformerFactory.createTransformerThread(context,preprocess.getErrorStream(),preprocessError);
     errorProcessorPreprocess.start();
-    errorProcessorCompile=errorStreamTransformerFactory.createTransformerThread(compile.getErrorStream(),compileError);
+    errorProcessorCompile=errorStreamTransformerFactory.createTransformerThread(context,compile.getErrorStream(),compileError);
     errorProcessorCompile.start();
-    lineDirectiveMunger=createPreprocessorOutputTransformerFactory().createTransformerThread(preprocess.getInputStream(),compile.getOutputStream());
+    lineDirectiveMunger=createPreprocessorOutputTransformerFactory().createTransformerThread(context,preprocess.getInputStream(),compile.getOutputStream());
     lineDirectiveMunger.start();
     int compileStatus=compile.waitFor();
     int preprocessStatus=preprocess.waitFor();
