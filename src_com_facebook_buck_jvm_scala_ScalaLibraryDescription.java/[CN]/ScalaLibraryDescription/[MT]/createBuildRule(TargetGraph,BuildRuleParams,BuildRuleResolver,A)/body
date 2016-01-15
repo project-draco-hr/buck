@@ -1,0 +1,15 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  Tool scalac=scalaBuckConfig.getScalac(resolver);
+  final BuildRule scalaLibrary=resolver.getRule(scalaBuckConfig.getScalaLibraryTarget());
+  BuildRuleParams params=rawParams.copyWithDeps(new Supplier<ImmutableSortedSet<BuildRule>>(){
+    @Override public ImmutableSortedSet<BuildRule> get(){
+      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(rawParams.getDeclaredDeps().get()).add(scalaLibrary).build();
+    }
+  }
+,rawParams.getExtraDeps());
+  BuildTarget abiJarTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(CalculateAbi.FLAVOR).build();
+  DefaultJavaLibrary defaultJavaLibrary=resolver.addToIndex(new DefaultJavaLibrary(params.appendExtraDeps(Iterables.concat(BuildRules.getExportedRules(Iterables.concat(params.getDeclaredDeps().get(),resolver.getAllRules(args.providedDeps.get()))),scalac.getDeps(pathResolver))),pathResolver,args.srcs.get(),validateResources(pathResolver,params.getProjectFilesystem(),args.resources.get()),Optional.<Path>absent(),Optional.<SourcePath>absent(),ImmutableList.<String>of(),params.getDeclaredDeps().get(),resolver.getAllRules(args.providedDeps.get()),new BuildTargetSourcePath(abiJarTarget),ImmutableSet.<Path>of(),new ScalacToJarStepFactory(scalaBuckConfig.getScalac(resolver),ImmutableList.<String>builder().addAll(scalaBuckConfig.getCompilerFlags()).addAll(args.extraArguments.get()).build()),args.resourcesRoot,args.mavenCoords,args.tests.get()));
+  resolver.addToIndex(CalculateAbi.of(abiJarTarget,pathResolver,params,new BuildTargetSourcePath(defaultJavaLibrary.getBuildTarget())));
+  return defaultJavaLibrary;
+}
