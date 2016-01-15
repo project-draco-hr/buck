@@ -1,11 +1,14 @@
 {
   final Semaphore completionSemaphore=new Semaphore(1);
-  final AtomicBoolean testsCompleted=new AtomicBoolean(false);
   try {
     completionSemaphore.acquire();
   }
  catch (  InterruptedException e) {
+    Thread.currentThread().interrupt();
+    shutdown();
+    return;
   }
+  final AtomicBoolean testsCompleted=new AtomicBoolean(false);
   executor.get().submit(new Runnable(){
     @Override public void run(){
       try {
@@ -25,7 +28,7 @@
       return;
     }
     if (wrapper.hasTestThatExceededTimeout()) {
-      executor.get().shutdownNow();
+      shutdown();
       return;
     }
     try {
@@ -35,6 +38,8 @@
     }
  catch (    InterruptedException e) {
       Thread.currentThread().interrupt();
+      shutdown();
+      return;
     }
   }
 }
