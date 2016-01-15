@@ -3,9 +3,15 @@
   ProcessExecutorParams.Builder processExecutorParamsBuilder=ProcessExecutorParams.builder().addAllCommand(command).setDirectory(filesystem.getRootPath().toAbsolutePath().toFile()).setRedirectOutput(ProcessBuilder.Redirect.PIPE).setEnvironment(env);
   if (!testSelectorList.isEmpty()) {
     try {
-      List<String> xctoolFilterParams=listAndFilterTestsThenFormatXctoolParams(context.getProcessExecutor(),testSelectorList,ProcessExecutorParams.builder().from(processExecutorParamsBuilder.build()).addCommand("-listTestsOnly").build());
+      ImmutableList.Builder<String> xctoolFilterParamsBuilder=ImmutableList.builder();
+      int returnCode=listAndFilterTestsThenFormatXctoolParams(context.getProcessExecutor(),context.getConsole(),testSelectorList,ProcessExecutorParams.builder().from(processExecutorParamsBuilder.build()).addCommand("-listTestsOnly").build(),xctoolFilterParamsBuilder);
+      if (returnCode != 0) {
+        context.getConsole().printErrorText("Failed to query tests with xctool");
+        return returnCode;
+      }
+      ImmutableList<String> xctoolFilterParams=xctoolFilterParamsBuilder.build();
       if (xctoolFilterParams.isEmpty()) {
-        context.getConsole().printBuildFailure(String.format("No tests found matching specified filter (%s)",testSelectorList.getExplanation()));
+        context.getConsole().printBuildFailure(String.format(Locale.US,"No tests found matching specified filter (%s)",testSelectorList.getExplanation()));
         return 0;
       }
       processExecutorParamsBuilder.addAllCommand(xctoolFilterParams);
@@ -24,7 +30,8 @@
       acquireStutterLock(stutterLockIsNotified);
       ProcessExecutor.LaunchedProcess launchedProcess=context.getProcessExecutor().launchProcess(processExecutorParams);
       int exitCode;
-      try (OutputStream outputStream=filesystem.newFileOutputStream(outputPath);TeeInputStream stdoutWrapperStream=new TeeInputStream(launchedProcess.getInputStream(),outputStream)){
+      String stderr;
+      try (OutputStream outputStream=filesystem.newFileOutputStream(outputPath);TeeInputStream stdoutWrapperStream=new TeeInputStream(launchedProcess.getInputStream(),outputStream);InputStreamReader stderrReader=new InputStreamReader(launchedProcess.getErrorStream(),StandardCharsets.UTF_8);BufferedReader bufferedStderrReader=new BufferedReader(stderrReader)){
         if (stdoutReadingCallback.isPresent()) {
           stdoutReadingCallback.get().readStdout(stdoutWrapperStream);
         }
@@ -32,15 +39,21 @@
           stdoutWrapperStream.close();
           ByteStreams.copy(launchedProcess.getInputStream(),outputStream);
         }
+        stderr=CharStreams.toString(bufferedStderrReader).trim();
         exitCode=waitForProcessAndGetExitCode(context.getProcessExecutor(),launchedProcess);
-        LOG.debug("Finished running command, exit code %d",exitCode);
+        LOG.debug("Finished running command, exit code %d, stderr %s",exitCode,stderr);
       }
   finally {
         context.getProcessExecutor().destroyLaunchedProcess(launchedProcess);
         context.getProcessExecutor().waitForLaunchedProcess(launchedProcess);
       }
       if (exitCode != 0) {
-        LOG.warn("%s exited with error %d",command,exitCode);
+        if (!stderr.isEmpty()) {
+          context.getConsole().printErrorText(String.format(Locale.US,"xctool failed with exit code %d: %s",exitCode,stderr));
+        }
+ else {
+          context.getConsole().printErrorText(String.format(Locale.US,"xctool failed with exit code %d",exitCode));
+        }
       }
       return exitCode;
     }

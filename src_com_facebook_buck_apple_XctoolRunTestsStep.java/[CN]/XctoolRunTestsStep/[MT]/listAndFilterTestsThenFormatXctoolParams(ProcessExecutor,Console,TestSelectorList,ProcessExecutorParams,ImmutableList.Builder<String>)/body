@@ -1,0 +1,26 @@
+{
+  Preconditions.checkArgument(!testSelectorList.isEmpty());
+  LOG.debug("Filtering tests with selector list: %s",testSelectorList.getExplanation());
+  LOG.debug("Listing tests with command: %s",listTestsOnlyParams);
+  ProcessExecutor.LaunchedProcess launchedProcess=processExecutor.launchProcess(listTestsOnlyParams);
+  ListTestsOnlyHandler listTestsOnlyHandler=new ListTestsOnlyHandler();
+  String stderr;
+  int listTestsResult;
+  try (InputStreamReader isr=new InputStreamReader(launchedProcess.getInputStream(),StandardCharsets.UTF_8);BufferedReader br=new BufferedReader(isr);InputStreamReader esr=new InputStreamReader(launchedProcess.getErrorStream(),StandardCharsets.UTF_8);BufferedReader ebr=new BufferedReader(esr)){
+    XctoolOutputParsing.streamOutputFromReader(br,listTestsOnlyHandler);
+    stderr=CharStreams.toString(ebr).trim();
+    listTestsResult=processExecutor.waitForLaunchedProcess(launchedProcess);
+  }
+   if (listTestsResult != 0) {
+    if (!stderr.isEmpty()) {
+      console.printErrorText(String.format(Locale.US,"xctool failed with exit code %d: %s",listTestsResult,stderr));
+    }
+ else {
+      console.printErrorText(String.format(Locale.US,"xctool failed with exit code %d",listTestsResult));
+    }
+  }
+ else {
+    formatXctoolFilterParams(testSelectorList,listTestsOnlyHandler.testTargetsToDescriptions,filterParamsBuilder);
+  }
+  return listTestsResult;
+}
