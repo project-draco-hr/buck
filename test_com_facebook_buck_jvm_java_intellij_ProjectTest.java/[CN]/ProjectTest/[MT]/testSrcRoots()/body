@@ -2,7 +2,7 @@
   BuildRuleResolver ruleResolver1=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   BuildRule resBuildRule=ruleResolver1.addToIndex(AndroidResourceRuleBuilder.newBuilder().setResolver(new SourcePathResolver(ruleResolver1)).setBuildTarget(BuildTargetFactory.newInstance("//resources/com/example:res")).build());
   ProjectConfig projectConfigNullSrcRoots=(ProjectConfig)ProjectConfigBuilder.createBuilder(BuildTargetFactory.newInstance("//resources/com/example:project_config")).setSrcRule(resBuildRule.getBuildTarget()).setSrcRoots(null).build(ruleResolver1);
-  ProjectWithModules projectWithModules1=getModulesForActionGraph(ruleResolver1,ImmutableSortedSet.of(projectConfigNullSrcRoots),null);
+  ProjectWithModules projectWithModules1=getModulesForActionGraph(ruleResolver1,ImmutableSortedSet.of(projectConfigNullSrcRoots),null,null);
   assertEquals(1,projectWithModules1.modules.size());
   SerializableModule moduleNoJavaSource=projectWithModules1.modules.get(0);
   assertListEquals("Only source tmp should be gen/ when setSrcRoots(null) is specified.",ImmutableList.of(SerializableModule.SourceFolder.GEN),moduleNoJavaSource.sourceFolders);
@@ -12,7 +12,7 @@
   JavaPackageFinder javaPackageFinder=EasyMock.createMock(JavaPackageFinder.class);
   EasyMock.expect(javaPackageFinder.findJavaPackage(Paths.get("java/com/example/base/module_java_com_example_base.iml"))).andReturn("com.example.base");
   EasyMock.replay(javaPackageFinder);
-  ProjectWithModules projectWithModules2=getModulesForActionGraph(ruleResolver2,ImmutableSortedSet.of(inPackageProjectConfig),javaPackageFinder);
+  ProjectWithModules projectWithModules2=getModulesForActionGraph(ruleResolver2,ImmutableSortedSet.of(inPackageProjectConfig),javaPackageFinder,null);
   EasyMock.verify(javaPackageFinder);
   assertEquals(1,projectWithModules2.modules.size());
   SerializableModule moduleWithPackagePrefix=projectWithModules2.modules.get(0);
@@ -20,7 +20,7 @@
   BuildRuleResolver ruleResolver3=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   BuildRule baseBuildRule3=AndroidLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/example/base:base")).build(ruleResolver3);
   ProjectConfig hasSrcFolderProjectConfig=(ProjectConfig)ProjectConfigBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/example/base:project_config")).setSrcRule(baseBuildRule3.getBuildTarget()).setSrcRoots(ImmutableList.of("src")).build(ruleResolver3);
-  ProjectWithModules projectWithModules3=getModulesForActionGraph(ruleResolver3,ImmutableSortedSet.of(hasSrcFolderProjectConfig),null);
+  ProjectWithModules projectWithModules3=getModulesForActionGraph(ruleResolver3,ImmutableSortedSet.of(hasSrcFolderProjectConfig),null,null);
   assertEquals(1,projectWithModules3.modules.size());
   SerializableModule moduleHasSrcFolder=projectWithModules3.modules.get(0);
   assertListEquals("Both src/ and gen/ should be source folders.",ImmutableList.of(new SourceFolder("file://$MODULE_DIR$/src",false),SerializableModule.SourceFolder.GEN),moduleHasSrcFolder.sourceFolders);

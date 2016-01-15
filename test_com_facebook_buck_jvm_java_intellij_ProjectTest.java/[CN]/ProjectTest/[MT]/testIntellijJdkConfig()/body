@@ -1,0 +1,12 @@
+{
+  IntellijConfig intellijConfig=new IntellijConfig(FakeBuckConfig.builder().setSections(ImmutableMap.of("intellij",ImmutableMap.of("jdk_name","1.8"))).build());
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  BuildRule baseBuildRule=JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/example/base:base")).build(ruleResolver);
+  ProjectConfig packageProjectConfig=(ProjectConfig)ProjectConfigBuilder.createBuilder(BuildTargetFactory.newInstance("//java/com/example/base:project_config")).setSrcRule(baseBuildRule.getBuildTarget()).setSrcRoots(ImmutableList.<String>of()).build(ruleResolver);
+  ProjectWithModules projectWithJdkOverride=getModulesForActionGraph(ruleResolver,ImmutableSortedSet.of(packageProjectConfig),null,intellijConfig);
+  SerializableModule moduleWithJdkOverride=projectWithJdkOverride.modules.get(0);
+  assertListEquals(ImmutableList.of(SerializableDependentModule.newSourceFolder(),SerializableDependentModule.newStandardJdk(Optional.of("1.8"),Optional.of("JavaSDK"))),moduleWithJdkOverride.getDependencies());
+  ProjectWithModules projectWithDefaultJdk=getModulesForActionGraph(ruleResolver,ImmutableSortedSet.of(packageProjectConfig),null,null);
+  SerializableModule moduleWithDefaultJdk=projectWithDefaultJdk.modules.get(0);
+  assertListEquals(ImmutableList.of(SerializableDependentModule.newSourceFolder(),SerializableDependentModule.newStandardJdk(Optional.of("1.7"),Optional.of("JavaSDK"))),moduleWithDefaultJdk.getDependencies());
+}
