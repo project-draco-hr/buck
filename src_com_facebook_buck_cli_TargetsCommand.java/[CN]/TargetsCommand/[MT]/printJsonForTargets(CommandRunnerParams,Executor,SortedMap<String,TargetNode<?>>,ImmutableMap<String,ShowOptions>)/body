@@ -1,14 +1,22 @@
 {
   params.getConsole().getStdOut().println("[");
   ObjectMapper mapper=params.getObjectMapper();
-  Iterator<TargetNode<?>> valueIterator=buildIndex.values().iterator();
-  while (valueIterator.hasNext()) {
-    TargetNode<?> targetNode=valueIterator.next();
-    SortedMap<String,Object> sortedTargetRule=null;
+  Iterator<Entry<String,TargetNode<?>>> mapIterator=buildIndex.entrySet().iterator();
+  while (mapIterator.hasNext()) {
+    Entry<String,TargetNode<?>> current=mapIterator.next();
+    String target=current.getKey();
+    TargetNode<?> targetNode=current.getValue();
+    SortedMap<String,Object> sortedTargetRule;
     sortedTargetRule=params.getParser().getRawTargetNode(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),executor,targetNode);
     if (sortedTargetRule == null) {
       params.getConsole().printErrorText("unable to find rule for target " + targetNode.getBuildTarget().getFullyQualifiedName());
       continue;
+    }
+    ShowOptions showOptions=showRulesResult.get(target);
+    if (showOptions != null) {
+      putIfValuePresent(ShowOptionsName.RULE_KEY.getName(),showOptions.getRuleKey(),sortedTargetRule);
+      putIfValuePresent(ShowOptionsName.OUTPUT_PATH.getName(),showOptions.getOutputPath(),sortedTargetRule);
+      putIfValuePresent(ShowOptionsName.TARGET_HASH.getName(),showOptions.getTargetHash(),sortedTargetRule);
     }
     StringWriter stringWriter=new StringWriter();
     try {
@@ -18,7 +26,7 @@
       throw Throwables.propagate(e);
     }
     String output=stringWriter.getBuffer().toString();
-    if (valueIterator.hasNext()) {
+    if (mapIterator.hasNext()) {
       output+=",";
     }
     params.getConsole().getStdOut().println(output);

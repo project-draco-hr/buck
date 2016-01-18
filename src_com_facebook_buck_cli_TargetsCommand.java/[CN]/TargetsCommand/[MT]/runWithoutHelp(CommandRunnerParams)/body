@@ -5,13 +5,22 @@
   if (isShowRuleKey() && isShowTargetHash()) {
     throw new HumanReadableException("Cannot show rule key and target hash at the same time.");
   }
+  ImmutableMap<String,ShowOptions> showRulesResult=ImmutableMap.of();
   try (CommandThreadManager pool=new CommandThreadManager("Targets",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
     if (isShowOutput() || isShowRuleKey() || isShowTargetHash()) {
       try {
-        return doShowRules(params,pool.getExecutor());
+        showRulesResult=computeShowRules(params,pool.getExecutor());
       }
  catch (      NoSuchBuildTargetException e) {
         throw new HumanReadableException("Error getting rules: %s",e.getHumanReadableErrorMessage());
+      }
+catch (      BuildTargetException|BuildFileParseException e) {
+        params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
+        return 1;
+      }
+      if (!getPrintJson()) {
+        printShowRules(showRulesResult,params);
+        return 0;
       }
     }
     ImmutableSet<String> types=getTypes();
@@ -54,7 +63,7 @@
     }
     if (getPrintJson()) {
       try {
-        printJsonForTargets(params,pool.getExecutor(),matchingNodes);
+        printJsonForTargets(params,pool.getExecutor(),matchingNodes,showRulesResult);
       }
  catch (      BuildFileParseException e) {
         params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));

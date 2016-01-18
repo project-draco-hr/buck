@@ -1,21 +1,15 @@
 {
   if (getArguments().isEmpty()) {
-    params.getBuckEventBus().post(ConsoleEvent.severe("Must specify at least one build target."));
-    return 1;
+    throw new HumanReadableException("Must specify at least one build target.");
   }
+  Map<String,ShowOptions.Builder> showOptionBuilderMap=new HashMap<>();
   ImmutableSet<BuildTarget> matchingBuildTargets;
   TargetGraph targetGraph;
-  try {
-    Pair<ImmutableSet<BuildTarget>,TargetGraph> result=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),executor,parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),getArguments()));
-    matchingBuildTargets=result.getFirst();
-    targetGraph=result.getSecond();
-    if (isShowTargetHash()) {
-      return doShowTargetHash(params,executor,matchingBuildTargets,targetGraph);
-    }
-  }
- catch (  BuildTargetException|BuildFileParseException e) {
-    params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
-    return 1;
+  Pair<ImmutableSet<BuildTarget>,TargetGraph> res=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),executor,parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),getArguments()));
+  matchingBuildTargets=res.getFirst();
+  targetGraph=res.getSecond();
+  if (isShowTargetHash()) {
+    computeShowTargetHash(params,executor,matchingBuildTargets,targetGraph,showOptionBuilderMap);
   }
   Optional<ActionGraph> actionGraph=Optional.absent();
   Optional<BuildRuleResolver> buildRuleResolver=Optional.absent();
@@ -30,12 +24,12 @@
     }
   }
   for (  BuildTarget target : ImmutableSortedSet.copyOf(matchingBuildTargets)) {
-    ImmutableList.Builder<String> builder=ImmutableList.builder();
-    builder.add(target.getFullyQualifiedName());
+    ShowOptions.Builder showOptionsBuilder=getShowOptionBuilder(showOptionBuilderMap,target);
+    Preconditions.checkNotNull(showOptionsBuilder);
     if (actionGraph.isPresent()) {
       BuildRule rule=buildRuleResolver.get().requireRule(target);
       if (isShowRuleKey()) {
-        builder.add(ruleKeyBuilderFactory.get().build(rule).toString());
+        showOptionsBuilder.setRuleKey(ruleKeyBuilderFactory.get().build(rule).toString());
       }
       if (isShowOutput()) {
         Path outputPath;
@@ -46,11 +40,14 @@
           outputPath=rule.getPathToOutput();
         }
         if (outputPath != null) {
-          builder.add(outputPath.toString());
+          showOptionsBuilder.setOutputPath(outputPath.toString());
         }
       }
     }
-    params.getConsole().getStdOut().println(Joiner.on(' ').join(builder.build()));
   }
-  return 0;
+  ImmutableMap.Builder<String,ShowOptions> builder=new ImmutableMap.Builder<>();
+  for (  Entry<String,ShowOptions.Builder> entry : showOptionBuilderMap.entrySet()) {
+    builder.put(entry.getKey(),entry.getValue().build());
+  }
+  return builder.build();
 }
