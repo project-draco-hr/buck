@@ -1,0 +1,13 @@
+{
+  if (!args.infoPlist.isPresent()) {
+    throw new HumanReadableException("Cannot create framework for apple_library '%s':\n","No value specified for 'info_plist' attribute.",params.getBuildTarget().getUnflavoredBuildTarget());
+  }
+  if (!AppleDescriptions.INCLUDE_FRAMEWORKS.getValue(params.getBuildTarget()).isPresent()) {
+    return resolver.requireRule(BuildTarget.builder(params.getBuildTarget()).addFlavors(AppleDescriptions.INCLUDE_FRAMEWORKS_FLAVOR).build());
+  }
+  AppleDebugFormat debugFormat=AppleDebugFormat.FLAVOR_DOMAIN.getValue(params.getBuildTarget()).or(defaultDebugFormat);
+  if (params.getBuildTarget().getFlavors().contains(debugFormat.getFlavor())) {
+    return resolver.requireRule(params.getBuildTarget().withoutFlavors(ImmutableSet.of(debugFormat.getFlavor())));
+  }
+  return AppleDescriptions.createAppleBundle(cxxPlatformFlavorDomain,defaultCxxPlatform,platformFlavorsToAppleCxxPlatforms,targetGraph,params,resolver,codeSignIdentityStore,provisioningProfileStore,params.getBuildTarget(),args.linkStyle,Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.FRAMEWORK),Optional.<String>absent(),args.infoPlist.get(),args.infoPlistSubstitutions,args.deps.get(),args.getTests(),debugFormat);
+}

@@ -1,0 +1,21 @@
+{
+  if (buildRule instanceof WriteFile) {
+    return false;
+  }
+  if (buildRule instanceof AppleDebuggableBinary || buildRule instanceof FatBinary || buildRule instanceof CxxBinary|| buildRule instanceof CxxLink) {
+    return true;
+  }
+  TargetNode<?> node=Preconditions.checkNotNull(targetGraph.get(buildRule.getBuildTarget()));
+  Optional<TargetNode<AppleBundleDescription.Arg>> bundleNode=node.castArg(AppleBundleDescription.Arg.class);
+  if (bundleNode.isPresent()) {
+    TargetNode<?> binaryNode=Preconditions.checkNotNull(targetGraph.get(bundleNode.get().getConstructorArg().binary));
+    if (binaryNode.castArg(AppleBinaryDescription.Arg.class).isPresent()) {
+      return true;
+    }
+    Optional<TargetNode<AppleLibraryDescription.Arg>> libraryAsBinaryNode=binaryNode.castArg(AppleLibraryDescription.Arg.class);
+    if (libraryAsBinaryNode.isPresent()) {
+      return !isStaticLibraryArg(libraryAsBinaryNode.get().getConstructorArg());
+    }
+  }
+  return false;
+}

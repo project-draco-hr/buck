@@ -1,0 +1,21 @@
+{
+  return new Step(){
+    @Override public int execute(    ExecutionContext context) throws IOException, InterruptedException {
+      Preconditions.checkNotNull(binaryBuildRule.getPathToOutput(),"Binary build rule " + binaryBuildRule.toString() + " has no output path.");
+      if (!CodeSigning.hasValidSignature(context.getProcessExecutor(),binaryBuildRule.getPathToOutput())) {
+        return (new DefaultShellStep(getProjectFilesystem().getRootPath(),ImmutableList.<String>builder().addAll(strip.getCommandPrefix(getResolver())).add("-S").add(getProjectFilesystem().resolve(binaryBuildRule.getPathToOutput()).toString()).build(),strip.getEnvironment(getResolver()))).execute(context);
+      }
+ else {
+        LOG.info("Not stripping code-signed binary.");
+        return 0;
+      }
+    }
+    @Override public String getShortName(){
+      return "strip binary";
+    }
+    @Override public String getDescription(    ExecutionContext context){
+      return String.format("strip debug symbols from binary '%s'",binaryBuildRule.getPathToOutput());
+    }
+  }
+;
+}
