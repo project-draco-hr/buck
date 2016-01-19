@@ -4,11 +4,11 @@ def _get_resource(self, resource):
     if (not os.path.exists(resource_path)):
         if (not os.path.exists(os.path.dirname(resource_path))):
             os.makedirs(os.path.dirname(resource_path))
-        with tempfile.NamedTemporaryFile(prefix=(resource_path + os.extsep)) as outf:
+        with closable_named_temporary_file(prefix=(resource_path + os.extsep)) as outf:
             outf.write(pkg_resources.resource_string(__name__, resource.name))
-            if resource.executable:
+            if (resource.executable and hasattr(os, 'fchmod')):
                 st = os.fstat(outf.fileno())
                 os.fchmod(outf.fileno(), (st.st_mode | stat.S_IXUSR))
-            os.rename(outf.name, resource_path)
-            outf.delete = False
+            outf.close()
+            shutil.copy(outf.name, resource_path)
     return resource_path
