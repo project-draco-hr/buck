@@ -1,0 +1,27 @@
+{
+  boolean hasDirectory=true;
+  filesystem=new ProjectFilesystem(tmp.getRoot());
+  src=filesystem.getRootPath().resolve("src");
+  dest=filesystem.getRootPath().resolve("dest");
+  subDirectoryFile1=filesystem.getRootPath().resolve("src/subDir/subDir2/file1");
+  subDirectoryFile2=filesystem.getRootPath().resolve("src/subDir/file2");
+  subDirectoryFile3=filesystem.getRootPath().resolve("src/file3");
+  bundleFiles(ImmutableSortedSet.<SourcePath>of(new PathSourcePath(filesystem,src)));
+  LinkedList<Path> bundledFilesCollection=new LinkedList<>(filesystem.getDirectoryContents(dest));
+  while (hasDirectory) {
+    hasDirectory=false;
+    for (    Path path : bundledFilesCollection) {
+      if (Files.isDirectory(filesystem.getPathForRelativePath(path))) {
+        hasDirectory=true;
+        bundledFilesCollection.remove(path);
+        bundledFilesCollection.addAll(filesystem.getDirectoryContents(path));
+        break;
+      }
+    }
+  }
+  assertSame(bundledFilesCollection.size(),3);
+  for (  Path path : bundledFilesCollection) {
+    Path relativePath=dest.relativize(filesystem.getPathForRelativePath(path));
+    assertTrue(subDirectoryFile1.endsWith(relativePath) || subDirectoryFile2.endsWith(relativePath) || subDirectoryFile3.endsWith(relativePath));
+  }
+}
