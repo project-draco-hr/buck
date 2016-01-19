@@ -1,0 +1,21 @@
+{
+  ImmutableSortedSet.Builder<HasMavenCoordinates> depsCollector=ImmutableSortedSet.naturalOrder();
+  ImmutableSortedSet.Builder<JavaLibrary> candidates=ImmutableSortedSet.naturalOrder();
+  for (  final BuildRule root : roots) {
+    Preconditions.checkState(root instanceof HasClasspathEntries);
+    candidates.addAll(FluentIterable.from(((HasClasspathEntries)root).getTransitiveClasspathDeps()).filter(new Predicate<JavaLibrary>(){
+      @Override public boolean apply(      JavaLibrary buildRule){
+        return !root.equals(buildRule);
+      }
+    }
+));
+  }
+  ImmutableSortedSet.Builder<JavaLibrary> removals=ImmutableSortedSet.naturalOrder();
+  for (  JavaLibrary javaLibrary : candidates.build()) {
+    if (HasMavenCoordinates.MAVEN_COORDS_PRESENT_PREDICATE.apply(javaLibrary)) {
+      depsCollector.add(javaLibrary);
+      removals.addAll(javaLibrary.getTransitiveClasspathDeps());
+    }
+  }
+  return new TraversedDeps(depsCollector.build(),Sets.union(roots,Sets.difference(candidates.build(),removals.build())));
+}
