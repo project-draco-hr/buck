@@ -1,16 +1,34 @@
 {
-  List<Pair<URI,Long>> serverLatencies=Lists.newArrayList();
-  for (  ServerHealthState state : servers.values()) {
-    if (state.getErrorsPerSecond(epochMillis,errorCheckTimeRangeMillis) < maxErrorsPerSecond) {
+  ServerHealthManagerEventData.Builder data=ServerHealthManagerEventData.builder();
+  Map<URI,PerServerData.Builder> allPerServerData=Maps.newHashMap();
+  try {
+    List<Pair<URI,Long>> serverLatencies=Lists.newArrayList();
+    for (    ServerHealthState state : servers.values()) {
+      URI server=state.getServer();
+      PerServerData.Builder perServerData=PerServerData.builder().setServer(server);
+      allPerServerData.put(server,perServerData);
+      float errorsPerSecond=state.getErrorsPerSecond(epochMillis,errorCheckTimeRangeMillis);
       long latencyMillis=state.getLatencyMillis(epochMillis,latencyCheckTimeRangeMillis);
-      if (latencyMillis <= maxAcceptableLatencyMillis) {
+      if (errorsPerSecond < maxErrorsPerSecond && latencyMillis <= maxAcceptableLatencyMillis) {
         serverLatencies.add(new Pair<>(state.getServer(),latencyMillis));
       }
+ else {
+        perServerData.setServerUnhealthy(true);
+      }
     }
+    if (serverLatencies.size() == 0) {
+      data.setNoHealthyServersAvailable(true);
+      throw new NoHealthyServersException(String.format("No servers available. Too many errors reported by all servers in the pool: [%s]",Joiner.on(", ").join(FluentIterable.from(servers.keySet()).transform(Functions.toStringFunction()))));
+    }
+    Collections.sort(serverLatencies,LATENCY_COMPARATOR);
+    URI bestServer=serverLatencies.get(0).getFirst();
+    Preconditions.checkNotNull(allPerServerData.get(bestServer)).setBestServer(true);
+    return bestServer;
   }
-  if (serverLatencies.size() == 0) {
-    throw new NoHealthyServersException(String.format("No servers available. Too many errors reported by all servers in the pool: [%s]",Joiner.on(", ").join(FluentIterable.from(servers.keySet()).transform(Functions.toStringFunction()))));
+  finally {
+    for (    PerServerData.Builder builder : allPerServerData.values()) {
+      data.addPerServerData(builder.build());
+    }
+    eventBus.post(new ServerHealthManagerEvent(data.build()));
   }
-  Collections.sort(serverLatencies,LATENCY_COMPARATOR);
-  return serverLatencies.get(0).getFirst();
 }

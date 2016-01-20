@@ -1,13 +1,25 @@
 {
   URI server=slb.getBestServer();
+  LoadBalancedServiceEventData.Builder data=LoadBalancedServiceEventData.builder().setServer(server);
   requestBuilder.url(server.resolve(path).toURL());
   Request request=requestBuilder.build();
+  if (request.body() != null && request.body().contentLength() != -1) {
+    data.setRequestSizeBytes(request.body().contentLength());
+  }
   Call call=client.newCall(request);
   try {
-    return call.execute();
+    Response response=call.execute();
+    if (response.body() != null && response.body().contentLength() != -1) {
+      data.setResponseSizeBytes(response.body().contentLength());
+    }
+    return response;
   }
  catch (  IOException e) {
+    data.setException(e);
     slb.reportException(server);
     throw new IOException(e);
+  }
+ finally {
+    eventBus.post(new LoadBalancedServiceEvent(data.build()));
   }
 }

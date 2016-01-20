@@ -1,0 +1,20 @@
+{
+  LoadBalancedServiceEventData data=event.getData();
+  ServerCounters counters=getServerCounters(data.getServer());
+  counters.getRequestCount().inc();
+  if (data.getRequestSizeBytes().isPresent()) {
+    counters.getRequestSizeBytes().addSample(data.getRequestSizeBytes().get());
+  }
+  if (data.getResponseSizeBytes().isPresent()) {
+    counters.getResponseSizeBytes().addSample(data.getResponseSizeBytes().get());
+  }
+  if (data.getException().isPresent()) {
+    Exception exception=data.getException().get();
+    if (exception instanceof SocketTimeoutException) {
+      counters.getRequestTimeoutCount().inc();
+    }
+ else {
+      counters.getRequestErrorCount().inc();
+    }
+  }
+}

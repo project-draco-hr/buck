@@ -1,14 +1,23 @@
 {
-  for (  URI uri : serverPool) {
-    Request request=new Request.Builder().url(uri.resolve(pingEndpoint).toString()).get().build();
+  LoadBalancerPingEventData.Builder data=LoadBalancerPingEventData.builder();
+  for (  URI serverUri : serverPool) {
+    PerServerPingData.Builder perServerData=PerServerPingData.builder().setServer(serverUri);
+    Request request=new Request.Builder().url(serverUri.resolve(pingEndpoint).toString()).get().build();
     long nowMillis=clock.currentTimeMillis();
     Stopwatch stopwatch=Stopwatch.createStarted();
     try {
       pingClient.newCall(request).execute();
-      healthManager.reportLatency(uri,nowMillis,stopwatch.elapsed(TimeUnit.MILLISECONDS));
+      long requestLatencyMillis=stopwatch.elapsed(TimeUnit.MILLISECONDS);
+      perServerData.setPingRequestLatencyMillis(requestLatencyMillis);
+      healthManager.reportLatency(serverUri,nowMillis,requestLatencyMillis);
     }
  catch (    IOException e) {
-      healthManager.reportError(uri,nowMillis);
+      healthManager.reportError(serverUri,nowMillis);
+      perServerData.setException(e);
+    }
+ finally {
+      data.addPerServerData(perServerData.build());
     }
   }
+  eventBus.post(new LoadBalancerPingEvent(data.build()));
 }
