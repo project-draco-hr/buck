@@ -1,7 +1,4 @@
 {
-  if (directories.size() == 1) {
-    return Iterables.getOnlyElement(directories);
-  }
   List<File> apiVersionDirectories=Lists.newArrayList();
   List<File> androidVersionDirectories=Lists.newArrayList();
   for (  File dir : directories) {
@@ -14,6 +11,14 @@
   }
   final VersionStringComparator comparator=new VersionStringComparator();
   if (!apiVersionDirectories.isEmpty()) {
+    if (targetBuildToolsVersion.isPresent()) {
+      for (      File dir : apiVersionDirectories) {
+        if (dir.getName().equals(targetBuildToolsVersion.get())) {
+          return dir.toPath();
+        }
+      }
+      throw unableToFindTargetBuildTools();
+    }
     Collections.sort(apiVersionDirectories,new Comparator<File>(){
       @Override public int compare(      File a,      File b){
         String versionA=a.getName();
@@ -22,7 +27,7 @@
       }
     }
 );
-    return apiVersionDirectories.get(apiVersionDirectories.size() - 1);
+    return apiVersionDirectories.get(apiVersionDirectories.size() - 1).toPath();
   }
  else {
     Collections.sort(androidVersionDirectories,new Comparator<File>(){
@@ -33,6 +38,6 @@
       }
     }
 );
-    return androidVersionDirectories.get(androidVersionDirectories.size() - 1);
+    return androidVersionDirectories.get(androidVersionDirectories.size() - 1).toPath();
   }
 }
