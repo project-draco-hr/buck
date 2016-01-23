@@ -1,0 +1,8 @@
+{
+  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().addCommand("security","find-identity","-v","-p","codesigning").build();
+  FakeProcess process=new FakeProcess(0,"  1) AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA " + "\"iPhone Developer: Foo Bar (ABCDE12345)\" (CSSMERR_TP_CERT_REVOKED)\n" + "  2) AAAAAAAAAAAAAAAAAAAABBBBBBBBBBBBBBBBBBBB "+ "\"iPhone Developer: Foo Bar (12345ABCDE)\" (CSSMERR_TP_CERT_EXPIRED)\n"+ "  3) BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB "+ "\"iPhone Developer: Foo Bar (54321EDCBA)\"\n"+ "     3 valid identities found\n","");
+  FakeProcessExecutor processExecutor=new FakeProcessExecutor(ImmutableMap.of(processExecutorParams,process));
+  CodeSignIdentityStore store=CodeSignIdentityStore.fromSystem(processExecutor);
+  ImmutableList<CodeSignIdentity> expected=ImmutableList.<CodeSignIdentity>of(CodeSignIdentity.builder().setFingerprint(CodeSignIdentity.toFingerprint("BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB")).setSubjectCommonName("iPhone Developer: Foo Bar (54321EDCBA)").build());
+  assertThat(store.getIdentities(),equalTo(expected));
+}
