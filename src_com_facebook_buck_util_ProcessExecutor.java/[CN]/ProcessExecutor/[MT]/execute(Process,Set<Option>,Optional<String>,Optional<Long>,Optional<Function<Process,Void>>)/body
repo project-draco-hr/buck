@@ -7,9 +7,11 @@
   boolean expectingStdErr=options.contains(Option.EXPECTING_STD_ERR);
   PrintStream stdErrToWriteTo=shouldPrintStdErr ? stdErrStream : new CapturingPrintStream();
   InputStreamConsumer stdErr=new InputStreamConsumer(process.getErrorStream(),InputStreamConsumer.createAnsiHighlightingHandler(!shouldPrintStdErr && !expectingStdErr,stdErrToWriteTo,ansi));
-  Thread stdOutConsumer=Threads.namedThread("ProcessExecutor (stdOut)",stdOut);
+  FutureTask<Void> stdOutTerminationFuture=new FutureTask<>(stdOut);
+  Thread stdOutConsumer=Threads.namedThread("ProcessExecutor (stdOut)",stdOutTerminationFuture);
   stdOutConsumer.start();
-  Thread stdErrConsumer=Threads.namedThread("ProcessExecutor (stdErr)",stdErr);
+  FutureTask<Void> stdErrTerminationFuture=new FutureTask<>(stdErr);
+  Thread stdErrConsumer=Threads.namedThread("ProcessExecutor (stdErr)",stdErrTerminationFuture);
   stdErrConsumer.start();
   boolean timedOut=false;
   try {
@@ -28,10 +30,10 @@
  else {
       process.waitFor();
     }
-    stdOutConsumer.join();
-    stdErrConsumer.join();
+    stdOutTerminationFuture.get();
+    stdErrTerminationFuture.get();
   }
- catch (  IOException e) {
+ catch (  ExecutionException|IOException e) {
     return new Result(1);
   }
  finally {

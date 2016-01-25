@@ -11,9 +11,22 @@
       }
  catch (      IOException e) {
       }
-      if (stderrConsumer != null) {
-        stderrConsumer.join();
-        stderrConsumer=null;
+      if (stderrConsumerThread != null) {
+        stderrConsumerThread.join();
+        stderrConsumerThread=null;
+        try {
+          Preconditions.checkNotNull(stderrConsumerTerminationFuture).get();
+        }
+ catch (        ExecutionException e) {
+          Throwable cause=e.getCause();
+          if (cause instanceof IOException) {
+            throw (IOException)cause;
+          }
+ else {
+            throw new RuntimeException(e);
+          }
+        }
+        stderrConsumerTerminationFuture=null;
       }
       if (enableProfiling && profileOutputFile != null) {
         parseProfileOutput(profileOutputFile.get());
