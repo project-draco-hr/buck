@@ -1,0 +1,26 @@
+{
+  final Set<File> buckDirectories=new HashSet<>();
+  buckDirectories.add(convertPathToFile(projectFilesystem.resolve(BuckConstant.BUCK_OUTPUT_PATH)));
+  buckDirectories.add(convertPathToFile(projectFilesystem.resolve(buckConfig.getLocalCacheDirectory())));
+  ForkJoinPool cleanExecutor=new ForkJoinPool(getParallelismLimit());
+  try {
+    cleanExecutor.invoke(new RecursiveAction(){
+      @Override protected void compute(){
+        List<RecursiveAction> topLevelTasks=new ArrayList<>(2);
+        topLevelTasks.add(new CandidateFinderWithExclusions(convertPathToFile(projectFilesystem.resolve("")),IML_FILENAME_FILTER,buckDirectories));
+        topLevelTasks.add(new CandidateFinder(convertPathToFile(librariesXmlBase),XML_FILENAME_FILTER));
+        invokeAll(topLevelTasks);
+      }
+    }
+);
+  }
+  finally {
+    cleanExecutor.shutdown();
+    try {
+      cleanExecutor.awaitTermination(EXECUTOR_SHUTDOWN_TIMEOUT,EXECUTOR_SHUTDOWN_TIME_UNIT);
+    }
+ catch (    InterruptedException e) {
+      Logger.get(IJProjectCleaner.class).warn("Timeout during executor shutdown.",e);
+    }
+  }
+}
