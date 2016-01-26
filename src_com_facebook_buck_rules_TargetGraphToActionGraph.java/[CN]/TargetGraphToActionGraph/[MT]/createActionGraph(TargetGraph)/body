@@ -6,17 +6,11 @@
   final AtomicInteger processedNodes=new AtomicInteger(0);
   AbstractBottomUpTraversal<TargetNode<?>,ActionGraph> bottomUpTraversal=new AbstractBottomUpTraversal<TargetNode<?>,ActionGraph>(targetGraph){
     @Override public void visit(    TargetNode<?> node){
-      BuildRule rule;
       try {
-        rule=buildRuleGenerator.transform(targetGraph,resolver,node);
+        resolver.requireRule(node.getBuildTarget());
       }
  catch (      NoSuchBuildTargetException e) {
         throw new HumanReadableException(e);
-      }
-      Optional<BuildRule> existingRule=resolver.getRuleOptional(rule.getBuildTarget());
-      Preconditions.checkState(!existingRule.isPresent() || existingRule.get().equals(rule));
-      if (!existingRule.isPresent()) {
-        resolver.addToIndex(rule);
       }
       eventBus.post(ActionGraphEvent.processed(processedNodes.incrementAndGet(),numberOfNodes));
     }
