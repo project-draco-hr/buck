@@ -11,6 +11,7 @@ def main():
     parser.add_option('--watchman_project_prefix', action='store', type='string', dest='watchman_project_prefix', help='Relative project prefix as returned by `watchman watch-project`.')
     parser.add_option('--watchman_query_timeout_ms', action='store', type='int', dest='watchman_query_timeout_ms', help='Maximum time in milliseconds to wait for watchman query to respond.')
     parser.add_option('--include', action='append', dest='include')
+    parser.add_option('--config', help='BuckConfig settings available at parse time.')
     parser.add_option('--quiet', action='store_true', dest='quiet', help='Stifles exception backtraces printed to stderr during parsing.')
     (options, args) = parser.parse_args()
     options.project_root = cygwin_adjusted_path(options.project_root)
@@ -27,7 +28,13 @@ def main():
             client_args['transport'] = 'local'
         watchman_client = pywatchman.client(**client_args)
         watchman_error = pywatchman.WatchmanError
-    buildFileProcessor = BuildFileProcessor(project_root, options.watchman_watch_root, options.watchman_project_prefix, options.build_file_name, options.allow_empty_globs, watchman_client, watchman_error, implicit_includes=(options.include or []))
+    configs = {}
+    if (options.config is not None):
+        with open(options.config) as f:
+            for (section, contents) in bser.loads(f.read()).iteritems():
+                for (field, value) in contents.iteritems():
+                    configs[(section, field)] = value
+    buildFileProcessor = BuildFileProcessor(project_root, options.watchman_watch_root, options.watchman_project_prefix, options.build_file_name, options.allow_empty_globs, watchman_client, watchman_error, implicit_includes=(options.include or []), configs=configs)
     buildFileProcessor.install_builtins(__builtin__.__dict__)
     orig_excepthook = None
     if options.quiet:

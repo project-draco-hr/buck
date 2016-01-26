@@ -1,0 +1,23 @@
+{
+  ImmutableMap<String,ImmutableMap<String,String>> rawSections=config.getSectionToEntries();
+  ImmutableSet<String> sectionsWithIgnoredFields=IGNORE_FIELDS_FOR_DAEMON_RESTART.keySet();
+  if (Sets.intersection(rawSections.keySet(),sectionsWithIgnoredFields).isEmpty()) {
+    return rawSections;
+  }
+  ImmutableMap.Builder<String,ImmutableMap<String,String>> filtered=ImmutableMap.builder();
+  for (  Map.Entry<String,ImmutableMap<String,String>> sectionEnt : rawSections.entrySet()) {
+    String sectionName=sectionEnt.getKey();
+    if (!sectionsWithIgnoredFields.contains(sectionName)) {
+      filtered.put(sectionEnt);
+      continue;
+    }
+    ImmutableMap<String,String> fields=sectionEnt.getValue();
+    ImmutableSet<String> ignoredFieldNames=IGNORE_FIELDS_FOR_DAEMON_RESTART.get(sectionEnt.getKey());
+    if (Sets.intersection(fields.keySet(),ignoredFieldNames).isEmpty()) {
+      filtered.put(sectionEnt);
+      continue;
+    }
+    filtered.put(sectionName,ImmutableMap.copyOf(Maps.filterKeys(fields,Predicates.not(Predicates.in(ignoredFieldNames)))));
+  }
+  return filtered.build();
+}

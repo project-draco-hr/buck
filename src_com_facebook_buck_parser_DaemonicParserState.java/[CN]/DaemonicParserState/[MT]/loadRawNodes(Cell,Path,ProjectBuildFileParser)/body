@@ -3,6 +3,7 @@
     @SuppressWarnings("unchecked") @Override public ImmutableList<Map<String,Object>> call() throws Exception {
       List<Map<String,Object>> rawNodes=parser.getAllRulesAndMetaRules(buildFile);
       ImmutableSet<Path> dependentsOfEveryNode=ImmutableSet.of();
+      ImmutableMap<String,ImmutableMap<String,Optional<String>>> configs=ImmutableMap.of();
       ImmutableList.Builder<Map<String,Object>> toReturn=ImmutableList.builder();
       for (      Map<String,Object> rawNode : rawNodes) {
         if (rawNode.containsKey(INCLUDES_META_RULE)) {
@@ -15,11 +16,25 @@
           }
 ).toSet();
         }
+ else         if (rawNode.containsKey(CONFIGS_META_RULE)) {
+          ImmutableMap.Builder<String,ImmutableMap<String,Optional<String>>> builder=ImmutableMap.builder();
+          Map<String,Map<String,String>> configsMeta=Preconditions.checkNotNull((Map<String,Map<String,String>>)rawNode.get(CONFIGS_META_RULE));
+          for (          Map.Entry<String,Map<String,String>> ent : configsMeta.entrySet()) {
+            builder.put(ent.getKey(),ImmutableMap.copyOf(Maps.transformValues(ent.getValue(),new Function<String,Optional<String>>(){
+              @Override public Optional<String> apply(              @Nullable String input){
+                return Optional.fromNullable(input);
+              }
+            }
+)));
+          }
+          configs=builder.build();
+        }
  else {
           toReturn.add(rawNode);
         }
       }
 synchronized (this) {
+        buildFileConfigs.put(buildFile,configs);
         for (        Path dependent : dependentsOfEveryNode) {
           buildFileDependents.put(dependent,buildFile);
         }
