@@ -1,0 +1,19 @@
+{
+  Path zipfile=tmp.getRoot().resolve("zipfile.zip");
+  String name="name";
+  byte[] contents="contents".getBytes(Charsets.UTF_8);
+  OutputStream out=Files.newOutputStream(zipfile);
+  try (CustomZipOutputStream zip=ZipOutputStreams.newOutputStream(out)){
+    CustomZipEntry entry=new CustomZipEntry(name);
+    entry.setCompressionLevel(compressionLevel);
+    entry.setTime(0);
+    zip.putNextEntry(entry);
+    try (InputStream stream=new ByteArrayInputStream(contents)){
+      ByteStreams.copy(stream,zip);
+    }
+     zip.closeEntry();
+  }
+   try (com.facebook.buck.testutil.Zip zip=new com.facebook.buck.testutil.Zip(zipfile,false)){
+    assertThat(zip.readFully(name),is(equalTo(contents)));
+  }
+ }
