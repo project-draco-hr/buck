@@ -1,19 +1,45 @@
 {
-  Path androidSdkDir=findAndroidSdkDir();
-  Path buildToolsDir=androidSdkDir.resolve("build-tools");
+  final Path androidSdkDir=findAndroidSdkDir();
+  final Path buildToolsDir=androidSdkDir.resolve("build-tools");
   if (buildToolsDir.toFile().isDirectory()) {
     File[] directories=buildToolsDir.toFile().listFiles(new FileFilter(){
       @Override public boolean accept(      File pathname){
-        return pathname.isDirectory();
+        if (!pathname.isDirectory()) {
+          return false;
+        }
+        String version=stripBuildToolsPrefix(pathname.getName());
+        if (!VersionStringComparator.isValidVersionString(version)) {
+          throw new HumanReadableException("%s in %s is not a valid build tools directory.%n" + "Build tools directories should be follow the naming scheme: " + "android-<VERSION>, build-tools-<VERSION>, or <VERSION>. Please remove "+ "directory %s.",pathname.getName(),buildToolsDir,pathname.getName());
+        }
+        if (targetBuildToolsVersion.isPresent()) {
+          return targetBuildToolsVersion.get().equals(pathname.getName());
+        }
+        return true;
       }
     }
 );
-    if (directories.length == 0) {
-      throw new HumanReadableException(Joiner.on(System.getProperty("line.separator")).join("%s was empty, but should have contained a subdirectory with build tools.","Install them using the Android SDK Manager (%s)."),buildToolsDir,androidSdkDir.resolve("tools").resolve("android"));
-    }
+    if (targetBuildToolsVersion.isPresent()) {
+      if (directories.length == 0) {
+        throw unableToFindTargetBuildTools();
+      }
  else {
-      return pickCorrectBuildToolsDir(ImmutableSet.copyOf(directories));
+        return directories[0].toPath();
+      }
     }
+    final VersionStringComparator comparator=new VersionStringComparator();
+    File newestBuildDir=null;
+    String newestBuildDirVersion=null;
+    for (    File directory : directories) {
+      String currentDirVersion=stripBuildToolsPrefix(directory.getName());
+      if (newestBuildDir == null || newestBuildDirVersion == null || comparator.compare(newestBuildDirVersion,currentDirVersion) < 0) {
+        newestBuildDir=directory;
+        newestBuildDirVersion=currentDirVersion;
+      }
+    }
+    if (newestBuildDir == null) {
+      throw new HumanReadableException("%s was empty, but should have contained a subdirectory with build tools.%n" + "Install them using the Android SDK Manager (%s).",buildToolsDir,buildToolsDir.getParent().resolve("tools").resolve("android"));
+    }
+    return newestBuildDir.toPath();
   }
   if (targetBuildToolsVersion.isPresent()) {
     throw unableToFindTargetBuildTools();
