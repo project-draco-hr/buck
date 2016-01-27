@@ -26,8 +26,10 @@
   steps.add(new SymlinkFileStep(getProjectFilesystem(),getResolver().getAbsolutePath(innerJar),fatJarDir.resolve(FAT_JAR_INNER_JAR),true));
   Path zipped=outputDir.resolve("contents.zip");
   Step zipStep=new ZipStep(getProjectFilesystem(),zipped,ImmutableSet.<Path>of(),false,ZipCompressionLevel.MIN_COMPRESSION_LEVEL,fatJarDir);
+  Path pathToSrcsList=BuildTargets.getGenPath(getBuildTarget(),"__%s__srcs");
+  steps.add(new MkdirStep(getProjectFilesystem(),pathToSrcsList.getParent()));
   CompileToJarStepFactory compileStepFactory=new JavacToJarStepFactory(javacOptions,JavacOptionsAmender.IDENTITY);
-  compileStepFactory.createCompileStep(context,ImmutableSortedSet.copyOf(javaSourceFilePaths),getBuildTarget(),getResolver(),getProjectFilesystem(),ImmutableSortedSet.<Path>of(),fatJarDir,Optional.<Path>absent(),Optional.<Path>absent(),Optional.<SuggestBuildRules>absent(),steps,buildableContext);
+  compileStepFactory.createCompileStep(context,ImmutableSortedSet.copyOf(javaSourceFilePaths),getBuildTarget(),getResolver(),getProjectFilesystem(),ImmutableSortedSet.<Path>of(),fatJarDir,Optional.<Path>absent(),pathToSrcsList,Optional.<SuggestBuildRules>absent(),steps,buildableContext);
   steps.add(zipStep);
   steps.add(new JarDirectoryStep(getProjectFilesystem(),getOutputPath(),ImmutableSortedSet.of(zipped),FatJarMain.class.getName(),null));
   return steps.build();

@@ -11,11 +11,12 @@
   DummyRDotJava dummyRDotJava=new DummyRDotJava(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//java/base:rule")).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableSet.of((HasAndroidResourceDeps)resourceRule1,(HasAndroidResourceDeps)resourceRule2),new FakeSourcePath("abi.jar"),ANDROID_JAVAC_OPTIONS,Optional.<String>absent());
   FakeBuildableContext buildableContext=new FakeBuildableContext();
   List<Step> steps=dummyRDotJava.getBuildSteps(EasyMock.createMock(BuildContext.class),buildableContext);
-  assertEquals("DummyRDotJava returns an incorrect number of Steps.",6,steps.size());
+  assertEquals("DummyRDotJava returns an incorrect number of Steps.",7,steps.size());
   String rDotJavaSrcFolder=Paths.get("buck-out/bin/java/base/__rule_rdotjava_src__").toString();
   String rDotJavaBinFolder=Paths.get("buck-out/bin/java/base/__rule_rdotjava_bin__").toString();
   String rDotJavaAbiFolder=Paths.get("buck-out/gen/java/base/__rule_dummyrdotjava_abi__").toString();
-  List<String> expectedStepDescriptions=Lists.newArrayList(makeCleanDirDescription(filesystem.resolve(rDotJavaSrcFolder)),mergeAndroidResourcesDescription(ImmutableList.of((AndroidResource)resourceRule1,(AndroidResource)resourceRule2)),makeCleanDirDescription(filesystem.resolve(rDotJavaBinFolder)),makeCleanDirDescription(filesystem.resolve(rDotJavaAbiFolder)),javacInMemoryDescription(rDotJavaBinFolder,pathResolver),String.format("calculate_abi %s",rDotJavaBinFolder));
+  String genFolder=targetGenPath().toString();
+  List<String> expectedStepDescriptions=Lists.newArrayList(makeCleanDirDescription(filesystem.resolve(rDotJavaSrcFolder)),mergeAndroidResourcesDescription(ImmutableList.of((AndroidResource)resourceRule1,(AndroidResource)resourceRule2)),makeCleanDirDescription(filesystem.resolve(rDotJavaBinFolder)),makeCleanDirDescription(filesystem.resolve(rDotJavaAbiFolder)),makeDirectoryDescription(filesystem.resolve(genFolder)),javacInMemoryDescription(rDotJavaBinFolder,pathResolver),String.format("calculate_abi %s",rDotJavaBinFolder));
   MoreAsserts.assertSteps("DummyRDotJava.getBuildSteps() must return these exact steps.",expectedStepDescriptions,steps,TestExecutionContext.newInstance());
   assertEquals(ImmutableSet.of(Paths.get(rDotJavaBinFolder)),buildableContext.getRecordedArtifacts());
   Sha1HashCode expectedSha1=AndroidResource.ABI_HASHER.apply(ImmutableList.of((HasAndroidResourceDeps)resourceRule1,(HasAndroidResourceDeps)resourceRule2));
