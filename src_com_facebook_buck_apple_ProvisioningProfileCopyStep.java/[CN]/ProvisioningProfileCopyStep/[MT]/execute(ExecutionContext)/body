@@ -25,7 +25,14 @@ catch (    Exception e) {
     entitlements=ProvisioningProfileStore.MATCH_ANY_ENTITLEMENT;
     prefix="*";
   }
-  Optional<ProvisioningProfileMetadata> bestProfile=provisioningProfileUUID.isPresent() ? provisioningProfileStore.getProvisioningProfileByUUID(provisioningProfileUUID.get()) : provisioningProfileStore.getBestProvisioningProfile(bundleID,entitlements);
+  final Optional<ImmutableList<CodeSignIdentity>> identities;
+  if (!codeSignIdentityStore.getIdentities().isEmpty()) {
+    identities=Optional.of(codeSignIdentityStore.getIdentities());
+  }
+ else {
+    identities=ProvisioningProfileStore.MATCH_ANY_IDENTITY;
+  }
+  Optional<ProvisioningProfileMetadata> bestProfile=provisioningProfileUUID.isPresent() ? provisioningProfileStore.getProvisioningProfileByUUID(provisioningProfileUUID.get()) : provisioningProfileStore.getBestProvisioningProfile(bundleID,entitlements,identities);
   if (!bestProfile.isPresent()) {
     throw new HumanReadableException("No valid non-expired provisioning profiles match for " + prefix + "."+ bundleID);
   }

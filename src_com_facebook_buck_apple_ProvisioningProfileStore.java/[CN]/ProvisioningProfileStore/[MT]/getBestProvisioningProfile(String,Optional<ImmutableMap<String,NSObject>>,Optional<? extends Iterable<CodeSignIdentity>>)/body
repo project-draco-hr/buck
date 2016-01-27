@@ -22,12 +22,23 @@
  else {
           match=(bundleID.equals(profileBundleID));
         }
-        if (entitlements.isPresent()) {
+        if (match && entitlements.isPresent()) {
           ImmutableMap<String,NSObject> entitlementsDict=entitlements.get();
           ImmutableMap<String,NSObject> profileEntitlements=profile.getEntitlements();
           for (          Entry<String,NSObject> entry : entitlementsDict.entrySet()) {
             if (!(entry.getKey().equals("keychain-access-groups") || entry.getKey().equals("application-identifier") || entry.getValue().equals(profileEntitlements.get(entry.getKey())))) {
               match=false;
+              break;
+            }
+          }
+        }
+        ImmutableSet<HashCode> validFingerprints=profile.getDeveloperCertificateFingerprints();
+        if (match && identities.isPresent() && !validFingerprints.isEmpty()) {
+          match=false;
+          for (          CodeSignIdentity identity : identities.get()) {
+            Optional<HashCode> fingerprint=identity.getFingerprint();
+            if (fingerprint.isPresent() && validFingerprints.contains(fingerprint.get())) {
+              match=true;
               break;
             }
           }
