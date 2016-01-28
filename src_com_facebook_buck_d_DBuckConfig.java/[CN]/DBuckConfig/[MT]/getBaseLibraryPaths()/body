@@ -19,14 +19,12 @@
   Path usrLocalLib=Paths.get("/usr","local","lib");
   String platformName=delegate.getArchitecture().toString() + "-" + delegate.getPlatform().getAutoconfName();
   String platformNameGnu=platformName + "-gnu";
-  for (  Path libDir : ImmutableList.of(compilerPath.getParent().resolve(Paths.get("..","lib")).normalize(),usrLocalLib,usrLib,usrLocalLib.resolve(platformName),usrLocalLib.resolve(platformNameGnu),usrLib.resolve(platformName),usrLib.resolve(platformNameGnu))) {
-    for (    String libName : ImmutableList.of("libphobos2.a","libphobos2.so")) {
-      Path phobosPath=libDir.resolve(libName);
-      if (Files.exists(phobosPath)) {
-        LOG.debug("Detected path to Phobos: " + phobosPath);
-        return ImmutableList.of(libDir);
-      }
-    }
+  ImmutableSet<Path> searchPath=ImmutableSet.<Path>builder().add(compilerPath.getParent().resolve(Paths.get("..","lib")).normalize()).add(usrLocalLib).add(usrLib).add(usrLocalLib.resolve(platformName)).add(usrLocalLib.resolve(platformNameGnu)).add(usrLib.resolve(platformName)).add(usrLib.resolve(platformNameGnu)).build();
+  ImmutableSet<String> fileNames=FileFinder.combine(ImmutableSet.of("lib"),"phobos2",ImmutableSet.of(".a",".so"));
+  Optional<Path> phobosPath=FileFinder.getOptionalFile(fileNames,searchPath,FileFinder.IS_REGULAR_FILE);
+  if (phobosPath.isPresent()) {
+    LOG.debug("Detected path to Phobos: " + phobosPath.get());
+    return ImmutableList.of(phobosPath.get().getParent());
   }
   throw new HumanReadableException("D standard library not found, and not configured using d.library_path");
 }
