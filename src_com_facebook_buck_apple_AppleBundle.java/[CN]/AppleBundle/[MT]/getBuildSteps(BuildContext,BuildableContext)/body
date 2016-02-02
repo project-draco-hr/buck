@@ -51,6 +51,12 @@
     Path bundleDir=assetCatalog.get().getOutputDir();
     stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),bundleDir,bundleRoot,CopyStep.DirectoryMode.CONTENTS_ONLY));
   }
+  if (swiftStdlibTool.isPresent()) {
+    ImmutableList.Builder<String> swiftStdlibCommand=ImmutableList.builder();
+    swiftStdlibCommand.addAll(swiftStdlibTool.get().getCommandPrefix(getResolver()));
+    swiftStdlibCommand.add("--scan-executable",bundleBinaryPath.toString(),"--scan-folder",bundleRoot.resolve(destinations.getFrameworksPath()).toString(),"--scan-folder",bundleRoot.resolve(destinations.getPlugInsPath()).toString(),"--destination",bundleRoot.resolve(Paths.get("Frameworks")).toString());
+    stepsBuilder.add(new SwiftStdlibStep(getProjectFilesystem().getRootPath(),swiftStdlibCommand.build()));
+  }
   if (needCodeSign()) {
     Optional<Path> entitlementsPlist=Optional.absent();
     final Path srcRoot=getProjectFilesystem().getRootPath().resolve(getBuildTarget().getBasePath());

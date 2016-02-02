@@ -1,0 +1,31 @@
+{
+  SwiftCompile rule=requireSwiftCompileRule(cxxPlatform.getFlavor());
+  LOG.debug("Required rule: %s",rule);
+  NativeLinkableInput.Builder inputBuilder=NativeLinkableInput.builder();
+  AppleCxxPlatform appleCxxPlatform=platformFlavorsToAppleCxxPlatforms.get(cxxPlatform.getFlavor());
+  Preconditions.checkState(appleCxxPlatform != null);
+  Set<Path> swiftRuntimePaths=ImmutableSet.of();
+  boolean sharedRequested=false;
+switch (type) {
+case STATIC:
+case STATIC_PIC:
+    break;
+case SHARED:
+  sharedRequested=true;
+break;
+}
+if (sharedRequested || swiftRuntimePaths.isEmpty()) {
+inputBuilder.addAllArgs(StringArg.from("-Xlinker","-rpath","-Xlinker","@executable_path/Frameworks"));
+swiftRuntimePaths=appleCxxPlatform.getSwiftRuntimePaths();
+}
+ else {
+inputBuilder.addAllArgs(StringArg.from("-Xlinker","-force_load_swift_libs","-lswiftRuntime"));
+}
+for (Path swiftRuntimePath : swiftRuntimePaths) {
+inputBuilder.addAllArgs(StringArg.from("-L",swiftRuntimePath.toString()));
+}
+inputBuilder.addAllArgs(StringArg.fromWithDeps(ImmutableList.of("-Xlinker","-add_ast_path",rule.getModulePath().toString(),rule.getObjectPath().toString()),ImmutableList.<BuildRule>of(rule)));
+inputBuilder.addAllFrameworks(frameworks);
+inputBuilder.addAllLibraries(libraries);
+return inputBuilder.build();
+}

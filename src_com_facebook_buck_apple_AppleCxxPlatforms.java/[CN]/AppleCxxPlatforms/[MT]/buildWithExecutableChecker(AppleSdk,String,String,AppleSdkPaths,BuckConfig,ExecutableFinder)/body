@@ -66,5 +66,15 @@
     buildVersion=Optional.absent();
   }
   CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,config,clangPath,new ClangPreprocessor(clangPath),new ClangCompiler(clangPath),new ClangCompiler(clangXxPath),new ClangPreprocessor(clangPath),new ClangPreprocessor(clangXxPath),new DarwinLinker(clangXxPath),ImmutableList.<String>builder().addAll(cflags).addAll(ldflags).build(),strip,new BsdArchiver(ar),ranlib,nm,asflags,ImmutableList.<String>of(),cflags,ImmutableList.<String>of(),"dylib","%s.dylib",Optional.of(debugPathSanitizer),macros);
-  return AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setMinVersion(minVersion).setBuildVersion(buildVersion).setActool(actool).setIbtool(ibtool).setXctest(xctest).setOtest(otest).setDsymutil(dsymutil).setLipo(lipo).setStubBinary(stubBinaryPath).setLldb(lldb).setCodesignAllocate(getOptionalTool("codesign_allocate",toolSearchPaths,executableFinder,version)).build();
+  ApplePlatform platform=targetSdk.getApplePlatform();
+  ImmutableList<String> swiftParams=ImmutableList.of("-frontend","-sdk",sdkPaths.getSdkPath().toString(),"-target",targetArchitecture + "-apple-" + platform.getSwiftName().or(platform.getName())+ targetSdk.getVersion());
+  ImmutableList<String> swiftStdlibToolParams=ImmutableList.of("--copy","--verbose","--strip-bitcode","--platform",platform.getName());
+  AppleCxxPlatform.Builder platformBuilder=AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setMinVersion(minVersion).setBuildVersion(buildVersion).setActool(actool).setIbtool(ibtool).setXctest(xctest).setOtest(otest).setDsymutil(dsymutil).setLipo(lipo).setStubBinary(stubBinaryPath).setLldb(lldb).setCodesignAllocate(getOptionalTool("codesign_allocate",toolSearchPaths,executableFinder,version)).setSwift(getOptionalToolWithParams("swift",toolSearchPaths,executableFinder,version,swiftParams)).setSwiftStdlibTool(getOptionalToolWithParams("swift-stdlib-tool",toolSearchPaths,executableFinder,version,swiftStdlibToolParams));
+  for (  Path toolchainPath : sdkPaths.getToolchainPaths()) {
+    Path swiftRuntimePath=toolchainPath.resolve("usr/lib/swift").resolve(platform.getName());
+    if (Files.isDirectory(swiftRuntimePath)) {
+      platformBuilder.addSwiftRuntimePaths(swiftRuntimePath);
+    }
+  }
+  return platformBuilder.build();
 }
