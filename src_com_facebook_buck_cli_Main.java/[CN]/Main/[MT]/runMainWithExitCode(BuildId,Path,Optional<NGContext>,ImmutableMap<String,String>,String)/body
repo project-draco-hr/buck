@@ -90,6 +90,8 @@
     Optional<WebServer> webServer=getWebServerIfDaemon(context,rootCell);
     TestConfig testConfig=new TestConfig(buckConfig);
     ArtifactCacheBuckConfig cacheBuckConfig=new ArtifactCacheBuckConfig(buckConfig);
+    ExecutorService loggerExecutor=MoreExecutors.newSingleThreadExecutor("Logger Publisher");
+    Logger.setExecutorService(loggerExecutor);
     ExecutorService diskIoExecutorService=MoreExecutors.newSingleThreadExecutor("Disk I/O");
     ListeningExecutorService httpWriteExecutorService=getHttpWriteExecutorService(cacheBuckConfig);
     VersionControlStatsGenerator vcStatsGenerator=null;
@@ -150,6 +152,7 @@
       LOG.debug(t,"Failing build on exception.");
       closeHttpExecutorService(cacheBuckConfig,Optional.<BuckEventBus>absent(),httpWriteExecutorService);
       closeDiskIoExecutorService(diskIoExecutorService);
+      closeLoggerExecutorService(loggerExecutor);
       flushEventListeners(console,buildId,eventListeners);
       throw t;
     }
@@ -169,6 +172,7 @@
       context.get().exit(exitCode);
     }
     closeDiskIoExecutorService(diskIoExecutorService);
+    closeLoggerExecutorService(loggerExecutor);
     flushEventListeners(console,buildId,eventListeners);
     return exitCode;
   }
