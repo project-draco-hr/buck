@@ -4,7 +4,7 @@
   final Optional<Map.Entry<Flavor,PythonPlatform>> pythonPlatform=pythonPlatforms.getFlavorAndValue(params.getBuildTarget());
   if (type.isPresent() && platform.isPresent() && pythonPlatform.isPresent()) {
     Preconditions.checkState(type.get().getValue() == Type.EXTENSION);
-    return createExtensionBuildRule(params.copyWithExtraDeps(removeUnusedPlatformDeps(ruleResolver,pythonPlatform.get().getValue(),params.getExtraDeps())),ruleResolver,pythonPlatform.get().getValue(),platform.get().getValue(),args);
+    return createExtensionBuildRule(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.copyOf(getPlatformDeps(params,ruleResolver,pythonPlatform.get().getValue(),args))),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),ruleResolver,pythonPlatform.get().getValue(),platform.get().getValue(),args);
   }
   final SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
   Path baseModule=PythonUtil.getBasePath(params.getBuildTarget(),args.baseModule);
@@ -27,13 +27,13 @@
           return BuildTarget.builder(params.getBuildTarget()).addFlavors(pythonPlatform.getFlavor()).build();
         }
         @Override public Iterable<? extends NativeLinkable> getSharedNativeLinkTargetDeps(        CxxPlatform cxxPlatform){
-          return getExtensionDeps(params,ruleResolver,pythonPlatform,args);
+          return FluentIterable.from(getPlatformDeps(params,ruleResolver,pythonPlatform,args)).filter(NativeLinkable.class);
         }
         @Override public String getSharedNativeLinkTargetLibraryName(        CxxPlatform cxxPlatform){
           return getExtensionName(params.getBuildTarget());
         }
         @Override public NativeLinkableInput getSharedNativeLinkTargetInput(        CxxPlatform cxxPlatform) throws NoSuchBuildTargetException {
-          return NativeLinkableInput.builder().addAllArgs(getExtensionArgs(params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addFlavors(pythonPlatform.getFlavor()).addFlavors(CxxDescriptionEnhancer.SHARED_FLAVOR).build(),params.getDeclaredDeps(),removeUnusedPlatformDeps(ruleResolver,pythonPlatform,params.getExtraDeps())),ruleResolver,pathResolver,cxxPlatform,args)).addAllFrameworks(args.frameworks.or(ImmutableSortedSet.<FrameworkPath>of())).build();
+          return NativeLinkableInput.builder().addAllArgs(getExtensionArgs(params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addFlavors(pythonPlatform.getFlavor()).addFlavors(CxxDescriptionEnhancer.SHARED_FLAVOR).build(),Suppliers.ofInstance(ImmutableSortedSet.copyOf(getPlatformDeps(params,ruleResolver,pythonPlatform,args))),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),ruleResolver,pathResolver,cxxPlatform,args)).addAllFrameworks(args.frameworks.or(ImmutableSortedSet.<FrameworkPath>of())).build();
         }
       }
 ;
