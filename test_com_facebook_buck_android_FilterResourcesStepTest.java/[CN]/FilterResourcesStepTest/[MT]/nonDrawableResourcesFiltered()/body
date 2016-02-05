@@ -1,0 +1,25 @@
+{
+  final ResourceFilters.Density targetDensity=ResourceFilters.Density.MDPI;
+  final ResourceFilters.Density excludedDensity=ResourceFilters.Density.LDPI;
+  final String file="somefile";
+  final Path resDir=Paths.get("res");
+  final Path resOutDir=Paths.get("res-out");
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  filesystem.mkdirs(resDir);
+  for (  String folderName : ResourceFilters.SUPPORTED_RESOURCE_DIRECTORIES) {
+    if (folderName.equals("drawable")) {
+      continue;
+    }
+    filesystem.createNewFile(resDir.resolve(String.format("%s-%s",folderName,targetDensity)).resolve(file));
+    filesystem.createNewFile(resDir.resolve(String.format("%s-%s",folderName,excludedDensity)).resolve(file));
+  }
+  FilterResourcesStep command=new FilterResourcesStep(filesystem,ImmutableBiMap.of(resDir,resOutDir),true,false,ImmutableSet.<Path>of(),ImmutableSet.<String>of(),DefaultFilteredDirectoryCopier.getInstance(),ImmutableSet.of(targetDensity),FilterResourcesStep.DefaultDrawableFinder.getInstance(),null);
+  command.execute(null);
+  for (  String folderName : ResourceFilters.SUPPORTED_RESOURCE_DIRECTORIES) {
+    if (folderName.equals("drawable")) {
+      continue;
+    }
+    assertThat(filesystem,ProjectFilesystemMatchers.pathExists(resOutDir.resolve(String.format("%s-%s",folderName,targetDensity)).resolve(file)));
+    assertThat(filesystem,ProjectFilesystemMatchers.pathDoesNotExist(resOutDir.resolve(String.format("%s-%s",folderName,excludedDensity)).resolve(file)));
+  }
+}

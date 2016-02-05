@@ -1,0 +1,26 @@
+{
+  return new Predicate<Path>(){
+    @Override public boolean apply(    final Path resourceFile){
+      final Path resourceFolder=getResourceFolder(resourceFile);
+      if (resourceFolder.getFileName().toString().startsWith("drawable")) {
+        return true;
+      }
+      Density density=Qualifiers.from(resourceFolder).density;
+      if (targetDensities.contains(density)) {
+        return true;
+      }
+      if (density.equals(Density.NO_QUALIFIER)) {
+        final String resourceType=getResourceType(resourceFolder);
+        return resourceType.equals("values") || FluentIterable.from(targetDensities).anyMatch(new Predicate<Density>(){
+          @Override public boolean apply(          Density target){
+            Path targetResourceFile=resourceFolder.resolveSibling(String.format("%s-%s",resourceType,target)).resolve(resourceFolder.relativize(resourceFile));
+            return !filesystem.exists(targetResourceFile);
+          }
+        }
+);
+      }
+      return false;
+    }
+  }
+;
+}
