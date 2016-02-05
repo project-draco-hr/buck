@@ -30,14 +30,21 @@
     String suffix=Joiner.on(" ").join(FluentIterable.of(new String[]{jobSummary,buildTrace}).filter(Predicates.notNull()));
     Optional<String> suffixOptional=suffix.isEmpty() ? Optional.<String>absent() : Optional.of(suffix);
     long buildTime=logEventPair("BUILDING",suffixOptional,currentTimeMillis,parseTime,buildStarted,buildFinished,getApproximateBuildProgress(),lines);
+    int maxThreadLines=defaultThreadLineLimit;
+    if (anyWarningsPrinted.get() && threadLineLimitOnWarning < maxThreadLines) {
+      maxThreadLines=threadLineLimitOnWarning;
+    }
+    if (anyErrorsPrinted.get() && threadLineLimitOnError < maxThreadLines) {
+      maxThreadLines=threadLineLimitOnError;
+    }
     if (buildTime == UNFINISHED_EVENT_PAIR) {
       ThreadStateRenderer renderer=new BuildThreadStateRenderer(ansi,formatTimeFunction,currentTimeMillis,threadsToRunningBuildRuleEvent,threadsToRunningStep,accumulatedRuleTime);
-      renderLines(renderer,lines);
+      renderLines(renderer,lines,maxThreadLines);
     }
     long testRunTime=logEventPair("TESTING",renderTestSuffix(),currentTimeMillis,0,testRunStarted.get(),testRunFinished.get(),Optional.<Double>absent(),lines);
     if (testRunTime == UNFINISHED_EVENT_PAIR) {
       ThreadStateRenderer renderer=new TestThreadStateRenderer(ansi,formatTimeFunction,currentTimeMillis,threadsToRunningTestRuleEvent,threadsToRunningTestSummaryEvent,threadsToRunningTestStatusMessageEvent,threadsToRunningStep,accumulatedRuleTime);
-      renderLines(renderer,lines);
+      renderLines(renderer,lines,maxThreadLines);
     }
     logEventPair("INSTALLING",Optional.<String>absent(),currentTimeMillis,0L,installStarted,installFinished,Optional.<Double>absent(),lines);
     logEventPair("HTTP CACHE UPLOAD",renderHttpUploads(),currentTimeMillis,0,firstHttpCacheUploadScheduled.get(),httpShutdownEvent,Optional.<Double>absent(),lines);

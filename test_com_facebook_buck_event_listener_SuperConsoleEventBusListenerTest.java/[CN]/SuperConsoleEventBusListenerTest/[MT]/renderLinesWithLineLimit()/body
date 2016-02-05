@@ -1,0 +1,27 @@
+{
+  Clock fakeClock=new IncrementingFakeClock(TimeUnit.SECONDS.toNanos(1));
+  TestConsole console=new TestConsole();
+  try (SuperConsoleEventBusListener listener=new SuperConsoleEventBusListener(emptySuperConsoleConfig,console,fakeClock,silentSummaryVerbosity,new DefaultExecutionEnvironment(ImmutableMap.copyOf(System.getenv()),System.getProperties()),Optional.<WebServer>absent(),Locale.US,logPath)){
+    ThreadStateRenderer fakeRenderer=new FakeThreadStateRenderer(ImmutableList.of(2L,1L,4L,8L,5L));
+    ImmutableList.Builder<String> lines;
+    ImmutableList<String> fullOutput=ImmutableList.of(" |=> Status of thread 2"," |=> Status of thread 1"," |=> Status of thread 4"," |=> Status of thread 8"," |=> Status of thread 5");
+    lines=ImmutableList.builder();
+    listener.renderLines(fakeRenderer,lines,10000);
+    assertThat(lines.build(),equalTo(fullOutput));
+    lines=ImmutableList.builder();
+    listener.renderLines(fakeRenderer,lines,6);
+    assertThat(lines.build(),equalTo(fullOutput));
+    lines=ImmutableList.builder();
+    listener.renderLines(fakeRenderer,lines,5);
+    assertThat(lines.build(),equalTo(fullOutput));
+    lines=ImmutableList.builder();
+    listener.renderLines(fakeRenderer,lines,4);
+    assertThat(lines.build(),equalTo(ImmutableList.of(" |=> Status of thread 2"," |=> Status of thread 1"," |=> Status of thread 4"," |=> 2 MORE THREADS: t8 t5")));
+    lines=ImmutableList.builder();
+    listener.renderLines(fakeRenderer,lines,2);
+    assertThat(lines.build(),equalTo(ImmutableList.of(" |=> Status of thread 2"," |=> 4 MORE THREADS: t1 t4 t8 t5")));
+    lines=ImmutableList.builder();
+    listener.renderLines(fakeRenderer,lines,1);
+    assertThat(lines.build(),equalTo(ImmutableList.of(" |=> 5 THREADS: t2 t1 t4 t8 t5")));
+  }
+ }
