@@ -1,27 +1,21 @@
 {
-  Path zipFile;
-  try {
-    zipFile=Files.createTempFile("buck_artifact_" + MoreFiles.sanitize(rule.getBuildTarget().getShortName()),".zip");
+  LazyPath lazyZipPath=new LazyPath(){
+    @Override protected Path create() throws IOException {
+      return Files.createTempFile("buck_artifact_" + MoreFiles.sanitize(rule.getBuildTarget().getShortName()),".zip");
+    }
   }
- catch (  IOException e) {
-    throw new RuntimeException(e);
-  }
-  CacheResult cacheResult=buildInfoRecorder.fetchArtifactForBuildable(ruleKey,zipFile,artifactCache);
+;
+  CacheResult cacheResult=buildInfoRecorder.fetchArtifactForBuildable(ruleKey,lazyZipPath,artifactCache);
   if (!cacheResult.getType().isSuccess()) {
-    try {
-      Files.delete(zipFile);
-    }
- catch (    IOException e) {
-      LOG.warn(e,"failed to delete %s",zipFile);
-    }
     return cacheResult;
   }
   LOG.debug("Fetched '%s' from cache with rulekey '%s'",rule,ruleKey);
+  Path zipPath=lazyZipPath.getUnchecked();
   ArtifactCompressionEvent.Started started=ArtifactCompressionEvent.started(ArtifactCompressionEvent.Operation.DECOMPRESS,ImmutableSet.of(ruleKey));
   buildContext.getEventBus().post(started);
   try {
-    Unzip.extractZipFile(zipFile.toAbsolutePath(),filesystem,Unzip.ExistingFileMode.OVERWRITE_AND_CLEAN_DIRECTORIES);
-    Files.delete(zipFile);
+    Unzip.extractZipFile(zipPath.toAbsolutePath(),filesystem,Unzip.ExistingFileMode.OVERWRITE_AND_CLEAN_DIRECTORIES);
+    Files.delete(zipPath);
     if (cacheResult.getType() == CacheResultType.HIT) {
       Path metadataDir=BuildInfo.getPathToMetadataDirectory(rule.getBuildTarget());
       for (      Map.Entry<String,String> ent : cacheResult.getMetadata().entrySet()) {
@@ -32,7 +26,7 @@
     }
   }
  catch (  IOException e) {
-    buildContext.getEventBus().post(ConsoleEvent.warning("Failed to unzip the artifact for %s at %s.\n" + "The rule will be built locally, " + "but here is the stacktrace of the failed unzip call:\n"+ rule.getBuildTarget(),zipFile.toAbsolutePath(),Throwables.getStackTraceAsString(e)));
+    buildContext.getEventBus().post(ConsoleEvent.warning("Failed to unzip the artifact for %s at %s.\n" + "The rule will be built locally, " + "but here is the stacktrace of the failed unzip call:\n"+ rule.getBuildTarget(),zipPath.toAbsolutePath(),Throwables.getStackTraceAsString(e)));
     return CacheResult.miss();
   }
  finally {

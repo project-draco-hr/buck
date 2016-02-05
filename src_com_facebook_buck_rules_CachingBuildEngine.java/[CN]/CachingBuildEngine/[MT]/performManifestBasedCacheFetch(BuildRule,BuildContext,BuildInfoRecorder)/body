@@ -3,17 +3,22 @@
   Pair<RuleKey,ImmutableSet<SourcePath>> manifestKey=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem()).depFileRuleKeyBuilderFactory.buildManifestKey(rule);
   Path manifestPath=getManifestPath(rule);
   rule.getProjectFilesystem().deleteFileAtPathIfExists(manifestPath);
+  LazyPath tempFile=new LazyPath(){
+    @Override protected Path create() throws IOException {
+      return Files.createTempFile("buck.",".manifest");
+    }
+  }
+;
   rule.getProjectFilesystem().createParentDirs(manifestPath);
-  try (NamedTemporaryFile tempFile=new NamedTemporaryFile("buck.",".manifest")){
-    CacheResult manifestResult=context.getArtifactCache().fetch(manifestKey.getFirst(),tempFile.get());
-    if (!manifestResult.getType().isSuccess()) {
-      return CacheResult.miss();
-    }
-    try (OutputStream outputStream=rule.getProjectFilesystem().newFileOutputStream(manifestPath);InputStream inputStream=new GZIPInputStream(new BufferedInputStream(Files.newInputStream(tempFile.get())))){
-      ByteStreams.copy(inputStream,outputStream);
-    }
-   }
-   Manifest manifest;
+  CacheResult manifestResult=context.getArtifactCache().fetch(manifestKey.getFirst(),tempFile);
+  if (!manifestResult.getType().isSuccess()) {
+    return CacheResult.miss();
+  }
+  try (OutputStream outputStream=rule.getProjectFilesystem().newFileOutputStream(manifestPath);InputStream inputStream=new GZIPInputStream(new BufferedInputStream(Files.newInputStream(tempFile.get())))){
+    ByteStreams.copy(inputStream,outputStream);
+  }
+   Files.delete(tempFile.get());
+  Manifest manifest;
   try (InputStream input=rule.getProjectFilesystem().newFileInputStream(manifestPath)){
     manifest=new Manifest(input);
   }
