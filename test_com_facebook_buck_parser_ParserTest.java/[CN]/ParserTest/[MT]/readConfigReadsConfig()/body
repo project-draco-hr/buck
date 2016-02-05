@@ -1,0 +1,17 @@
+{
+  Path buckFile=cellRoot.resolve("BUCK");
+  BuildTarget buildTarget=BuildTarget.of(UnflavoredBuildTarget.of(filesystem.getRootPath(),Optional.<String>absent(),"//","cake"));
+  Files.write(buckFile,Joiner.on("").join(ImmutableList.of("genrule(\n" + "name = 'cake',\n" + "out = read_config('foo', 'bar', 'default') + '.txt',\n"+ "cmd = 'touch $OUT'\n"+ ")\n")).getBytes(UTF_8));
+  BuckConfig config=FakeBuckConfig.builder().setFilesystem(filesystem).build();
+  Cell cell=new TestCellBuilder().setFilesystem(filesystem).setBuckConfig(config).build();
+  TargetNode<GenruleDescription.Arg> node=parser.getTargetNode(eventBus,cell,false,executorService,buildTarget).castArg(GenruleDescription.Arg.class).get();
+  assertThat(node.getConstructorArg().out,is(equalTo("default.txt")));
+  config=FakeBuckConfig.builder().setSections(ImmutableMap.of("foo",ImmutableMap.of("bar","value"))).setFilesystem(filesystem).build();
+  cell=new TestCellBuilder().setFilesystem(filesystem).setBuckConfig(config).build();
+  node=parser.getTargetNode(eventBus,cell,false,executorService,buildTarget).castArg(GenruleDescription.Arg.class).get();
+  assertThat(node.getConstructorArg().out,is(equalTo("value.txt")));
+  config=FakeBuckConfig.builder().setFilesystem(filesystem).setSections(ImmutableMap.of("foo",ImmutableMap.of("bar","other value"))).build();
+  cell=new TestCellBuilder().setFilesystem(filesystem).setBuckConfig(config).build();
+  node=parser.getTargetNode(eventBus,cell,false,executorService,buildTarget).castArg(GenruleDescription.Arg.class).get();
+  assertThat(node.getConstructorArg().out,is(equalTo("other value.txt")));
+}
