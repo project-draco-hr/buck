@@ -7,17 +7,18 @@
     @SuppressWarnings("PMD.AvoidUsingOctalValues") @Override public void scrubFile(    FileChannel file) throws IOException, ScrubException {
       try {
         ByteBuffer header=ByteBuffer.allocate(expectedGlobalHeader.length);
-        file.read(header,0);
+        file.read(header);
         header.position(0);
         byte[] globalHeader=getBytes(header,expectedGlobalHeader.length);
         checkArchive(Arrays.equals(expectedGlobalHeader,globalHeader),"invalid global header");
         final int entrySize=16 + 12 + 6+ 6+ 8+ 10+ 2;
-        int start=expectedGlobalHeader.length;
+        long start=expectedGlobalHeader.length;
         ByteBuffer buffer=ByteBuffer.allocate(entrySize);
         while (start < file.size()) {
           checkArchive(file.size() - start >= entrySize,"Invalid entry metadata format");
           buffer.clear();
-          int read=file.read(buffer,start);
+          file.position(start);
+          int read=file.read(buffer);
           checkArchive(read == entrySize,"Not all bytes have been read");
           buffer.position(0);
           getBytes(buffer,16);
@@ -25,11 +26,12 @@
           putIntAsDecimalString(buffer,6,0);
           putIntAsDecimalString(buffer,6,0);
           putIntAsOctalString(buffer,8,0100644);
-          int fileSize=getDecimalStringAsInt(buffer,10);
+          long fileSize=getDecimalStringAsLong(buffer,10);
           byte[] fileMagic=getBytes(buffer,2);
           checkArchive(Arrays.equals(END_OF_FILE_HEADER_MARKER,fileMagic),"invalid file magic");
           buffer.position(0);
-          int written=file.write(buffer,start);
+          file.position(start);
+          int written=file.write(buffer);
           checkArchive(written == entrySize,"Not all bytes have been written");
           start+=entrySize + fileSize + fileSize % 2;
         }
