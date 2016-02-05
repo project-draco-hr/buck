@@ -22,12 +22,16 @@
  else {
           match=(bundleID.equals(profileBundleID));
         }
+        if (!match) {
+          LOG.debug("Ignoring non-matching ID for profile " + profile.getUUID());
+        }
         if (match && entitlements.isPresent()) {
           ImmutableMap<String,NSObject> entitlementsDict=entitlements.get();
           ImmutableMap<String,NSObject> profileEntitlements=profile.getEntitlements();
           for (          Entry<String,NSObject> entry : entitlementsDict.entrySet()) {
             if (!(entry.getKey().equals("keychain-access-groups") || entry.getKey().equals("application-identifier") || entry.getValue().equals(profileEntitlements.get(entry.getKey())))) {
               match=false;
+              LOG.debug("Ignoring profile " + profile.getUUID() + " with mismatched entitlement "+ entry.getKey()+ "; value is "+ profileEntitlements.get(entry.getKey())+ " but expected "+ entry.getValue());
               break;
             }
           }
@@ -42,12 +46,18 @@
               break;
             }
           }
+          if (!match) {
+            LOG.debug("Ignoring profile " + profile.getUUID() + " because it can't be signed with any valid identity in the current keychain.");
+          }
         }
         if (match && profileBundleID.length() > bestMatchLength) {
           bestMatchLength=profileBundleID.length();
           bestMatch=Optional.of(profile);
         }
       }
+    }
+ else {
+      LOG.debug("Ignoring expired profile " + profile.getUUID());
     }
   }
   LOG.debug("Found provisioning profile " + bestMatch.toString());
