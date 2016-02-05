@@ -1,25 +1,29 @@
 {
-  PrintStream out=params.getConsole().getStdOut();
-  for (  Map<String,Object> rawRule : rawRules) {
-    String type=(String)rawRule.get(BuckPyFunction.TYPE_PROPERTY_NAME);
-    if (!includeType.apply(type)) {
-      continue;
+  final PrintStream stdOut=params.getConsole().getStdOut();
+  Iterable<Map<String,Object>> filteredRules=FluentIterable.from(rawRules).filter(new Predicate<Map<String,Object>>(){
+    @Override public boolean apply(    Map<String,Object> rawRule){
+      String type=(String)rawRule.get(BuckPyFunction.TYPE_PROPERTY_NAME);
+      return includeType.apply(type);
     }
-    out.printf("%s(\n",type);
-    LinkedHashSet<String> properties=Sets.newLinkedHashSet();
-    properties.add("name");
-    SortedSet<String> customProperties=Sets.newTreeSet();
-    for (    String key : rawRule.keySet()) {
-      if (!(key.startsWith(BuckPyFunction.INTERNAL_PROPERTY_NAME_PREFIX) || LAST_PROPERTIES.contains(key))) {
-        customProperties.add(key);
-      }
+  }
+);
+  if (json) {
+    Map<String,Object> rulesKeyedByName=new HashMap<>();
+    for (    Map<String,Object> rawRule : filteredRules) {
+      String name=(String)rawRule.get("name");
+      Preconditions.checkNotNull(name);
+      rulesKeyedByName.put(name,rawRule);
     }
-    properties.addAll(customProperties);
-    properties.addAll(Sets.intersection(LAST_PROPERTIES,rawRule.keySet()));
-    for (    String property : properties) {
-      String displayValue=createDisplayString(INDENT,rawRule.get(property));
-      out.printf("%s%s = %s,\n",INDENT,property,displayValue);
+    ObjectMapper mapper=params.getObjectMapper();
+    JsonFactory factory=mapper.getJsonFactory();
+    try (JsonGenerator generator=factory.createJsonGenerator(stdOut).disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET).useDefaultPrettyPrinter()){
+      mapper.writeValue(generator,rulesKeyedByName);
     }
-    out.printf(")\n\n");
+     stdOut.print('\n');
+  }
+ else {
+    for (    Map<String,Object> rawRule : filteredRules) {
+      printRuleAsPythonToStdout(stdOut,rawRule);
+    }
   }
 }
