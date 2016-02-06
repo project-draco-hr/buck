@@ -2,6 +2,7 @@
   Preconditions.checkState(!soname.isPresent() || SONAME_REQUIRED_LINK_TYPES.contains(linkType));
   Preconditions.checkState(!bundleLoader.isPresent() || linkType == Linker.LinkType.MACH_O_BUNDLE);
   ImmutableList.Builder<NativeLinkableInput> nativeLinkableInputs=ImmutableList.builder();
+  nativeLinkableInputs.add(immediateLinkableInput);
   for (  NativeLinkable nativeLinkable : Maps.filterKeys(NativeLinkables.getNativeLinkables(cxxPlatform,nativeLinkableDeps,depType),Predicates.not(Predicates.in(blacklist))).values()) {
     NativeLinkableInput input=NativeLinkables.getNativeLinkableInput(cxxPlatform,depType,nativeLinkable);
     LOG.debug("Native linkable %s returned input %s",nativeLinkable,input);
@@ -21,10 +22,9 @@
   if (soname.isPresent()) {
     argsBuilder.addAll(StringArg.from(cxxPlatform.getLd().soname(soname.get())));
   }
-  argsBuilder.addAll(args);
   argsBuilder.addAll(linkableInput.getArgs());
   addSharedLibrariesLinkerArgs(cxxPlatform,resolver,ImmutableSortedSet.copyOf(linkableInput.getLibraries()),argsBuilder);
-  addFrameworkLinkerArgs(cxxPlatform,resolver,mergeFrameworks(linkableInput,frameworks),argsBuilder);
+  addFrameworkLinkerArgs(cxxPlatform,resolver,ImmutableSortedSet.copyOf(linkableInput.getFrameworks()),argsBuilder);
   final ImmutableList<Arg> allArgs=argsBuilder.build();
   return createCxxLinkableBuildRule(cxxPlatform,params,resolver,target,output,allArgs,depType,cxxRuntimeType);
 }

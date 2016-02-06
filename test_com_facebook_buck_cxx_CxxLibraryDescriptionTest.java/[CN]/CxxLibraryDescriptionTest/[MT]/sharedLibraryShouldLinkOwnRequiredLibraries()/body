@@ -1,0 +1,10 @@
+{
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  CxxPlatform platform=CxxLibraryBuilder.createDefaultPlatform();
+  CxxLibraryBuilder libraryBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:foo").withFlavors(platform.getFlavor(),ImmutableFlavor.of("shared")));
+  libraryBuilder.setLibraries(ImmutableSortedSet.of(FrameworkPath.ofSourceTreePath(new SourceTreePath(PBXReference.SourceTree.SDKROOT,Paths.get("/usr/lib/libz.dylib"),Optional.<String>absent())),FrameworkPath.ofSourcePath(new FakeSourcePath("/another/path/liba.dylib")))).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("foo.c"))));
+  TargetGraph targetGraph=TargetGraphFactory.newInstance(libraryBuilder.build());
+  BuildRuleResolver resolver=new BuildRuleResolver(targetGraph,new BuildTargetNodeToBuildRuleTransformer());
+  CxxLink library=(CxxLink)libraryBuilder.build(resolver,filesystem,targetGraph);
+  assertThat(library.getArgs(),Matchers.hasItems("-L","/another/path","$SDKROOT/usr/lib","-la","-lz"));
+}
