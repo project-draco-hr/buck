@@ -1,0 +1,10 @@
+{
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  CxxPlatform platform=CxxLibraryBuilder.createDefaultPlatform();
+  CxxBinaryBuilder binaryBuilder=new CxxBinaryBuilder(BuildTargetFactory.newInstance("//:foo").withFlavors(platform.getFlavor(),ImmutableFlavor.of("shared")));
+  binaryBuilder.setLibraries(ImmutableSortedSet.of(FrameworkPath.ofSourcePath(new FakeSourcePath("/some/path/libs.dylib")),FrameworkPath.ofSourcePath(new FakeSourcePath("/another/path/liba.dylib")))).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("foo.c"))));
+  TargetGraph targetGraph=TargetGraphFactory.newInstance(binaryBuilder.build());
+  BuildRuleResolver resolver=new BuildRuleResolver(targetGraph,new BuildTargetNodeToBuildRuleTransformer());
+  CxxBinary binary=(CxxBinary)binaryBuilder.build(resolver,filesystem,targetGraph);
+  assertThat(binary.getRule().getArgs(),Matchers.hasItems("-L","/another/path","/some/path","-la","-ls"));
+}
