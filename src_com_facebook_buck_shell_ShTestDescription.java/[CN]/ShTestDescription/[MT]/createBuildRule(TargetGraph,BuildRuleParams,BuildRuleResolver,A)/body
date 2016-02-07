@@ -1,10 +1,12 @@
 {
   final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  final ImmutableList<com.facebook.buck.rules.args.Arg> testArgs=FluentIterable.from(args.args.or(ImmutableList.<String>of())).transform(MacroArg.toMacroArgFunction(MACRO_HANDLER,params.getBuildTarget(),params.getCellRoots(),resolver)).toList();
+  Function<String,com.facebook.buck.rules.args.Arg> toArg=MacroArg.toMacroArgFunction(MACRO_HANDLER,params.getBuildTarget(),params.getCellRoots(),resolver);
+  final ImmutableList<com.facebook.buck.rules.args.Arg> testArgs=FluentIterable.from(args.args.or(ImmutableList.<String>of())).transform(toArg).toList();
+  final ImmutableMap<String,com.facebook.buck.rules.args.Arg> testEnv=ImmutableMap.copyOf(Maps.transformValues(args.env.or(ImmutableMap.<String,String>of()),toArg));
   return new ShTest(params.appendExtraDeps(new Supplier<Iterable<? extends BuildRule>>(){
     @Override public Iterable<? extends BuildRule> get(){
-      return FluentIterable.from(testArgs).transformAndConcat(com.facebook.buck.rules.args.Arg.getDepsFunction(pathResolver));
+      return FluentIterable.from(testArgs).append(testEnv.values()).transformAndConcat(com.facebook.buck.rules.args.Arg.getDepsFunction(pathResolver));
     }
   }
-),pathResolver,args.test,testArgs,args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs),args.labels.get());
+),pathResolver,args.test,testArgs,testEnv,args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs),args.labels.get());
 }
