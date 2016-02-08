@@ -5,9 +5,13 @@
   Map<BuildTarget,NativeLinkable> rootDeps=new LinkedHashMap<>();
   for (  SharedNativeLinkTarget root : includedRoots) {
     roots.put(root.getBuildTarget(),root);
-    for (    NativeLinkable dep : root.getSharedNativeLinkTargetDeps(cxxPlatform)) {
-      rootDeps.put(dep.getBuildTarget(),dep);
-      nativeLinkables.put(dep.getBuildTarget(),dep);
+    for (    NativeLinkable dep : NativeLinkables.getNativeLinkables(cxxPlatform,root.getSharedNativeLinkTargetDeps(cxxPlatform),Linker.LinkableDepType.SHARED).values()) {
+      Linker.LinkableDepType linkStyle=NativeLinkables.getLinkStyle(dep.getPreferredLinkage(cxxPlatform),Linker.LinkableDepType.SHARED);
+      Preconditions.checkState(linkStyle != Linker.LinkableDepType.STATIC);
+      if (linkStyle == Linker.LinkableDepType.SHARED) {
+        rootDeps.put(dep.getBuildTarget(),dep);
+        nativeLinkables.put(dep.getBuildTarget(),dep);
+      }
     }
   }
   for (  NativeLinkable root : excludedRoots) {

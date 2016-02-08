@@ -8,6 +8,13 @@
   boolean alreadyAddedOmnibusToArgs=false;
   for (  Map.Entry<BuildTarget,NativeLinkable> entry : deps.entrySet()) {
     BuildTarget target=entry.getKey();
+    NativeLinkable nativeLinkable=entry.getValue();
+    Linker.LinkableDepType linkStyle=NativeLinkables.getLinkStyle(nativeLinkable.getPreferredLinkage(cxxPlatform),Linker.LinkableDepType.SHARED);
+    if (linkStyle != Linker.LinkableDepType.SHARED) {
+      Preconditions.checkState(linkStyle == Linker.LinkableDepType.STATIC_PIC);
+      argsBuilder.addAll(nativeLinkable.getNativeLinkableInput(cxxPlatform,linkStyle).getArgs());
+      continue;
+    }
     if (spec.getRoots().containsKey(target)) {
       argsBuilder.add(new SourcePathArg(pathResolver,new BuildTargetSourcePath(getRootTarget(params.getBuildTarget(),target))));
       continue;
@@ -20,9 +27,7 @@
       continue;
     }
     Preconditions.checkState(spec.getExcluded().containsKey(target));
-    NativeLinkable nativeLinkable=entry.getValue();
-    NativeLinkableInput depInput=NativeLinkables.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.SHARED,nativeLinkable);
-    argsBuilder.addAll(depInput.getArgs());
+    argsBuilder.addAll(nativeLinkable.getNativeLinkableInput(cxxPlatform,linkStyle).getArgs());
   }
   BuildTarget rootTarget=getRootTarget(params.getBuildTarget(),root.getBuildTarget());
   String rootSoname=root.getSharedNativeLinkTargetLibraryName(cxxPlatform);
