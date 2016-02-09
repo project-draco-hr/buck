@@ -1,4 +1,10 @@
 {
   SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
-  return createStaticLibrary(params,resolver,sourcePathResolver,cxxPlatform,args,preprocessMode,pic);
+  ImmutableMap<CxxPreprocessAndCompile,SourcePath> objects=CxxDescriptionEnhancer.requireObjects(params,resolver,sourcePathResolver,cxxPlatform,preprocessMode,pic,args);
+  BuildTarget staticTarget=CxxDescriptionEnhancer.createStaticLibraryBuildTarget(params.getBuildTarget(),cxxPlatform.getFlavor(),pic);
+  if (objects.isEmpty()) {
+    return new NoopBuildRule(new BuildRuleParams(staticTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),params.getProjectFilesystem(),params.getCellRoots()),sourcePathResolver);
+  }
+  Path staticLibraryPath=CxxDescriptionEnhancer.getStaticLibraryPath(params.getBuildTarget(),cxxPlatform.getFlavor(),pic);
+  return Archives.createArchiveRule(sourcePathResolver,staticTarget,params,cxxPlatform.getAr(),cxxPlatform.getRanlib(),staticLibraryPath,ImmutableList.copyOf(objects.values()));
 }
