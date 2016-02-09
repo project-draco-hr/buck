@@ -4,5 +4,19 @@ def _process_build_file(self, path, implicit_includes=[]):
     len_suffix = (- len(('/' + self._build_file_name)))
     base_path = relative_path_to_build_file[:len_suffix]
     dirname = os.path.dirname(path)
-    build_env = BuildFileContext(base_path, dirname, self._allow_empty_globs, self._watchman_client, self._watchman_watch_root, self._watchman_project_prefix, self._sync_cookie_state, self._watchman_error)
+    error_message = None
+    autodeps_file = (((dirname + '/') + self._build_file_name) + '.autodeps')
+    has_autodeps = False
+    autodeps = None
+    if os.path.isfile(autodeps_file):
+        try:
+            autodeps = self._parse_autodeps(autodeps_file)
+            has_autodeps = True
+        except InvalidSignatureError as e:
+            error_message = e.message
+    build_env = BuildFileContext(base_path, dirname, (autodeps or {}), self._allow_empty_globs, self._watchman_client, self._watchman_watch_root, self._watchman_project_prefix, self._sync_cookie_state, self._watchman_error)
+    if has_autodeps:
+        build_env.includes.add(autodeps_file)
+    if error_message:
+        build_env.diagnostics.add(DiagnosticMessageAndLevel(message=error_message, level='error'))
     return self._process(build_env, path, implicit_includes=implicit_includes)

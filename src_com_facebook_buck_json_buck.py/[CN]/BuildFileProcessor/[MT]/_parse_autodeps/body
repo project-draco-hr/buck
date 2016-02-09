@@ -1,0 +1,16 @@
+def _parse_autodeps(self, autodeps_file):
+    '\n        A BUCK file may have a BUCK.autodeps file that lives alongside it. (If a custom build file\n        name is used, then <file-name>.autodeps must be the name of the .autodeps file.)\n\n        The .autodeps file is a JSON file with a special header that is used to sign the file,\n        containing a SHA-1 of the contents following the header. If the header does not match the\n        contents, an error will be thrown.\n\n        The JSON contains a mapping of build targets (by short name) to lists of build targets that\n        represent dependencies. For each mapping, the list of dependencies will be merged with that\n        of the original rule declared in the build file. This affords end users the ability to\n        partially generate build files.\n\n        :param autodeps_file: Absolute path to the expected .autodeps file.\n        :raises InvalidSignatureError:\n        '
+    with open(autodeps_file, 'r') as stream:
+        signature_line = stream.readline()
+        contents = stream.read()
+    match = GENDEPS_SIGNATURE.match(signature_line)
+    if (not match):
+        raise InvalidSignatureError('Could not extract signature from {0}'.format(autodeps_file))
+    signature = match.group(1)
+    hash = hashlib.new('sha1')
+    hash.update(contents)
+    sha1 = hash.hexdigest()
+    if ((not VERIFY_AUTODEPS_SIGNATURE) or (sha1 == signature)):
+        return json.loads(contents)
+    else:
+        raise InvalidSignatureError('Signature did not match contents in {0}'.format(autodeps_file))
