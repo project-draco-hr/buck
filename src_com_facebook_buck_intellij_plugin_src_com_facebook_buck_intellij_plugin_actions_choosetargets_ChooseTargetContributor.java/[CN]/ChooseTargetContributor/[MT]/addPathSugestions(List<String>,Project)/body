@@ -1,0 +1,36 @@
+{
+  String currentText=project.getUserData(ChooseByNamePopup.CHOOSE_BY_NAME_POPUP_IN_PROJECT_KEY).getEnteredText();
+  currentText=currentText.replaceFirst("^/*","");
+  int currentTargetSeparatorIndex=currentText.lastIndexOf(TARGET_NAME_SEPARATOR);
+  if (currentTargetSeparatorIndex != -1) {
+    currentText=currentText.substring(0,currentText.lastIndexOf(TARGET_NAME_SEPARATOR));
+  }
+  VirtualFile baseDir=project.getBaseDir().findFileByRelativePath(currentText + "/");
+  if (baseDir == null) {
+    if (currentText.lastIndexOf("/") != -1) {
+      currentText=currentText.substring(0,currentText.lastIndexOf("/"));
+    }
+ else {
+      currentText="";
+    }
+    baseDir=project.getBaseDir().findFileByRelativePath(currentText);
+  }
+  VirtualFile[] files=baseDir.getChildren();
+  if (!currentText.isEmpty()) {
+    currentText+="/";
+  }
+  for (  VirtualFile file : files) {
+    if (file.isDirectory()) {
+      names.add("//" + currentText + file.getName());
+    }
+    if (file.getName().equals("BUCK")) {
+      String target="//" + currentText.substring(0,currentText.length() - 1) + ":";
+      if (otherTargets.containsKey(target)) {
+        names.addAll(otherTargets.get(target));
+      }
+ else {
+        BuckQueryAction.execute(project,target);
+      }
+    }
+  }
+}

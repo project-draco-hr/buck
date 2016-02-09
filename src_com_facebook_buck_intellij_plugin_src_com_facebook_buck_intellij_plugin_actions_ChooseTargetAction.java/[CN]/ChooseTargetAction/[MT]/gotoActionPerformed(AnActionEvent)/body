@@ -14,6 +14,9 @@
         return;
       }
       ChooseTargetItem item=(ChooseTargetItem)element;
+      if (item.getName().contains("//") && !item.getName().contains(":")) {
+        return;
+      }
       if (buckSettingsProvider.getState().lastAlias != null) {
         buckSettingsProvider.getState().lastAlias.put(project.getBasePath(),item.getBuildTarget());
       }
@@ -23,4 +26,24 @@
 ;
   DefaultChooseByNameItemProvider provider=new DefaultChooseByNameItemProvider(getPsiContext(e));
   showNavigationPopup(e,model,callback,"Choose Build Target",true,false,provider);
+  final ChooseByNamePopup chooseByNamePopup=project.getUserData(ChooseByNamePopup.CHOOSE_BY_NAME_POPUP_IN_PROJECT_KEY);
+  chooseByNamePopup.getTextField().addKeyListener(new KeyAdapter(){
+    @Override public void keyPressed(    java.awt.event.KeyEvent e){
+      if (KeyEvent.VK_RIGHT == e.getKeyCode()) {
+        ChooseTargetItem obj=(ChooseTargetItem)chooseByNamePopup.getChosenElement();
+        if (obj != null) {
+          chooseByNamePopup.getTextField().setText(obj.getName());
+          chooseByNamePopup.getTextField().repaint();
+        }
+      }
+ else {
+        super.keyPressed(e);
+      }
+      String adText=chooseByNamePopup.getAdText();
+      if (adText != null) {
+        chooseByNamePopup.setAdText(adText + " and " + KeymapUtil.getKeystrokeText(KeyStroke.getKeyStroke(KeyEvent.VK_RIGHT,2))+ " to use autocomplete");
+      }
+    }
+  }
+);
 }
