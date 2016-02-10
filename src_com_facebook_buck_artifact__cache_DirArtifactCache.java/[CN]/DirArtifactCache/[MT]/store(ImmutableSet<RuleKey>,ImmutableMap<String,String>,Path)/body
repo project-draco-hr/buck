@@ -4,11 +4,15 @@
   }
   try {
     for (    RuleKey ruleKey : ruleKeys) {
+      Path artifactPath=cacheDir.resolve(ruleKey.toString());
+      Path metadataPath=cacheDir.resolve(ruleKey.toString() + ".metadata");
+      if (filesystem.exists(artifactPath) && filesystem.exists(metadataPath)) {
+        continue;
+      }
       Path tmp=filesystem.createTempFile(cacheDir,"artifact",".tmp");
       try {
         filesystem.copyFile(output,tmp);
-        Path artifactPath=cacheDir.resolve(ruleKey.toString());
-        filesystem.move(tmp,artifactPath);
+        filesystem.move(tmp,artifactPath,StandardCopyOption.REPLACE_EXISTING);
         bytesSinceLastDeleteOldFiles+=filesystem.getFileSize(artifactPath);
       }
   finally {
@@ -25,8 +29,7 @@
             out.write(val);
           }
         }
-         Path metadataPath=cacheDir.resolve(ruleKey.toString() + ".metadata");
-        filesystem.move(tmp,metadataPath);
+         filesystem.move(tmp,metadataPath,StandardCopyOption.REPLACE_EXISTING);
         bytesSinceLastDeleteOldFiles+=filesystem.getFileSize(metadataPath);
       }
   finally {
