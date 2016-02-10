@@ -1,0 +1,41 @@
+{
+  ImmutableList.Builder<CxxPreprocessAndCompile> objects=ImmutableList.builder();
+  for (  Map.Entry<String,CxxSource> entry : sources.entrySet()) {
+    String name=entry.getKey();
+    CxxSource source=entry.getValue();
+    Preconditions.checkState(CxxSourceTypes.isPreprocessableType(source.getType()) || CxxSourceTypes.isCompilableType(source.getType()));
+switch (strategy) {
+case PIPED:
+case COMBINED:
+{
+        CxxPreprocessAndCompile rule;
+        if (CxxSourceTypes.isPreprocessableType(source.getType())) {
+          rule=requirePreprocessAndCompileBuildRule(resolver,name,source,strategy);
+        }
+ else {
+          rule=requireCompileBuildRule(resolver,name,source);
+        }
+        objects.add(rule);
+        break;
+      }
+case SEPARATE:
+{
+      if (CxxSourceTypes.isPreprocessableType(source.getType())) {
+        CxxPreprocessAndCompile rule=requirePreprocessBuildRule(resolver,name,source);
+        source=CxxSource.copyOf(source).withType(CxxSourceTypes.getPreprocessorOutputType(source.getType())).withPath(new BuildTargetSourcePath(rule.getBuildTarget()));
+      }
+      CxxPreprocessAndCompile rule=requireCompileBuildRule(resolver,name,source);
+      objects.add(rule);
+      break;
+    }
+default :
+  throw new IllegalStateException();
+}
+}
+return FluentIterable.from(objects.build()).toMap(new Function<CxxPreprocessAndCompile,SourcePath>(){
+@Override public SourcePath apply(CxxPreprocessAndCompile input){
+return new BuildTargetSourcePath(input.getBuildTarget());
+}
+}
+);
+}
