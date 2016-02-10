@@ -1,0 +1,33 @@
+{
+  Preconditions.checkArgument(numThreads > 0,"Must be at least one thread available");
+  ImmutableList<DepsForBuildFiles.BuildFileWithDeps> buildFilesWithDeps=ImmutableList.copyOf(depsForBuildFiles);
+  int numBuildFiles=buildFilesWithDeps.size();
+  if (numBuildFiles == 0) {
+    return 0;
+  }
+  int chunkSize=numBuildFiles / numThreads;
+  int extraItems=numBuildFiles % numThreads;
+  List<ListenableFuture<Integer>> futures=new ArrayList<>();
+  String autodepsFileName=buildFileName + GENERATED_BUILD_FILE_SUFFIX;
+  for (int i=0, endIndex=0; i < numThreads; i++) {
+    int numItemsToProcess=chunkSize;
+    if (extraItems > 0) {
+      numItemsToProcess++;
+      extraItems--;
+    }
+    if (numItemsToProcess == 0) {
+      break;
+    }
+    int startIndex=endIndex;
+    endIndex=startIndex + numItemsToProcess;
+    ImmutableList<DepsForBuildFiles.BuildFileWithDeps> work=buildFilesWithDeps.subList(startIndex,endIndex);
+    ListenableFuture<Integer> future=executorService.submit(new AutodepsCallable(work,autodepsFileName,mapper));
+    futures.add(future);
+  }
+  int totalWritten=0;
+  ListenableFuture<List<Integer>> futuresList=Futures.allAsList(futures);
+  for (  int numWritten : Uninterruptibles.getUninterruptibly(futuresList)) {
+    totalWritten+=numWritten;
+  }
+  return totalWritten;
+}

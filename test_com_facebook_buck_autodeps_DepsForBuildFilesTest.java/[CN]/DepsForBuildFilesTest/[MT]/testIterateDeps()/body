@@ -1,0 +1,38 @@
+{
+  DepsForBuildFiles depsForBuildFiles=new DepsForBuildFiles();
+  BuildTarget fooTarget=BuildTargetFactory.newInstance("//java/com/example:foo");
+  BuildTarget barTarget=BuildTargetFactory.newInstance("//java/com/example:bar");
+  BuildTarget bazTarget=BuildTargetFactory.newInstance("//java/com/example/baz:baz");
+  BuildTarget aTarget=BuildTargetFactory.newInstance("//java/com/example:a");
+  BuildTarget bTarget=BuildTargetFactory.newInstance("//java/com/example:b");
+  BuildTarget cTarget=BuildTargetFactory.newInstance("//java/com/example:c");
+  BuildTarget dTarget=BuildTargetFactory.newInstance("//java/com/example:d");
+  BuildTarget eTarget=BuildTargetFactory.newInstance("//java/com/example:e");
+  BuildTarget fTarget=BuildTargetFactory.newInstance("//java/com/example:f");
+  BuildTarget gTarget=BuildTargetFactory.newInstance("//java/com/example:g");
+  BuildTarget hTarget=BuildTargetFactory.newInstance("//java/com/example:h");
+  BuildTarget iTarget=BuildTargetFactory.newInstance("//java/com/example:i");
+  depsForBuildFiles.addDep(fooTarget,barTarget);
+  depsForBuildFiles.addDep(fooTarget,bazTarget);
+  depsForBuildFiles.addDep(barTarget,bazTarget);
+  depsForBuildFiles.addDep(bazTarget,gTarget);
+  depsForBuildFiles.addDep(bazTarget,hTarget);
+  depsForBuildFiles.addDep(bazTarget,aTarget);
+  depsForBuildFiles.addDep(bazTarget,eTarget);
+  depsForBuildFiles.addDep(bazTarget,bTarget);
+  depsForBuildFiles.addDep(bazTarget,iTarget);
+  depsForBuildFiles.addDep(bazTarget,dTarget);
+  depsForBuildFiles.addDep(bazTarget,fTarget);
+  depsForBuildFiles.addDep(bazTarget,cTarget);
+  Map<BuildTarget,List<BuildTarget>> observed=new HashMap<>();
+  for (  DepsForBuildFiles.BuildFileWithDeps buildFileWithDeps : depsForBuildFiles) {
+    Path directory=buildFileWithDeps.getBasePath();
+    for (    DepsForBuildFiles.DepsForRule depsForRule : buildFileWithDeps) {
+      String fullyQualifiedName=String.format("//%s:%s",directory,depsForRule.getShortName());
+      BuildTarget buildTarget=BuildTargetFactory.newInstance(fullyQualifiedName);
+      List<BuildTarget> deps=ImmutableList.copyOf(depsForRule);
+      observed.put(buildTarget,deps);
+    }
+  }
+  assertEquals(ImmutableMap.builder().put(fooTarget,ImmutableList.of(barTarget,bazTarget)).put(barTarget,ImmutableList.of(bazTarget)).put(bazTarget,ImmutableList.of(aTarget,bTarget,cTarget,dTarget,eTarget,fTarget,gTarget,hTarget,iTarget)).build(),observed);
+}

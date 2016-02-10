@@ -1,0 +1,20 @@
+{
+  try (ByteArrayOutputStream bytes=new ByteArrayOutputStream();HashingOutputStream hashingOutputStream=new HashingOutputStream(Hashing.sha1(),bytes)){
+    ObjectWriter jsonWriter=mapper.writer(PRETTY_PRINTER.get());
+    jsonWriter.writeValue(hashingOutputStream,deps);
+    bytes.write('\n');
+    HashCode hash=hashingOutputStream.hash();
+    String serializedJson=bytes.toString(Charsets.UTF_8.name());
+    String contentsToWrite=String.format(AUTODEPS_CONTENTS_FORMAT_STRING,hash,serializedJson);
+    if (generatedFile.toFile().isFile()) {
+      String existingContents=com.google.common.io.Files.toString(generatedFile.toFile(),Charsets.UTF_8);
+      if (contentsToWrite.equals(existingContents)) {
+        return false;
+      }
+    }
+    try (Writer writer=Files.newBufferedWriter(generatedFile,Charsets.UTF_8)){
+      writer.write(contentsToWrite);
+    }
+     return true;
+  }
+ }
