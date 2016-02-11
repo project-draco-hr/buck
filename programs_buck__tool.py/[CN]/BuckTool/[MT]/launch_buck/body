@@ -1,25 +1,26 @@
 def launch_buck(self, build_id):
     with Tracing('BuckRepo.launch_buck'):
-        if ('clean' in sys.argv):
+        if ((self._command_line.command == 'clean') and (not self._command_line.is_help())):
             self.kill_buckd()
         buck_version_uid = self._get_buck_version_uid()
         use_buckd = self._use_buckd()
-        has_watchman = bool(which('watchman'))
-        if (use_buckd and has_watchman):
-            buckd_run_count = self._buck_project.get_buckd_run_count()
-            running_version = self._buck_project.get_running_buckd_version()
-            new_buckd_run_count = (buckd_run_count + 1)
-            if ((buckd_run_count == MAX_BUCKD_RUN_COUNT) or (running_version != buck_version_uid)):
-                self.kill_buckd()
-                new_buckd_run_count = 0
-            if ((new_buckd_run_count == 0) or (not self._is_buckd_running())):
-                self.launch_buckd(buck_version_uid=buck_version_uid)
-            else:
-                self._buck_project.update_buckd_run_count(new_buckd_run_count)
-        elif (use_buckd and (not has_watchman)):
-            print("Not using buckd because watchman isn't installed.", file=sys.stderr)
-        elif (not use_buckd):
-            print('Not using buckd because NO_BUCKD is set.', file=sys.stderr)
+        if (not self._command_line.is_help()):
+            has_watchman = bool(which('watchman'))
+            if (use_buckd and has_watchman):
+                buckd_run_count = self._buck_project.get_buckd_run_count()
+                running_version = self._buck_project.get_running_buckd_version()
+                new_buckd_run_count = (buckd_run_count + 1)
+                if ((buckd_run_count == MAX_BUCKD_RUN_COUNT) or (running_version != buck_version_uid)):
+                    self.kill_buckd()
+                    new_buckd_run_count = 0
+                if ((new_buckd_run_count == 0) or (not self._is_buckd_running())):
+                    self.launch_buckd(buck_version_uid=buck_version_uid)
+                else:
+                    self._buck_project.update_buckd_run_count(new_buckd_run_count)
+            elif (use_buckd and (not has_watchman)):
+                print("Not using buckd because watchman isn't installed.", file=sys.stderr)
+            elif (not use_buckd):
+                print('Not using buckd because NO_BUCKD is set.', file=sys.stderr)
         env = self._environ_for_buck()
         env['BUCK_BUILD_ID'] = build_id
         buck_socket_path = self._buck_project.get_buckd_socket_path()
