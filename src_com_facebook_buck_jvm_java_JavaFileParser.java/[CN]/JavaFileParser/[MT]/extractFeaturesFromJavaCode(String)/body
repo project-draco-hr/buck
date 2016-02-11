@@ -1,0 +1,184 @@
+{
+  final boolean shouldThrowForUnsupportedWildcardImport=false;
+  final AtomicBoolean isPoisonedByUnsupportedWildcardImport=new AtomicBoolean(false);
+  final CompilationUnit compilationUnit=makeCompilationUnitFromSource(code);
+  final ImmutableSortedSet.Builder<String> providedSymbols=ImmutableSortedSet.naturalOrder();
+  final ImmutableSortedSet.Builder<String> requiredSymbols=ImmutableSortedSet.naturalOrder();
+  final ImmutableSortedSet.Builder<String> requiredSymbolsFromExplicitImports=ImmutableSortedSet.naturalOrder();
+  compilationUnit.accept(new ASTVisitor(){
+    @Nullable private String packageName;
+    private Set<String> simpleImportedTypes=new HashSet<>();
+    /** 
+ * Maps wildcard import prefixes, such as {@code "java.util"} to the types in the respective
+ * package if a wildcard import such as {@code import java.util.*} is used.
+ */
+    private Map<String,ImmutableSet<String>> wildcardImports=new HashMap<>();
+    @Override public boolean visit(    PackageDeclaration node){
+      Preconditions.checkState(packageName == null,"There should be at most one package declaration");
+      packageName=node.getName().getFullyQualifiedName();
+      return false;
+    }
+    @Override public boolean visit(    TypeDeclaration node){
+      if (node.getParent() instanceof TypeDeclarationStatement) {
+        return true;
+      }
+      providedSymbols.add(getFullyQualifiedTypeName(node));
+      return true;
+    }
+    @Override public boolean visit(    EnumDeclaration node){
+      providedSymbols.add(getFullyQualifiedTypeName(node));
+      return true;
+    }
+    @Override public boolean visit(    AnnotationTypeDeclaration node){
+      providedSymbols.add(getFullyQualifiedTypeName(node));
+      return true;
+    }
+    /** 
+ * Uses heuristics to try to figure out what type of QualifiedName this is. Returns a non-null
+ * value if this is believed to be a reference that qualifies as a "required symbol"
+ * relationship.
+ */
+    @Override public boolean visit(    QualifiedName node){
+      QualifiedName ancestor=findMostQualifiedAncestor(node);
+      ASTNode parent=ancestor.getParent();
+      if (!(parent instanceof PackageDeclaration) && !(parent instanceof ImportDeclaration)) {
+        String symbol=ancestor.getFullyQualifiedName();
+        addTypeFromDotDelimitedSequence(symbol);
+      }
+      return false;
+    }
+    /** 
+ * @param expr could be "Example", "Example.field", "com.example.Example". Note it could also
+ * be a built-in type, such as "java.lang.Integer", in which case it will not be added to
+ * the set of required symbols.
+ */
+    private void addTypeFromDotDelimitedSequence(    String expr){
+      if (startsWithUppercaseChar(expr)) {
+        int index=expr.indexOf('.');
+        if (index >= 0) {
+          String leftmostComponent=expr.substring(0,index);
+          if (JAVA_LANG_TYPES.contains(leftmostComponent)) {
+            return;
+          }
+        }
+      }
+      expr=qualifyWithPackageNameIfNecessary(expr);
+      requiredSymbols.add(expr);
+    }
+    @Override public boolean visit(    ImportDeclaration node){
+      String fullyQualifiedName=node.getName().getFullyQualifiedName();
+      if (node.isOnDemand()) {
+        ImmutableSet<String> value=SUPPORTED_WILDCARD_IMPORTS.get(fullyQualifiedName);
+        if (value != null) {
+          wildcardImports.put(fullyQualifiedName,value);
+          return false;
+        }
+ else         if (shouldThrowForUnsupportedWildcardImport) {
+          throw new RuntimeException(String.format("Use of wildcard 'import %s.*' makes it impossible to statically determine " + "required symbols in this file. Please enumerate explicit imports.",fullyQualifiedName));
+        }
+ else {
+          isPoisonedByUnsupportedWildcardImport.set(true);
+          return false;
+        }
+      }
+      String simpleName=getSimpleNameFromFullyQualifiedName(fullyQualifiedName);
+      simpleImportedTypes.add(simpleName);
+      if (node.isStatic()) {
+        int index=fullyQualifiedName.indexOf("." + simpleName);
+        String enclosingType=fullyQualifiedName.substring(0,index + simpleName.length() + 1);
+        requiredSymbolsFromExplicitImports.add(enclosingType);
+      }
+ else {
+        requiredSymbolsFromExplicitImports.add(fullyQualifiedName);
+      }
+      return false;
+    }
+    @Override public boolean visit(    MethodInvocation node){
+      if (node.getExpression() == null) {
+        return true;
+      }
+      String receiver=node.getExpression().toString();
+      if (looksLikeAType(receiver)) {
+        addTypeFromDotDelimitedSequence(receiver);
+      }
+      return true;
+    }
+    /** 
+ * An annotation on a member with zero arguments. 
+ */
+    @Override public boolean visit(    MarkerAnnotation node){
+      addSimpleTypeName(node.getTypeName());
+      return true;
+    }
+    /** 
+ * An annotation on a member with named arguments. 
+ */
+    @Override public boolean visit(    NormalAnnotation node){
+      addSimpleTypeName(node.getTypeName());
+      return true;
+    }
+    /** 
+ * An annotation on a member with a single, unnamed argument. 
+ */
+    @Override public boolean visit(    SingleMemberAnnotation node){
+      addSimpleTypeName(node.getTypeName());
+      return true;
+    }
+    @Override public boolean visit(    SimpleType node){
+      tryAddType(node);
+      return true;
+    }
+    private void tryAddType(    Type type){
+      if (type.isSimpleType()) {
+        SimpleType simpleType=(SimpleType)type;
+        Name simpleTypeName=simpleType.getName();
+        addSimpleTypeName(simpleTypeName);
+      }
+ else       if (type.isArrayType()) {
+        ArrayType arrayType=(ArrayType)type;
+        tryAddType(arrayType.getElementType());
+      }
+    }
+    private void addSimpleTypeName(    Name simpleTypeName){
+      String simpleName=simpleTypeName.toString();
+      if (JAVA_LANG_TYPES.contains(simpleName) || simpleImportedTypes.contains(simpleName)) {
+        return;
+      }
+      if (!wildcardImports.isEmpty()) {
+        for (        Map.Entry<String,ImmutableSet<String>> entry : wildcardImports.entrySet()) {
+          Set<String> types=entry.getValue();
+          if (types.contains(simpleName)) {
+            String packageName=entry.getKey();
+            requiredSymbols.add(packageName + "." + simpleName);
+            return;
+          }
+        }
+      }
+      String symbol=simpleTypeName.getFullyQualifiedName();
+      symbol=qualifyWithPackageNameIfNecessary(symbol);
+      requiredSymbols.add(symbol);
+    }
+    private String qualifyWithPackageNameIfNecessary(    String symbol){
+      if (!startsWithUppercaseChar(symbol)) {
+        return symbol;
+      }
+      int index=symbol.indexOf('.');
+      if (index >= 0) {
+        symbol=symbol.substring(0,index);
+      }
+      if (packageName != null) {
+        symbol=packageName + "." + symbol;
+      }
+      return symbol;
+    }
+  }
+);
+  ImmutableSortedSet<String> totalRequiredSymbols;
+  if (isPoisonedByUnsupportedWildcardImport.get()) {
+    totalRequiredSymbols=requiredSymbolsFromExplicitImports.build();
+  }
+ else {
+    totalRequiredSymbols=ImmutableSortedSet.<String>naturalOrder().addAll(requiredSymbolsFromExplicitImports.build()).addAll(requiredSymbols.build()).build();
+  }
+  return new JavaFileFeatures(providedSymbols.build(),totalRequiredSymbols);
+}
