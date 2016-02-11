@@ -1,10 +1,20 @@
 {
   ParserConfig parserConfig=new ParserConfig(rootCell.getBuckConfig());
   try (PerBuildState state=new PerBuildState(permState,marshaller,eventBus,rootCell,enableProfiling)){
+    ParserConfig.BuildFileSearchMethod buildFileSearchMethod;
+    if (parserConfig.getBuildFileSearchMethod().isPresent()) {
+      buildFileSearchMethod=parserConfig.getBuildFileSearchMethod().get();
+    }
+ else     if (parserConfig.getAllowSymlinks() == ParserConfig.AllowSymlinks.FORBID) {
+      buildFileSearchMethod=ParserConfig.BuildFileSearchMethod.WATCHMAN;
+    }
+ else {
+      buildFileSearchMethod=ParserConfig.BuildFileSearchMethod.FILESYSTEM_CRAWL;
+    }
     Multimap<TargetNodeSpec,Path> specBuildFilePaths=LinkedHashMultimap.create();
     for (    TargetNodeSpec spec : specs) {
       try (SimplePerfEvent.Scope perfEventScope=SimplePerfEvent.scope(eventBus,PerfEventId.of("FindBuildFiles"),"targetNodeSpec",spec)){
-        for (        Path buildFile : spec.getBuildFileSpec().findBuildFiles(rootCell)) {
+        for (        Path buildFile : spec.getBuildFileSpec().findBuildFiles(rootCell,buildFileSearchMethod)) {
           if (!rootCell.getFilesystem().isFile(buildFile)) {
             throw new MissingBuildFileException(spec,rootCell.getFilesystem().getRootPath().relativize(buildFile));
           }

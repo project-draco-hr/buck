@@ -1,0 +1,22 @@
+{
+  if (!isRecursive()) {
+    function.apply(filesystem.resolve(getBasePath().resolve(buildFileName)));
+    return;
+  }
+  long walkStartTimeNanos=System.nanoTime();
+  boolean tryWatchman=buildFileSearchMethod == ParserConfig.BuildFileSearchMethod.WATCHMAN && watchman.getWatchmanClient().isPresent() && watchman.getWatchRoot().isPresent();
+  boolean walkComplete=false;
+  if (tryWatchman) {
+    LOG.debug("Searching for %s files (watch root %s, project prefix %s, base path %s) with Watchman",buildFileName,watchman.getWatchRoot().get(),watchman.getProjectPrefix(),getBasePath());
+    walkComplete=forEachBuildFileWatchman(filesystem,watchman.getWatchmanClient().get(),watchman.getWatchRoot().get(),watchman.getProjectPrefix(),getBasePath(),buildFileName,function);
+  }
+ else {
+    LOG.debug("Not using Watchman (search method %s, client present %s, root present %s)",buildFileSearchMethod,watchman.getWatchmanClient().isPresent(),watchman.getWatchRoot().isPresent());
+  }
+  if (!walkComplete) {
+    LOG.debug("Searching for %s files under %s using physical filesystem crawl (note: this is slow)",buildFileName,filesystem.getRootPath());
+    forEachBuildFileFilesystem(filesystem,buildFileName,function);
+  }
+  long walkTimeNanos=System.nanoTime() - walkStartTimeNanos;
+  LOG.debug("Completed search in %d ms.",TimeUnit.NANOSECONDS.toMillis(walkTimeNanos));
+}

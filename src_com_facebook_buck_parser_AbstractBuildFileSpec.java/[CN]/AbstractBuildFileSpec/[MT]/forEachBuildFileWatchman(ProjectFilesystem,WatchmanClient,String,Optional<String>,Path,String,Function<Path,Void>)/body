@@ -1,0 +1,37 @@
+{
+  List<Object> query=Lists.<Object>newArrayList("query",watchRoot);
+  Map<String,Object> params=new LinkedHashMap<>();
+  if (projectPrefix.isPresent()) {
+    params.put("relative_root",projectPrefix.get());
+  }
+  params.put("sync_timeout",0);
+  Optional<Path> relativeBasePath=filesystem.getPathRelativeToProjectRoot(basePath);
+  Preconditions.checkState(relativeBasePath.isPresent());
+  params.put("path",Lists.newArrayList(relativeBasePath.get().toString()));
+  params.put("fields",Lists.newArrayList("name"));
+  params.put("expression",Lists.newArrayList("allof","exists",Lists.newArrayList("name",buildFileName),Lists.newArrayList("type","f")));
+  query.add(params);
+  Optional<? extends Map<String,? extends Object>> queryResponse=watchmanClient.queryWithTimeout(WATCHMAN_QUERY_TIMEOUT_NANOS,query.toArray());
+  if (!queryResponse.isPresent()) {
+    LOG.warn("Timed out after %d ns for Watchman query %s",WATCHMAN_QUERY_TIMEOUT_NANOS,query);
+    return false;
+  }
+  Map<String,? extends Object> response=queryResponse.get();
+  String error=(String)response.get("error");
+  if (error != null) {
+    throw new IOException(String.format("Error from Watchman query %s: %s",query,error));
+  }
+  String warning=(String)response.get("warning");
+  if (warning != null) {
+    LOG.warn("Watchman warning from query %s: %s",query,warning);
+  }
+  List<String> files=(List<String>)response.get("files");
+  LOG.verbose("Query %s -> files %s",query,files);
+  for (  String file : files) {
+    Path relativePath=Paths.get(file);
+    if (!filesystem.isIgnored(relativePath)) {
+      function.apply(filesystem.getRootPath().resolve(relativePath));
+    }
+  }
+  return true;
+}
