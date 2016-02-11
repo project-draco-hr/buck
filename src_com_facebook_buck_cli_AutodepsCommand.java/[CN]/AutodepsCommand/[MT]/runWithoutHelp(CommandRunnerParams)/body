@@ -1,0 +1,28 @@
+{
+  ConcurrencyLimit concurrencyLimit=getConcurrencyLimit(params.getBuckConfig());
+  try (CommandThreadManager pool=new CommandThreadManager("Autodeps",WorkQueueExecutionOrder.FIFO,concurrencyLimit)){
+    Cell cell=params.getCell();
+    ListeningExecutorService executorService=pool.getExecutor();
+    TargetGraph graph;
+    try {
+      graph=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),cell,getEnableProfiling(),executorService,ImmutableList.of(TargetNodePredicateSpec.of(Predicates.<TargetNode<?>>alwaysTrue(),BuildFileSpec.fromRecursivePath(Paths.get(""))))).getSecond();
+    }
+ catch (    BuildTargetException|BuildFileParseException e) {
+      params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
+      return 1;
+    }
+    JavaDepsFinder javaDepsFinder=JavaDepsFinder.createJavaDepsFinder(params.getBuckConfig(),params.getCell().getCellRoots());
+    Console console=params.getConsole();
+    DepsForBuildFiles depsForBuildFiles=javaDepsFinder.findDepsForBuildFiles(graph,console);
+    int numWritten;
+    try {
+      numWritten=AutodepsWriter.write(depsForBuildFiles,cell.getBuildFileName(),params.getObjectMapper(),executorService,concurrencyLimit.threadLimit);
+    }
+ catch (    ExecutionException e) {
+      throw new RuntimeException(e);
+    }
+    String message=numWritten == 1 ? "1 file written." : numWritten + " files written.";
+    console.printSuccess(message);
+  }
+   return 0;
+}

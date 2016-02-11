@@ -1,0 +1,95 @@
+{
+  final Set<BuildTarget> rulesWithAutodeps=new HashSet<>();
+  final HashMultimap<BuildTarget,String> ruleToRequiredSymbols=HashMultimap.create();
+  final HashMultimap<String,BuildTarget> symbolToProviders=HashMultimap.create();
+  final HashMultimap<BuildTarget,BuildTarget> rulesWithAutodepsToProvidedDeps=HashMultimap.create();
+  final HashMultimap<BuildTarget,BuildTarget> ruleToRulesThatExportIt=HashMultimap.create();
+  new AbstractBottomUpTraversal<TargetNode<?>,Void>(graph){
+    @Override public void visit(    TargetNode<?> node){
+      BuildRuleType buildRuleType=node.getDescription().getBuildRuleType();
+      if (!RULES_TO_VISIT.contains(buildRuleType)) {
+        return;
+      }
+      JavaLibraryDescription.Arg arg=(JavaLibraryDescription.Arg)node.getConstructorArg();
+      boolean autodeps=arg.autodeps.or(false);
+      BuildTarget buildTarget=node.getBuildTarget();
+      if (autodeps) {
+        rulesWithAutodeps.add(buildTarget);
+        rulesWithAutodepsToProvidedDeps.putAll(buildTarget,arg.providedDeps.or(ImmutableSortedSet.<BuildTarget>of()));
+      }
+      for (      BuildTarget exportedDep : arg.exportedDeps.or(ImmutableSortedSet.<BuildTarget>of())) {
+        ruleToRulesThatExportIt.put(exportedDep,buildTarget);
+      }
+      for (      SourcePath src : arg.srcs.get()) {
+        if (!(src instanceof PathSourcePath)) {
+          continue;
+        }
+        PathSourcePath sourcePath=(PathSourcePath)src;
+        ProjectFilesystem filesystem=sourcePath.getFilesystem();
+        Path absolutePath=filesystem.resolve(sourcePath.getRelativePath());
+        String code;
+        try {
+          code=Files.toString(absolutePath.toFile(),Charsets.UTF_8);
+        }
+ catch (        IOException e) {
+          throw new RuntimeException(e);
+        }
+        JavaFileParser.JavaFileFeatures features=javaFileParser.extractFeaturesFromJavaCode(code);
+        if (autodeps) {
+          ruleToRequiredSymbols.putAll(buildTarget,FluentIterable.from(features.requiredSymbols).filter(NOT_A_BUILT_IN_SYMBOL));
+        }
+        for (        String providedEntity : features.providedSymbols) {
+          symbolToProviders.put(providedEntity,buildTarget);
+        }
+      }
+    }
+  }
+.traverse();
+  DepsForBuildFiles depsForBuildFiles=new DepsForBuildFiles();
+  for (  final BuildTarget buildTarget : rulesWithAutodeps) {
+    final Set<BuildTarget> providedDeps=rulesWithAutodepsToProvidedDeps.get(buildTarget);
+    final Predicate<BuildTarget> isVisibleDepNotAlreadyInProvidedDeps=new Predicate<BuildTarget>(){
+      @Override public boolean apply(      BuildTarget provider){
+        TargetNode<?> node=graph.get(provider);
+        return node.isVisibleTo(buildTarget) && !providedDeps.contains(provider);
+      }
+    }
+;
+    for (    String requiredSymbol : ruleToRequiredSymbols.get(buildTarget)) {
+      BuildTarget provider=findProviderForSymbolFromBuckConfig(requiredSymbol);
+      if (provider != null) {
+        depsForBuildFiles.addDep(buildTarget,provider);
+        continue;
+      }
+      Set<BuildTarget> providers=symbolToProviders.get(requiredSymbol);
+      SortedSet<BuildTarget> candidateProviders=FluentIterable.from(providers).filter(isVisibleDepNotAlreadyInProvidedDeps).toSortedSet(Ordering.<BuildTarget>natural());
+      int numCandidates=candidateProviders.size();
+      if (numCandidates == 1) {
+        depsForBuildFiles.addDep(buildTarget,Iterables.getOnlyElement(candidateProviders));
+      }
+ else       if (numCandidates > 1) {
+        console.printErrorText(String.format("WARNING: Multiple providers for %s: %s. " + "Consider adding entry to .buckconfig to eliminate ambiguity:\n" + "[autodeps]\n"+ "java-package-mappings = %s => %s",requiredSymbol,Joiner.on(", ").join(candidateProviders),requiredSymbol,Iterables.getFirst(candidateProviders,null)));
+      }
+ else {
+        SortedSet<BuildTarget> newCandidates=new TreeSet<>();
+        for (        BuildTarget candidate : providers) {
+          Set<BuildTarget> rulesThatExportCandidate=ruleToRulesThatExportIt.get(candidate);
+          for (          BuildTarget ruleThatExportsCandidate : rulesThatExportCandidate) {
+            TargetNode<?> node=graph.get(ruleThatExportsCandidate);
+            if (node.isVisibleTo(buildTarget)) {
+              newCandidates.add(ruleThatExportsCandidate);
+            }
+          }
+        }
+        int numNewCandidates=newCandidates.size();
+        if (numNewCandidates == 1) {
+          depsForBuildFiles.addDep(buildTarget,Iterables.getOnlyElement(newCandidates));
+        }
+ else         if (numNewCandidates > 1) {
+          console.printErrorText(String.format("WARNING: No providers found for '%s' for build rule %s, " + "but there are multiple rules that export a rule to provide %s: %s",requiredSymbol,buildTarget,requiredSymbol,Joiner.on(", ").join(newCandidates)));
+        }
+      }
+    }
+  }
+  return depsForBuildFiles;
+}

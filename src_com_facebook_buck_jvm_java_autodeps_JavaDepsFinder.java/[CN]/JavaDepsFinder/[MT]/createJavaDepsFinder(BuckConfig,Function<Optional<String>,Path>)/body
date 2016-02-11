@@ -1,0 +1,25 @@
+{
+  Optional<String> javaPackageMappingOption=buckConfig.getValue(BUCK_CONFIG_SECTION,"java-package-mappings");
+  ImmutableSortedMap<String,BuildTarget> javaPackageMapping;
+  if (javaPackageMappingOption.isPresent()) {
+    Function<Map.Entry<String,String>,Map.Entry<String,BuildTarget>> normalizePackageMapping=new Function<Map.Entry<String,String>,Map.Entry<String,BuildTarget>>(){
+      @Override public Map.Entry<String,BuildTarget> apply(      Map.Entry<String,String> entry){
+        String originalKey=entry.getKey().trim();
+        boolean appearsToBeJavaPackage=!originalKey.endsWith(".") && CharMatcher.JAVA_UPPER_CASE.matchesNoneOf(originalKey);
+        String key=appearsToBeJavaPackage ? originalKey + "." : originalKey;
+        BuildTarget buildTarget=BuildTargetParser.INSTANCE.parse(entry.getValue().trim(),BuildTargetPatternParser.fullyQualified(),cellNames);
+        return Maps.immutableEntry(key,buildTarget);
+      }
+    }
+;
+    Iterable<Map.Entry<String,BuildTarget>> entries=FluentIterable.from(Splitter.on(',').omitEmptyStrings().withKeyValueSeparator("=>").split(javaPackageMappingOption.get()).entrySet()).transform(normalizePackageMapping);
+    javaPackageMapping=ImmutableSortedMap.copyOf(entries,Ordering.natural().reverse());
+  }
+ else {
+    javaPackageMapping=ImmutableSortedMap.of();
+  }
+  JavaBuckConfig javaBuckConfig=new JavaBuckConfig(buckConfig);
+  JavacOptions javacOptions=javaBuckConfig.getDefaultJavacOptions();
+  JavaFileParser javaFileParser=JavaFileParser.createJavaFileParser(javacOptions);
+  return new JavaDepsFinder(javaPackageMapping,javaFileParser);
+}
