@@ -1,27 +1,30 @@
 {
   ParserConfig parserConfig=new ParserConfig(rootCell.getBuckConfig());
   try (PerBuildState state=new PerBuildState(permState,marshaller,eventBus,rootCell,enableProfiling)){
-    ImmutableSet.Builder<Path> buildFiles=ImmutableSet.builder();
+    Multimap<TargetNodeSpec,Path> specBuildFilePaths=LinkedHashMultimap.create();
     for (    TargetNodeSpec spec : specs) {
-      for (      Path buildFile : spec.getBuildFileSpec().findBuildFiles(rootCell)) {
-        if (!rootCell.getFilesystem().isFile(buildFile)) {
-          throw new MissingBuildFileException(spec,rootCell.getFilesystem().getRootPath().relativize(buildFile));
+      try (SimplePerfEvent.Scope perfEventScope=SimplePerfEvent.scope(eventBus,PerfEventId.of("FindBuildFiles"),"targetNodeSpec",spec)){
+        for (        Path buildFile : spec.getBuildFileSpec().findBuildFiles(rootCell)) {
+          if (!rootCell.getFilesystem().isFile(buildFile)) {
+            throw new MissingBuildFileException(spec,rootCell.getFilesystem().getRootPath().relativize(buildFile));
+          }
+          specBuildFilePaths.put(spec,buildFile);
         }
-        buildFiles.add(buildFile);
       }
-    }
-    ImmutableSet<Path> allBuildSpecs=buildFiles.build();
-    if (allBuildSpecs.isEmpty()) {
+     }
+    if (specBuildFilePaths.isEmpty()) {
       return ImmutableSet.of();
     }
-    state.startParsing(rootCell,allBuildSpecs,parserConfig,executor);
+    state.startParsing(rootCell,ImmutableSet.copyOf(specBuildFilePaths.values()),parserConfig,executor);
     ImmutableSet.Builder<BuildTarget> targets=ImmutableSet.builder();
-    for (    TargetNodeSpec spec : specs) {
-      for (      Path buildFile : spec.getBuildFileSpec().findBuildFiles(rootCell)) {
+    for (    Map.Entry<TargetNodeSpec,Path> specBuildFilePath : specBuildFilePaths.entries()) {
+      TargetNodeSpec spec=specBuildFilePath.getKey();
+      Path buildFile=specBuildFilePath.getValue();
+      try (SimplePerfEvent.Scope perfEventScope=SimplePerfEvent.scope(eventBus,PerfEventId.of("GetAllTargetNodes"),"targetNodeSpec",spec,"buildFile",buildFile)){
         ImmutableSet<TargetNode<?>> nodes=state.getAllTargetNodes(rootCell,buildFile);
         targets.addAll(spec.filter(nodes));
       }
-    }
+     }
     return targets.build();
   }
  }
