@@ -1,13 +1,14 @@
 {
-  Optional<String> value=getValue(sectionName,propertyName);
-  if (!value.isPresent()) {
+  Optional<String> rawValue=getRawValue(sectionName,propertyName);
+  if (!rawValue.isPresent()) {
     return Optional.absent();
   }
-  Iterable<String> allValues=Splitter.on(splitChar).omitEmptyStrings().trimResults().split(value.get());
-  return Optional.of(FluentIterable.from(allValues).filter(new Predicate<String>(){
-    @Override public boolean apply(    String input){
-      return !Pattern.compile("^\\s*[#;]").matcher(input).find();
-    }
+  String value=rawValue.get();
+  if (value.isEmpty()) {
+    return Optional.absent();
   }
-).toList());
+  if (Pattern.compile("^\\s*[#;]").matcher(value).find()) {
+    return Optional.absent();
+  }
+  return Optional.of(decodeQuotedParts(value,Optional.of(splitChar),sectionName,propertyName));
 }
