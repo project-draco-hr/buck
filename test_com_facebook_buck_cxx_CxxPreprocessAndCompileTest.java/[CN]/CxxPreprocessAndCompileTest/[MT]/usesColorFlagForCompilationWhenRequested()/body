@@ -1,0 +1,13 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
+  Path output=Paths.get("test.o");
+  Path input=Paths.get("test.ii");
+  CxxPreprocessAndCompile buildRule=CxxPreprocessAndCompile.compile(params,pathResolver,COMPILER_WITH_COLOR_SUPPORT,ImmutableList.<String>of(),ImmutableList.<String>of(),output,new FakeSourcePath(input.toString()),DEFAULT_INPUT_TYPE,DEFAULT_SANITIZER);
+  ImmutableList<String> command=buildRule.makeMainStep().makeCompileCommand(input.toString(),"c++",true,false);
+  assertThat(command,not(hasItem(CompilerWithColorSupport.COLOR_FLAG)));
+  buildRule=CxxPreprocessAndCompile.compile(params,pathResolver,COMPILER_WITH_COLOR_SUPPORT,ImmutableList.<String>of(),ImmutableList.<String>of(),output,new FakeSourcePath(input.toString()),DEFAULT_INPUT_TYPE,DEFAULT_SANITIZER);
+  command=buildRule.makeMainStep().makeCompileCommand(input.toString(),"c++",true,true);
+  assertThat(command,hasItem(CompilerWithColorSupport.COLOR_FLAG));
+}

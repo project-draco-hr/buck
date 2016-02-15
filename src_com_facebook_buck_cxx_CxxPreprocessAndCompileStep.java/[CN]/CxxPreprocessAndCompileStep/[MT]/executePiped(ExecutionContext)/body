@@ -1,17 +1,15 @@
 {
+  Preconditions.checkState(preprocessorCommand.isPresent());
+  Preconditions.checkState(compilerCommand.isPresent());
   ByteArrayOutputStream preprocessError=new ByteArrayOutputStream();
   ProcessBuilder preprocessBuilder=makeSubprocessBuilder();
-  preprocessBuilder.command(makePreprocessCommand());
-  if (preprocessorEnvironment.isPresent()) {
-    preprocessBuilder.environment().putAll(preprocessorEnvironment.get());
-  }
+  preprocessBuilder.command(makePreprocessCommand(context.getAnsi().isAnsiTerminal()));
+  preprocessBuilder.environment().putAll(preprocessorCommand.get().getEnvironment());
   preprocessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
   ByteArrayOutputStream compileError=new ByteArrayOutputStream();
   ProcessBuilder compileBuilder=makeSubprocessBuilder();
-  compileBuilder.command(makeCompileCommand("-",inputType.getPreprocessedLanguage(),false));
-  if (compilerEnvironment.isPresent()) {
-    compileBuilder.environment().putAll(compilerEnvironment.get());
-  }
+  compileBuilder.command(makeCompileCommand("-",inputType.getPreprocessedLanguage(),false,context.getAnsi().isAnsiTerminal()));
+  compileBuilder.environment().putAll(compilerCommand.get().getEnvironment());
   compileBuilder.redirectInput(ProcessBuilder.Redirect.PIPE);
   Process preprocess=null;
   Process compile=null;
@@ -35,11 +33,11 @@
     safeCloseProcessor(errorProcessorCompile);
     String preprocessErr=new String(preprocessError.toByteArray());
     if (!preprocessErr.isEmpty()) {
-      context.getBuckEventBus().post(ConsoleEvent.create(preprocessStatus == 0 ? Level.WARNING : Level.SEVERE,preprocessErr));
+      context.getBuckEventBus().post(createConsoleEvent(context,preprocessorCommand.get(),preprocessStatus == 0 ? Level.WARNING : Level.SEVERE,preprocessErr));
     }
     String compileErr=new String(compileError.toByteArray());
     if (!compileErr.isEmpty()) {
-      context.getBuckEventBus().post(ConsoleEvent.create(compileStatus == 0 ? Level.WARNING : Level.SEVERE,compileErr));
+      context.getBuckEventBus().post(createConsoleEvent(context,compilerCommand.get(),compileStatus == 0 ? Level.WARNING : Level.SEVERE,compileErr));
     }
     if (preprocessStatus != 0) {
       LOG.warn("error %d %s(preprocess) %s: %s",preprocessStatus,operation.toString().toLowerCase(),input,preprocessErr);

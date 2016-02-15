@@ -1,11 +1,11 @@
 {
   ProcessBuilder builder=makeSubprocessBuilder();
   if (operation == Operation.PREPROCESS) {
-    builder.command(makePreprocessCommand());
+    builder.command(makePreprocessCommand(context.getAnsi().isAnsiTerminal()));
     builder.redirectOutput(ProcessBuilder.Redirect.PIPE);
   }
  else {
-    builder.command(makeCompileCommand(input.toString(),inputType.getLanguage(),inputType.isPreprocessable()));
+    builder.command(makeCompileCommand(input.toString(),inputType.getLanguage(),inputType.isPreprocessable(),context.getAnsi().isAnsiTerminal()));
   }
   LOG.debug("Running command (pwd=%s): %s",builder.directory(),getDescription(context));
   Process process=builder.start();
@@ -38,7 +38,7 @@
   }
   String err=new String(error.toByteArray());
   if (!err.isEmpty()) {
-    context.getBuckEventBus().post(ConsoleEvent.create(exitCode == 0 ? Level.WARNING : Level.SEVERE,err));
+    context.getBuckEventBus().post(createConsoleEvent(context,operation == Operation.PREPROCESS ? preprocessorCommand.get() : compilerCommand.get(),exitCode == 0 ? Level.WARNING : Level.SEVERE,err));
   }
   return exitCode;
 }
