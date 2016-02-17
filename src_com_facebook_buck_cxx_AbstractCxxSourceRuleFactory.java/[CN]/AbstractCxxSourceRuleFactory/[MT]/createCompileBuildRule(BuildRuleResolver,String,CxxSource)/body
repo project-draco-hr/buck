@@ -1,0 +1,11 @@
+{
+  Preconditions.checkArgument(CxxSourceTypes.isCompilableType(source.getType()));
+  BuildTarget target=createCompileBuildTarget(name);
+  Compiler compiler=getCompiler(source.getType());
+  ImmutableSortedSet<BuildRule> dependencies=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(compiler.getDeps(getPathResolver())).addAll(getPathResolver().filterBuildRuleInputs(source.getPath())).build();
+  ImmutableList<String> platformFlags=ImmutableList.<String>builder().addAll(getPicType().getFlags()).addAll(getPlatformCompileFlags(source.getType())).build();
+  ImmutableList<String> ruleFlags=ImmutableList.<String>builder().addAll(getRuleCompileFlags(source.getType())).addAll(source.getFlags()).build();
+  CxxPreprocessAndCompile result=CxxPreprocessAndCompile.compile(getParams().copyWithChanges(target,Suppliers.ofInstance(dependencies),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),getPathResolver(),new CompilerDelegate(getPathResolver(),getCxxPlatform().getDebugPathSanitizer(),compiler,platformFlags,ruleFlags),getCompileOutputPath(target,name),source.getPath(),source.getType(),getCxxPlatform().getDebugPathSanitizer());
+  resolver.addToIndex(result);
+  return result;
+}
