@@ -1,0 +1,19 @@
+{
+  CxxSource.Type sourceType=CxxSource.Type.fromExtension(MorePaths.getFileExtension(Paths.get(sourceName))).get();
+  BuckConfig buckConfig=FakeBuckConfig.builder().setSections(ImmutableMap.of("cxx",ImmutableMap.<String,String>builder().put("as",sourcePathResolver.deprecatedGetPath(as).toString()).put("asflags",space.join(asflags)).put("cc",sourcePathResolver.deprecatedGetPath(cc).toString()).put("cflags",space.join(cflags)).put("cxx",sourcePathResolver.deprecatedGetPath(cxx).toString()).put("cxxflags",space.join(cxxflags)).build())).setFilesystem(PROJECT_FILESYSTEM).build();
+  CxxPlatform platform=DefaultCxxPlatforms.build(new CxxBuckConfig(buckConfig));
+  CxxSourceRuleFactory cxxSourceRuleFactory=new CxxSourceRuleFactory(params,buildRuleResolver,sourcePathResolver,platform,ImmutableList.<CxxPreprocessorInput>of(),explicitCompilerFlags,Optional.<SourcePath>absent(),CxxSourceRuleFactory.PicType.PDC);
+  List<String> perFileFlags=ImmutableList.of("-per-file-flag");
+  CxxSource source=CxxSource.of(sourceType,new FakeSourcePath(sourceName),perFileFlags);
+  CxxPreprocessAndCompile rule;
+  if (source.getType().isPreprocessable()) {
+    rule=cxxSourceRuleFactory.requirePreprocessAndCompileBuildRule(buildRuleResolver,sourceName,source,CxxPreprocessMode.SEPARATE);
+  }
+ else {
+    rule=cxxSourceRuleFactory.requireCompileBuildRule(buildRuleResolver,sourceName,source);
+  }
+  assertContains(rule.getRuleCompilerFlags().get(),expectedCompilerFlags);
+  assertContains(rule.getPlatformCompilerFlags().get(),expectedTypeSpecificFlags);
+  assertContains(rule.getPlatformCompilerFlags().get(),asflags);
+  assertContains(rule.getRuleCompilerFlags().get(),perFileFlags);
+}

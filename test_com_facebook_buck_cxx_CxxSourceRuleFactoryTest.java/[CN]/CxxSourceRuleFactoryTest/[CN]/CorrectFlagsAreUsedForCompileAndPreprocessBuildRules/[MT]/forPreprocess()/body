@@ -1,0 +1,15 @@
+{
+  CxxSource.Type sourceType=CxxSource.Type.fromExtension(MorePaths.getFileExtension(Paths.get(sourceName))).get();
+  Assume.assumeTrue(sourceType.isPreprocessable());
+  CxxPreprocessorInput cxxPreprocessorInput=CxxPreprocessorInput.builder().putAllPreprocessorFlags(CxxSource.Type.C,explicitCppflags).putAllPreprocessorFlags(CxxSource.Type.OBJC,explicitCppflags).putAllPreprocessorFlags(CxxSource.Type.ASSEMBLER_WITH_CPP,explicitCppflags).putAllPreprocessorFlags(CxxSource.Type.CXX,explicitCxxppflags).putAllPreprocessorFlags(CxxSource.Type.OBJCXX,explicitCxxppflags).build();
+  BuckConfig buckConfig=FakeBuckConfig.builder().setSections(ImmutableMap.of("cxx",ImmutableMap.<String,String>builder().put("asppflags",space.join(asppflags)).put("cpp",sourcePathResolver.deprecatedGetPath(cpp).toString()).put("cppflags",space.join(cppflags)).put("cxxpp",sourcePathResolver.deprecatedGetPath(cxxpp).toString()).put("cxxppflags",space.join(cxxppflags)).build())).setFilesystem(PROJECT_FILESYSTEM).build();
+  CxxPlatform platform=DefaultCxxPlatforms.build(new CxxBuckConfig(buckConfig));
+  CxxSourceRuleFactory cxxSourceRuleFactory=new CxxSourceRuleFactory(params,buildRuleResolver,sourcePathResolver,platform,ImmutableList.of(cxxPreprocessorInput),ImmutableList.<String>of(),Optional.<SourcePath>absent(),CxxSourceRuleFactory.PicType.PDC);
+  List<String> perFileFlags=ImmutableList.of("-per-file-flag","-and-another-per-file-flag");
+  CxxSource cSource=CxxSource.of(sourceType,new FakeSourcePath(sourceName),perFileFlags);
+  CxxPreprocessAndCompile cPreprocess=cxxSourceRuleFactory.requirePreprocessBuildRule(buildRuleResolver,sourceName,cSource);
+  ImmutableList<String> cPreprocessCommand=cPreprocess.getPreprocessorDelegate().get().getPreprocessorCommand();
+  assertContains(cPreprocessCommand,expectedTypeSpecificPreprocessorFlags);
+  assertContains(cPreprocessCommand,expectedPreprocessorFlags);
+  assertContains(cPreprocessCommand,perFileFlags);
+}
