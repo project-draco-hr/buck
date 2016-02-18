@@ -11,11 +11,9 @@
   }
   ImmutableList<Path> sortedInput=sortDependency(depToolStep.getStdout());
   ImmutableList.Builder<Path> nativeLinkerInputs=ImmutableList.builder();
-  if (!bytecodeOnly) {
-    int mlCompileNativeExitCode=executeMLNativeCompilation(context,filesystem.getRootPath(),sortedInput,nativeLinkerInputs);
-    if (mlCompileNativeExitCode != 0) {
-      return mlCompileNativeExitCode;
-    }
+  int mlCompileNativeExitCode=executeMLNativeCompilation(context,filesystem.getRootPath(),sortedInput,nativeLinkerInputs);
+  if (mlCompileNativeExitCode != 0) {
+    return mlCompileNativeExitCode;
   }
   ImmutableList.Builder<Path> bytecodeLinkerInputs=ImmutableList.builder();
   int mlCompileBytecodeExitCode=executeMLBytecodeCompilation(context,filesystem.getRootPath(),sortedInput,bytecodeLinkerInputs);
@@ -28,12 +26,10 @@
     return cCompileExitCode;
   }
   ImmutableList<Path> cObjects=cLinkerInputs.build();
-  if (!bytecodeOnly) {
-    nativeLinkerInputs.addAll(cObjects);
-    int nativeLinkExitCode=executeNativeLinking(context,nativeLinkerInputs.build());
-    if (nativeLinkExitCode != 0) {
-      return nativeLinkExitCode;
-    }
+  nativeLinkerInputs.addAll(cObjects);
+  int nativeLinkExitCode=executeLinking(context,nativeLinkerInputs.build());
+  if (nativeLinkExitCode != 0) {
+    return nativeLinkExitCode;
   }
   bytecodeLinkerInputs.addAll(cObjects);
   int bytecodeLinkExitCode=executeBytecodeLinking(context,bytecodeLinkerInputs.build());

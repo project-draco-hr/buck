@@ -1,0 +1,28 @@
+{
+  if (Platform.detect() == Platform.MACOS) {
+    ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"ocaml",tmp);
+    workspace.setUp();
+    BuildTarget target=BuildTargetFactory.newInstance(workspace.getDestPath(),"//ocaml_ext_mac:ocaml_ext");
+    BuildTarget binary=createOCamlLinkTarget(target);
+    BuildTarget libplus=BuildTargetFactory.newInstance(workspace.getDestPath(),"//ocaml_ext_mac:plus");
+    ImmutableSet<BuildTarget> targets=ImmutableSet.of(target,binary,libplus);
+    workspace.runBuckCommand("build",target.toString()).assertSuccess();
+    BuckBuildLog buildLog=workspace.getBuildLog();
+    assertTrue(buildLog.getAllTargets().containsAll(targets));
+    buildLog.assertTargetBuiltLocally(target.toString());
+    buildLog.assertTargetBuiltLocally(binary.toString());
+    workspace.resetBuildLogFile();
+    workspace.runBuckCommand("build",target.toString()).assertSuccess();
+    buildLog=workspace.getBuildLog();
+    assertTrue(buildLog.getAllTargets().containsAll(targets));
+    buildLog.assertTargetHadMatchingRuleKey(target.toString());
+    buildLog.assertTargetHadMatchingRuleKey(binary.toString());
+    workspace.resetBuildLogFile();
+    workspace.replaceFileContents("ocaml_ext_mac/BUCK","libplus_lib","libplus_lib1");
+    workspace.runBuckCommand("build",target.toString()).assertSuccess();
+    buildLog=workspace.getBuildLog();
+    assertTrue(buildLog.getAllTargets().containsAll(targets));
+    buildLog.assertTargetBuiltLocally(target.toString());
+    buildLog.assertTargetBuiltLocally(binary.toString());
+  }
+}
