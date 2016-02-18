@@ -1,17 +1,26 @@
-def _bunser_template(buf, pos):
+def _bunser_template(buf, pos, mutable=True):
     if (buf[(pos + 1)] != BSER_ARRAY):
         raise RuntimeError('Expect ARRAY to follow TEMPLATE')
     (keys, pos) = _bunser_array(buf, (pos + 1))
     (nitems, pos) = _bunser_int(buf, pos)
     arr = []
     for i in range(nitems):
-        obj = {}
+        if mutable:
+            obj = {}
+        else:
+            vals = []
         for keyidx in range(len(keys)):
             if (buf[pos] == BSER_SKIP):
                 pos += 1
-                continue
-            key = keys[keyidx]
-            (ele, pos) = _bser_loads_recursive(buf, pos)
-            obj[key] = ele
+                ele = None
+            else:
+                (ele, pos) = _bser_loads_recursive(buf, pos, mutable)
+            if mutable:
+                key = keys[keyidx]
+                obj[key] = ele
+            else:
+                vals.append(ele)
+        if (not mutable):
+            obj = _BunserDict(keys, vals)
         arr.append(obj)
     return (arr, pos)

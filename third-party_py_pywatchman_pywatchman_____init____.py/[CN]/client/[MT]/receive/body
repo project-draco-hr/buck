@@ -2,13 +2,19 @@ def receive(self):
     ' receive the next PDU from the watchman service\n\n        If the client has activated subscriptions or logs then\n        this PDU may be a unilateral PDU sent by the service to\n        inform the client of a log event or subscription change.\n\n        It may also simply be the response portion of a request\n        initiated by query.\n\n        There are clients in production that subscribe and call\n        this in a loop to retrieve all subscription responses,\n        so care should be taken when making changes here.\n        '
     self._connect()
     result = self.recvConn.receive()
-    if ('error' in result):
+    if self._hasprop(result, 'error'):
         raise CommandError(result['error'])
-    if ('log' in result):
+    if self._hasprop(result, 'log'):
         self.logs.append(result['log'])
-    if ('subscription' in result):
+    if self._hasprop(result, 'subscription'):
         sub = result['subscription']
         if (not (sub in self.subs)):
             self.subs[sub] = []
         self.subs[sub].append(result)
+        root = result['root']
+        if (not (root in self.sub_by_root)):
+            self.sub_by_root[root] = {}
+        if (not (sub in self.sub_by_root[root])):
+            self.sub_by_root[root][sub] = []
+        self.sub_by_root[root][sub].append(result)
     return result

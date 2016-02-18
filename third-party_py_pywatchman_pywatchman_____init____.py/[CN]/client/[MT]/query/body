@@ -1,8 +1,12 @@
 def query(self, *args):
     ' Send a query to the watchman service and return the response\n\n        This call will block until the response is returned.\n        If any unilateral responses are sent by the service in between\n        the request-response they will be buffered up in the client object\n        and NOT returned via this method.\n        '
     self._connect()
-    self.sendConn.send(args)
-    res = self.receive()
-    while self.isUnilateralResponse(res):
+    try:
+        self.sendConn.send(args)
         res = self.receive()
-    return res
+        while self.isUnilateralResponse(res):
+            res = self.receive()
+        return res
+    except CommandError as ex:
+        ex.setCommand(args)
+        raise ex

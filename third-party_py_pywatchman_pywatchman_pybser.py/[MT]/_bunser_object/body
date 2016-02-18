@@ -1,8 +1,18 @@
-def _bunser_object(buf, pos):
+def _bunser_object(buf, pos, mutable=True):
     (obj_len, pos) = _bunser_int(buf, (pos + 1))
-    obj = {}
+    if mutable:
+        obj = {}
+    else:
+        keys = []
+        vals = []
     for i in range(obj_len):
         (key, pos) = _bunser_string(buf, pos)
-        (val, pos) = _bser_loads_recursive(buf, pos)
-        obj[key] = val
+        (val, pos) = _bser_loads_recursive(buf, pos, mutable)
+        if mutable:
+            obj[key] = val
+        else:
+            keys.append(key)
+            vals.append(val)
+    if (not mutable):
+        obj = _BunserDict(keys, vals)
     return (obj, pos)
