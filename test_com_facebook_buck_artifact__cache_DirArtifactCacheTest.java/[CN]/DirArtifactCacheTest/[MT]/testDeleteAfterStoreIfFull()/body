@@ -4,7 +4,7 @@
   Path fileY=tmpDir.newFile("y");
   Path fileZ=tmpDir.newFile("z");
   fileHashCache=new FakeFileHashCache(ImmutableMap.of(fileX,HashCode.fromInt(0),fileY,HashCode.fromInt(1),fileZ,HashCode.fromInt(2)));
-  dirArtifactCache=new DirArtifactCache("dir",new ProjectFilesystem(cacheDir),Paths.get("."),true,Optional.of(9L));
+  dirArtifactCache=new DirArtifactCache("dir",new ProjectFilesystem(cacheDir),cacheDir,true,Optional.of(9L));
   Files.write(fileX,"x".getBytes(UTF_8));
   Files.write(fileY,"y".getBytes(UTF_8));
   Files.write(fileZ,"z".getBytes(UTF_8));
@@ -22,13 +22,13 @@
   RuleKey ruleKeyZ=fakeRuleKeyBuilderFactory.build(inputRuleZ);
   dirArtifactCache.store(ImmutableSet.of(ruleKeyX),ImmutableMap.<String,String>of(),fileX);
   assertEquals(CacheResultType.HIT,dirArtifactCache.fetch(ruleKeyX,LazyPath.ofInstance(fileX)).getType());
-  Files.setAttribute(cacheDir.resolve(ruleKeyX.toString()),"lastAccessTime",FileTime.fromMillis(0));
-  Files.setAttribute(cacheDir.resolve(ruleKeyX.toString() + ".metadata"),"lastAccessTime",FileTime.fromMillis(0));
+  Files.setAttribute(dirArtifactCache.getPathForRuleKey(ruleKeyX,Optional.<String>absent()),"lastAccessTime",FileTime.fromMillis(0));
+  Files.setAttribute(dirArtifactCache.getPathForRuleKey(ruleKeyX,Optional.of(".metadata")),"lastAccessTime",FileTime.fromMillis(0));
   dirArtifactCache.store(ImmutableSet.of(ruleKeyY),ImmutableMap.<String,String>of(),fileY);
   assertEquals(CacheResultType.MISS,dirArtifactCache.fetch(ruleKeyX,LazyPath.ofInstance(fileX)).getType());
   assertEquals(CacheResultType.HIT,dirArtifactCache.fetch(ruleKeyY,LazyPath.ofInstance(fileY)).getType());
-  Files.setAttribute(cacheDir.resolve(ruleKeyY.toString()),"lastAccessTime",FileTime.fromMillis(1000));
-  Files.setAttribute(cacheDir.resolve(ruleKeyY.toString() + ".metadata"),"lastAccessTime",FileTime.fromMillis(1000));
+  Files.setAttribute(dirArtifactCache.getPathForRuleKey(ruleKeyY,Optional.<String>absent()),"lastAccessTime",FileTime.fromMillis(1000));
+  Files.setAttribute(dirArtifactCache.getPathForRuleKey(ruleKeyY,Optional.of(".metadata")),"lastAccessTime",FileTime.fromMillis(1000));
   dirArtifactCache.store(ImmutableSet.of(ruleKeyZ),ImmutableMap.<String,String>of(),fileZ);
   assertEquals(CacheResultType.MISS,dirArtifactCache.fetch(ruleKeyX,LazyPath.ofInstance(fileX)).getType());
   assertEquals(CacheResultType.MISS,dirArtifactCache.fetch(ruleKeyY,LazyPath.ofInstance(fileY)).getType());
