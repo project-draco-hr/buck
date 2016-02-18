@@ -10,13 +10,13 @@
     return depToolExitCode;
   }
   ImmutableList<Path> sortedInput=sortDependency(depToolStep.getStdout());
-  ImmutableList.Builder<Path> linkerInputs=ImmutableList.builder();
-  int mlCompileExitCode=executeMLCompilation(context,filesystem.getRootPath(),sortedInput,linkerInputs);
-  if (mlCompileExitCode != 0) {
-    return mlCompileExitCode;
+  ImmutableList.Builder<Path> nativeLinkerInputs=ImmutableList.builder();
+  int mlCompileNativeExitCode=executeMLNativeCompilation(context,filesystem.getRootPath(),sortedInput,nativeLinkerInputs);
+  if (mlCompileNativeExitCode != 0) {
+    return mlCompileNativeExitCode;
   }
   ImmutableList.Builder<Path> bytecodeLinkerInputs=ImmutableList.builder();
-  int mlCompileBytecodeExitCode=executeMLCompileBytecode(context,filesystem.getRootPath(),sortedInput,bytecodeLinkerInputs);
+  int mlCompileBytecodeExitCode=executeMLBytecodeCompilation(context,filesystem.getRootPath(),sortedInput,bytecodeLinkerInputs);
   if (mlCompileBytecodeExitCode != 0) {
     return mlCompileBytecodeExitCode;
   }
@@ -26,15 +26,15 @@
     return cCompileExitCode;
   }
   ImmutableList<Path> cObjects=cLinkerInputs.build();
-  linkerInputs.addAll(cObjects);
-  int nativeLinkExitCode=executeLinking(context,linkerInputs.build());
+  nativeLinkerInputs.addAll(cObjects);
+  int nativeLinkExitCode=executeLinking(context,nativeLinkerInputs.build());
   if (nativeLinkExitCode != 0) {
     return nativeLinkExitCode;
   }
   bytecodeLinkerInputs.addAll(cObjects);
-  int bytecodeExitCode=executeBytecodeLinking(context,bytecodeLinkerInputs.build());
-  if (bytecodeExitCode != 0) {
-    return bytecodeExitCode;
+  int bytecodeLinkExitCode=executeBytecodeLinking(context,bytecodeLinkerInputs.build());
+  if (bytecodeLinkExitCode != 0) {
+    return bytecodeLinkExitCode;
   }
   if (!ocamlContext.isLibrary()) {
     Step debugLauncher=new OCamlDebugLauncherStep(filesystem,resolver,new OCamlDebugLauncherStep.Args(ocamlContext.getOcamlDebug().get(),ocamlContext.getBytecodeOutput(),ocamlContext.getOCamlInput(),ocamlContext.getBytecodeIncludeFlags()));

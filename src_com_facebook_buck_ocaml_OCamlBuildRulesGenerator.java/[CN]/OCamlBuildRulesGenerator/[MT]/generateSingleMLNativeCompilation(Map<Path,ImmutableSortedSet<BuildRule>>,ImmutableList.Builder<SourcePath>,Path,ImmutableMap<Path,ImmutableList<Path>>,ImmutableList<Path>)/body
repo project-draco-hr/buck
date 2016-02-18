@@ -9,16 +9,16 @@
   ImmutableSortedSet.Builder<BuildRule> depsBuilder=ImmutableSortedSet.naturalOrder();
   if (sources.containsKey(mlSource)) {
     for (    Path dep : checkNotNull(sources.get(mlSource))) {
-      generateSingleMLCompilation(sourceToRule,cmxFiles,dep,sources,newCycleDetector);
+      generateSingleMLNativeCompilation(sourceToRule,cmxFiles,dep,sources,newCycleDetector);
       depsBuilder.addAll(checkNotNull(sourceToRule.get(dep)));
     }
   }
   ImmutableSortedSet<BuildRule> deps=depsBuilder.build();
   String name=mlSource.toFile().getName();
-  BuildTarget buildTarget=createMLCompileBuildTarget(params.getBuildTarget(),name);
-  BuildRuleParams compileParams=params.copyWithChanges(buildTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps().get()).addAll(deps).addAll(ocamlContext.getCompileDeps()).build()),params.getExtraDeps());
-  String outputFileName=getMLOutputName(name);
-  Path outputPath=ocamlContext.getCompileOutputDir().resolve(outputFileName);
+  BuildTarget buildTarget=createMLNativeCompileBuildTarget(params.getBuildTarget(),name);
+  BuildRuleParams compileParams=params.copyWithChanges(buildTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps().get()).addAll(deps).addAll(ocamlContext.getNativeCompileDeps()).build()),params.getExtraDeps());
+  String outputFileName=getMLNativeOutputName(name);
+  Path outputPath=ocamlContext.getCompileNativeOutputDir().resolve(outputFileName);
   final ImmutableList<String> compileFlags=getCompileFlags(false,false);
   OCamlMLCompile compile=new OCamlMLCompile(compileParams,pathResolver,new OCamlMLCompileStep.Args(params.getProjectFilesystem().getAbsolutifier(),cCompiler.getEnvironment(pathResolver),cCompiler.getCommandPrefix(pathResolver),ocamlContext.getOcamlCompiler().get(),outputPath,mlSource,compileFlags));
   resolver.addToIndex(compile);
