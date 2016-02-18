@@ -4,17 +4,21 @@
     workspace.setUp();
     BuildTarget target=BuildTargetFactory.newInstance(workspace.getDestPath(),"//ocaml_ext_mac:ocaml_ext");
     BuildTarget binary=createOCamlLinkTarget(target);
+    BuildTarget bytecode=OCamlBuildRulesGenerator.addBytecodeFlavor(binary);
     BuildTarget libplus=BuildTargetFactory.newInstance(workspace.getDestPath(),"//ocaml_ext_mac:plus");
-    ImmutableSet<BuildTarget> targets=ImmutableSet.of(target,binary,libplus);
+    ImmutableSet<BuildTarget> targets=ImmutableSet.of(target,binary,bytecode,libplus);
     workspace.runBuckCommand("build",target.toString()).assertSuccess();
     BuckBuildLog buildLog=workspace.getBuildLog();
-    assertTrue(buildLog.getAllTargets().containsAll(targets));
+    for (    BuildTarget t : targets) {
+      assertTrue(String.format("Expected %s to be built",t.toString()),buildLog.getAllTargets().contains(t));
+    }
     buildLog.assertTargetBuiltLocally(target.toString());
     buildLog.assertTargetBuiltLocally(binary.toString());
     workspace.resetBuildLogFile();
     workspace.runBuckCommand("build",target.toString()).assertSuccess();
-    buildLog=workspace.getBuildLog();
-    assertTrue(buildLog.getAllTargets().containsAll(targets));
+    for (    BuildTarget t : targets) {
+      assertTrue(String.format("Expected %s to be built",t.toString()),buildLog.getAllTargets().contains(t));
+    }
     buildLog.assertTargetHadMatchingRuleKey(target.toString());
     buildLog.assertTargetHadMatchingRuleKey(binary.toString());
     workspace.resetBuildLogFile();
