@@ -1,0 +1,21 @@
+{
+  final MutableDirectedGraph<TargetNode<? extends AbstractDescriptionArg>> subgraph=new MutableDirectedGraph<>();
+  final Map<BuildTarget,TargetNode<? extends AbstractDescriptionArg>> index=new HashMap<>();
+  new AbstractBreadthFirstTraversal<TargetNode<? extends AbstractDescriptionArg>>(roots){
+    @Override public ImmutableSet<TargetNode<? extends AbstractDescriptionArg>> visit(    TargetNode<? extends AbstractDescriptionArg> node){
+      subgraph.addNode(node);
+      MoreMaps.putCheckEquals(index,node.getBuildTarget(),node);
+      if (node.getBuildTarget().isFlavored()) {
+        BuildTarget unflavoredBuildTarget=BuildTarget.of(node.getBuildTarget().getUnflavoredBuildTarget());
+        MoreMaps.putCheckEquals(index,unflavoredBuildTarget,targetsToNodes.get(unflavoredBuildTarget));
+      }
+      ImmutableSet<TargetNode<? extends AbstractDescriptionArg>> dependencies=ImmutableSet.copyOf(getAll(node.getDeps()));
+      for (      TargetNode<? extends AbstractDescriptionArg> dependency : dependencies) {
+        subgraph.addEdge(node,dependency);
+      }
+      return dependencies;
+    }
+  }
+.start();
+  return new TargetGraph(subgraph,ImmutableMap.copyOf(index));
+}
