@@ -1,0 +1,32 @@
+{
+  Path cacheDir=tmpDir.newFolder();
+  Path fileX=tmpDir.newFile("x");
+  Path fileY=tmpDir.newFile("y");
+  Path fileZ=tmpDir.newFile("z");
+  fileHashCache=new FakeFileHashCache(ImmutableMap.of(fileX,HashCode.fromInt(0),fileY,HashCode.fromInt(1),fileZ,HashCode.fromInt(2)));
+  dirArtifactCache=new DirArtifactCache("dir",new ProjectFilesystem(cacheDir),Paths.get("."),true,Optional.<Long>absent());
+  Files.write(fileX,"x".getBytes(UTF_8));
+  Files.write(fileY,"y".getBytes(UTF_8));
+  Files.write(fileZ,"x".getBytes(UTF_8));
+  BuildRule inputRuleX=new BuildRuleForTest(fileX);
+  BuildRule inputRuleY=new BuildRuleForTest(fileY);
+  BuildRule inputRuleZ=new BuildRuleForTest(fileZ);
+  assertFalse(inputRuleX.equals(inputRuleY));
+  assertFalse(inputRuleX.equals(inputRuleZ));
+  assertFalse(inputRuleY.equals(inputRuleZ));
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  ruleResolver.addToIndex(inputRuleX);
+  ruleResolver.addToIndex(inputRuleY);
+  ruleResolver.addToIndex(inputRuleZ);
+  SourcePathResolver resolver=new SourcePathResolver(ruleResolver);
+  DefaultRuleKeyBuilderFactory fakeRuleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,resolver);
+  RuleKey ruleKeyX=fakeRuleKeyBuilderFactory.build(inputRuleX);
+  RuleKey ruleKeyY=fakeRuleKeyBuilderFactory.build(inputRuleY);
+  RuleKey ruleKeyZ=fakeRuleKeyBuilderFactory.build(inputRuleZ);
+  dirArtifactCache.store(ImmutableSet.of(ruleKeyX),ImmutableMap.<String,String>of(),BorrowablePath.borrowablePath(fileX));
+  dirArtifactCache.store(ImmutableSet.of(ruleKeyY),ImmutableMap.<String,String>of(),BorrowablePath.borrowablePath(fileY));
+  dirArtifactCache.store(ImmutableSet.of(ruleKeyZ),ImmutableMap.<String,String>of(),BorrowablePath.withPath(fileZ));
+  assertThat(Files.exists(fileX),Matchers.is(false));
+  assertThat(Files.exists(fileY),Matchers.is(false));
+  assertThat(Files.exists(fileZ),Matchers.is(false));
+}

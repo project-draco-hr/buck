@@ -4,7 +4,7 @@
   }
   ArtifactCompressionEvent.Started started=ArtifactCompressionEvent.started(ArtifactCompressionEvent.Operation.COMPRESS,ruleKeys);
   eventBus.post(started);
-  Path zip;
+  final Path zip;
   ImmutableSet<Path> pathsToIncludeInZip=ImmutableSet.of();
   ImmutableMap<String,String> buildMetadata;
   try {
@@ -21,12 +21,11 @@
  finally {
     eventBus.post(ArtifactCompressionEvent.finished(started));
   }
-  final Path finalZip=zip;
-  ListenableFuture<Void> storeFuture=artifactCache.store(ruleKeys,buildMetadata,zip);
+  ListenableFuture<Void> storeFuture=artifactCache.store(ruleKeys,buildMetadata,BorrowablePath.withPath(zip));
   storeFuture.addListener(new Runnable(){
     @Override public void run(){
       try {
-        Files.delete(finalZip);
+        Files.deleteIfExists(zip);
       }
  catch (      IOException e) {
         throw new RuntimeException(e);

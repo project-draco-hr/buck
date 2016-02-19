@@ -18,15 +18,15 @@
   try (OutputStream outputStream=rule.getProjectFilesystem().newFileOutputStream(manifestPath)){
     manifest.serialize(outputStream);
   }
-   final NamedTemporaryFile tempFile=new NamedTemporaryFile("buck.",".manifest");
+   final Path tempFile=Files.createTempFile("buck.",".manifest");
   try {
-    try (InputStream inputStream=rule.getProjectFilesystem().newFileInputStream(manifestPath);OutputStream outputStream=new GZIPOutputStream(new BufferedOutputStream(Files.newOutputStream(tempFile.get())))){
+    try (InputStream inputStream=rule.getProjectFilesystem().newFileInputStream(manifestPath);OutputStream outputStream=new GZIPOutputStream(new BufferedOutputStream(Files.newOutputStream(tempFile)))){
       ByteStreams.copy(inputStream,outputStream);
     }
-     cache.store(ImmutableSet.of(manifestKey.getFirst()),ImmutableMap.<String,String>of(),tempFile.get()).addListener(new Runnable(){
+     cache.store(ImmutableSet.of(manifestKey.getFirst()),ImmutableMap.<String,String>of(),BorrowablePath.withPath(tempFile)).addListener(new Runnable(){
       @Override public void run(){
         try {
-          tempFile.close();
+          Files.deleteIfExists(tempFile);
         }
  catch (        IOException e) {
           LOG.warn(e,"Error occurred while deleting temporary manifest file for %s",manifestPath);
@@ -36,7 +36,7 @@
 ,MoreExecutors.directExecutor());
   }
  catch (  InterruptedException e) {
-    tempFile.close();
+    Files.deleteIfExists(tempFile);
     throw e;
   }
 }
