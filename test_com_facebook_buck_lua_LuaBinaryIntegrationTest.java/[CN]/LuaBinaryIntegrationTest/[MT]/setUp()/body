@@ -1,9 +1,22 @@
 {
   assumeThat(Platform.detect(),Matchers.not(Platform.WINDOWS));
-  LuaBuckConfig config=new LuaBuckConfig(FakeBuckConfig.builder().build(),new ExecutableFinder());
-  Optional<Path> luaOptional=config.getSystemLua();
+  LuaBuckConfig fakeConfig=new LuaBuckConfig(FakeBuckConfig.builder().build(),new ExecutableFinder());
+  Optional<Path> luaOptional=fakeConfig.getSystemLua();
   assumeTrue(luaOptional.isPresent());
   lua=luaOptional.get();
+  if (starterType == LuaBinaryDescription.StarterType.NATIVE) {
+    CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(Platform.detect(),new CxxBuckConfig(FakeBuckConfig.builder().build()));
+    ProcessBuilder builder=new ProcessBuilder();
+    builder.command(ImmutableList.<String>builder().addAll(cxxPlatform.getCc().getCommandPrefix(new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer())))).add("-includelua.h","-E","-").build());
+    builder.redirectInput(ProcessBuilder.Redirect.PIPE);
+    Process process=builder.start();
+    process.getOutputStream().close();
+    int exitCode=process.waitFor();
+    assumeTrue("Lua devel package required for native starter",exitCode == 0);
+  }
   workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"lua_binary",tmp);
   workspace.setUp();
+  workspace.writeContentsToPath(Joiner.on(System.lineSeparator()).join(ImmutableList.of("[lua]","  starter_type = " + starterType.toString().toLowerCase())),".buckconfig");
+  LuaBuckConfig config=getLuaBuckConfig();
+  assertThat(config.getStarterType(),Matchers.equalTo(Optional.of(starterType)));
 }

@@ -1,0 +1,28 @@
+{
+  final LuaPackageComponents.Builder builder=LuaPackageComponents.builder();
+  final Map<BuildTarget,NativeLinkable> nativeLinkables=new LinkedHashMap<>();
+  new AbstractBreadthFirstThrowingTraversal<BuildRule,NoSuchBuildTargetException>(deps){
+    private final ImmutableSet<BuildRule> empty=ImmutableSet.of();
+    @Override public ImmutableSet<BuildRule> visit(    BuildRule rule) throws NoSuchBuildTargetException {
+      ImmutableSet<BuildRule> deps=empty;
+      if (rule instanceof LuaPackageable) {
+        LuaPackageable packageable=(LuaPackageable)rule;
+        LuaPackageComponents.addComponents(builder,packageable.getLuaPackageComponents());
+        deps=rule.getDeps();
+      }
+ else       if (rule instanceof NativeLinkable) {
+        NativeLinkable linkable=(NativeLinkable)rule;
+        nativeLinkables.put(linkable.getBuildTarget(),linkable);
+      }
+      return deps;
+    }
+  }
+.start();
+  for (  NativeLinkable nativeLinkable : NativeLinkables.getTransitiveNativeLinkables(cxxPlatform,nativeLinkables.values()).values()) {
+    NativeLinkable.Linkage linkage=nativeLinkable.getPreferredLinkage(cxxPlatform);
+    if (linkage != NativeLinkable.Linkage.STATIC) {
+      builder.putAllNativeLibraries(nativeLinkable.getSharedLibraries(cxxPlatform));
+    }
+  }
+  return builder.build();
+}

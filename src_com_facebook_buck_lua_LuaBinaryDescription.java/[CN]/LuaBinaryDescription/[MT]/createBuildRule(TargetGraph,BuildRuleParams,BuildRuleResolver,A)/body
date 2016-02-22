@@ -1,6 +1,12 @@
 {
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  LuaPackageComponents allComponents=LuaPackageComponents.concat(getPackageComponentsFromDeps(params.getDeps()));
-  SymlinkTree linkTree=resolver.addToIndex(createSymlinkTree(params,resolver,pathResolver,allComponents));
-  return new LuaInPlaceBinary(params,pathResolver,luaConfig.getLua(resolver),args.mainModule,allComponents,linkTree,luaConfig.getExtension());
+  CxxPlatform cxxPlatform=cxxPlatforms.getValue(params.getBuildTarget()).or(defaultCxxPlatform);
+  LuaPackageComponents components=getPackageComponentsFromDeps(params.getDeps(),cxxPlatform);
+  StarterType starterType=getStarterType(components);
+  Optional<BuildTarget> nativeStarterLibrary=args.nativeStarterLibrary.or(luaConfig.getNativeStarterLibrary());
+  if (starterType == StarterType.NATIVE) {
+    components=addNativeDeps(components,cxxPlatform,getNativeStarterDeps(resolver,nativeStarterLibrary));
+  }
+  Tool binary=getInPlaceBinary(params,resolver,pathResolver,cxxPlatform,starterType,nativeStarterLibrary,args.mainModule,components);
+  return new LuaBinary(params.appendExtraDeps(binary.getDeps(pathResolver)),pathResolver,getOutputPath(params.getBuildTarget()),binary,args.mainModule,components,luaConfig.getLua(resolver));
 }
