@@ -1,0 +1,41 @@
+{
+  final int numFetchers=10;
+  final Semaphore semaphore=new Semaphore(0);
+class TestDelegate implements Supplier<Object> {
+    private int timesCalled=0;
+    public int getTimesCalled(){
+      return timesCalled;
+    }
+    @Override public Object get(){
+      try {
+        semaphore.acquire(numFetchers);
+        Thread.sleep(50);
+        timesCalled++;
+        return new Object();
+      }
+ catch (      InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+ finally {
+        semaphore.release(numFetchers);
+      }
+    }
+  }
+  TestDelegate delegate=new TestDelegate();
+  final Supplier<Object> supplier=MoreSuppliers.weakMemoize(delegate);
+  ListeningExecutorService executor=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(numFetchers));
+class Fetcher implements Callable<Object> {
+    @Override public Object call(){
+      semaphore.release();
+      return supplier.get();
+    }
+  }
+  ImmutableList.Builder<Callable<Object>> fetcherBuilder=ImmutableList.builder();
+  for (int i=0; i < numFetchers; i++) {
+    fetcherBuilder.add(new Fetcher());
+  }
+  @SuppressWarnings("unchecked") List<ListenableFuture<Object>> futures=(List<ListenableFuture<Object>>)(List<?>)executor.invokeAll(fetcherBuilder.build());
+  List<Object> results=Futures.allAsList(futures).get();
+  Assert.assertEquals("should only have been called once",1,delegate.getTimesCalled());
+  Assert.assertThat("all result items are the same",ImmutableSet.copyOf(results),Matchers.hasSize(1));
+}
