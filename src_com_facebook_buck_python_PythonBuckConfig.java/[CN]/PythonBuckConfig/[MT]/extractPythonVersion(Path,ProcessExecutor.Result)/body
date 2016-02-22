@@ -1,11 +1,12 @@
 {
   if (versionResult.getExitCode() == 0) {
     String versionString=CharMatcher.WHITESPACE.trimFrom(CharMatcher.WHITESPACE.trimFrom(versionResult.getStderr().get()) + CharMatcher.WHITESPACE.trimFrom(versionResult.getStdout().get()).replaceAll("\u001B\\[[;\\d]*m",""));
-    Matcher matcher=PYTHON_VERSION_REGEX.matcher(versionString.split("\\r?\\n")[0]);
-    if (!matcher.matches()) {
-      throw new HumanReadableException("`%s -V` returned an invalid version string %s",pythonPath,versionString);
+    String[] versionLines=versionString.split("\\r?\\n");
+    String[] compatibilityVersion=versionLines[0].split(" ");
+    if (compatibilityVersion.length != 4) {
+      throw new HumanReadableException("`%s - < [code]` returned an invalid version string %s",pythonPath,versionString);
     }
-    return PythonVersion.of(matcher.group(1));
+    return PythonVersion.of(compatibilityVersion[0],compatibilityVersion[1] + "." + compatibilityVersion[2]+ "."+ compatibilityVersion[3]);
   }
  else {
     throw new HumanReadableException(versionResult.getStderr().get());
