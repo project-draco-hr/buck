@@ -1,9 +1,8 @@
 {
   Preconditions.checkArgument(CxxSourceTypes.isPreprocessableType(source.getType()));
   BuildTarget target=createPreprocessBuildTarget(name,source.getType());
-  Preprocessor tool=CxxSourceTypes.getPreprocessor(getCxxPlatform(),source.getType());
-  ImmutableSortedSet<BuildRule> dependencies=computeSourcePreprocessorAndToolDeps(Optional.of((Tool)tool),source);
-  CxxPreprocessAndCompile result=CxxPreprocessAndCompile.preprocess(getParams().copyWithChanges(target,Suppliers.ofInstance(dependencies),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),getPathResolver(),preprocessorDelegates.getUnchecked(PreprocessAndCompilePreprocessorDelegateKey.of(source.getType(),source.getFlags())),getPreprocessOutputPath(target,source.getType(),name),source.getPath(),source.getType(),getCxxPlatform().getDebugPathSanitizer());
+  PreprocessorDelegate preprocessorDelegate=preprocessorDelegates.getUnchecked(PreprocessAndCompilePreprocessorDelegateKey.of(source.getType(),source.getFlags()));
+  CxxPreprocessAndCompile result=CxxPreprocessAndCompile.preprocess(getParams().copyWithChanges(target,new DepsBuilder().addPreprocessDeps().add(preprocessorDelegate.getPreprocessor()).add(source),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),getPathResolver(),preprocessorDelegate,getPreprocessOutputPath(target,source.getType(),name),source.getPath(),source.getType(),getCxxPlatform().getDebugPathSanitizer());
   getResolver().addToIndex(result);
   return result;
 }
