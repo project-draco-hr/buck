@@ -1,0 +1,16 @@
+{
+  Map<Path,Path> relativeMap=createRelativeMap(filesystem,resolver,toCopy);
+  for (  Map.Entry<Path,Path> pathEntry : relativeMap.entrySet()) {
+    Path relativePath=pathEntry.getKey();
+    Path absolutePath=Preconditions.checkNotNull(pathEntry.getValue());
+    Path destination=destinationDir.resolve(relativePath);
+    if (relativePath.toString().endsWith(Javac.SRC_ZIP) || relativePath.toString().endsWith(Javac.SRC_JAR)) {
+      steps.add(new UnzipStep(filesystem,absolutePath,destination.getParent()));
+      continue;
+    }
+    if (destination.getParent() != null) {
+      steps.add(new MkdirStep(filesystem,destination.getParent()));
+    }
+    steps.add(CopyStep.forFile(filesystem,absolutePath,destination));
+  }
+}
