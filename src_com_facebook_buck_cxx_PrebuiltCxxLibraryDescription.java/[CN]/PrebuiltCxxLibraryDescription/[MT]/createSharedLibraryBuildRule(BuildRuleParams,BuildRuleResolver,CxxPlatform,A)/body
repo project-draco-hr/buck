@@ -1,12 +1,19 @@
 {
-  SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
+  final SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
   BuildTarget target=params.getBuildTarget();
-  String soname=getSoname(target,cxxPlatform,args.soname,args.libName);
-  Path staticLibraryPath=getStaticPicLibraryPath(target,cxxPlatform,args.libDir,args.libName);
+  String soname=getSoname(target,params.getCellRoots(),ruleResolver,cxxPlatform,args.soname,args.libName);
+  Function<String,com.facebook.buck.rules.args.Arg> macroArgFunction=MacroArg.toMacroArgFunction(getMacroHandler(cxxPlatform.getFlavor().toString()),params.getBuildTarget(),params.getCellRoots(),ruleResolver);
+  final Optional<com.facebook.buck.rules.args.Arg> libDir=args.libDir.transform(macroArgFunction);
+  Path staticLibraryPath=getStaticPicLibraryPath(target,params.getCellRoots(),ruleResolver,cxxPlatform,args.libDir,args.libName);
   if (!params.getProjectFilesystem().exists(staticLibraryPath)) {
-    staticLibraryPath=getStaticLibraryPath(target,cxxPlatform,args.libDir,args.libName);
+    staticLibraryPath=getStaticLibraryPath(target,params.getCellRoots(),ruleResolver,cxxPlatform,args.libDir,args.libName);
   }
   BuildTarget sharedTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(CxxDescriptionEnhancer.SHARED_FLAVOR).build();
   Path builtSharedLibraryPath=BuildTargets.getGenPath(sharedTarget,"%s").resolve(soname);
-  return CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,pathResolver,sharedTarget,Linker.LinkType.SHARED,Optional.of(soname),builtSharedLibraryPath,Linker.LinkableDepType.SHARED,FluentIterable.from(params.getDeps()).filter(NativeLinkable.class),Optional.<Linker.CxxRuntimeType>absent(),Optional.<SourcePath>absent(),ImmutableSet.<BuildTarget>of(),NativeLinkableInput.builder().addAllArgs(StringArg.from(CxxFlags.getFlags(args.exportedLinkerFlags,args.exportedPlatformLinkerFlags,cxxPlatform))).addAllArgs(cxxPlatform.getLd().linkWhole(new SourcePathArg(pathResolver,new PathSourcePath(params.getProjectFilesystem(),staticLibraryPath)))).build());
+  return CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params.copyWithExtraDeps(new Supplier<ImmutableSortedSet<BuildRule>>(){
+    @Override public ImmutableSortedSet<BuildRule> get(){
+      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(libDir.transform(com.facebook.buck.rules.args.Arg.getDepsFunction(pathResolver)).or(ImmutableList.<BuildRule>of())).build();
+    }
+  }
+),pathResolver,sharedTarget,Linker.LinkType.SHARED,Optional.of(soname),builtSharedLibraryPath,Linker.LinkableDepType.SHARED,FluentIterable.from(params.getDeps()).filter(NativeLinkable.class),Optional.<Linker.CxxRuntimeType>absent(),Optional.<SourcePath>absent(),ImmutableSet.<BuildTarget>of(),NativeLinkableInput.builder().addAllArgs(StringArg.from(CxxFlags.getFlags(args.exportedLinkerFlags,args.exportedPlatformLinkerFlags,cxxPlatform))).addAllArgs(cxxPlatform.getLd().linkWhole(new SourcePathArg(pathResolver,new PathSourcePath(params.getProjectFilesystem(),staticLibraryPath)))).build());
 }

@@ -21,8 +21,21 @@
   }
 ;
   final ImmutableList<Path> includeDirs=FluentIterable.from(args.includeDirs.or(ImmutableList.of("include"))).transform(fullPathFn).toList();
-  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  return new PrebuiltCxxLibrary(params,resolver,pathResolver,FluentIterable.from(args.exportedDeps.get()).transform(resolver.getRuleFunction()).filter(NativeLinkable.class),includeDirs,args.libDir,args.libName,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
+  final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  final String flav=platform.transform(new Function<Map.Entry<Flavor,CxxPlatform>,String>(){
+    @Override public String apply(    Map.Entry<Flavor,CxxPlatform> input){
+      return input.getValue().getFlavor().toString();
+    }
+  }
+).or("");
+  Function<String,com.facebook.buck.rules.args.Arg> macroArgFunction=MacroArg.toMacroArgFunction(getMacroHandler(flav),params.getBuildTarget(),params.getCellRoots(),resolver);
+  final Optional<com.facebook.buck.rules.args.Arg> libDir=args.libDir.transform(macroArgFunction);
+  return new PrebuiltCxxLibrary(params.copyWithExtraDeps(new Supplier<ImmutableSortedSet<BuildRule>>(){
+    @Override public ImmutableSortedSet<BuildRule> get(){
+      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(libDir.transform(com.facebook.buck.rules.args.Arg.getDepsFunction(pathResolver)).or(ImmutableList.<BuildRule>of())).build();
+    }
+  }
+),resolver,pathResolver,FluentIterable.from(args.exportedDeps.get()).transform(resolver.getRuleFunction()).filter(NativeLinkable.class),includeDirs,args.libDir,args.libName,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
     @Override public ImmutableMultimap<CxxSource.Type,String> apply(    CxxPlatform input){
       return CxxFlags.getLanguageFlags(args.exportedPreprocessorFlags,args.exportedPlatformPreprocessorFlags,args.exportedLangPreprocessorFlags,input);
     }
