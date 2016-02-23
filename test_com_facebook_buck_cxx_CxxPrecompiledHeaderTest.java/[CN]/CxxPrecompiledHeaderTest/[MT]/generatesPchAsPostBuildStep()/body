@@ -1,0 +1,12 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
+  CxxPrecompiledHeader precompiledHeader=new CxxPrecompiledHeader(params,sourcePathResolver,Paths.get("foo.pch"),new PreprocessorDelegate(sourcePathResolver,CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER,Paths.get("./"),PREPROCESSOR_SUPPORTING_PCH,ImmutableList.<String>of(),ImmutableList.<String>of(),ImmutableSet.<Path>of(),ImmutableSet.<Path>of(),ImmutableSet.<Path>of(),ImmutableSet.<FrameworkPath>of(),CxxDescriptionEnhancer.frameworkPathToSearchPath(DEFAULT_PLATFORM,sourcePathResolver),Optional.<SourcePath>absent(),ImmutableList.<CxxHeaders>of()),new FakeSourcePath("foo.h"),CxxSource.Type.C,CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER);
+  ImmutableList<Step> steps=precompiledHeader.getBuildSteps(FakeBuildContext.NOOP_CONTEXT,new FakeBuildableContext());
+  assertThat("Nothing should be done for cachable steps",steps,empty());
+  ImmutableList<Step> postBuildSteps=precompiledHeader.getPostBuildSteps(FakeBuildContext.NOOP_CONTEXT,new FakeBuildableContext());
+  CxxPreprocessAndCompileStep step=Iterables.getOnlyElement(Iterables.filter(postBuildSteps,CxxPreprocessAndCompileStep.class));
+  assertThat("step that generates pch should have correct flags",step.getCommand(),hasItem(CxxSource.Type.C.getPrecompiledHeaderLanguage().get()));
+}
