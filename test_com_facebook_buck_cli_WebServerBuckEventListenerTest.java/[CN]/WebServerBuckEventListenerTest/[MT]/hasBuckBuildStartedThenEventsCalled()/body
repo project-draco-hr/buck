@@ -1,0 +1,27 @@
+{
+  final ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"buck_events",tmp);
+  workspace.setUp();
+  WebServerBuckEventListener webServerBuckEventListener=createMock(WebServerBuckEventListener.class);
+  webServerBuckEventListener.buildStarted(anyObject(BuildEvent.Started.class));
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.buildProgressUpdated(anyObject(ProgressEvent.BuildProgressUpdated.class));
+  EasyMock.expectLastCall().atLeastOnce();
+  webServerBuckEventListener.buildFinished((BuildEvent.Finished)anyObject());
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.parseStarted(anyObject(ParseEvent.Started.class));
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.parsingProgressUpdated((ProgressEvent.ParsingProgressUpdated)anyObject());
+  EasyMock.expectLastCall().atLeastOnce();
+  webServerBuckEventListener.parseFinished((ParseEvent.Finished)anyObject());
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.stepStarted(anyObject(StepEvent.Started.class));
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.stepFinished((StepEvent.Finished)anyObject());
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.outputTrace(anyObject(BuildId.class));
+  EasyMock.expectLastCall().times(1);
+  EasyMock.replay(webServerBuckEventListener);
+  ProjectWorkspace.ProcessResult build=workspace.runBuckdCommand(new TestContext(),webServerBuckEventListener,"build","//:foo");
+  build.assertSuccess();
+  verify(webServerBuckEventListener);
+}
