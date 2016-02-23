@@ -1,0 +1,29 @@
+{
+  final ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"buck_events/compiler_error",tmp);
+  workspace.setUp();
+  WebServerBuckEventListener webServerBuckEventListener=createMock(WebServerBuckEventListener.class);
+  webServerBuckEventListener.buildStarted(anyObject(BuildEvent.Started.class));
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.buildProgressUpdated(anyObject(ProgressEvent.BuildProgressUpdated.class));
+  EasyMock.expectLastCall().atLeastOnce();
+  webServerBuckEventListener.buildFinished(anyObject(BuildEvent.Finished.class));
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.parseStarted(anyObject(ParseEvent.Started.class));
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.parsingProgressUpdated(anyObject(ProgressEvent.ParsingProgressUpdated.class));
+  EasyMock.expectLastCall().atLeastOnce();
+  webServerBuckEventListener.parseFinished(anyObject(ParseEvent.Finished.class));
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.stepStarted(anyObject(StepEvent.Started.class));
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.stepFinished(anyObject(StepEvent.Finished.class));
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.compilerErrorEvent(anyObject(CompilerErrorEvent.class));
+  EasyMock.expectLastCall().times(1);
+  webServerBuckEventListener.outputTrace(anyObject(BuildId.class));
+  EasyMock.expectLastCall().times(1);
+  EasyMock.replay(webServerBuckEventListener);
+  ProjectWorkspace.ProcessResult build=workspace.runBuckdCommand(new TestContext(),webServerBuckEventListener,"build","//:broken");
+  build.assertFailure();
+  verify(webServerBuckEventListener);
+}
