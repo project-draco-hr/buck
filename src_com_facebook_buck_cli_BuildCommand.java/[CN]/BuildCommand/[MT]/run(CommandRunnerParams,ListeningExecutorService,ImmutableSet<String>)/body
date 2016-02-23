@@ -2,7 +2,7 @@
   if (!additionalTargets.isEmpty()) {
     this.arguments.addAll(additionalTargets);
   }
-  BuildEvent.Started started=BuildEvent.started(getArguments());
+  BuildEvent.Started started=BuildEvent.started(getArguments(),useDistributedBuild);
   if (params.getParser().getParseStartTime().isPresent()) {
     params.getBuckEventBus().post(started,params.getParser().getParseStartTime().get());
   }
@@ -13,7 +13,13 @@
   if (actionGraphAndResolver == null) {
     return 1;
   }
-  int exitCode=executeBuild(params,actionGraphAndResolver,executorService);
+  int exitCode=-1;
+  if (useDistributedBuild) {
+    exitCode=executeDistributedBuild(params);
+  }
+ else {
+    exitCode=executeLocalBuild(params,actionGraphAndResolver,executorService);
+  }
   params.getBuckEventBus().post(BuildEvent.finished(started,exitCode));
   if (exitCode == 0 && showOutput) {
     showOutputs(params,actionGraphAndResolver);
