@@ -1,16 +1,13 @@
 {
   CountersSnapshotEvent.Started startedEvent=CountersSnapshotEvent.started();
   eventBus.post(startedEvent);
-  List<CounterSnapshot> snapshots=null;
+  List<Optional<CounterSnapshot>> snapshots=null;
 synchronized (this) {
     snapshots=Lists.newArrayListWithCapacity(counters.size());
     for (    Counter counter : counters) {
-      if (counter.hasData()) {
-        snapshots.add(counter.getSnapshot());
-        counter.reset();
-      }
+      snapshots.add(counter.flush());
     }
   }
-  CountersSnapshotEvent.Finished finishedEvent=CountersSnapshotEvent.finished(startedEvent,ImmutableList.copyOf(snapshots));
+  CountersSnapshotEvent.Finished finishedEvent=CountersSnapshotEvent.finished(startedEvent,ImmutableList.copyOf(Optional.presentInstances(snapshots)));
   eventBus.post(finishedEvent);
 }
