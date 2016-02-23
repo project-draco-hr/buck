@@ -1,0 +1,13 @@
+{
+  BuckEventBus fakeEventBus=new BuckEventBus(new FakeClock(0),MoreExecutors.newDirectExecutorService(),new BuildId("12345"),1000);
+  SnapshotEventListener listener=new SnapshotEventListener();
+  fakeEventBus.register(listener);
+  FakeExecutor fakeExecutor=new FakeExecutor();
+  try (CounterRegistryImpl registry=new CounterRegistryImpl(fakeExecutor,fakeEventBus)){
+    registry.newIntegerCounter(CATEGORY,NAME,TAGS);
+    assertThat("No events should be flushed before timer fires",listener.snapshotEvents,empty());
+    fakeExecutor.drain();
+    assertThat("No events should be flushed after timer fires when counter has no data",listener.snapshotEvents,empty());
+  }
+   assertThat("No events should be flushed after registry closed",listener.snapshotEvents,empty());
+}
