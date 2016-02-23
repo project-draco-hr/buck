@@ -1,0 +1,25 @@
+{
+  File yooserBeen=tmp.newFolder("yooser","been");
+  String userBean=tmp.newFolder("user","bean").getCanonicalPath();
+  File dmd=new File(yooserBeen,"dmd");
+  dmd.createNewFile();
+  dmd.setExecutable(true);
+  BuckConfig delegate=FakeBuckConfig.builder().setEnvironment(ImmutableMap.of("PATH",userBean)).build();
+  DBuckConfig dBuckConfig=new DBuckConfig(delegate);
+  String msg="";
+  Tool compiler=null;
+  try {
+    compiler=dBuckConfig.getDCompiler();
+  }
+ catch (  HumanReadableException e) {
+    msg=e.getMessage();
+  }
+  if (delegate.getPlatform() == Platform.MACOS && msg.length() == 0) {
+    assertNotNull(compiler);
+    assertFalse(toolPath(compiler).contains(userBean.toString()));
+    assertFalse(toolPath(compiler).contains(yooserBeen.toString()));
+  }
+ else {
+    assertEquals("Unable to locate dmd on PATH, or it's not marked as being executable",msg);
+  }
+}
