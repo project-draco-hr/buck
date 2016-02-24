@@ -1,0 +1,15 @@
+{
+  Preconditions.checkState(buildTarget.getFlavors().contains(CxxCompilationDatabase.COMPILATION_DATABASE));
+  Optional<Flavor> cxxPlatformFlavor=platforms.getFlavor(buildTarget);
+  Preconditions.checkState(cxxPlatformFlavor.isPresent(),"Could not find cxx platform in:\n%s",Joiner.on(", ").join(buildTarget.getFlavors()));
+  ImmutableSet.Builder<SourcePath> sourcePaths=ImmutableSet.builder();
+  for (  BuildTarget dep : args.deps.get()) {
+    Optional<CxxCompilationDatabaseDependencies> compilationDatabases=resolver.requireMetadata(BuildTarget.builder(dep).addFlavors(CxxCompilationDatabase.COMPILATION_DATABASE).addFlavors(cxxPlatformFlavor.get()).build(),CxxCompilationDatabaseDependencies.class);
+    if (compilationDatabases.isPresent()) {
+      sourcePaths.addAll(compilationDatabases.get().getSourcePaths());
+    }
+  }
+  resolver.requireRule(buildTarget);
+  sourcePaths.add(new BuildTargetSourcePath(buildTarget));
+  return Optional.of(CxxCompilationDatabaseDependencies.of(sourcePaths.build()));
+}
