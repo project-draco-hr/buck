@@ -99,7 +99,7 @@
     try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,new SuperConsoleConfig(buckConfig),console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer,locale,BuckConstant.LOG_PATH.resolve("test.log"));TempDirectoryCreator tempDirectoryCreator=new TempDirectoryCreator(testTempDirOverride);AsyncCloseable asyncCloseable=new AsyncCloseable(diskIoExecutorService);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId);CounterRegistry counterRegistry=new CounterRegistryImpl(MoreExecutors.newSingleThreadScheduledExecutor("CounterAggregatorThread"),buildEventBus,buckConfig.getCountersFirstFlushIntervalMillis(),buckConfig.getCountersFlushIntervalMillis())){
       buildEventBus.register(HANG_MONITOR.getHangMonitor());
       ArtifactCache artifactCache=asyncCloseable.closeAsync(ArtifactCaches.newInstance(cacheBuckConfig,buildEventBus,filesystem,executionEnvironment.getWifiSsid(),httpWriteExecutorService));
-      ProgressEstimator progressEstimator=new ProgressEstimator(filesystem.getRootPath(),buildEventBus);
+      ProgressEstimator progressEstimator=new ProgressEstimator(filesystem.getRootPath(),buildEventBus,objectMapper);
       consoleListener.setProgressEstimator(progressEstimator);
       eventListeners=addEventListeners(buildEventBus,rootCell.getFilesystem(),buildId,rootCell.getBuckConfig(),webServer,clock,executionEnvironment,console,consoleListener,rootCell.getKnownBuildRuleTypes(),clientEnvironment,counterRegistry);
       VersionControlBuckConfig vcBuckConfig=new VersionControlBuckConfig(buckConfig);
@@ -139,7 +139,7 @@
         AbstractCommand subcommand=(AbstractCommand)command.subcommand;
         Optional<Path> eventsOutputPath=subcommand.getEventsOutputPath();
         if (eventsOutputPath.isPresent()) {
-          BuckEventListener listener=new FileSerializationEventBusListener(eventsOutputPath.get());
+          BuckEventListener listener=new FileSerializationEventBusListener(eventsOutputPath.get(),objectMapper);
           buildEventBus.register(listener);
         }
       }
