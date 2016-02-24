@@ -1,0 +1,43 @@
+{
+  LOG.verbose(String.format("DistBuildConfig: [%s]",distBuildConfig.toString()));
+  StartBuildRequest startTime=new StartBuildRequest();
+  BuildStatusRequest status=new BuildStatusRequest();
+  FrontendRequest request=new FrontendRequest();
+  FrontendResponse response=new FrontendResponse();
+  BuildJob job;
+  BuildId id;
+  startTime.setStartTimestampMillis(System.currentTimeMillis());
+  try {
+    ThriftOverHttp thriftClient=new ThriftOverHttp(frontendUrl,ThriftOverHttp.Encoding.json);
+    request.setType(FrontendRequestType.START_BUILD);
+    request.setStartBuild(startTime);
+    thriftClient.writeAndSend(request);
+    thriftClient.read(response);
+    Preconditions.checkState(response.getType().equals(FrontendRequestType.START_BUILD));
+    job=response.getStartBuild().getBuildJob();
+    id=job.getBuildId();
+    LOG.info("Submitted job. Build id = " + id.getId());
+    printLogBookFromJob(job);
+    status.setBuildId(id);
+    request.clear();
+    request.setType(FrontendRequestType.BUILD_STATUS);
+    request.setBuildStatus(status);
+    Stopwatch stopwatch=Stopwatch.createStarted();
+    while (stopwatch.elapsed(TimeUnit.SECONDS) < BUILD_DURATION_SECONDS) {
+      thriftClient.writeAndSend(request);
+      thriftClient.read(response);
+      Preconditions.checkState(response.getType().equals(FrontendRequestType.BUILD_STATUS));
+      job=response.getBuildStatus().getBuildJob();
+      Preconditions.checkState(job.getBuildId().equals(id));
+      Thread.sleep(1000);
+    }
+    LOG.info("Build was " + (response.isWasSuccessful() ? "" : "not ") + "successful!");
+    if (response.isSetErrorMessage()) {
+      LOG.error("Error msg: " + response.getErrorMessage());
+    }
+    thriftClient.close();
+  }
+ catch (  Exception e) {
+    LOG.error(e);
+  }
+}
