@@ -6,10 +6,11 @@
   AndroidPackageableCollection packageableCollection=collector.build();
   AndroidPackageableCollection.ResourceDetails resourceDetails=packageableCollection.getResourceDetails();
   ImmutableSortedSet<BuildRule> resourceRules=getTargetsAsRules(resourceDetails.getResourcesWithNonEmptyResDir());
+  ImmutableCollection<BuildRule> rulesWithResourceDirectories=pathResolver.filterBuildRuleInputs(resourceDetails.getResourceDirectories());
   FilteredResourcesProvider filteredResourcesProvider;
   boolean needsResourceFiltering=resourceFilter.isEnabled() || resourceCompressionMode.isStoreStringsAsAssets() || !locales.isEmpty();
   if (needsResourceFiltering) {
-    BuildRuleParams paramsForResourcesFilter=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(RESOURCES_FILTER_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(resourceRules).addAll(pathResolver.filterBuildRuleInputs(resourceDetails.getResourceDirectories())).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+    BuildRuleParams paramsForResourcesFilter=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(RESOURCES_FILTER_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(resourceRules).addAll(rulesWithResourceDirectories).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
     ResourcesFilter resourcesFilter=new ResourcesFilter(paramsForResourcesFilter,pathResolver,resourceDetails.getResourceDirectories(),ImmutableSet.copyOf(resourceDetails.getWhitelistedStringDirectories()),locales,resourceCompressionMode,resourceFilter);
     ruleResolver.addToIndex(resourcesFilter);
     filteredResourcesProvider=resourcesFilter;
@@ -20,14 +21,14 @@
     filteredResourcesProvider=new IdentityResourcesProvider(pathResolver.deprecatedAllPaths(resourceDetails.getResourceDirectories()));
   }
   BuildTarget buildTargetForAapt=createBuildTargetWithFlavor(AAPT_PACKAGE_FLAVOR);
-  BuildRuleParams paramsForAaptPackageResources=buildRuleParams.copyWithChanges(buildTargetForAapt,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(getTargetsAsRules(resourceDetails.getResourcesWithNonEmptyResDir())).addAll(pathResolver.filterBuildRuleInputs(resourceDetails.getResourceDirectories())).addAll(pathResolver.filterBuildRuleInputs(packageableCollection.getAssetsDirectories())).addAll(getAdditionalAaptDeps(pathResolver,resourceRules,packageableCollection)).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  BuildRuleParams paramsForAaptPackageResources=buildRuleParams.copyWithChanges(buildTargetForAapt,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(getTargetsAsRules(resourceDetails.getResourcesWithNonEmptyResDir())).addAll(rulesWithResourceDirectories).addAll(pathResolver.filterBuildRuleInputs(packageableCollection.getAssetsDirectories())).addAll(getAdditionalAaptDeps(pathResolver,resourceRules,packageableCollection)).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   AaptPackageResources aaptPackageResources=new AaptPackageResources(paramsForAaptPackageResources,pathResolver,manifest,filteredResourcesProvider,getTargetsAsResourceDeps(resourceDetails.getResourcesWithNonEmptyResDir()),packageableCollection.getAssetsDirectories(),resourceUnionPackage,packageType,javacOptions,shouldPreDex,shouldBuildStringSourceMap,skipCrunchPngs);
   ruleResolver.addToIndex(aaptPackageResources);
   enhancedDeps.add(aaptPackageResources);
   Optional<PackageStringAssets> packageStringAssets=Optional.absent();
   if (resourceCompressionMode.isStoreStringsAsAssets()) {
     BuildTarget buildTargetForPackageStringAssets=createBuildTargetWithFlavor(PACKAGE_STRING_ASSETS_FLAVOR);
-    BuildRuleParams paramsForPackageStringAssets=buildRuleParams.copyWithChanges(buildTargetForPackageStringAssets,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(aaptPackageResources).addAll(Iterables.filter(ImmutableList.of(filteredResourcesProvider),BuildRule.class)).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+    BuildRuleParams paramsForPackageStringAssets=buildRuleParams.copyWithChanges(buildTargetForPackageStringAssets,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(aaptPackageResources).addAll(resourceRules).addAll(rulesWithResourceDirectories).addAll(Iterables.filter(ImmutableList.of(filteredResourcesProvider),BuildRule.class)).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
     packageStringAssets=Optional.of(new PackageStringAssets(paramsForPackageStringAssets,pathResolver,locales,filteredResourcesProvider,aaptPackageResources));
     ruleResolver.addToIndex(packageStringAssets.get());
     enhancedDeps.add(packageStringAssets.get());
