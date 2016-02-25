@@ -1,0 +1,27 @@
+{
+  Object argForNode=node.getConstructorArg();
+  JavaSymbolsRule.SymbolsFinder symbolsFinder;
+  ImmutableSortedSet<String> generatedSymbols;
+  if (argForNode instanceof JavaLibraryDescription.Arg) {
+    JavaLibraryDescription.Arg arg=(JavaLibraryDescription.Arg)argForNode;
+    generatedSymbols=arg.generatedSymbols.or(ImmutableSortedSet.<String>of());
+    symbolsFinder=new JavaLibrarySymbolsFinder(arg.srcs.get(),javaFileParser,shouldRecordRequiredSymbols);
+  }
+ else {
+    throw new IllegalStateException("TargetNode must be a JavaLibrary");
+  }
+  BuildTarget buildTarget=node.getBuildTarget();
+  JavaSymbolsRule buildRule=new JavaSymbolsRule(buildTarget,symbolsFinder,generatedSymbols,objectMapper,node.getRuleFactoryParams().getProjectFilesystem());
+  ListenableFuture<BuildResult> future=buildEngine.build(buildContext,buildRule);
+  BuildResult result=Futures.getUnchecked(future);
+  Symbols features;
+  if (result.getSuccess() != null) {
+    features=buildRule.getFeatures();
+  }
+ else {
+    Throwable failure=result.getFailure();
+    Preconditions.checkNotNull(failure);
+    throw new RuntimeException("Failed to extract Java symbols for " + buildTarget,failure);
+  }
+  return features;
+}

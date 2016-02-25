@@ -1,0 +1,23 @@
+{
+  Set<String> providedSymbols=new HashSet<>();
+  Set<String> requiredSymbols=new HashSet<>();
+  for (  SourcePath src : srcs) {
+    Preconditions.checkState(src instanceof PathSourcePath);
+    PathSourcePath sourcePath=(PathSourcePath)src;
+    ProjectFilesystem filesystem=sourcePath.getFilesystem();
+    Path absolutePath=filesystem.resolve(sourcePath.getRelativePath());
+    String code;
+    try {
+      code=Files.toString(absolutePath.toFile(),Charsets.UTF_8);
+    }
+ catch (    IOException e) {
+      throw new RuntimeException(e);
+    }
+    JavaFileParser.JavaFileFeatures features=javaFileParser.extractFeaturesFromJavaCode(code);
+    if (shouldRecordRequiredSymbols) {
+      requiredSymbols.addAll(features.requiredSymbols);
+    }
+    providedSymbols.addAll(features.providedSymbols);
+  }
+  return new Symbols(providedSymbols,FluentIterable.from(requiredSymbols).filter(NOT_A_BUILT_IN_SYMBOL));
+}

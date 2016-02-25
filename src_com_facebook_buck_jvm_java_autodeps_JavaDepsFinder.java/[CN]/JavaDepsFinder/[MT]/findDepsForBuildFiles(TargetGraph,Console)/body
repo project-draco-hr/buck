@@ -10,42 +10,32 @@
       if (!RULES_TO_VISIT.contains(buildRuleType)) {
         return;
       }
-      JavaLibraryDescription.Arg arg=(JavaLibraryDescription.Arg)node.getConstructorArg();
-      boolean autodeps=arg.autodeps.or(false);
+      boolean autodeps;
+      ImmutableSortedSet<BuildTarget> providedDeps;
+      ImmutableSortedSet<BuildTarget> exportedDeps;
+      if (node.getConstructorArg() instanceof JavaLibraryDescription.Arg) {
+        JavaLibraryDescription.Arg arg=(JavaLibraryDescription.Arg)node.getConstructorArg();
+        autodeps=arg.autodeps.or(false);
+        providedDeps=arg.providedDeps.or(ImmutableSortedSet.<BuildTarget>of());
+        exportedDeps=arg.exportedDeps.or(ImmutableSortedSet.<BuildTarget>of());
+      }
+ else {
+        throw new IllegalStateException("TargetNode must be a JavaLibrary");
+      }
       BuildTarget buildTarget=node.getBuildTarget();
       if (autodeps) {
         rulesWithAutodeps.add(buildTarget);
-        rulesWithAutodepsToProvidedDeps.putAll(buildTarget,arg.providedDeps.or(ImmutableSortedSet.<BuildTarget>of()));
+        rulesWithAutodepsToProvidedDeps.putAll(buildTarget,providedDeps);
       }
-      for (      BuildTarget exportedDep : arg.exportedDeps.or(ImmutableSortedSet.<BuildTarget>of())) {
+      for (      BuildTarget exportedDep : exportedDeps) {
         ruleToRulesThatExportIt.put(exportedDep,buildTarget);
       }
-      if (arg.generatedSymbols.isPresent()) {
-        for (        String symbol : arg.generatedSymbols.get()) {
-          symbolToProviders.put(symbol,buildTarget);
-        }
+      Symbols symbols=getJavaFileFeatures(node,autodeps);
+      if (autodeps) {
+        ruleToRequiredSymbols.putAll(buildTarget,symbols.required);
       }
-      for (      SourcePath src : arg.srcs.get()) {
-        if (!(src instanceof PathSourcePath)) {
-          continue;
-        }
-        PathSourcePath sourcePath=(PathSourcePath)src;
-        ProjectFilesystem filesystem=sourcePath.getFilesystem();
-        Path absolutePath=filesystem.resolve(sourcePath.getRelativePath());
-        String code;
-        try {
-          code=Files.toString(absolutePath.toFile(),Charsets.UTF_8);
-        }
- catch (        IOException e) {
-          throw new RuntimeException(e);
-        }
-        JavaFileParser.JavaFileFeatures features=javaFileParser.extractFeaturesFromJavaCode(code);
-        if (autodeps) {
-          ruleToRequiredSymbols.putAll(buildTarget,FluentIterable.from(features.requiredSymbols).filter(NOT_A_BUILT_IN_SYMBOL));
-        }
-        for (        String providedEntity : features.providedSymbols) {
-          symbolToProviders.put(providedEntity,buildTarget);
-        }
+      for (      String providedEntity : symbols.provided) {
+        symbolToProviders.put(providedEntity,buildTarget);
       }
     }
   }

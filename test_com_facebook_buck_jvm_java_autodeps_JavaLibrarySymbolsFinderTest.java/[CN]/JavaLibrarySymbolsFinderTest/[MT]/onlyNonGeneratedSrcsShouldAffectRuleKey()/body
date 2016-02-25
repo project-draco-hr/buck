@@ -1,0 +1,67 @@
+{
+  TestDataHelper.createProjectWorkspaceForScenario(this,"java_library_symbols_finder",tmp).setUp();
+  final ProjectFilesystem projectFilesystem=new ProjectFilesystem(tmp.getRootPath());
+  Function<String,SourcePath> convert=new Function<String,SourcePath>(){
+    @Override public SourcePath apply(    String src){
+      return SourcePaths.toSourcePath(projectFilesystem).apply(MorePaths.TO_PATH.apply(src));
+    }
+  }
+;
+  SourcePath example1=convert.apply("Example1.java");
+  SourcePath example2=convert.apply("Example2.java");
+  final BuildTarget fakeBuildTarget=BuildTargetFactory.newInstance("//foo:GenEx.java");
+  SourcePath generated=new BuildTargetSourcePath(fakeBuildTarget);
+  final boolean shouldRecordRequiredSymbols=true;
+  JavaLibrarySymbolsFinder example1Finder=new JavaLibrarySymbolsFinder(ImmutableSortedSet.of(example1),javaFileParser,shouldRecordRequiredSymbols);
+  JavaLibrarySymbolsFinder example2Finder=new JavaLibrarySymbolsFinder(ImmutableSortedSet.of(example2),javaFileParser,shouldRecordRequiredSymbols);
+  JavaLibrarySymbolsFinder example1AndGeneratedSrcFinder=new JavaLibrarySymbolsFinder(ImmutableSortedSet.of(example1,generated),javaFileParser,shouldRecordRequiredSymbols);
+  final SourcePathResolver pathResolver=createMock(SourcePathResolver.class);
+  expect(pathResolver.getRule(anyObject(SourcePath.class))).andAnswer(new IAnswer<Optional<BuildRule>>(){
+    @Override public Optional<BuildRule> answer() throws Throwable {
+      SourcePath input=(SourcePath)EasyMock.getCurrentArguments()[0];
+      if (input instanceof BuildTargetSourcePath) {
+        return Optional.<BuildRule>of(new FakeBuildRule(fakeBuildTarget,pathResolver));
+      }
+ else {
+        return Optional.absent();
+      }
+    }
+  }
+).anyTimes();
+  expect(pathResolver.getRelativePath(anyObject(SourcePath.class))).andAnswer(new IAnswer<Path>(){
+    @Override public Path answer() throws Throwable {
+      SourcePath input=(SourcePath)EasyMock.getCurrentArguments()[0];
+      assertTrue(input instanceof PathSourcePath);
+      return ((PathSourcePath)input).getRelativePath();
+    }
+  }
+).anyTimes();
+  expect(pathResolver.getAbsolutePath(anyObject(SourcePath.class))).andAnswer(new IAnswer<Path>(){
+    @Override public Path answer() throws Throwable {
+      SourcePath input=(SourcePath)EasyMock.getCurrentArguments()[0];
+      assertTrue(input instanceof PathSourcePath);
+      Path relativePath=((PathSourcePath)input).getRelativePath();
+      return projectFilesystem.resolve(relativePath);
+    }
+  }
+).anyTimes();
+  replay(pathResolver);
+  final FileHashCache fileHashCache=new DefaultFileHashCache(projectFilesystem);
+  final RuleKeyBuilderFactory ruleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(fileHashCache,pathResolver);
+  Function<JavaLibrarySymbolsFinder,RuleKey> createRuleKey=new Function<JavaLibrarySymbolsFinder,RuleKey>(){
+    @Override public RuleKey apply(    JavaLibrarySymbolsFinder finder){
+      JavaSymbolsRule javaSymbolsRule=new JavaSymbolsRule(BuildTargetFactory.newInstance("//foo:rule"),finder,ImmutableSortedSet.<String>of(),ObjectMappers.newDefaultInstance(),projectFilesystem);
+      return ruleKeyBuilderFactory.newInstance(javaSymbolsRule).build();
+    }
+  }
+;
+  RuleKey key1=createRuleKey.apply(example1Finder);
+  RuleKey key2=createRuleKey.apply(example2Finder);
+  RuleKey key3=createRuleKey.apply(example1AndGeneratedSrcFinder);
+  assertNotNull(key1);
+  assertNotNull(key2);
+  assertNotNull(key3);
+  assertNotEquals("Two instances of a JavaSymbolsRule with different srcs should change the RuleKey.",key1,key2);
+  assertEquals("Introducing an extra generated .java file to the srcs should not change the RuleKey.",key1,key3);
+  verify(pathResolver);
+}
