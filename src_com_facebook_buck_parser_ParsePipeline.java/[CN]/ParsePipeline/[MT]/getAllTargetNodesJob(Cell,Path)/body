@@ -1,0 +1,20 @@
+{
+  ListenableFuture<List<TargetNode<?>>> allNodesList=Futures.transformAsync(getRawNodesJob(cell,buildFile),new AsyncFunction<ImmutableList<Map<String,Object>>,List<TargetNode<?>>>(){
+    @Override public ListenableFuture<List<TargetNode<?>>> apply(    ImmutableList<Map<String,Object>> allRawNodes) throws BuildTargetException {
+      ImmutableSet.Builder<ListenableFuture<TargetNode<?>>> allNodes=ImmutableSet.builder();
+      for (      Map<String,Object> rawNode : allRawNodes) {
+        UnflavoredBuildTarget unflavored=parseBuildTargetFromRawRule(cell.getRoot(),rawNode);
+        BuildTarget target=BuildTarget.of(unflavored);
+        allNodes.add(getTargetNodeJob(cell,target,buildFile,rawNode));
+      }
+      return Futures.allAsList(allNodes.build());
+    }
+  }
+);
+  return Futures.transform(allNodesList,new Function<List<TargetNode<?>>,ImmutableSet<TargetNode<?>>>(){
+    @Override public ImmutableSet<TargetNode<?>> apply(    List<TargetNode<?>> input){
+      return ImmutableSet.copyOf(input);
+    }
+  }
+);
+}

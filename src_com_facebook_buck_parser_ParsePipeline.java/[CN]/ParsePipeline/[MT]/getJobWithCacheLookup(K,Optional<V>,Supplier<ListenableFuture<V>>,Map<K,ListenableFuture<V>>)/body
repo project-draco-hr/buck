@@ -1,0 +1,17 @@
+{
+  if (cacheLookupResult.isPresent()) {
+    return Futures.immediateFuture(cacheLookupResult.get());
+  }
+synchronized (lock) {
+    Optional<ListenableFuture<V>> cachedJob=Optional.fromNullable(jobCache.get(key));
+    if (cachedJob.isPresent()) {
+      return cachedJob.get();
+    }
+    if (shuttingDown.get()) {
+      return Futures.immediateCancelledFuture();
+    }
+    ListenableFuture<V> targetNodeJob=jobSupplier.get();
+    jobCache.put(key,targetNodeJob);
+    return targetNodeJob;
+  }
+}

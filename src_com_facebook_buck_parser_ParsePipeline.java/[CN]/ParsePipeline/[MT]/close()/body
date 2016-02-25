@@ -1,0 +1,22 @@
+{
+  if (shuttingDown.get()) {
+    return;
+  }
+  ImmutableSet.Builder<ListenableFuture<?>> pendingFutures=ImmutableSet.builder();
+synchronized (lock) {
+    shuttingDown.set(true);
+    Iterable<ListenableFuture<?>> futures=Iterables.concat(rawNodeJobsCache.values(),targetNodeJobsCache.values());
+    for (    ListenableFuture<?> future : futures) {
+      future.cancel(false);
+      if (!future.isDone()) {
+        pendingFutures.add(future);
+      }
+    }
+  }
+  try {
+    Futures.successfulAsList(pendingFutures.build()).get();
+  }
+ catch (  ExecutionException e) {
+    LOG.info("Discarded exception when shutting down parse pipeline.",e);
+  }
+}

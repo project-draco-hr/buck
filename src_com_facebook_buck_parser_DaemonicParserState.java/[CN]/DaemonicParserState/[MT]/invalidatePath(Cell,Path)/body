@@ -1,15 +1,17 @@
 {
   path=cell.getFilesystem().resolve(path);
-  List<Map<String,Object>> rawNodes=allRawNodes.getIfPresent(path);
-  if (rawNodes != null) {
-    for (    Map<String,Object> rawNode : rawNodes) {
-      UnflavoredBuildTarget target=parseBuildTargetFromRawRule(cell.getRoot(),rawNode);
-      allTargetNodes.invalidateAll(targetsCornucopia.get(target));
-      targetsCornucopia.removeAll(target);
+  try (AutoCloseableLock writeLock=nodesAndTargetsLock.writeLock()){
+    List<Map<String,Object>> rawNodes=allRawNodes.getIfPresent(path);
+    if (rawNodes != null) {
+      for (      Map<String,Object> rawNode : rawNodes) {
+        UnflavoredBuildTarget target=parseBuildTargetFromRawRule(cell.getRoot(),rawNode);
+        allTargetNodes.invalidateAll(targetsCornucopia.get(target));
+        targetsCornucopia.removeAll(target);
+      }
+      allRawNodes.invalidate(path);
     }
-    allRawNodes.invalidate(path);
   }
-  Iterable<Path> dependents=buildFileDependents.get(path);
+   Iterable<Path> dependents=buildFileDependents.get(path);
   for (  Path dependent : dependents) {
     if (dependent.equals(path)) {
       continue;

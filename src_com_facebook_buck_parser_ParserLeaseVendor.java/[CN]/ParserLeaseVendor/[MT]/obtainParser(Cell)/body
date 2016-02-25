@@ -1,0 +1,20 @@
+{
+  Preconditions.checkState(!closed.get());
+  Deque<P> parserQueue=parkedParsers.get(cell);
+  if (parserQueue != null && !parserQueue.isEmpty()) {
+    P parser=Preconditions.checkNotNull(parserQueue.pop());
+    return Futures.immediateFuture(parser);
+  }
+  Optional<P> possiblyCreated=createIfAllowed(cell);
+  if (possiblyCreated.isPresent()) {
+    return Futures.immediateFuture(possiblyCreated.get());
+  }
+  SettableFuture<P> parserFututre=SettableFuture.create();
+  Deque<SettableFuture<P>> requestsQueue=parserRequests.get(cell);
+  if (requestsQueue == null) {
+    requestsQueue=new ArrayDeque<>();
+    parserRequests.put(cell,requestsQueue);
+  }
+  requestsQueue.add(parserFututre);
+  return parserFututre;
+}

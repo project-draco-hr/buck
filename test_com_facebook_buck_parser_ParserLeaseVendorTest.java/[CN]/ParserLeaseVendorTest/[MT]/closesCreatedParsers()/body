@@ -1,0 +1,31 @@
+{
+  final int parsersCount=4;
+  final AtomicInteger parserCount=new AtomicInteger(0);
+  Cell cell=EasyMock.createMock(Cell.class);
+  ExplicitRunExecutorService explicitRunExecutorService=new ExplicitRunExecutorService();
+  ParserLeaseVendor<ParserForTest> vendor=new ParserLeaseVendor<>(parsersCount,new Function<Cell,ParserForTest>(){
+    @Override public ParserForTest apply(    Cell input){
+      parserCount.incrementAndGet();
+      return new ParserForTest(){
+        @Override public void close(){
+          parserCount.decrementAndGet();
+        }
+      }
+;
+    }
+  }
+);
+  for (int i=0; i < parsersCount * 2; ++i) {
+    vendor.leaseParser(cell,new AsyncFunction<ParserForTest,Void>(){
+      @Override public ListenableFuture<Void> apply(      ParserForTest input) throws Exception {
+        Preconditions.checkNotNull(input);
+        return Futures.immediateFuture(null);
+      }
+    }
+,explicitRunExecutorService);
+  }
+  assertThat(parserCount.get(),Matchers.is(4));
+  explicitRunExecutorService.run();
+  vendor.close();
+  assertThat(parserCount.get(),Matchers.is(0));
+}

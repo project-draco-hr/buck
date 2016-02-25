@@ -1,17 +1,13 @@
 {
   stdout.close();
   stderr.close();
-  BuildFileParseException lastSeen=null;
+  parsePipeline.close();
   try {
-    closer.close();
+    parserLeaseVendor.close();
   }
- catch (  IOException e) {
-    if (e.getCause() instanceof BuildFileParseException) {
-      lastSeen=(BuildFileParseException)e.getCause();
-    }
-    if (e.getCause() instanceof InterruptedException) {
-      throw (InterruptedException)e.getCause();
-    }
+ catch (  Exception e) {
+    Throwables.propagateIfInstanceOf(e,InterruptedException.class);
+    Throwables.propagateIfInstanceOf(e,BuildFileParseException.class);
     Throwables.propagate(e);
   }
   LOG.debug("Cleaning cache of build files with inputs under symlink %s",buildInputPathsUnderSymlink);
@@ -19,8 +15,5 @@
   buildInputPathsUnderSymlink.clear();
   for (  Path buildFilePath : buildInputPathsUnderSymlinkCopy) {
     permState.invalidatePath(buildFilePath);
-  }
-  if (lastSeen != null) {
-    throw lastSeen;
   }
 }
