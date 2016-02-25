@@ -23,19 +23,28 @@ class TestDelegate implements Supplier<Object> {
   }
   TestDelegate delegate=new TestDelegate();
   final Supplier<Object> supplier=MoreSuppliers.weakMemoize(delegate);
-  ListeningExecutorService executor=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(numFetchers));
+  ExecutorService threadPool=Executors.newFixedThreadPool(numFetchers);
+  try {
+    ListeningExecutorService executor=MoreExecutors.listeningDecorator(threadPool);
 class Fetcher implements Callable<Object> {
-    @Override public Object call(){
-      semaphore.release();
-      return supplier.get();
+      @Override public Object call(){
+        semaphore.release();
+        return supplier.get();
+      }
     }
+    ImmutableList.Builder<Callable<Object>> fetcherBuilder=ImmutableList.builder();
+    for (int i=0; i < numFetchers; i++) {
+      fetcherBuilder.add(new Fetcher());
+    }
+    @SuppressWarnings("unchecked") List<ListenableFuture<Object>> futures=(List<ListenableFuture<Object>>)(List<?>)executor.invokeAll(fetcherBuilder.build());
+    List<Object> results=Futures.allAsList(futures).get();
+    Assert.assertEquals("should only have been called once",1,delegate.getTimesCalled());
+    Assert.assertThat("all result items are the same",ImmutableSet.copyOf(results),Matchers.hasSize(1));
+    Preconditions.checkState(threadPool.shutdownNow().isEmpty(),"All jobs should have completed");
+    Preconditions.checkState(threadPool.awaitTermination(10,TimeUnit.SECONDS),"Thread pool should terminate in a reasonable amount of time");
   }
-  ImmutableList.Builder<Callable<Object>> fetcherBuilder=ImmutableList.builder();
-  for (int i=0; i < numFetchers; i++) {
-    fetcherBuilder.add(new Fetcher());
+  finally {
+    threadPool.shutdownNow();
+    threadPool.awaitTermination(10,TimeUnit.SECONDS);
   }
-  @SuppressWarnings("unchecked") List<ListenableFuture<Object>> futures=(List<ListenableFuture<Object>>)(List<?>)executor.invokeAll(fetcherBuilder.build());
-  List<Object> results=Futures.allAsList(futures).get();
-  Assert.assertEquals("should only have been called once",1,delegate.getTimesCalled());
-  Assert.assertThat("all result items are the same",ImmutableSet.copyOf(results),Matchers.hasSize(1));
 }
