@@ -17,24 +17,30 @@
     job=response.getStartBuild().getBuildJob();
     id=job.getBuildId();
     LOG.info("Submitted job. Build id = " + id.getId());
-    printLogBookFromJob(job);
+    logDebugInfo(job);
     status.setBuildId(id);
     request.clear();
     request.setType(FrontendRequestType.BUILD_STATUS);
     request.setBuildStatus(status);
     Stopwatch stopwatch=Stopwatch.createStarted();
-    while (stopwatch.elapsed(TimeUnit.SECONDS) < BUILD_DURATION_SECONDS) {
+    do {
       thriftClient.writeAndSend(request);
+      response.clear();
       thriftClient.read(response);
       Preconditions.checkState(response.getType().equals(FrontendRequestType.BUILD_STATUS));
       job=response.getBuildStatus().getBuildJob();
       Preconditions.checkState(job.getBuildId().equals(id));
+      LOG.info("Got build status: " + job.getStatus().toString());
+      eventBus.post(new DistBuildStatusEvent(DistBuildStatus.builder().setETAMillis(BUILD_DURATION_MS - stopwatch.elapsed(TimeUnit.MILLISECONDS)).setStatus(job.getStatus().toString()).setMessage(getLastLogLine(job)).build()));
       Thread.sleep(1000);
     }
+ while (!(job.getStatus().equals(BuildStatus.FINISHED_SUCCESSFULLY) || job.getStatus().equals(BuildStatus.FAILED)));
     LOG.info("Build was " + (response.isWasSuccessful() ? "" : "not ") + "successful!");
     if (response.isSetErrorMessage()) {
       LOG.error("Error msg: " + response.getErrorMessage());
     }
+    logDebugInfo(job);
+    eventBus.post(new DistBuildStatusEvent(DistBuildStatus.builder().setStatus(job.getStatus().toString()).setETAMillis(0).setMessage(getLastLogLine(job)).build()));
     thriftClient.close();
   }
  catch (  Exception e) {
