@@ -2,12 +2,11 @@
   SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
   BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
-  ImmutableList<String> platformFlags=ImmutableList.of("-ffunction-sections");
-  ImmutableList<String> ruleFlags=ImmutableList.of("-O3");
+  CxxToolFlags flags=CxxToolFlags.explicitBuilder().addPlatformFlags("-ffunction-sections").addRuleFlags("-O3").build();
   Path output=Paths.get("test.o");
   Path depFile=Paths.get("test.o.dep");
   Path input=Paths.get("test.ii");
-  CxxPreprocessAndCompile buildRule=CxxPreprocessAndCompile.compile(params,pathResolver,new CompilerDelegate(pathResolver,DEFAULT_SANITIZER,DEFAULT_COMPILER,platformFlags,ruleFlags),output,new FakeSourcePath(input.toString()),DEFAULT_INPUT_TYPE,DEFAULT_SANITIZER);
+  CxxPreprocessAndCompile buildRule=CxxPreprocessAndCompile.compile(params,pathResolver,new CompilerDelegate(pathResolver,DEFAULT_SANITIZER,DEFAULT_COMPILER,flags),output,new FakeSourcePath(input.toString()),DEFAULT_INPUT_TYPE,DEFAULT_SANITIZER);
   ImmutableList<String> expectedCompileCommand=ImmutableList.<String>builder().add("compiler").add("-ffunction-sections").add("-O3").add("-x","c++").add("-c").add("-MD").add("-MF").add(depFile.toString() + ".tmp").add(input.toString()).add("-o",output.toString()).build();
   ImmutableList<String> actualCompileCommand=buildRule.makeMainStep().getCommand();
   assertEquals(expectedCompileCommand,actualCompileCommand);
