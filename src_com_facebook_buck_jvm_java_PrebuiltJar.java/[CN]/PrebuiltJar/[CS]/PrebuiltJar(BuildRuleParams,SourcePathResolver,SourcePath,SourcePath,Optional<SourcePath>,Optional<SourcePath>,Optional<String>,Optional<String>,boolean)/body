@@ -6,11 +6,14 @@
   this.gwtJar=gwtJar;
   this.javadocUrl=javadocUrl;
   this.mavenCoords=mavenCoords;
+  this.provided=provided;
   this.internalAbiJar=BuildTargets.getGenPath(getBuildTarget(),"%s-abi.jar");
   transitiveClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibrary,Path>>(){
     @Override public ImmutableSetMultimap<JavaLibrary,Path> get(){
       ImmutableSetMultimap.Builder<JavaLibrary,Path> classpathEntries=ImmutableSetMultimap.builder();
-      classpathEntries.put(PrebuiltJar.this,getResolver().getAbsolutePath(getBinaryJar()));
+      if (!provided) {
+        classpathEntries.put(PrebuiltJar.this,getResolver().getAbsolutePath(getBinaryJar()));
+      }
       classpathEntries.putAll(Classpaths.getClasspathEntries(PrebuiltJar.this.getDeclaredDeps()));
       return classpathEntries.build();
     }
@@ -18,15 +21,10 @@
 );
   this.transitiveClasspathDepsSupplier=Suppliers.memoize(new Supplier<ImmutableSet<JavaLibrary>>(){
     @Override public ImmutableSet<JavaLibrary> get(){
+      if (provided) {
+        return Classpaths.getClasspathDeps(PrebuiltJar.this.getDeclaredDeps());
+      }
       return ImmutableSet.<JavaLibrary>builder().add(PrebuiltJar.this).addAll(Classpaths.getClasspathDeps(PrebuiltJar.this.getDeclaredDeps())).build();
-    }
-  }
-);
-  declaredClasspathEntriesSupplier=Suppliers.memoize(new Supplier<ImmutableSetMultimap<JavaLibrary,Path>>(){
-    @Override public ImmutableSetMultimap<JavaLibrary,Path> get(){
-      ImmutableSetMultimap.Builder<JavaLibrary,Path> classpathEntries=ImmutableSetMultimap.builder();
-      classpathEntries.put(PrebuiltJar.this,getResolver().getAbsolutePath(getBinaryJar()));
-      return classpathEntries.build();
     }
   }
 );
