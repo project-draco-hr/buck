@@ -1,0 +1,23 @@
+{
+  try {
+    return cache.get(rule.getBuildTarget(),new Callable<ListenableFuture<ImmutableSortedSet<BuildRule>>>(){
+      @Override public ListenableFuture<ImmutableSortedSet<BuildRule>> call() throws Exception {
+        return service.submit(new Callable<ImmutableSortedSet<BuildRule>>(){
+          @Override public ImmutableSortedSet<BuildRule> call() throws Exception {
+            ImmutableSortedSet.Builder<BuildRule> deps=ImmutableSortedSet.naturalOrder();
+            deps.addAll(rule.getDeps());
+            if (rule instanceof HasRuntimeDeps) {
+              deps.addAll(((HasRuntimeDeps)rule).getRuntimeDeps());
+            }
+            return deps.build();
+          }
+        }
+);
+      }
+    }
+);
+  }
+ catch (  ExecutionException e) {
+    throw Throwables.propagate(e.getCause());
+  }
+}
