@@ -1,0 +1,39 @@
+{
+  final Path relativePathToJar=Paths.get("common.jar");
+  final Path absolutePathToJar=tmp.getRootPath().resolve(relativePathToJar);
+  final SourcePathResolver pathResolver=createMock(SourcePathResolver.class);
+  expect(pathResolver.getRule(anyObject(SourcePath.class))).andReturn(Optional.<BuildRule>absent()).anyTimes();
+  expect(pathResolver.getRelativePath(anyObject(SourcePath.class))).andReturn(relativePathToJar).anyTimes();
+  expect(pathResolver.getAbsolutePath(anyObject(SourcePath.class))).andReturn(absolutePathToJar).anyTimes();
+  replay(pathResolver);
+  Function<ImmutableSet<String>,RuleKey> createRuleKey=new Function<ImmutableSet<String>,RuleKey>(){
+    @Override public RuleKey apply(    ImmutableSet<String> entries){
+      File jarFile=absolutePathToJar.toFile();
+      JavaSymbolsRule javaSymbolsRule=null;
+      FakeFileHashCache fileHashCache=null;
+      try {
+        PrebuiltJarSymbolsFinder finder=createFinderForFileWithEntries(relativePathToJar.getFileName().toString(),entries);
+        HashCode hash=Files.hash(jarFile,Hashing.sha1());
+        Map<Path,HashCode> pathsToHashes=ImmutableMap.of(absolutePathToJar,hash);
+        fileHashCache=new FakeFileHashCache(pathsToHashes);
+        javaSymbolsRule=new JavaSymbolsRule(BuildTargetFactory.newInstance("//foo:rule"),finder,ImmutableSortedSet.<String>of(),ObjectMappers.newDefaultInstance(),new ProjectFilesystem(tmp.getRootPath()));
+      }
+ catch (      IOException e) {
+        throw new RuntimeException(e);
+      }
+      RuleKey ruleKey=new DefaultRuleKeyBuilderFactory(fileHashCache,pathResolver).newInstance(javaSymbolsRule).build();
+      jarFile.delete();
+      return ruleKey;
+    }
+  }
+;
+  RuleKey key1=createRuleKey.apply(ImmutableSet.of("entry1","entry2"));
+  RuleKey key2=createRuleKey.apply(ImmutableSet.of("entry1","entry2"));
+  RuleKey key3=createRuleKey.apply(ImmutableSet.of("entry1","entry2","entry3"));
+  assertNotNull(key1);
+  assertNotNull(key2);
+  assertNotNull(key3);
+  assertEquals("Two instances of a JavaSymbolsRule with the same inputs should have the same RuleKey.",key1,key2);
+  assertNotEquals("Changing the contents of the binaryJar for the PrebuiltJarSymbolsFinder should change " + "the RuleKey of the JavaSymbolsRule that contains it.",key1,key3);
+  verify(pathResolver);
+}

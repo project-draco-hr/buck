@@ -1,0 +1,21 @@
+{
+  if (!(binaryJar instanceof PathSourcePath)) {
+    return Symbols.EMPTY;
+  }
+  PathSourcePath sourcePath=(PathSourcePath)binaryJar;
+  ProjectFilesystem filesystem=sourcePath.getFilesystem();
+  Path absolutePath=filesystem.resolve(sourcePath.getRelativePath());
+  final Set<String> providedSymbols=new HashSet<>();
+  new ZipFileTraversal(absolutePath){
+    @Override public void visit(    ZipFile zipFile,    ZipEntry zipEntry) throws IOException {
+      String name=zipEntry.getName();
+      if (!name.endsWith(CLASS_SUFFIX) || name.contains("$")) {
+        return;
+      }
+      String fullyQualifiedName=name.substring(0,name.length() - CLASS_SUFFIX.length()).replace('/','.');
+      providedSymbols.add(fullyQualifiedName);
+    }
+  }
+.traverse();
+  return new Symbols(providedSymbols,ImmutableList.<String>of());
+}
