@@ -1,0 +1,29 @@
+{
+  ImmutableSet.Builder<String> undefined=ImmutableSet.builder();
+  ImmutableSet.Builder<String> global=ImmutableSet.builder();
+  ImmutableSet.Builder<String> all=ImmutableSet.builder();
+  Pattern re=Pattern.compile("\\s*" + "(?<address>[0-9a-f]{8})" + " "+ "(?<global>.)"+ "(?<weak>.)"+ "(?<constructor>.)"+ "(?<warning>.)"+ "(?<indirect>.)"+ "(?<debugging>.)"+ "(?<type>.)"+ "\\s*"+ "(?<section>[^\\s]*)"+ "\\s*"+ "(?<align>[0-9a-f]*)"+ " "+ "(?<name>[^\\s]*)");
+  ImmutableList<String> args=ImmutableList.<String>builder().addAll(objdump.getCommandPrefix(resolver)).add("-T").add(lib.toString()).build();
+  Process p=new ProcessBuilder(args).redirectError(ProcessBuilder.Redirect.INHERIT).start();
+  BufferedReader output=new BufferedReader(new InputStreamReader(p.getInputStream()));
+  String line;
+  while ((line=output.readLine()) != null) {
+    Matcher m=re.matcher(line);
+    if (!m.matches()) {
+      continue;
+    }
+    String symbol=m.group("name");
+    if ("*UND*".equals(m.group("section"))) {
+      undefined.add(symbol);
+    }
+ else     if ("gu!".contains(m.group("global"))) {
+      global.add(symbol);
+    }
+    all.add(symbol);
+  }
+  p.waitFor();
+  if (p.exitValue() != 0) {
+    throw new RuntimeException("Objdump exited with value: " + p.exitValue());
+  }
+  return new Symbols(undefined.build(),global.build(),all.build());
+}

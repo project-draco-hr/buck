@@ -1,0 +1,49 @@
+{
+  Preconditions.checkArgument(!linkableLibs.isEmpty() || !linkableLibsAssets.isEmpty(),"There should be at least one native library to relink.");
+  this.buildRuleParams=buildRuleParams;
+  this.resolver=resolver;
+  this.nativePlatforms=nativePlatforms;
+  ImmutableMap.Builder<BuildRule,Pair<TargetCpuType,SourcePath>> ruleMapBuilder=ImmutableMap.builder();
+  ImmutableSet.Builder<Pair<TargetCpuType,SourcePath>> copiedLibraries=ImmutableSet.builder();
+  for (  Map.Entry<Pair<TargetCpuType,String>,SourcePath> entry : Iterables.concat(linkableLibs.entrySet(),linkableLibsAssets.entrySet())) {
+    SourcePath source=entry.getValue();
+    Optional<BuildRule> rule=resolver.getRule(source);
+    if (rule.isPresent()) {
+      ruleMapBuilder.put(rule.get(),new Pair<>(entry.getKey().getFirst(),source));
+    }
+ else {
+      copiedLibraries.add(new Pair<>(entry.getKey().getFirst(),source));
+    }
+  }
+  ImmutableMap<BuildRule,Pair<TargetCpuType,SourcePath>> ruleMap=ruleMapBuilder.build();
+  ImmutableSet<BuildRule> linkableRules=ruleMap.keySet();
+  final DirectedAcyclicGraph<BuildRule> graph=getBuildGraph(linkableRules);
+  ImmutableList<BuildRule> sortedRules=TopologicalSort.sort(graph,Predicates.<BuildRule>alwaysTrue());
+  ImmutableMap<BuildRule,ImmutableSet<BuildRule>> allDependentsMap=getAllDependentsMap(linkableRules,graph,sortedRules);
+  ImmutableMap.Builder<SourcePath,SourcePath> pathMap=ImmutableMap.builder();
+  ImmutableList.Builder<RelinkerRule> relinkRules=ImmutableList.builder();
+  for (  Pair<TargetCpuType,SourcePath> p : copiedLibraries.build()) {
+    TargetCpuType cpuType=p.getFirst();
+    SourcePath source=p.getSecond();
+    RelinkerRule relink=makeRelinkerRule(cpuType,source,ImmutableList.<RelinkerRule>of());
+    relinkRules.add(relink);
+    pathMap.put(source,relink.getLibFileSourcePath());
+  }
+  ImmutableList<RelinkerRule> copiedLibrariesRules=relinkRules.build();
+  Iterable<Pair<TargetCpuType,SourcePath>> sortedPaths=FluentIterable.from(sortedRules).filter(Predicates.in(linkableRules)).transform(Functions.forMap(ruleMap)).toList().reverse();
+  Map<BuildRule,RelinkerRule> relinkerMap=new HashMap<>();
+  for (  Pair<TargetCpuType,SourcePath> p : sortedPaths) {
+    TargetCpuType cpuType=p.getFirst();
+    SourcePath source=p.getSecond();
+    BuildRule baseRule=resolver.getRule(source).get();
+    ImmutableList<RelinkerRule> relinkerDeps=ImmutableList.<RelinkerRule>builder().addAll(copiedLibrariesRules).addAll(Lists.transform(ImmutableList.copyOf(allDependentsMap.get(baseRule)),Functions.forMap(relinkerMap))).build();
+    RelinkerRule relink=makeRelinkerRule(cpuType,source,relinkerDeps);
+    relinkRules.add(relink);
+    pathMap.put(source,relink.getLibFileSourcePath());
+    relinkerMap.put(baseRule,relink);
+  }
+  Function<SourcePath,SourcePath> pathMapper=Functions.forMap(pathMap.build());
+  rules=relinkRules.build();
+  relinkedLibs=ImmutableMap.copyOf(Maps.transformValues(linkableLibs,pathMapper));
+  relinkedLibsAssets=ImmutableMap.copyOf(Maps.transformValues(linkableLibsAssets,pathMapper));
+}

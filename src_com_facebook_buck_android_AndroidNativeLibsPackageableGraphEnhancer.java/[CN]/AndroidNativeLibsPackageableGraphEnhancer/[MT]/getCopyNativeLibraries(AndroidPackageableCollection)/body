@@ -16,6 +16,14 @@
   if (packageableCollection.getNativeLibsDirectories().isEmpty() && nativeLinkableLibs.isEmpty() && nativeLinkableLibsAssets.isEmpty()) {
     return Optional.absent();
   }
+  if (relinkerMode == RelinkerMode.ENABLED && (!nativeLinkableLibs.isEmpty() || !nativeLinkableLibsAssets.isEmpty())) {
+    NativeRelinker relinker=new NativeRelinker(buildRuleParams.copyWithExtraDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(nativeLinkableLibs.values())).addAll(pathResolver.filterBuildRuleInputs(nativeLinkableLibsAssets.values())).build())),pathResolver,nativePlatforms,nativeLinkableLibs,nativeLinkableLibsAssets);
+    nativeLinkableLibs=relinker.getRelinkedLibs();
+    nativeLinkableLibsAssets=relinker.getRelinkedLibsAssets();
+    for (    BuildRule rule : relinker.getRules()) {
+      ruleResolver.addToIndex(rule);
+    }
+  }
   ImmutableMap<StripLinkable,StrippedObjectDescription> strippedLibsMap=generateStripRules(nativeLinkableLibs);
   ImmutableMap<StripLinkable,StrippedObjectDescription> strippedLibsAssetsMap=generateStripRules(nativeLinkableLibsAssets);
   BuildTarget targetForCopyNativeLibraries=BuildTarget.builder(originalBuildTarget).addFlavors(COPY_NATIVE_LIBS_FLAVOR).build();
