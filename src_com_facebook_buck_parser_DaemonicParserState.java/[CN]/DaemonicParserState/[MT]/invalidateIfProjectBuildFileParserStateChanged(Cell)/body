@@ -1,38 +1,43 @@
 {
   ImmutableMap<String,String> cellEnv=cell.getBuckConfig().getEnvironment();
   Iterable<String> defaultIncludes=new ParserConfig(cell.getBuckConfig()).getDefaultIncludes();
-  boolean invalidateCaches=false;
+  boolean invalidatedByEnvironmentVariableChange=false;
+  boolean invalidatedByDefaultIncludesChange=false;
+  Iterable<String> expected;
+  ImmutableMap<String,String> originalCachedEnvironment;
   try (AutoCloseableLock updateLock=cachedStateLock.updateLock()){
-    Iterable<String> expected=cachedIncludes.get(cell.getRoot());
-    if (!cachedEnvironment.isPresent()) {
-      LOG.debug("Cached environment not present, invalidating caches for first run.");
-      invalidateCaches=true;
-    }
- else     if (!cellEnv.equals(cachedEnvironment.get())) {
-      MapDifference<String,String> diff=Maps.difference(cachedEnvironment.get(),cellEnv);
-      LOG.warn("Invalidating cache on environment change (%s)",diff);
-      Set<String> environmentChanges=new HashSet<>();
-      environmentChanges.addAll(diff.entriesOnlyOnLeft().keySet());
-      environmentChanges.addAll(diff.entriesOnlyOnRight().keySet());
-      environmentChanges.addAll(diff.entriesDiffering().keySet());
-      cacheInvalidatedByEnvironmentVariableChangeCounter.addAll(environmentChanges);
-      invalidateCaches=true;
+    originalCachedEnvironment=cachedEnvironment;
+    expected=cachedIncludes.get(cell.getRoot());
+    if (!cellEnv.equals(cachedEnvironment)) {
+      invalidatedByEnvironmentVariableChange=true;
     }
  else     if (expected == null || !Iterables.elementsEqual(defaultIncludes,expected)) {
-      invalidateCaches=true;
-      LOG.warn("Invalidating cache on default includes change (%s != %s)",expected,defaultIncludes);
-      cacheInvalidatedByDefaultIncludesChangeCounter.inc();
+      invalidatedByDefaultIncludesChange=true;
     }
-    if (!invalidateCaches) {
+    if (!invalidatedByEnvironmentVariableChange && !invalidatedByDefaultIncludesChange) {
       return;
     }
     try (AutoCloseableLock writeLock=cachedStateLock.writeLock()){
-      cachedEnvironment=Optional.of(cellEnv);
+      cachedEnvironment=cellEnv;
       cachedIncludes.put(cell.getRoot(),defaultIncludes);
     }
    }
  synchronized (this) {
-    invalidateAllCaches();
+    if (invalidateAllCaches()) {
+      if (invalidatedByEnvironmentVariableChange) {
+        MapDifference<String,String> diff=Maps.difference(originalCachedEnvironment,cellEnv);
+        LOG.warn("Invalidating cache on environment change (%s)",diff);
+        Set<String> environmentChanges=new HashSet<>();
+        environmentChanges.addAll(diff.entriesOnlyOnLeft().keySet());
+        environmentChanges.addAll(diff.entriesOnlyOnRight().keySet());
+        environmentChanges.addAll(diff.entriesDiffering().keySet());
+        cacheInvalidatedByEnvironmentVariableChangeCounter.addAll(environmentChanges);
+      }
+      if (invalidatedByDefaultIncludesChange) {
+        LOG.warn("Invalidating cache on default includes change (%s != %s)",expected,defaultIncludes);
+        cacheInvalidatedByDefaultIncludesChangeCounter.inc();
+      }
+    }
     knownCells.add(cell);
   }
 }
