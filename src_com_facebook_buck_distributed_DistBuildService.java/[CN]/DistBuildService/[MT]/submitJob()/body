@@ -31,7 +31,8 @@
       job=response.getBuildStatus().getBuildJob();
       Preconditions.checkState(job.getBuildId().equals(id));
       LOG.info("Got build status: " + job.getStatus().toString());
-      eventBus.post(new DistBuildStatusEvent(DistBuildStatus.builder().setETAMillis(BUILD_DURATION_MS - stopwatch.elapsed(TimeUnit.MILLISECONDS)).setStatus(job.getStatus().toString()).setMessage(getLastLogLine(job)).build()));
+      DistBuildStatus distBuildStatus=prepareStatusFromJob(job).setETAMillis(BUILD_DURATION_MS - stopwatch.elapsed(TimeUnit.MILLISECONDS)).build();
+      eventBus.post(new DistBuildStatusEvent(distBuildStatus));
       Thread.sleep(1000);
     }
  while (!(job.getStatus().equals(BuildStatus.FINISHED_SUCCESSFULLY) || job.getStatus().equals(BuildStatus.FAILED)));
@@ -40,7 +41,8 @@
       LOG.error("Error msg: " + response.getErrorMessage());
     }
     logDebugInfo(job);
-    eventBus.post(new DistBuildStatusEvent(DistBuildStatus.builder().setStatus(job.getStatus().toString()).setETAMillis(0).setMessage(getLastLogLine(job)).build()));
+    DistBuildStatus distBuildStatus=prepareStatusFromJob(job).setETAMillis(0).build();
+    eventBus.post(new DistBuildStatusEvent(distBuildStatus));
     thriftClient.close();
   }
  catch (  Exception e) {
