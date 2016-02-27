@@ -1,0 +1,16 @@
+{
+  Capture<String> capturedAuth=EasyMock.newCapture();
+  final HttpURLConnection connection=EasyMock.createNiceMock(HttpsURLConnection.class);
+  EasyMock.expect(connection.getResponseCode()).andStubReturn(HTTP_FORBIDDEN);
+  connection.addRequestProperty(eq("Authorization"),capture(capturedAuth));
+  EasyMock.expectLastCall();
+  EasyMock.replay(connection);
+  HttpDownloader downloader=getDownloader(connection);
+  PasswordAuthentication credentials=new PasswordAuthentication("foo","bar".toCharArray());
+  boolean result=downloader.fetch(eventBus,new URI("https://example.com"),Optional.of(credentials),neverUsed);
+  assertFalse(result);
+  EasyMock.verify(connection);
+  Matcher m=Pattern.compile("^Basic (.*)$").matcher(capturedAuth.getValue());
+  assertTrue(m.matches());
+  assertEquals("foo:bar",new String(BaseEncoding.base64().decode(m.group(1))));
+}

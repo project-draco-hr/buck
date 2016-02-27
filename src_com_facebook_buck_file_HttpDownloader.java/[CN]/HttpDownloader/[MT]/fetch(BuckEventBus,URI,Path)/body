@@ -1,33 +1,3 @@
 {
-  if (!("https".equals(uri.getScheme()) || "http".equals(uri.getScheme()))) {
-    return false;
-  }
-  DownloadEvent.Started started=DownloadEvent.started(uri);
-  eventBus.post(started);
-  try {
-    HttpURLConnection connection=createConnection(uri);
-    if (HttpURLConnection.HTTP_OK != connection.getResponseCode()) {
-      LOG.info("Unable to download %s: %s",uri,connection.getResponseMessage());
-      return false;
-    }
-    long contentLength=connection.getContentLengthLong();
-    try (InputStream is=new BufferedInputStream(connection.getInputStream());OutputStream os=new BufferedOutputStream(Files.newOutputStream(output))){
-      long read=0;
-      while (true) {
-        int r=is.read();
-        read++;
-        if (r == -1) {
-          break;
-        }
-        if (read % PROGRESS_REPORT_EVERY_N_BYTES == 0) {
-          eventBus.post(new DownloadProgressEvent(uri,contentLength,read));
-        }
-        os.write(r);
-      }
-    }
-     return true;
-  }
-  finally {
-    eventBus.post(DownloadEvent.finished(started));
-  }
+  return fetch(eventBus,uri,Optional.<PasswordAuthentication>absent(),output);
 }
