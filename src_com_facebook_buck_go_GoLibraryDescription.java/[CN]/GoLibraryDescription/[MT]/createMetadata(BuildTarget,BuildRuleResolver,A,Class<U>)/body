@@ -1,0 +1,18 @@
+{
+  Optional<GoPlatform> platform=goBuckConfig.getPlatformFlavorDomain().getValue(buildTarget);
+  if (metadataClass.isAssignableFrom(Arg.class)) {
+    return Optional.of(metadataClass.cast(args));
+  }
+ else   if (metadataClass.isAssignableFrom(GoLinkable.class)) {
+    Preconditions.checkState(platform.isPresent());
+    SourcePath output=new BuildTargetSourcePath(resolver.requireRule(buildTarget).getBuildTarget());
+    return Optional.of(metadataClass.cast(GoLinkable.builder().setGoLinkInput(ImmutableMap.of(args.packageName.transform(MorePaths.TO_PATH).or(goBuckConfig.getDefaultPackageName(buildTarget)),output)).build()));
+  }
+ else   if (buildTarget.getFlavors().contains(GoDescriptors.TRANSITIVE_LINKABLES_FLAVOR)) {
+    Preconditions.checkState(platform.isPresent());
+    return Optional.of(metadataClass.cast(GoDescriptors.requireTransitiveGoLinkables(buildTarget,resolver,platform.get(),args.deps.get(),true)));
+  }
+ else {
+    return Optional.absent();
+  }
+}

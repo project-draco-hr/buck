@@ -1,0 +1,19 @@
+{
+  FluentIterable<GoLinkable> linkables=FluentIterable.from(targets).transformAndConcat(new Function<BuildTarget,ImmutableSet<GoLinkable>>(){
+    @Override public ImmutableSet<GoLinkable> apply(    BuildTarget input){
+      BuildTarget flavoredTarget=BuildTarget.builder(input).addFlavors(platform.getFlavor(),TRANSITIVE_LINKABLES_FLAVOR).build();
+      try {
+        return resolver.requireMetadata(flavoredTarget,ImmutableSet.class).get();
+      }
+ catch (      NoSuchBuildTargetException ex) {
+        throw Throwables.propagate(ex);
+      }
+    }
+  }
+);
+  if (includeSelf) {
+    Preconditions.checkArgument(sourceTarget.getFlavors().contains(TRANSITIVE_LINKABLES_FLAVOR));
+    linkables=linkables.append(requireGoLinkable(sourceTarget,resolver,platform,sourceTarget.withoutFlavors(ImmutableSet.of(TRANSITIVE_LINKABLES_FLAVOR))));
+  }
+  return linkables.toSet();
+}

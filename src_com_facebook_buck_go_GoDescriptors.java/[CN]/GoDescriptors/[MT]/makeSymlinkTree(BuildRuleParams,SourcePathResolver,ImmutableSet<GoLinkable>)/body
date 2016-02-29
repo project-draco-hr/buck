@@ -1,0 +1,23 @@
+{
+  ImmutableMap.Builder<Path,SourcePath> treeMapBuilder=ImmutableMap.builder();
+  for (  GoLinkable linkable : linkables) {
+    for (    Map.Entry<Path,SourcePath> linkInput : linkable.getGoLinkInput().entrySet()) {
+      treeMapBuilder.put(getPathInSymlinkTree(pathResolver,linkInput.getKey(),linkInput.getValue()),linkInput.getValue());
+    }
+  }
+  ImmutableMap<Path,SourcePath> treeMap;
+  try {
+    treeMap=treeMapBuilder.build();
+  }
+ catch (  IllegalArgumentException ex) {
+    throw new HumanReadableException(ex,"Multiple go targets have the same package name when compiling %s",params.getBuildTarget().getFullyQualifiedName());
+  }
+  params=params.appendExtraDeps(pathResolver.filterBuildRuleInputs(treeMap.values()));
+  Path root=params.getBuildTarget().getCellPath().resolve(BuildTargets.getScratchPath(params.getBuildTarget(),"__%s__tree"));
+  try {
+    return new SymlinkTree(params,pathResolver,root,treeMap);
+  }
+ catch (  SymlinkTree.InvalidSymlinkTreeException ex) {
+    throw Throwables.propagate(ex);
+  }
+}

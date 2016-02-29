@@ -1,0 +1,24 @@
+{
+  Optional<GoPlatform> platform=goBuckConfig.getPlatformFlavorDomain().getValue(buildTarget);
+  if (metadataClass.isAssignableFrom(GoLinkable.class) && buildTarget.getFlavors().contains(TEST_LIBRARY_FLAVOR)) {
+    Preconditions.checkState(platform.isPresent());
+    Path packageName=getGoPackageName(resolver,buildTarget,args);
+    SourcePath output=new BuildTargetSourcePath(resolver.requireRule(buildTarget).getBuildTarget());
+    return Optional.of(metadataClass.cast(GoLinkable.builder().setGoLinkInput(ImmutableMap.of(packageName,output)).build()));
+  }
+ else   if (buildTarget.getFlavors().contains(GoDescriptors.TRANSITIVE_LINKABLES_FLAVOR) && buildTarget.getFlavors().contains(TEST_LIBRARY_FLAVOR)) {
+    Preconditions.checkState(platform.isPresent());
+    ImmutableSet<BuildTarget> deps;
+    if (args.library.isPresent()) {
+      GoLibraryDescription.Arg libraryArg=resolver.requireMetadata(args.library.get(),GoLibraryDescription.Arg.class).get();
+      deps=ImmutableSortedSet.<BuildTarget>naturalOrder().addAll(args.deps.get()).addAll(libraryArg.deps.get()).build();
+    }
+ else {
+      deps=args.deps.get();
+    }
+    return Optional.of(metadataClass.cast(GoDescriptors.requireTransitiveGoLinkables(buildTarget,resolver,platform.get(),deps,true)));
+  }
+ else {
+    return Optional.absent();
+  }
+}

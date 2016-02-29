@@ -1,40 +1,9 @@
 {
-  BuildTarget testLibraryTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(ImmutableFlavor.of("test-library")).build();
-  GoLibrary testLibrary;
-  if (args.library.isPresent()) {
-    BuildRule untypedLibrary=resolver.getRule(args.library.get());
-    if (!(untypedLibrary instanceof GoLibrary)) {
-      throw new HumanReadableException("Library specified in %s (%s) is not a go_library rule.",params.getBuildTarget(),args.library.get());
-    }
-    if (args.packageName.isPresent()) {
-      throw new HumanReadableException("Test target %s specifies both library and package_name - only one should be specified",params.getBuildTarget());
-    }
-    final GoLibrary library=(GoLibrary)untypedLibrary;
-    if (!library.getTests().contains(params.getBuildTarget())) {
-      throw new HumanReadableException("go internal test target %s is not listed in `tests` of library %s",params.getBuildTarget(),args.library.get());
-    }
-    final Supplier<ImmutableSortedSet<BuildRule>> initialExtraDeps=params.getExtraDeps();
-    testLibrary=GoDescriptors.createMergedGoLibraryRule(params.copyWithChanges(testLibraryTarget,params.getDeclaredDeps(),new Supplier<ImmutableSortedSet<BuildRule>>(){
-      @Override public ImmutableSortedSet<BuildRule> get(){
-        return ImmutableSortedSet.copyOf(Sets.difference(initialExtraDeps.get(),ImmutableSortedSet.of(library)));
-      }
-    }
-),resolver,library,args.srcs,args.compilerFlags.get());
+  GoPlatform platform=goBuckConfig.getPlatformFlavorDomain().getValue(params.getBuildTarget()).or(goBuckConfig.getDefaultPlatform());
+  if (params.getBuildTarget().getFlavors().contains(TEST_LIBRARY_FLAVOR)) {
+    return createTestLibrary(params,resolver,args,platform);
   }
- else {
-    Path packageName;
-    if (args.packageName.isPresent()) {
-      packageName=Paths.get(args.packageName.get());
-    }
- else {
-      packageName=goBuckConfig.getDefaultPackageName(params.getBuildTarget());
-      packageName=packageName.resolveSibling(packageName.getFileName() + "_test");
-    }
-    testLibrary=GoDescriptors.createGoLibraryRule(params.copyWithBuildTarget(testLibraryTarget),resolver,goBuckConfig,packageName,args.srcs,args.compilerFlags.or(ImmutableList.<String>of()),ImmutableSortedSet.<BuildTarget>of());
-  }
-  resolver.addToIndex(testLibrary);
-  GoTestMain generatedTestMain=requireTestMainGenRule(params,resolver,args.srcs,testLibrary.getGoPackageName());
-  GoBinary testMain=GoDescriptors.createGoBinaryRule(params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addFlavors(ImmutableFlavor.of("test-main")).build(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(testLibrary)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(generatedTestMain))),resolver,goBuckConfig,cxxPlatform,ImmutableSet.<SourcePath>of(new BuildTargetSourcePath(generatedTestMain.getBuildTarget())),args.compilerFlags.get(),args.linkerFlags.get());
+  GoBinary testMain=createTestMainRule(params,resolver,args,platform);
   resolver.addToIndex(testMain);
   return new GoTest(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(testMain)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),new SourcePathResolver(resolver),testMain,args.labels.get(),args.contacts.get(),args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs),args.runTestSeparately.or(false));
 }

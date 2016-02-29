@@ -1,0 +1,23 @@
+{
+  target=target.withFlavors();
+  if (args.library.isPresent()) {
+    final Optional<GoLibraryDescription.Arg> libraryArg=resolver.requireMetadata(args.library.get(),GoLibraryDescription.Arg.class);
+    if (!libraryArg.isPresent()) {
+      throw new HumanReadableException("Library specified in %s (%s) is not a go_library rule.",target,args.library.get());
+    }
+    if (args.packageName.isPresent()) {
+      throw new HumanReadableException("Test target %s specifies both library and package_name - only one should be specified",target);
+    }
+    if (!libraryArg.get().tests.get().contains(target)) {
+      throw new HumanReadableException("go internal test target %s is not listed in `tests` of library %s",target,args.library.get());
+    }
+    return libraryArg.get().packageName.transform(MorePaths.TO_PATH).or(goBuckConfig.getDefaultPackageName(args.library.get()));
+  }
+ else   if (args.packageName.isPresent()) {
+    return Paths.get(args.packageName.get());
+  }
+ else {
+    Path packageName=goBuckConfig.getDefaultPackageName(target);
+    return packageName.resolveSibling(packageName.getFileName() + "_test");
+  }
+}

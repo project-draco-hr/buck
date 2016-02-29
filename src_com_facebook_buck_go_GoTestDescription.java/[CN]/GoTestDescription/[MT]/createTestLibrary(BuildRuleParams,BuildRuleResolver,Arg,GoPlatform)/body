@@ -1,0 +1,25 @@
+{
+  Path packageName=getGoPackageName(resolver,params.getBuildTarget(),args);
+  GoCompile testLibrary;
+  if (args.library.isPresent()) {
+    final GoLibraryDescription.Arg libraryArg=resolver.requireMetadata(args.library.get(),GoLibraryDescription.Arg.class).get();
+    final BuildRuleParams originalParams=params;
+    BuildRuleParams testTargetParams=params.copyWithDeps(new Supplier<ImmutableSortedSet<BuildRule>>(){
+      @Override public ImmutableSortedSet<BuildRule> get(){
+        return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalParams.getDeclaredDeps().get()).addAll(resolver.getAllRules(libraryArg.deps.get())).build();
+      }
+    }
+,new Supplier<ImmutableSortedSet<BuildRule>>(){
+      @Override public ImmutableSortedSet<BuildRule> get(){
+        final SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
+        return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(originalParams.getExtraDeps().get()).addAll(sourcePathResolver.filterBuildRuleInputs(libraryArg.srcs)).build();
+      }
+    }
+);
+    testLibrary=GoDescriptors.createGoCompileRule(testTargetParams,resolver,goBuckConfig,packageName,ImmutableSet.<SourcePath>builder().addAll(libraryArg.srcs).addAll(args.srcs).build(),ImmutableList.<String>builder().addAll(libraryArg.compilerFlags.get()).addAll(args.compilerFlags.get()).build(),platform);
+  }
+ else {
+    testLibrary=GoDescriptors.createGoCompileRule(params,resolver,goBuckConfig,packageName,args.srcs,args.compilerFlags.get(),platform);
+  }
+  return testLibrary;
+}

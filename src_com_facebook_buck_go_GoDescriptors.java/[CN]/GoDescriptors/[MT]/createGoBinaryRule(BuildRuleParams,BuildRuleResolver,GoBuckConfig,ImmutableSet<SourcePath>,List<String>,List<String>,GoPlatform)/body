@@ -1,0 +1,16 @@
+{
+  BuildTarget libraryTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(ImmutableFlavor.of("compile"),platform.getFlavor()).build();
+  GoCompile library=GoDescriptors.createGoCompileRule(params.copyWithBuildTarget(libraryTarget),resolver,goBuckConfig,Paths.get("main"),srcs,compilerFlags,platform);
+  resolver.addToIndex(library);
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  BuildTarget target=createTransitiveSymlinkTreeTarget(params.getBuildTarget());
+  SymlinkTree symlinkTree=makeSymlinkTree(params.copyWithBuildTarget(target),pathResolver,requireTransitiveGoLinkables(params.getBuildTarget(),resolver,platform,FluentIterable.from(params.getDeclaredDeps().get()).transform(HasBuildTarget.TO_TARGET),false));
+  resolver.addToIndex(symlinkTree);
+  LOG.verbose("Symlink tree for linking of %s: %s",params.getBuildTarget(),symlinkTree);
+  return new GoBinary(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(symlinkTree,library)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,platform.getCxxPlatform().transform(new Function<CxxPlatform,Linker>(){
+    @Override public Linker apply(    CxxPlatform input){
+      return input.getLd();
+    }
+  }
+),symlinkTree,library,goBuckConfig.getLinker(),ImmutableList.copyOf(linkerFlags),platform);
+}
