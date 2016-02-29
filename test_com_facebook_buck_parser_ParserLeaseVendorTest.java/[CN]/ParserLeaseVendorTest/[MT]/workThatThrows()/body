@@ -1,0 +1,30 @@
+{
+  Cell cell=EasyMock.createMock(Cell.class);
+  ListeningExecutorService executorService=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(4));
+  try (ParserLeaseVendor<ParserForTest> vendor=new ParserLeaseVendor<>(2,new Function<Cell,ParserForTest>(){
+    @Override public ParserForTest apply(    Cell input){
+      return new ParserForTest();
+    }
+  }
+)){
+    ImmutableSet.Builder<ListenableFuture<?>> futures=ImmutableSet.builder();
+    for (int i=0; i < 5; ++i) {
+      futures.add(vendor.leaseParser(cell,new AsyncFunction<ParserForTest,Void>(){
+        @Override public ListenableFuture<Void> apply(        ParserForTest input) throws Exception {
+          throw new Exception("haha!");
+        }
+      }
+,executorService));
+    }
+    Futures.successfulAsList(futures.build()).get();
+    vendor.leaseParser(cell,new AsyncFunction<ParserForTest,Void>(){
+      @Override public ListenableFuture<Void> apply(      ParserForTest input) throws Exception {
+        return Futures.immediateFuture(null);
+      }
+    }
+,executorService).get();
+  }
+  finally {
+    executorService.shutdown();
+  }
+}

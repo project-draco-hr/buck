@@ -3,14 +3,21 @@
   final ListenableFuture<P> obtainedParser=obtainParser(cell);
   ListenableFuture<T> futureWork=Futures.transformAsync(obtainedParser,new AsyncFunction<P,T>(){
     @Override public ListenableFuture<T> apply(    P input) throws Exception {
-      try {
-        return withParser.apply(input);
-      }
-  finally {
-        returnParser(cell,input);
-      }
+      return withParser.apply(input);
     }
   }
 ,executorService);
+  Futures.addCallback(futureWork,new FutureCallback<T>(){
+    @Override public void onSuccess(    T result){
+      onCompletion();
+    }
+    @Override public void onFailure(    Throwable t){
+      onCompletion();
+    }
+    private void onCompletion(){
+      returnParser(cell,Futures.getUnchecked(obtainedParser));
+    }
+  }
+);
   return futureWork;
 }
