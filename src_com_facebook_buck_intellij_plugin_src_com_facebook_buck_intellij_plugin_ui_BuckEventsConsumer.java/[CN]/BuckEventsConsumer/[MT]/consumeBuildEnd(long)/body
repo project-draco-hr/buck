@@ -1,0 +1,59 @@
+{
+  mMainBuildEndTimestamp=timestamp;
+  float duration=(mMainBuildEndTimestamp - mMainBuildStartTimestamp) / 1000;
+  final String message="Build ended, took " + duration + " seconds!";
+  int errors=0;
+  int warnings=0;
+  for (  String cTarget : mErrors.keySet()) {
+    List<String> currentErrorMessages=mErrors.get(cTarget);
+    for (    String currentErrorMessage : currentErrorMessages) {
+      ErrorExtractor errorExtractor=new ErrorExtractor(currentErrorMessage);
+      for (      CompilerErrorItem currentErrorItem : errorExtractor.getErrors()) {
+        if (currentErrorItem.getType() == CompilerErrorItem.Type.ERROR) {
+          errors++;
+        }
+ else {
+          warnings++;
+        }
+      }
+    }
+  }
+  String errorsMessage="";
+  if (errors != 0) {
+    errorsMessage="Found " + errors + " errors";
+  }
+  if (warnings != 0) {
+    if (errors != 0) {
+      errorsMessage+=" and " + warnings + " warnings";
+    }
+ else {
+      errorsMessage="Found " + warnings + " warnings";
+    }
+  }
+  if (errorsMessage.length() > 0) {
+    errorsMessage+="!";
+  }
+  final String errorsMessageToUse=errorsMessage;
+  ApplicationManager.getApplication().invokeLater(new Runnable(){
+    @Override public void run(){
+      consumeBuckBuildProgressUpdate(timestamp,1f);
+      ApplicationManager.getApplication().invokeLater(new Runnable(){
+        @Override public void run(){
+          BuckEventsConsumer.this.mBuildProgress.setDetail(message);
+          BuckEventsConsumer.this.mTreeModel.reload();
+        }
+      }
+);
+      if (errorsMessageToUse.length() > 0) {
+        clearDisplay();
+        BuckTreeNodeDetail errorsMessageNode=new BuckTreeNodeDetail(BuckEventsConsumer.this.mCurrentBuildRootElement,BuckTreeNodeDetail.DetailType.ERROR,errorsMessageToUse);
+        BuckEventsConsumer.this.mCurrentBuildRootElement.addChild(errorsMessageNode);
+        BuckEventsConsumer.this.displayErrors();
+      }
+      BuckEventsConsumer.this.mTreeModel.reload();
+    }
+  }
+);
+  mConnection.disconnect();
+  log("Ending build\n");
+}
