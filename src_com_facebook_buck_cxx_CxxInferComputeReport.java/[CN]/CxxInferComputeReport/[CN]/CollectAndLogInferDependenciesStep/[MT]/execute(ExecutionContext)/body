@@ -1,0 +1,15 @@
+{
+  ImmutableList.Builder<String> pathsBuilder=ImmutableList.builder();
+  pathsBuilder.add(analysisToReport.getBuildTarget() + SPLIT_TOKEN + analysisToReport.getResultsDir());
+  for (  CxxInferAnalyze analyzeRule : analysisToReport.getTransitiveAnalyzeRules()) {
+    pathsBuilder.add(analyzeRule.getBuildTarget() + SPLIT_TOKEN + analyzeRule.getResultsDir());
+    pathsBuilder.addAll(FluentIterable.from(analyzeRule.getCaptureRules()).transform(new Function<CxxInferCapture,String>(){
+      @Override public String apply(      CxxInferCapture captureRule){
+        return captureRule.getBuildTarget() + SPLIT_TOKEN + captureRule.getPathToOutput();
+      }
+    }
+).toList());
+  }
+  projectFilesystem.writeLinesToPath(pathsBuilder.build(),depsOutput);
+  return 0;
+}
