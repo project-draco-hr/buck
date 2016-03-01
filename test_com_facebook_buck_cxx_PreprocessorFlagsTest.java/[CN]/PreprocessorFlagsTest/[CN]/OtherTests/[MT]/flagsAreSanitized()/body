@@ -1,0 +1,17 @@
+{
+  final SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  final FakeFileHashCache hashCache=FakeFileHashCache.createFromStrings(ImmutableMap.<String,String>of());
+  final BuildRule fakeBuildRule=new FakeBuildRule(target,pathResolver);
+class TestData {
+    public RuleKey generate(    String prefix){
+      DebugPathSanitizer sanitizer=new DebugPathSanitizer(10,File.separatorChar,Paths.get("PWD"),ImmutableBiMap.of(Paths.get(prefix),Paths.get("A")));
+      CxxToolFlags flags=CxxToolFlags.explicitBuilder().addPlatformFlags("-I" + prefix + "/foo").addRuleFlags("-I" + prefix + "/bar").build();
+      RuleKeyBuilder builder=new DefaultRuleKeyBuilderFactory(hashCache,pathResolver).newInstance(fakeBuildRule);
+      PreprocessorFlags.builder().setOtherFlags(flags).build().appendToRuleKey(builder,sanitizer);
+      return builder.build();
+    }
+  }
+  TestData testData=new TestData();
+  Assert.assertEquals(testData.generate("something"),testData.generate("different"));
+}
