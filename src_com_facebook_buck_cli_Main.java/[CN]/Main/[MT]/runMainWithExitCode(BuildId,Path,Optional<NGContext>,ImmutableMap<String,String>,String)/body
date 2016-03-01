@@ -101,7 +101,8 @@
       ArtifactCache artifactCache=asyncCloseable.closeAsync(ArtifactCaches.newInstance(cacheBuckConfig,buildEventBus,filesystem,executionEnvironment.getWifiSsid(),httpWriteExecutorService));
       ProgressEstimator progressEstimator=new ProgressEstimator(filesystem.getRootPath(),buildEventBus,objectMapper);
       consoleListener.setProgressEstimator(progressEstimator);
-      eventListeners=addEventListeners(buildEventBus,rootCell.getFilesystem(),buildId,rootCell.getBuckConfig(),webServer,clock,executionEnvironment,console,consoleListener,rootCell.getKnownBuildRuleTypes(),clientEnvironment,counterRegistry);
+      BuildEnvironmentDescription buildEnvironmentDescription=getBuildEnvironmentDescription(executionEnvironment,buckConfig);
+      eventListeners=addEventListeners(buildEventBus,rootCell.getFilesystem(),buildId,rootCell.getBuckConfig(),webServer,clock,buildEnvironmentDescription,console,consoleListener,rootCell.getKnownBuildRuleTypes(),clientEnvironment,counterRegistry);
       VersionControlBuckConfig vcBuckConfig=new VersionControlBuckConfig(buckConfig);
       if (!command.isReadOnly() && vcBuckConfig.shouldGenerateStatistics()) {
         vcStatsGenerator=new VersionControlStatsGenerator(diskIoExecutorService,new DefaultVersionControlCmdLineInterfaceFactory(rootCell.getFilesystem().getRootPath(),new PrintStreamProcessExecutorFactory(),vcBuckConfig),buildEventBus);
@@ -143,7 +144,7 @@
           buildEventBus.register(listener);
         }
       }
-      exitCode=command.run(new CommandRunnerParams(console,rootCell,androidPlatformTargetSupplier,artifactCache,buildEventBus,parser,platform,clientEnvironment,rootCell.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,clock,processManager,webServer,buckConfig,fileHashCache,executors));
+      exitCode=command.run(new CommandRunnerParams(console,stdIn,rootCell,androidPlatformTargetSupplier,artifactCache,buildEventBus,parser,platform,clientEnvironment,rootCell.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,clock,processManager,webServer,buckConfig,fileHashCache,executors,buildEnvironmentDescription));
       closeHttpExecutorService(cacheBuckConfig,Optional.of(buildEventBus),httpWriteExecutorService);
       buildEventBus.post(CommandEvent.finished(startedEvent,exitCode));
     }

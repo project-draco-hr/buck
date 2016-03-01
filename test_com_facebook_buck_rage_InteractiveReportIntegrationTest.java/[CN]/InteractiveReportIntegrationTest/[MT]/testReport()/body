@@ -1,0 +1,16 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"interactive_report",temporaryFolder);
+  workspace.setUp();
+  ProjectFilesystem filesystem=workspace.asCell().getFilesystem();
+  ObjectMapper objectMapper=ObjectMappers.newDefaultInstance();
+  DefectReporter defectReporter=new DefectReporter(filesystem,objectMapper);
+  CapturingPrintStream outputStream=new CapturingPrintStream();
+  ByteArrayInputStream inputStream=new ByteArrayInputStream("report text\n0,1\n".getBytes("UTF-8"));
+  InteractiveReport interactiveReport=new InteractiveReport(defectReporter,filesystem,outputStream,inputStream,TestBuildEnvironmentDescription.INSTANCE);
+  DefectSubmitResult defectSubmitResult=interactiveReport.collectAndSubmitResult();
+  Path reportFile=filesystem.resolve(defectSubmitResult.getReportLocalLocation().get());
+  ZipInspector zipInspector=new ZipInspector(reportFile);
+  zipInspector.assertFileExists("report.json");
+  zipInspector.assertFileExists("buck-out/log/buck-0.log");
+  zipInspector.assertFileExists("buck-out/log/buck-1.log");
+}

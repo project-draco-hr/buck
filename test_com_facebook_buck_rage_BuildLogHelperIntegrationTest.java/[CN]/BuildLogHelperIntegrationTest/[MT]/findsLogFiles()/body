@@ -1,0 +1,21 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"build_log_helper",temporaryFolder);
+  workspace.setUp();
+  Cell cell=workspace.asCell();
+  ProjectFilesystem filesystem=cell.getFilesystem();
+  BuildLogHelper buildLogHelper=new BuildLogHelper(filesystem);
+  ImmutableList<BuildLogEntry> buildLogs=buildLogHelper.getBuildLogs();
+  ImmutableMap<BuildId,BuildLogEntry> idToLogMap=FluentIterable.from(buildLogs).uniqueIndex(new Function<BuildLogEntry,BuildId>(){
+    @Override public BuildId apply(    BuildLogEntry input){
+      return input.getBuildId().get();
+    }
+  }
+);
+  Map<BuildId,String> buildIdToCommandMap=Maps.transformValues(idToLogMap,new Function<BuildLogEntry,String>(){
+    @Override public String apply(    BuildLogEntry input){
+      return input.getCommandArgs().get();
+    }
+  }
+);
+  assertThat(buildIdToCommandMap,Matchers.<Map<BuildId,String>>equalTo(ImmutableMap.of(new BuildId("620713dc-9694-4645-9959-a152b8c2daa1"),"test, test/com/facebook/buck/rage/...",new BuildId("6042ea28-b5d5-46e3-a2bf-c5ee314e14ed"),"build")));
+}
