@@ -1,0 +1,24 @@
+{
+  HttpURLConnection connection=(HttpURLConnection)uri.toURL().openConnection();
+  connection.setUseCaches(false);
+  connection.setDoOutput(true);
+  connection.setConnectTimeout(UPLOAD_TIMEOUT_MILLIS);
+  connection.setReadTimeout(UPLOAD_TIMEOUT_MILLIS);
+  connection.setRequestMethod("POST");
+  connection.setRequestProperty("Content-Type","application/x-www-form-urlencoded");
+  try {
+    try (OutputStream outputStream=connection.getOutputStream()){
+      writeReport(defectReport,outputStream);
+      outputStream.flush();
+    }
+     if (connection.getResponseCode() != 200) {
+      throw new IOException(connection.getResponseMessage());
+    }
+    try (InputStream inputStream=connection.getInputStream()){
+      return CharStreams.toString(new InputStreamReader(inputStream,Charsets.UTF_8));
+    }
+   }
+ catch (  IOException e) {
+    throw new HumanReadableException("Failed uploading report to %s because %s",uri,e.getMessage());
+  }
+}

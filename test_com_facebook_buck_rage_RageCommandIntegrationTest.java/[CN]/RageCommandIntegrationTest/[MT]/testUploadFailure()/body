@@ -1,0 +1,20 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"interactive_report",temporaryFolder);
+  workspace.setUp();
+  try (HttpdForTests httpd=new HttpdForTests()){
+    httpd.addHandler(new AbstractHandler(){
+      @Override public void handle(      String s,      Request request,      HttpServletRequest httpServletRequest,      HttpServletResponse httpServletResponse) throws IOException, ServletException {
+        httpServletResponse.setStatus(500);
+      }
+    }
+);
+    httpd.start();
+    RageConfig config=RageConfig.builder().setReportUploadUri(httpd.getUri("/rage")).build();
+    ProjectFilesystem filesystem=new ProjectFilesystem(temporaryFolder.getRootPath());
+    ObjectMapper objectMapper=ObjectMappers.newDefaultInstance();
+    DefectReporter reporter=new DefectReporter(filesystem,objectMapper,config);
+    AutomatedReport automatedReport=new AutomatedReport(reporter,filesystem,new CapturingPrintStream(),TestBuildEnvironmentDescription.INSTANCE);
+    expectedException.expect(HumanReadableException.class);
+    automatedReport.collectAndSubmitResult();
+  }
+ }

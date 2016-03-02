@@ -1,8 +1,15 @@
 {
-  filesystem.mkdirs(BuckConstant.BUCK_OUTPUT_PATH);
-  Path defectReportPath=filesystem.createTempFile(BuckConstant.BUCK_OUTPUT_PATH,"defect_report",".zip");
-  try (OutputStream outputStream=filesystem.newFileOutputStream(defectReportPath)){
-    writeReport(defectReport,outputStream);
+  if (rageConfig.getReportUploadUri().isPresent()) {
+    URI uri=rageConfig.getReportUploadUri().get();
+    String response=uploadReport(defectReport,uri);
+    return DefectSubmitResult.builder().setReportSubmitLocation(uri.toString()).setReportSubmitMessage(response).build();
   }
-   return DefectSubmitResult.builder().setReportSubmitLocation(defectReportPath.toString()).setReportLocalLocation(defectReportPath).build();
+ else {
+    filesystem.mkdirs(BuckConstant.BUCK_OUTPUT_PATH);
+    Path defectReportPath=filesystem.createTempFile(BuckConstant.BUCK_OUTPUT_PATH,"defect_report",".zip");
+    try (OutputStream outputStream=filesystem.newFileOutputStream(defectReportPath)){
+      writeReport(defectReport,outputStream);
+    }
+     return DefectSubmitResult.builder().setReportSubmitLocation(defectReportPath.toString()).setReportLocalLocation(defectReportPath).build();
+  }
 }
