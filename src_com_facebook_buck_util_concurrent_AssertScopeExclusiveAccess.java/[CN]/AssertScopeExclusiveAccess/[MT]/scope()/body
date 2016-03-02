@@ -1,0 +1,18 @@
+{
+  final boolean firstOneInScope=inScope.compareAndSet(false,true);
+  if (firstOneInScope && LOG.isVerboseEnabled()) {
+    inScopeStack=Optional.of(new Throwable());
+  }
+  if (!firstOneInScope) {
+    LOG.verbose(inScopeStack.get(),"Indicating previous access to single threaded scope.");
+    throw new IllegalStateException("More than one thread attempting access to single-threaded scope.");
+  }
+  return new Scope(){
+    @Override public void close(){
+      if (firstOneInScope) {
+        inScope.set(false);
+      }
+    }
+  }
+;
+}
