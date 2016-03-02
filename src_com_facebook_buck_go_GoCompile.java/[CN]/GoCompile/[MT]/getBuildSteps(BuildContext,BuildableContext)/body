@@ -1,8 +1,52 @@
 {
-  ImmutableList.Builder<Path> compileSrcList=ImmutableList.builder();
+  ImmutableList.Builder<Path> compileSrcListBuilder=ImmutableList.builder();
+  ImmutableList.Builder<Path> headerSrcListBuilder=ImmutableList.builder();
+  ImmutableList.Builder<Path> asmSrcListBuilder=ImmutableList.builder();
   for (  SourcePath path : srcs) {
-    Path outputPath=getResolver().getAbsolutePath(path);
-    compileSrcList.add(outputPath);
+    Path srcPath=getResolver().getAbsolutePath(path);
+    String extension=MorePaths.getFileExtension(srcPath).toLowerCase();
+    if (extension.equals("s")) {
+      asmSrcListBuilder.add(srcPath);
+    }
+ else     if (extension.equals("go")) {
+      compileSrcListBuilder.add(srcPath);
+    }
+ else {
+      headerSrcListBuilder.add(srcPath);
+    }
   }
-  return ImmutableList.of(new MkdirStep(getProjectFilesystem(),output.getParent()),new GoCompileStep(getProjectFilesystem().getRootPath(),compiler.getEnvironment(getResolver()),compiler.getCommandPrefix(getResolver()),flags,packageName,compileSrcList.build(),ImmutableList.<Path>of(symlinkTree.getRoot()),platform,output));
+  ImmutableList<Path> compileSrcs=compileSrcListBuilder.build();
+  ImmutableList<Path> headerSrcs=headerSrcListBuilder.build();
+  ImmutableList<Path> asmSrcs=asmSrcListBuilder.build();
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  steps.add(new MkdirStep(getProjectFilesystem(),output.getParent()));
+  Optional<Path> asmHeaderPath;
+  if (!asmSrcs.isEmpty()) {
+    asmHeaderPath=Optional.of(BuildTargets.getScratchPath(getBuildTarget(),"%s/" + getBuildTarget().getShortName() + "__asm_hdr").resolve("go_asm.h"));
+    steps.add(new MkdirStep(getProjectFilesystem(),asmHeaderPath.get().getParent()));
+  }
+ else {
+    asmHeaderPath=Optional.absent();
+  }
+  boolean allowExternalReferences=!asmSrcs.isEmpty();
+  steps.add(new GoCompileStep(getProjectFilesystem().getRootPath(),compiler.getEnvironment(getResolver()),compiler.getCommandPrefix(getResolver()),compilerFlags,packageName,compileSrcs,ImmutableList.of(symlinkTree.getRoot()),asmHeaderPath,allowExternalReferences,platform,output));
+  if (!asmSrcs.isEmpty()) {
+    Path asmIncludeDir=BuildTargets.getScratchPath(getBuildTarget(),"%s/" + getBuildTarget().getShortName() + "__asm_includes");
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),asmIncludeDir));
+    if (!headerSrcs.isEmpty()) {
+      for (      Path header : FluentIterable.from(headerSrcs).append(asmSrcs)) {
+        steps.add(new SymlinkFileStep(getProjectFilesystem(),header,asmIncludeDir.resolve(header.getFileName()),true));
+      }
+    }
+    Path asmOutputDir=BuildTargets.getScratchPath(getBuildTarget(),"%s/" + getBuildTarget().getShortName() + "__asm_compile");
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),asmOutputDir));
+    ImmutableList.Builder<Path> asmOutputs=ImmutableList.builder();
+    for (    Path asmSrc : asmSrcs) {
+      Path outputPath=asmOutputDir.resolve(asmSrc.getFileName().toString().replaceAll("\\.[sS]$",".o"));
+      steps.add(new GoAssembleStep(getProjectFilesystem().getRootPath(),assembler.getEnvironment(getResolver()),assembler.getCommandPrefix(getResolver()),assemblerFlags,asmSrc,ImmutableList.<Path>builder().addAll(assemblerIncludeDirs).add(asmHeaderPath.get().getParent()).add(asmIncludeDir).build(),platform,outputPath));
+      asmOutputs.add(outputPath);
+    }
+    steps.add(new GoPackStep(getProjectFilesystem().getRootPath(),packer.getEnvironment(getResolver()),packer.getCommandPrefix(getResolver()),GoPackStep.Operation.APPEND,asmOutputs.build(),output));
+  }
+  return steps.build();
 }
