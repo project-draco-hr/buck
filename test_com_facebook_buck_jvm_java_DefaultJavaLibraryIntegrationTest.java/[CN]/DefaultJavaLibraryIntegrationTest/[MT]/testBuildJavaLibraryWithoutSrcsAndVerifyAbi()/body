@@ -10,13 +10,14 @@
   workspace.verify();
   Path buildCache=workspace.getPath(BuckConstant.DEFAULT_CACHE_DIR);
   assertTrue(Files.isDirectory(buildCache));
-  int totalArtifactsCount=getAllFilesInPath(buildCache).size();
+  ArtifactCache dirCache=TestArtifactCaches.createDirCacheForTest(workspace.getDestPath(),buildCache);
+  int totalArtifactsCount=DirArtifactCacheTestUtil.getAllFilesInCache(dirCache).length;
   assertEquals("There should be two entries (a zip and metadata) in the build cache.",2,totalArtifactsCount);
   ProcessResult cleanResult=workspace.runBuckCommand("clean");
   cleanResult.assertSuccess("Successful clean should exit with 0.");
   totalArtifactsCount=getAllFilesInPath(buildCache).size();
   assertEquals("The build cache should still exist.",2,totalArtifactsCount);
-  File artifactZip=FluentIterable.from(ImmutableList.copyOf(buildCache.toFile().listFiles()[0].listFiles()[0].listFiles())).toSortedList(Ordering.natural()).get(0);
+  File artifactZip=FluentIterable.from(ImmutableList.copyOf(DirArtifactCacheTestUtil.getAllFilesInCache(dirCache))).toSortedList(Ordering.natural()).get(0);
   FileSystem zipFs=FileSystems.newFileSystem(artifactZip.toPath(),null);
   Path outputInZip=zipFs.getPath("/buck-out/gen/lib__no_srcs__output/no_srcs.jar");
   Files.write(outputInZip,"Hello world!".getBytes(),WRITE);
