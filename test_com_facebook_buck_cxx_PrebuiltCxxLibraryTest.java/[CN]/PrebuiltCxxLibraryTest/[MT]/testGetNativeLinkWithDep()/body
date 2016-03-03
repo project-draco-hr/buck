@@ -1,0 +1,16 @@
+{
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  CxxPlatform platform=CxxLibraryBuilder.createDefaultPlatform();
+  BuildRule genSrc=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:gen_libx")).setOut("gen_libx").setCmd("something").build(resolver,filesystem);
+  filesystem.writeContentsToPath("class Test {}",new File(filesystem.resolve(genSrc.getPathToOutput()).toString(),"libx.a").toPath());
+  BuildTarget target=BuildTargetFactory.newInstance("//:x");
+  PrebuiltCxxLibraryBuilder builder=new PrebuiltCxxLibraryBuilder(target).setLibName("x").setLibDir("$(location //:gen_libx)");
+  PrebuiltCxxLibrary lib=(PrebuiltCxxLibrary)builder.build(resolver,filesystem);
+  lib.getNativeLinkableInput(platform,Linker.LinkableDepType.STATIC);
+  DefaultFileHashCache originalHashCache=new DefaultFileHashCache(filesystem);
+  RuleKeyBuilderFactory factory=new DefaultRuleKeyBuilderFactory(originalHashCache,pathResolver);
+  RuleKey ruleKey=factory.build(lib);
+  assertNotNull(ruleKey);
+}

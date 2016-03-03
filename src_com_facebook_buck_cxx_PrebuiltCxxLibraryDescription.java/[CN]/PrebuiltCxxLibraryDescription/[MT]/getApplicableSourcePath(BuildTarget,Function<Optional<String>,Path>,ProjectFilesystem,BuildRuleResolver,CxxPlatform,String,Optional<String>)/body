@@ -1,0 +1,25 @@
+{
+  ImmutableList<BuildRule> deps;
+  MacroHandler handler=getMacroHandler(Optional.of(cxxPlatform));
+  try {
+    deps=handler.extractBuildTimeDeps(target,cellRoots,ruleResolver,basePathString);
+  }
+ catch (  MacroException e) {
+    deps=ImmutableList.of();
+  }
+  final Path libDirPath=Paths.get(expandMacros(handler,target,cellRoots,ruleResolver,basePathString));
+  if (deps.isEmpty()) {
+    Path resultPath=libDirPath;
+    if (addedPathString.isPresent()) {
+      resultPath=libDirPath.resolve(expandMacros(handler,target,cellRoots,ruleResolver,addedPathString.get()));
+    }
+    resultPath=target.getBasePath().resolve(resultPath);
+    return new PathSourcePath(filesystem,resultPath);
+  }
+  Path p=filesystem.resolve(libDirPath);
+  if (addedPathString.isPresent()) {
+    p=p.resolve(addedPathString.get());
+  }
+  p=filesystem.getRelativizer().apply(p);
+  return new BuildTargetSourcePath(deps.iterator().next().getBuildTarget(),p);
+}

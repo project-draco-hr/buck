@@ -4,10 +4,12 @@
   Optional<String> libName=Optional.of("test");
   Optional<String> libDir=Optional.of("$(location //other:gen_lib)/");
   BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   BuildTarget genTarget=BuildTargetFactory.newInstance("//other:gen_lib");
   GenruleBuilder genruleBuilder=GenruleBuilder.newGenruleBuilder(genTarget).setOut("lib_dir");
   BuildRule genRule=genruleBuilder.build(resolver);
   CxxPlatform platform=CxxPlatformUtils.DEFAULT_PLATFORM.withFlavor(ImmutableFlavor.of("PLATFORM1"));
   Path path=genRule.getPathToOutput().toAbsolutePath();
-  assertEquals(TARGET.getBasePath().resolve(String.format(String.format("%s/libtest.a",path))),PrebuiltCxxLibraryDescription.getStaticLibraryPath(TARGET,cellRoots,resolver,platform,libDir,libName));
+  final SourcePath staticLibraryPath=PrebuiltCxxLibraryDescription.getStaticLibraryPath(TARGET,cellRoots,filesystem,resolver,platform,libDir,libName);
+  assertEquals(TARGET.getBasePath().resolve(String.format(String.format("%s/libtest.a",path))),pathResolver.getAbsolutePath(staticLibraryPath));
 }

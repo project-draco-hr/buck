@@ -1,0 +1,27 @@
+{
+  assumeTrue(Platform.detect() != Platform.WINDOWS);
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"prebuilt_cxx_from_genrule",tmp);
+  workspace.setUp();
+  workspace.enableDirCache();
+  final String binaryTargetString="//core:binary";
+  final String staticBuildTargetString="//test_lib:bar#static,default";
+  final String sharedBuildTargetString="//test_lib:bar#shared,default";
+  workspace.runBuckBuild(binaryTargetString).assertSuccess();
+  workspace.runBuckCommand("clean").assertSuccess();
+  workspace.runBuckBuild(binaryTargetString).assertSuccess();
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  for (  BuildTarget buildTarget : buildLog.getAllTargets()) {
+    buildLog.assertTargetWasFetchedFromCache(buildTarget.toString());
+  }
+  workspace.runBuckBuild(staticBuildTargetString).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  buildLog.assertTargetBuiltLocally(staticBuildTargetString);
+  workspace.runBuckBuild(sharedBuildTargetString).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  buildLog.assertTargetWasFetchedFromCache(sharedBuildTargetString);
+  workspace.runBuckBuild(binaryTargetString).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  for (  BuildTarget buildTarget : buildLog.getAllTargets()) {
+    buildLog.assertNotTargetBuiltLocally(buildTarget.toString());
+  }
+}

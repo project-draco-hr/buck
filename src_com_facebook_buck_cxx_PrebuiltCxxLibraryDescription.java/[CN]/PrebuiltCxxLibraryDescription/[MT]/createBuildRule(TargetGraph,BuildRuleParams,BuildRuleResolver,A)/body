@@ -7,35 +7,14 @@
   if (type.isPresent()) {
     Preconditions.checkState(platform.isPresent());
     if (type.get().getValue() == Type.EXPORTED_HEADERS) {
-      return createExportedHeaderSymlinkTreeBuildRule(params,resolver,platform.get().getValue(),args);
+      return createExportedHeaderSymlinkTreeBuildRule(params,ruleResolver,platform.get().getValue(),args);
     }
  else     if (type.get().getValue() == Type.SHARED) {
-      return createSharedLibraryBuildRule(params,resolver,platform.get().getValue(),args);
+      return createSharedLibraryBuildRule(params,ruleResolver,platform.get().getValue(),args);
     }
   }
-  final BuildTarget target=params.getBuildTarget();
-  Function<String,Path> fullPathFn=new Function<String,Path>(){
-    @Override public Path apply(    String input){
-      return target.getBasePath().resolve(input);
-    }
-  }
-;
-  final ImmutableList<Path> includeDirs=FluentIterable.from(args.includeDirs.or(ImmutableList.of("include"))).transform(fullPathFn).toList();
-  final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  final String flav=platform.transform(new Function<Map.Entry<Flavor,CxxPlatform>,String>(){
-    @Override public String apply(    Map.Entry<Flavor,CxxPlatform> input){
-      return input.getValue().getFlavor().toString();
-    }
-  }
-).or("");
-  Function<String,com.facebook.buck.rules.args.Arg> macroArgFunction=MacroArg.toMacroArgFunction(getMacroHandler(flav),params.getBuildTarget(),params.getCellRoots(),resolver);
-  final Optional<com.facebook.buck.rules.args.Arg> libDir=args.libDir.transform(macroArgFunction);
-  return new PrebuiltCxxLibrary(params.appendExtraDeps(new Supplier<ImmutableSortedSet<BuildRule>>(){
-    @Override public ImmutableSortedSet<BuildRule> get(){
-      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(libDir.transform(com.facebook.buck.rules.args.Arg.getDepsFunction(pathResolver)).or(ImmutableList.<BuildRule>of())).build();
-    }
-  }
-),resolver,pathResolver,FluentIterable.from(args.exportedDeps.get()).transform(resolver.getRuleFunction()).filter(NativeLinkable.class),includeDirs,args.libDir,args.libName,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
+  final SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
+  return new PrebuiltCxxLibrary(params.appendExtraDeps(getBuildRules(params.getBuildTarget(),params.getCellRoots(),ruleResolver,Optional.presentInstances(ImmutableList.of(args.libDir)))).appendExtraDeps(getBuildRules(params.getBuildTarget(),params.getCellRoots(),ruleResolver,args.includeDirs.or(ImmutableList.of("include")))),ruleResolver,pathResolver,FluentIterable.from(args.exportedDeps.get()).transform(ruleResolver.getRuleFunction()).filter(NativeLinkable.class),args.includeDirs.or(ImmutableList.of("include")),args.libDir,args.libName,new Function<CxxPlatform,ImmutableMultimap<CxxSource.Type,String>>(){
     @Override public ImmutableMultimap<CxxSource.Type,String> apply(    CxxPlatform input){
       return CxxFlags.getLanguageFlags(args.exportedPreprocessorFlags,args.exportedPlatformPreprocessorFlags,args.exportedLangPreprocessorFlags,input);
     }

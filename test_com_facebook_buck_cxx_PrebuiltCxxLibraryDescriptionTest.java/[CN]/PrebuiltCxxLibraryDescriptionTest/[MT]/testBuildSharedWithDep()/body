@@ -1,0 +1,12 @@
+{
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  CxxPlatform platform=CxxLibraryBuilder.createDefaultPlatform();
+  BuildRule genSrc=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:gen_libx")).setOut("gen_libx").setCmd("something").build(resolver,filesystem);
+  filesystem.writeContentsToPath("class Test {}",new File(genSrc.getPathToOutput().toString(),"libx.so").toPath());
+  BuildTarget target=BuildTargetFactory.newInstance("//:x").withFlavors(platform.getFlavor(),CxxDescriptionEnhancer.SHARED_FLAVOR);
+  PrebuiltCxxLibraryBuilder builder=new PrebuiltCxxLibraryBuilder(target).setLibName("x").setLibDir("$(location //:gen_libx)");
+  CxxLink lib=(CxxLink)builder.build(resolver,filesystem);
+  assertNotNull(lib);
+  assertThat(lib.getDeps(),Matchers.contains(genSrc));
+}
