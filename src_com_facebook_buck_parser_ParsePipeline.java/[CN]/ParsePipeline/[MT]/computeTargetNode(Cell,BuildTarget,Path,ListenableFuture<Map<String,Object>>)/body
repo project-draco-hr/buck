@@ -1,6 +1,9 @@
 {
   return Futures.transformAsync(rawNode,new AsyncFunction<Map<String,Object>,TargetNode<?>>(){
     @Override public ListenableFuture<TargetNode<?>> apply(    Map<String,Object> rawNode) throws BuildTargetException {
+      if (shuttingDown.get()) {
+        return Futures.immediateCancelledFuture();
+      }
       try (SimplePerfEvent.Scope scope=Parser.getTargetNodeEventScope(buckEventBus,buildTarget)){
         TargetNode<?> targetNode=delegate.createTargetNode(cell,buildFile,buildTarget,rawNode);
         return Futures.<TargetNode<?>>immediateFuture(cache.putTargetNodeIfNotPresent(cell,buildTarget,targetNode));
