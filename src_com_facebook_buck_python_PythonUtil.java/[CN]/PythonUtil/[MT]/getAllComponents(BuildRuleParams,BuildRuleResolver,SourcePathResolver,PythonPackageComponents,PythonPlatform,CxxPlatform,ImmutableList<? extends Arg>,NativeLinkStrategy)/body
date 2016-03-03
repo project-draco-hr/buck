@@ -52,16 +52,17 @@
       includedNativeLinkTargetRoots.put(target.getBuildTarget(),target);
     }
     OmnibusLibraries libraries=Omnibus.getSharedLibraries(params,ruleResolver,pathResolver,cxxPlatform,extraLdflags,includedNativeLinkTargetRoots.values(),Maps.filterKeys(nativeLinkableRoots,Predicates.not(Predicates.in(includedNativeLinkTargetRoots.keySet()))).values());
-    for (    Map.Entry<BuildTarget,SharedLibrary> root : libraries.getRoots().entrySet()) {
+    for (    Map.Entry<BuildTarget,OmnibusRoot> root : libraries.getRoots().entrySet()) {
       CxxPythonExtension extension=includedExtensions.get(root.getKey());
       if (extension != null) {
         allComponents.addModule(extension.getModule(),root.getValue().getPath(),root.getKey());
       }
  else {
-        allComponents.addNativeLibraries(Paths.get(root.getValue().getSoname()),root.getValue().getPath(),root.getKey());
+        String soname=Preconditions.checkNotNull(root.getValue().getSoname().orNull(),"%s: omnibus library for %s was built without soname",params.getBuildTarget(),root.getKey());
+        allComponents.addNativeLibraries(Paths.get(soname),root.getValue().getPath(),root.getKey());
       }
     }
-    for (    SharedLibrary library : libraries.getLibraries()) {
+    for (    OmnibusLibrary library : libraries.getLibraries()) {
       allComponents.addNativeLibraries(Paths.get(library.getSoname()),library.getPath(),params.getBuildTarget());
     }
   }
