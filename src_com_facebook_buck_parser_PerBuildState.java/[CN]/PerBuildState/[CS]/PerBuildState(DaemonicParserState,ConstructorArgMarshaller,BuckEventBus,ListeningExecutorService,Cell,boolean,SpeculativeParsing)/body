@@ -16,7 +16,8 @@
     }
   }
 ;
-  int numParsingThreads=new ParserConfig(rootCell.getBuckConfig()).getNumParsingThreads();
+  ParserConfig parserConfig=new ParserConfig(rootCell.getBuckConfig());
+  int numParsingThreads=parserConfig.getNumParsingThreads();
   this.parserLeaseVendor=new ParserLeaseVendor<ProjectBuildFileParser>(numParsingThreads,new Function<Cell,ProjectBuildFileParser>(){
     @Override public ProjectBuildFileParser apply(    Cell input){
       return createBuildFileParser(input);
@@ -28,6 +29,6 @@
       return DaemonicParserState.createTargetNode(eventBus,cell,buildFile,target,rawNode,marshaller,permState.getTypeCoercerFactory(),symlinkCheckers);
     }
   }
-,executorService,eventBus,parserLeaseVendor,speculativeParsing.value());
+,parserConfig.getEnableParallelParsing() ? executorService : MoreExecutors.newDirectExecutorService(),eventBus,parserLeaseVendor,parserConfig.getEnableParallelParsing() && speculativeParsing.value());
   register(rootCell);
 }
