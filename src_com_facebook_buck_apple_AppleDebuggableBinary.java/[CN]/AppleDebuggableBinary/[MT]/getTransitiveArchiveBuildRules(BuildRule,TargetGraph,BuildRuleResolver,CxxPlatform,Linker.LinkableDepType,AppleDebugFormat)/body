@@ -1,0 +1,25 @@
+{
+  if (appleDebugFormat == AppleDebugFormat.NONE) {
+    return ImmutableList.of();
+  }
+  TargetNode<?> binaryTargetNode=targetGraph.get((binary.getBuildTarget()));
+  TargetGraph subgraph=targetGraph.getSubgraph(ImmutableList.of(binaryTargetNode));
+  ImmutableSet<TargetNode<?>> nodes=subgraph.getNodes();
+  Set<BuildTarget> buildTargets=Sets.newHashSet();
+  buildTargets.addAll(FluentIterable.from(nodes).filter(STATIC_LIBRARY_ONLY_PREDICATE).transform(TO_BUILD_TARGET).toSet());
+  buildTargets.remove(binaryTargetNode.getBuildTarget());
+  ImmutableList.Builder<BuildRule> linkRules=ImmutableList.builder();
+  for (  BuildRule libraryBuildRule : resolver.getAllRules(buildTargets)) {
+    if (libraryBuildRule instanceof CxxLibrary) {
+      CxxLibrary nativeLinkable=(CxxLibrary)libraryBuildRule;
+      Linker.LinkableDepType linkStyle=NativeLinkables.getLinkStyle(nativeLinkable.getPreferredLinkage(cxxPlatform),depType);
+      try {
+        linkRules.add(nativeLinkable.getLibraryLinkRule(cxxPlatform,linkStyle));
+      }
+ catch (      NoSuchBuildTargetException e) {
+        throw new HumanReadableException("Cannot obtain transitive archive rule for linkable %s: %s",nativeLinkable,e);
+      }
+    }
+  }
+  return linkRules.build();
+}
