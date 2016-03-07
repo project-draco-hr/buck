@@ -1,6 +1,8 @@
 {
   BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
-  AndroidBinary rule=(AndroidBinary)AndroidBinaryBuilder.createBuilder(BuildTargetFactory.newInstance("//:fbandroid_with_dash_debug_fbsign")).setManifest(new FakeSourcePath("AndroidManifest.xml")).setKeystore(addKeystoreRule(ruleResolver).getBuildTarget()).build(ruleResolver);
-  Path proguardDir=rule.getProguardOutputFromInputClasspath(SCRATCH_PATH.resolve("first-party/orca/lib-base/lib__lib-base__classes"));
-  assertEquals(GEN_PATH.resolve("__fbandroid_with_dash_debug_fbsign#aapt_package__proguard__/.proguard").resolve(SCRATCH_PATH.resolve("first-party/orca/lib-base/lib__lib-base__classes-obfuscated.jar")),proguardDir);
+  BuildTarget target=BuildTargetFactory.newInstance("//:fbandroid_with_dash_debug_fbsign");
+  AndroidBinary rule=(AndroidBinary)AndroidBinaryBuilder.createBuilder(target).setManifest(new FakeSourcePath("AndroidManifest.xml")).setKeystore(addKeystoreRule(ruleResolver).getBuildTarget()).build(ruleResolver);
+  BuildTarget libBaseTarget=BuildTargetFactory.newInstance("//first-party/orca/lib-base:lib-base");
+  Path proguardDir=rule.getProguardOutputFromInputClasspath(BuildTargets.getScratchPath(libBaseTarget,"lib__%s__classes"));
+  assertEquals(BuildTargets.getGenPath(target.withFlavors(AndroidBinaryGraphEnhancer.AAPT_PACKAGE_FLAVOR),"__%s__proguard__/.proguard").resolve(BuildTargets.getScratchPath(libBaseTarget,"lib__%s__classes-obfuscated.jar")),proguardDir);
 }
