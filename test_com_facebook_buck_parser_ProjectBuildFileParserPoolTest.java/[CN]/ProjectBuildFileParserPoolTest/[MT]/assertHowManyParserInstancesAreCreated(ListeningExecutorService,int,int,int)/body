@@ -1,0 +1,29 @@
+{
+  final AtomicInteger createCount=new AtomicInteger(0);
+  Cell cell=EasyMock.createMock(Cell.class);
+  final CountDownLatch createParserLatch=new CountDownLatch(expectedCreateCount);
+  try (ProjectBuildFileParserPool parserPool=new ProjectBuildFileParserPool(maxParsers,new Function<Cell,ProjectBuildFileParser>(){
+    @Override public ProjectBuildFileParser apply(    Cell input){
+      createCount.incrementAndGet();
+      return createMockPaser(new IAnswer<List<Map<String,Object>>>(){
+        @Override public List<Map<String,Object>> answer() throws Throwable {
+          createParserLatch.countDown();
+          boolean didntTimeout=false;
+          try {
+            didntTimeout=createParserLatch.await(1,TimeUnit.SECONDS);
+          }
+ catch (          InterruptedException e) {
+            Throwables.propagate(e);
+          }
+          assertThat(didntTimeout,Matchers.equalTo(true));
+          return ImmutableList.of();
+        }
+      }
+);
+    }
+  }
+)){
+    Futures.allAsList(scheduleWork(cell,parserPool,executorService,numRequests)).get();
+    assertThat(createCount.get(),Matchers.equalTo(expectedCreateCount));
+  }
+ }

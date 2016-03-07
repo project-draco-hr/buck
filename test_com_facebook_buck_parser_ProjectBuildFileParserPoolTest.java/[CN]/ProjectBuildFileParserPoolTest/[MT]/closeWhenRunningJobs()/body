@@ -1,0 +1,36 @@
+{
+  Cell cell=EasyMock.createMock(Cell.class);
+  ListeningExecutorService executorService=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
+  final CountDownLatch waitTillClosed=new CountDownLatch(1);
+  final CountDownLatch firstJobRunning=new CountDownLatch(1);
+  final AtomicInteger postCloseWork=new AtomicInteger(0);
+  ImmutableSet<ListenableFuture<?>> futures;
+  try (ProjectBuildFileParserPool parserPool=new ProjectBuildFileParserPool(1,createMockPaserFactory(new IAnswer<List<Map<String,Object>>>(){
+    @Override public List<Map<String,Object>> answer() throws Throwable {
+      firstJobRunning.countDown();
+      waitTillClosed.await();
+      return ImmutableList.of();
+    }
+  }
+))){
+    futures=scheduleWork(cell,parserPool,executorService,5);
+    for (    ListenableFuture<?> future : futures) {
+      Futures.transform(future,new Function<Object,Object>(){
+        @Override public Object apply(        Object input){
+          postCloseWork.incrementAndGet();
+          return null;
+        }
+      }
+);
+    }
+    firstJobRunning.await(1,TimeUnit.SECONDS);
+  }
+   waitTillClosed.countDown();
+  List<Object> futureResults=Futures.successfulAsList(futures).get(1,TimeUnit.SECONDS);
+  int expectedCompletedJobs=1;
+  int completedJobs=FluentIterable.from(futureResults).filter(Predicates.notNull()).size();
+  assertThat(completedJobs,Matchers.equalTo(expectedCompletedJobs));
+  executorService.shutdown();
+  assertThat(executorService.awaitTermination(1,TimeUnit.SECONDS),Matchers.is(true));
+  assertThat(postCloseWork.get(),Matchers.equalTo(expectedCompletedJobs));
+}

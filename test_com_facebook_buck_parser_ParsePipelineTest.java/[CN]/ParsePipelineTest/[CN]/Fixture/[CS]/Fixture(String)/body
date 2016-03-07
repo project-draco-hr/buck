@@ -2,14 +2,20 @@
   this.workspace=TestDataHelper.createProjectWorkspaceForScenario(this,scenario,tmp);
   this.eventBus=BuckEventBusFactory.newInstance();
   this.console=new TestConsole();
+  this.executorService=com.google.common.util.concurrent.MoreExecutors.listeningDecorator(MoreExecutors.newSingleThreadExecutor("test"));
+  this.projectBuildFileParsers=new HashSet<>();
   this.workspace.setUp();
   this.cell=this.workspace.asCell();
   this.cache=new ParsePipelineCache();
   final TypeCoercerFactory coercerFactory=new DefaultTypeCoercerFactory();
   final ConstructorArgMarshaller constructorArgMarshaller=new ConstructorArgMarshaller(coercerFactory);
-  ParserLeaseVendor<ProjectBuildFileParser> vendorForTest=new ParserLeaseVendor<>(4,new Function<Cell,ProjectBuildFileParser>(){
+  projectBuildFileParserPool=new ProjectBuildFileParserPool(4,new Function<Cell,ProjectBuildFileParser>(){
     @Override public ProjectBuildFileParser apply(    Cell input){
-      return input.createBuildFileParser(constructorArgMarshaller,console,eventBus);
+      ProjectBuildFileParser buildFileParser=input.createBuildFileParser(constructorArgMarshaller,console,eventBus);
+synchronized (projectBuildFileParsers) {
+        projectBuildFileParsers.add(buildFileParser);
+      }
+      return buildFileParser;
     }
   }
 );
@@ -18,11 +24,10 @@
     }
   }
 ;
-  this.executorService=com.google.common.util.concurrent.MoreExecutors.listeningDecorator(MoreExecutors.newSingleThreadExecutor("test"));
   this.parsePipeline=new ParsePipeline(this.cache,new ParsePipeline.Delegate(){
     @Override public TargetNode<?> createTargetNode(    Cell cell,    Path buildFile,    BuildTarget target,    Map<String,Object> rawNode){
       return DaemonicParserState.createTargetNode(eventBus,cell,buildFile,target,rawNode,constructorArgMarshaller,coercerFactory,nodeListener);
     }
   }
-,this.executorService,this.eventBus,vendorForTest,true);
+,this.executorService,this.eventBus,this.projectBuildFileParserPool,true);
 }

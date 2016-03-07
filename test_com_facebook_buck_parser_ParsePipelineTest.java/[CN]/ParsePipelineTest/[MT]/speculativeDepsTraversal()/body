@@ -1,9 +1,12 @@
 {
-  Fixture fixture=new Fixture("pipeline_test");
-  Cell cell=fixture.getCell();
+  final Fixture fixture=new Fixture("pipeline_test");
+  final Cell cell=fixture.getCell();
   TargetNode<?> libTargetNode=fixture.getParsePipeline().getTargetNode(cell,BuildTargetFactory.newInstance(cell.getFilesystem(),"//:lib"));
-  fixture.close();
-  for (  BuildTarget dep : libTargetNode.getDeps()) {
-    assertThat(fixture.getCache().lookupTargetNode(cell,dep),Matchers.notNullValue());
+  waitForAll(libTargetNode.getDeps(),new Predicate<BuildTarget>(){
+    @Override public boolean apply(    BuildTarget dep){
+      return fixture.getCache().lookupTargetNode(cell,dep) != null;
+    }
   }
+);
+  fixture.close();
 }

@@ -1,4 +1,12 @@
 {
   parsePipeline.close();
-  com.google.common.util.concurrent.MoreExecutors.shutdownAndAwaitTermination(executorService,5,TimeUnit.SECONDS);
+  projectBuildFileParserPool.close();
+  waitForParsersToClose();
+  executorService.shutdown();
+  assertThat(executorService.awaitTermination(5,TimeUnit.SECONDS),Matchers.is(true));
+synchronized (projectBuildFileParsers) {
+    for (    ProjectBuildFileParser parser : projectBuildFileParsers) {
+      assertThat(parser.isClosed(),Matchers.is(true));
+    }
+  }
 }

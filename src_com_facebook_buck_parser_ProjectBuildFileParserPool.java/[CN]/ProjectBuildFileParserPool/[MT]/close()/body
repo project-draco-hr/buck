@@ -1,0 +1,39 @@
+{
+  Preconditions.checkState(!closing.get());
+  closing.set(true);
+synchronized (this) {
+    for (    Deque<SettableFuture<Void>> requestQueue : parserRequests.values()) {
+      for (      SettableFuture<Void> request : requestQueue) {
+        request.set(null);
+      }
+    }
+  }
+  ListenableFuture<List<Object>> closeFuture;
+synchronized (pendingWork) {
+    closeFuture=Futures.successfulAsList(pendingWork);
+  }
+  final ExecutorService executorService=MoreExecutors.newSingleThreadExecutor("parser shutdown");
+  Futures.transformAsync(closeFuture,new AsyncFunction<List<Object>,Void>(){
+    @Override public ListenableFuture<Void> apply(    List<Object> input) throws Exception {
+      int parkedParsersCount=0;
+      for (      Deque<ProjectBuildFileParser> projectBuildFileParsers : parkedParsers.values()) {
+        parkedParsersCount+=projectBuildFileParsers.size();
+      }
+      if (parkedParsersCount != createdParsers.size()) {
+        LOG.error("Whoops! Some parser are still in use, even though we're shutting down..");
+      }
+      for (      Map.Entry<Cell,ProjectBuildFileParser> createdParserEntry : createdParsers.entries()) {
+        createdParserEntry.getValue().close();
+      }
+      for (      Map.Entry<Cell,Deque<SettableFuture<Void>>> cellDequeEntry : parserRequests.entrySet()) {
+        if (!cellDequeEntry.getValue().isEmpty()) {
+          LOG.error("Error shutting down ParserLeaseVendor: " + "there should be no enqueued parser requests.");
+          break;
+        }
+      }
+      executorService.shutdown();
+      return Futures.immediateFuture(null);
+    }
+  }
+,executorService);
+}

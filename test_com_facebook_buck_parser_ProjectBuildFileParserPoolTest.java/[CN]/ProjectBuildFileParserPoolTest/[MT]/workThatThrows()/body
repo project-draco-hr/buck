@@ -1,0 +1,31 @@
+{
+  Cell cell=EasyMock.createMock(Cell.class);
+  ListeningExecutorService executorService=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
+  final String exceptionMessage="haha!";
+  final AtomicBoolean throwWhileParsing=new AtomicBoolean(true);
+  try (ProjectBuildFileParserPool parserPool=new ProjectBuildFileParserPool(2,createMockPaserFactory(new IAnswer<List<Map<String,Object>>>(){
+    @Override public List<Map<String,Object>> answer() throws Throwable {
+      if (throwWhileParsing.get()) {
+        throw new Exception(exceptionMessage);
+      }
+      return ImmutableList.of();
+    }
+  }
+))){
+    ImmutableSet<ListenableFuture<?>> failedWork=scheduleWork(cell,parserPool,executorService,5);
+    for (    ListenableFuture<?> failedFuture : failedWork) {
+      try {
+        failedFuture.get();
+        fail("Expected ExecutionException to be thrown.");
+      }
+ catch (      ExecutionException e) {
+        assertThat(e.getCause().getMessage(),Matchers.equalTo(exceptionMessage));
+      }
+    }
+    throwWhileParsing.set(false);
+    Futures.allAsList(scheduleWork(cell,parserPool,executorService,5)).get();
+  }
+  finally {
+    executorService.shutdown();
+  }
+}

@@ -1,0 +1,36 @@
+{
+  Preconditions.checkState(!closing.get());
+  final ListenableFuture<ImmutableList<Map<String,Object>>> futureWork=Futures.transformAsync(initialSchedule(cell),new AsyncFunction<Void,ImmutableList<Map<String,Object>>>(){
+    @Override public ListenableFuture<ImmutableList<Map<String,Object>>> apply(    Void input) throws Exception {
+      if (closing.get()) {
+        return Futures.immediateCancelledFuture();
+      }
+      Either<ProjectBuildFileParser,ListenableFuture<Void>> parserRequest=requestParser(cell);
+      if (parserRequest.isLeft()) {
+        ProjectBuildFileParser parser=parserRequest.getLeft();
+        try {
+          return Futures.immediateFuture(ImmutableList.copyOf(parser.getAllRulesAndMetaRules(buildFile)));
+        }
+  finally {
+          returnParser(cell,parser);
+        }
+      }
+ else {
+        return Futures.transformAsync(parserRequest.getRight(),this);
+      }
+    }
+  }
+,executorService);
+synchronized (pendingWork) {
+    pendingWork.add(futureWork);
+  }
+  futureWork.addListener(new Runnable(){
+    @Override public void run(){
+synchronized (pendingWork) {
+        pendingWork.remove(futureWork);
+      }
+    }
+  }
+,executorService);
+  return Futures.nonCancellationPropagating(futureWork);
+}

@@ -1,0 +1,50 @@
+{
+  final int parsersCount=4;
+  final AtomicInteger parserCount=new AtomicInteger(0);
+  Cell cell=EasyMock.createMock(Cell.class);
+  ListeningExecutorService executorService=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(parsersCount));
+  final CountDownLatch createParserLatch=new CountDownLatch(parsersCount);
+  try (ProjectBuildFileParserPool parserPool=new ProjectBuildFileParserPool(parsersCount,new Function<Cell,ProjectBuildFileParser>(){
+    @Override public ProjectBuildFileParser apply(    Cell input){
+      parserCount.incrementAndGet();
+      final ProjectBuildFileParser parser=EasyMock.createMock(ProjectBuildFileParser.class);
+      try {
+        EasyMock.expect(parser.getAllRulesAndMetaRules(EasyMock.anyObject(Path.class))).andAnswer(new IAnswer<List<Map<String,Object>>>(){
+          @Override public List<Map<String,Object>> answer() throws Throwable {
+            createParserLatch.countDown();
+            createParserLatch.await();
+            return ImmutableList.of();
+          }
+        }
+).anyTimes();
+        parser.close();
+        EasyMock.expectLastCall().andAnswer(new IAnswer<Void>(){
+          @Override public Void answer() throws Throwable {
+            parserCount.decrementAndGet();
+            return null;
+          }
+        }
+);
+      }
+ catch (      Exception e) {
+        Throwables.propagate(e);
+      }
+      EasyMock.replay(parser);
+      return parser;
+    }
+  }
+)){
+    Futures.allAsList(scheduleWork(cell,parserPool,executorService,parsersCount * 2)).get();
+    assertThat(parserCount.get(),Matchers.is(4));
+  }
+  finally {
+    executorService.shutdown();
+  }
+  for (int i=0; i < 10; ++i) {
+    if (parserCount.get() == 0) {
+      break;
+    }
+    Thread.sleep(100);
+  }
+  assertThat(parserCount.get(),Matchers.is(0));
+}

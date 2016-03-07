@@ -1,10 +1,9 @@
 {
-  return parserLeaseVendor.leaseParser(cell,new AsyncFunction<ProjectBuildFileParser,ImmutableList<Map<String,Object>>>(){
-    @Override public ListenableFuture<ImmutableList<Map<String,Object>>> apply(    ProjectBuildFileParser parser) throws BuildFileParseException, InterruptedException {
+  return Futures.transformAsync(projectBuildFileParserPool.getAllRulesAndMetaRules(cell,buildFile,executorService),new AsyncFunction<ImmutableList<Map<String,Object>>,ImmutableList<Map<String,Object>>>(){
+    @Override public ListenableFuture<ImmutableList<Map<String,Object>>> apply(    ImmutableList<Map<String,Object>> rawNodes) throws Exception {
       if (shuttingDown.get()) {
         return Futures.immediateCancelledFuture();
       }
-      ImmutableList<Map<String,Object>> rawNodes=ImmutableList.copyOf(parser.getAllRulesAndMetaRules(buildFile));
       return Futures.immediateFuture(cache.putRawNodesIfNotPresent(cell,buildFile,rawNodes));
     }
   }

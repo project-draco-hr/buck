@@ -1,0 +1,25 @@
+{
+  Cell cell=EasyMock.createMock(Cell.class);
+  ListeningExecutorService executorService=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(1));
+  int numberOfJobs=5;
+  final CountDownLatch waitTillAllWorkIsDone=new CountDownLatch(numberOfJobs);
+  final CountDownLatch waitTillCanceled=new CountDownLatch(1);
+  try (ProjectBuildFileParserPool parserPool=new ProjectBuildFileParserPool(1,createMockPaserFactory(new IAnswer<List<Map<String,Object>>>(){
+    @Override public List<Map<String,Object>> answer() throws Throwable {
+      waitTillCanceled.await();
+      waitTillAllWorkIsDone.countDown();
+      return ImmutableList.of();
+    }
+  }
+))){
+    ImmutableSet<ListenableFuture<?>> futures=scheduleWork(cell,parserPool,executorService,numberOfJobs);
+    for (    ListenableFuture<?> future : futures) {
+      future.cancel(true);
+    }
+    waitTillCanceled.countDown();
+    waitTillAllWorkIsDone.await(1,TimeUnit.SECONDS);
+  }
+  finally {
+    executorService.shutdown();
+  }
+}
