@@ -1,0 +1,20 @@
+{
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
+  FakeBuckEventListener listener=new FakeBuckEventListener();
+  buckEventBus.register(listener);
+  BuildTarget depTarget=BuildTargetFactory.newInstance("//src/com/facebook/orca:lib");
+  FakeBuildRule dep=new FakeBuildRule(depTarget,pathResolver);
+  FakeBuildRule ruleToTest=new FakeBuildRule(BUILD_TARGET,filesystem,pathResolver,dep);
+  RuleKey ruleToTestKey=ruleKeyBuilderFactory.build(ruleToTest);
+  filesystem.writeContentsToPath(ruleToTestKey.toString(),BuildInfo.getPathToMetadataDirectory(BUILD_TARGET).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY));
+  filesystem.writeContentsToPath(MAPPER.writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(BUILD_TARGET).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
+  BuildContext context=FakeBuildContext.newBuilder().setEventBus(buckEventBus).setArtifactCache(new NoopArtifactCache()).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DependencySchedulingOrder.RANDOM,CachingBuildEngine.DepFiles.ENABLED,256L,resolver);
+  replayAll();
+  BuildResult result=cachingBuildEngine.build(context,ruleToTest).get();
+  assertEquals(BuildRuleSuccessType.MATCHING_RULE_KEY,result.getSuccess());
+  verifyAll();
+  List<BuckEvent> events=listener.getEvents();
+  assertThat(events,Matchers.hasSize(6));
+  assertThat(events,Matchers.<BuckEvent>contains(BuildRuleEvent.started(dep),BuildRuleEvent.suspended(dep,ruleKeyBuilderFactory),BuildRuleEvent.started(ruleToTest),BuildRuleEvent.suspended(ruleToTest,ruleKeyBuilderFactory),BuildRuleEvent.resumed(ruleToTest,ruleKeyBuilderFactory),BuildRuleEvent.finished(ruleToTest,BuildRuleKeys.of(ruleToTestKey),BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY),Optional.<HashCode>absent(),Optional.<Long>absent())));
+}

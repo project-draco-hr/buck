@@ -1,0 +1,25 @@
+{
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
+  FakeBuckEventListener listener=new FakeBuckEventListener();
+  buckEventBus.register(listener);
+  BuildRuleParams ruleParams=new FakeBuildRuleParamsBuilder("//:transitive_dep").setProjectFilesystem(filesystem).build();
+  FakeBuildRule transitiveRuntimeDep=new FakeBuildRule(ruleParams,pathResolver);
+  RuleKey transitiveRuntimeDepKey=ruleKeyBuilderFactory.build(transitiveRuntimeDep);
+  filesystem.writeContentsToPath(transitiveRuntimeDepKey.toString(),BuildInfo.getPathToMetadataDirectory(transitiveRuntimeDep.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY));
+  filesystem.writeContentsToPath(MAPPER.writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(transitiveRuntimeDep.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
+  FakeBuildRule runtimeDep=new FakeHasRuntimeDeps(BuildTargetFactory.newInstance("//:runtime_dep"),filesystem,pathResolver,transitiveRuntimeDep);
+  RuleKey runtimeDepKey=ruleKeyBuilderFactory.build(runtimeDep);
+  filesystem.writeContentsToPath(runtimeDepKey.toString(),BuildInfo.getPathToMetadataDirectory(runtimeDep.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY));
+  filesystem.writeContentsToPath(MAPPER.writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(runtimeDep.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
+  FakeBuildRule ruleToTest=new FakeHasRuntimeDeps(BUILD_TARGET,filesystem,pathResolver,runtimeDep);
+  RuleKey ruleToTestKey=ruleKeyBuilderFactory.build(ruleToTest);
+  filesystem.writeContentsToPath(ruleToTestKey.toString(),BuildInfo.getPathToMetadataDirectory(ruleToTest.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY));
+  filesystem.writeContentsToPath(MAPPER.writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(ruleToTest.getBuildTarget()).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
+  BuildContext context=FakeBuildContext.newBuilder().setArtifactCache(cache).setEventBus(buckEventBus).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DependencySchedulingOrder.RANDOM,CachingBuildEngine.DepFiles.ENABLED,256L,resolver);
+  BuildResult result=cachingBuildEngine.build(context,ruleToTest).get();
+  assertEquals(BuildRuleSuccessType.MATCHING_RULE_KEY,result.getSuccess());
+  List<BuckEvent> events=listener.getEvents();
+  assertThat(events,Matchers.hasSize(12));
+  assertThat(events,Matchers.<BuckEvent>contains(BuildRuleEvent.started(transitiveRuntimeDep),BuildRuleEvent.suspended(transitiveRuntimeDep,ruleKeyBuilderFactory),BuildRuleEvent.started(runtimeDep),BuildRuleEvent.suspended(runtimeDep,ruleKeyBuilderFactory),BuildRuleEvent.started(ruleToTest),BuildRuleEvent.suspended(ruleToTest,ruleKeyBuilderFactory),BuildRuleEvent.resumed(ruleToTest,ruleKeyBuilderFactory),BuildRuleEvent.finished(ruleToTest,BuildRuleKeys.of(ruleToTestKey),BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY),Optional.<HashCode>absent(),Optional.<Long>absent()),BuildRuleEvent.resumed(runtimeDep,ruleKeyBuilderFactory),BuildRuleEvent.finished(runtimeDep,BuildRuleKeys.of(runtimeDepKey),BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY),Optional.<HashCode>absent(),Optional.<Long>absent()),BuildRuleEvent.resumed(transitiveRuntimeDep,ruleKeyBuilderFactory),BuildRuleEvent.finished(transitiveRuntimeDep,BuildRuleKeys.of(transitiveRuntimeDepKey),BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY),Optional.<HashCode>absent(),Optional.<Long>absent())));
+}

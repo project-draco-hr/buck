@@ -1,0 +1,22 @@
+{
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
+  FakeBuckEventListener listener=new FakeBuckEventListener();
+  buckEventBus.register(listener);
+  BuildTarget depTarget=BuildTargetFactory.newInstance("//src/com/facebook/orca:lib");
+  BuildRuleParams ruleParams=new FakeBuildRuleParamsBuilder(depTarget).setProjectFilesystem(filesystem).build();
+  FakeBuildRule dep=new FakeBuildRule(ruleParams,pathResolver);
+  RuleKey depKey=ruleKeyBuilderFactory.build(dep);
+  filesystem.writeContentsToPath(depKey.toString(),BuildInfo.getPathToMetadataDirectory(depTarget).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY));
+  filesystem.writeContentsToPath(MAPPER.writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(depTarget).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
+  FakeBuildRule ruleToTest=new FakeBuildRule(BUILD_TARGET,filesystem,pathResolver,dep);
+  RuleKey ruleToTestKey=ruleKeyBuilderFactory.build(ruleToTest);
+  filesystem.writeContentsToPath(ruleToTestKey.toString(),BuildInfo.getPathToMetadataDirectory(BUILD_TARGET).resolve(BuildInfo.METADATA_KEY_FOR_RULE_KEY));
+  filesystem.writeContentsToPath(MAPPER.writeValueAsString(ImmutableList.of()),BuildInfo.getPathToMetadataDirectory(BUILD_TARGET).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
+  BuildContext context=FakeBuildContext.newBuilder().setArtifactCache(cache).setEventBus(buckEventBus).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.DEEP,CachingBuildEngine.DependencySchedulingOrder.RANDOM,CachingBuildEngine.DepFiles.ENABLED,256L,resolver);
+  BuildResult result=cachingBuildEngine.build(context,ruleToTest).get();
+  assertEquals(BuildRuleSuccessType.MATCHING_RULE_KEY,result.getSuccess());
+  List<BuckEvent> events=listener.getEvents();
+  assertThat(events,Matchers.hasSize(8));
+  assertThat(events,Matchers.<BuckEvent>contains(BuildRuleEvent.started(dep),BuildRuleEvent.suspended(dep,ruleKeyBuilderFactory),BuildRuleEvent.started(ruleToTest),BuildRuleEvent.suspended(ruleToTest,ruleKeyBuilderFactory),BuildRuleEvent.resumed(ruleToTest,ruleKeyBuilderFactory),BuildRuleEvent.resumed(dep,ruleKeyBuilderFactory),BuildRuleEvent.finished(dep,BuildRuleKeys.of(depKey),BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY),Optional.<HashCode>absent(),Optional.<Long>absent()),BuildRuleEvent.finished(ruleToTest,BuildRuleKeys.of(ruleToTestKey),BuildRuleStatus.SUCCESS,CacheResult.localKeyUnchangedHit(),Optional.of(BuildRuleSuccessType.MATCHING_RULE_KEY),Optional.<HashCode>absent(),Optional.<Long>absent())));
+}

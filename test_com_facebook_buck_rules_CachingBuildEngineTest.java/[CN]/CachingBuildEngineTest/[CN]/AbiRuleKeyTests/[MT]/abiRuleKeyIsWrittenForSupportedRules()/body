@@ -1,0 +1,15 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//:rule");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setProjectFilesystem(filesystem).build();
+  FakeAbiRuleBuildRule rule=new FakeAbiRuleBuildRule(params,pathResolver);
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DependencySchedulingOrder.RANDOM,CachingBuildEngine.DepFiles.ENABLED,256L,pathResolver,Functions.constant(new CachingBuildEngine.RuleKeyFactories(ruleKeyBuilderFactory,NOOP_RULE_KEY_FACTORY,new AbiRuleKeyBuilderFactory(fileHashCache,pathResolver,ruleKeyBuilderFactory),NOOP_DEP_FILE_RULE_KEY_FACTORY)));
+  BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
+  assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
+  OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(target,filesystem);
+  Optional<RuleKey> abiRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_ABI_RULE_KEY);
+  assertThat(abiRuleKey.isPresent(),is(true));
+  Path fetchedArtifact=tmp.newFile("fetched_artifact.zip").toPath();
+  CacheResult cacheResult=cache.fetch(ruleKeyBuilderFactory.build(rule),LazyPath.ofInstance(fetchedArtifact));
+  assertThat(cacheResult.getType(),equalTo(CacheResultType.HIT));
+  assertThat(cacheResult.getMetadata().get(BuildInfo.METADATA_KEY_FOR_ABI_RULE_KEY),equalTo(abiRuleKey.get().toString()));
+}

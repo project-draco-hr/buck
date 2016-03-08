@@ -1,0 +1,28 @@
+{
+  BuildRuleParams buildRuleParams=new FakeBuildRuleParamsBuilder(BUILD_TARGET).setProjectFilesystem(filesystem).build();
+  FakeBuildRule buildRule=new FakeBuildRule(buildRuleParams,pathResolver);
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance();
+  FakeBuckEventListener listener=new FakeBuckEventListener();
+  buckEventBus.register(listener);
+  BuildContext buildContext=FakeBuildContext.newBuilder().setArtifactCache(new NoopArtifactCache(){
+    @Override public ListenableFuture<Void> store(    ImmutableSet<RuleKey> ruleKeys,    ImmutableMap<String,String> metadata,    BorrowablePath output){
+      try {
+        Thread.sleep(500);
+      }
+ catch (      InterruptedException e) {
+        throw Throwables.propagate(e);
+      }
+      return Futures.immediateFuture(null);
+    }
+  }
+).setEventBus(buckEventBus).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
+  ListeningExecutorService service=listeningDecorator(Executors.newFixedThreadPool(2));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(service,fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DependencySchedulingOrder.RANDOM,CachingBuildEngine.DepFiles.ENABLED,256L,resolver);
+  ListenableFuture<BuildResult> buildResult=cachingBuildEngine.build(buildContext,buildRule);
+  BuildResult result=buildResult.get();
+  assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
+  assertTrue(service.shutdownNow().isEmpty());
+  List<BuckEvent> events=listener.getEvents();
+  assertThat(events,Matchers.hasSize(6));
+  assertThat(events,Matchers.<BuckEvent>contains(BuildRuleEvent.started(buildRule),BuildRuleEvent.suspended(buildRule,ruleKeyBuilderFactory),BuildRuleEvent.resumed(buildRule,ruleKeyBuilderFactory),BuildRuleEvent.suspended(buildRule,ruleKeyBuilderFactory),BuildRuleEvent.resumed(buildRule,ruleKeyBuilderFactory),BuildRuleEvent.finished(buildRule,BuildRuleKeys.of(ruleKeyBuilderFactory.build(buildRule)),BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent())));
+}

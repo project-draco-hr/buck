@@ -1,0 +1,16 @@
+{
+  ListeningExecutorService service=listeningDecorator(Executors.newFixedThreadPool(2));
+  BuildRule dep1=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:dep1")).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new FailingStep()),null);
+  BuildRule dep2=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:dep2")).setDeclaredDeps(ImmutableSortedSet.of(dep1)).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new SleepStep(0)),null);
+  BuildRule dep3=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:dep3")).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new SleepStep(300)),null);
+  BuildRule dep4=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:dep4")).setDeclaredDeps(ImmutableSortedSet.of(dep3)).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new SleepStep(300)),null);
+  BuildRule rule=new RuleWithSteps(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:rule")).setDeclaredDeps(ImmutableSortedSet.of(dep2,dep4)).setProjectFilesystem(filesystem).build(),pathResolver,ImmutableList.<Step>of(new SleepStep(1000)),null);
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(service,fileHashCache,CachingBuildEngine.BuildMode.DEEP,CachingBuildEngine.DependencySchedulingOrder.RANDOM,CachingBuildEngine.DepFiles.ENABLED,256L,resolver);
+  BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
+  assertTrue(service.shutdownNow().isEmpty());
+  assertThat(result.getStatus(),equalTo(BuildRuleStatus.CANCELED));
+  assertThat(Preconditions.checkNotNull(cachingBuildEngine.getBuildRuleResult(dep1.getBuildTarget())).getStatus(),equalTo(BuildRuleStatus.FAIL));
+  assertThat(Preconditions.checkNotNull(cachingBuildEngine.getBuildRuleResult(dep2.getBuildTarget())).getStatus(),equalTo(BuildRuleStatus.CANCELED));
+  assertThat(Preconditions.checkNotNull(cachingBuildEngine.getBuildRuleResult(dep3.getBuildTarget())).getStatus(),Matchers.oneOf(BuildRuleStatus.SUCCESS,BuildRuleStatus.CANCELED));
+  assertThat(Preconditions.checkNotNull(cachingBuildEngine.getBuildRuleResult(dep4.getBuildTarget())).getStatus(),Matchers.oneOf(BuildRuleStatus.SUCCESS,BuildRuleStatus.CANCELED));
+}

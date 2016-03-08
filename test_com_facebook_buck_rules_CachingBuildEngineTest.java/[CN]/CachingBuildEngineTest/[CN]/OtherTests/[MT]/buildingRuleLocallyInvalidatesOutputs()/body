@@ -1,0 +1,15 @@
+{
+  Path output=Paths.get("output/path");
+  filesystem.mkdirs(output.getParent());
+  filesystem.writeContentsToPath("something",output);
+  HashCode originalHashCode=fileHashCache.get(output);
+  assertTrue(fileHashCache.willGet(output));
+  BuildTarget target=BuildTargetFactory.newInstance("//:rule");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setProjectFilesystem(filesystem).build();
+  BuildRule rule=new WriteFile(params,pathResolver,"something else",output,false);
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(MoreExecutors.newDirectExecutorService(),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DependencySchedulingOrder.RANDOM,CachingBuildEngine.DepFiles.ENABLED,256L,resolver);
+  BuildResult result=cachingBuildEngine.build(buildContext,rule).get();
+  assertEquals(BuildRuleSuccessType.BUILT_LOCALLY,result.getSuccess());
+  HashCode newHashCode=fileHashCache.get(output);
+  assertThat(newHashCode,Matchers.not(equalTo(originalHashCode)));
+}
