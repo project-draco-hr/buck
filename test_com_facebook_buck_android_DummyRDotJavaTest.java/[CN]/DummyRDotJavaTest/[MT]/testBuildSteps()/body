@@ -12,11 +12,13 @@
   FakeBuildableContext buildableContext=new FakeBuildableContext();
   List<Step> steps=dummyRDotJava.getBuildSteps(EasyMock.createMock(BuildContext.class),buildableContext);
   assertEquals("DummyRDotJava returns an incorrect number of Steps.",7,steps.size());
-  String rDotJavaSrcFolder=Paths.get("buck-out/bin/java/base/__rule_rdotjava_src__").toString();
-  String rDotJavaBinFolder=Paths.get("buck-out/bin/java/base/__rule_rdotjava_bin__").toString();
-  String rDotJavaAbiFolder=Paths.get("buck-out/gen/java/base/__rule_dummyrdotjava_abi__").toString();
-  String genFolder=targetGenPath().toString();
-  List<String> expectedStepDescriptions=Lists.newArrayList(makeCleanDirDescription(filesystem.resolve(rDotJavaSrcFolder)),mergeAndroidResourcesDescription(ImmutableList.of((AndroidResource)resourceRule1,(AndroidResource)resourceRule2)),makeCleanDirDescription(filesystem.resolve(rDotJavaBinFolder)),makeCleanDirDescription(filesystem.resolve(rDotJavaAbiFolder)),makeDirectoryDescription(filesystem.resolve(genFolder)),javacInMemoryDescription(rDotJavaBinFolder,pathResolver),String.format("calculate_abi %s",rDotJavaBinFolder));
+  String rDotJavaSrcFolder=BuildTargets.getScratchPath(dummyRDotJava.getBuildTarget(),"__%s_rdotjava_src__").toString();
+  String rDotJavaBinFolder=BuildTargets.getScratchPath(dummyRDotJava.getBuildTarget(),"__%s_rdotjava_bin__").toString();
+  String rDotJavaAbiFolder=BuildTargets.getGenPath(dummyRDotJava.getBuildTarget(),"__%s_dummyrdotjava_abi__").toString();
+  String genFolder=Paths.get("buck-out/gen/java/base/").toString();
+  List<String> sortedSymbolsFiles=FluentIterable.from(ImmutableList.of((AndroidResource)resourceRule1,(AndroidResource)resourceRule2)).transform(Functions.toStringFunction()).toList();
+  ImmutableSortedSet<Path> javaSourceFiles=ImmutableSortedSet.of(Paths.get(rDotJavaSrcFolder).resolve("com/facebook/R.java"));
+  List<String> expectedStepDescriptions=Lists.newArrayList(makeCleanDirDescription(filesystem.resolve(rDotJavaSrcFolder)),"android-res-merge " + Joiner.on(' ').join(sortedSymbolsFiles),makeCleanDirDescription(filesystem.resolve(rDotJavaBinFolder)),makeCleanDirDescription(filesystem.resolve(rDotJavaAbiFolder)),String.format("mkdir -p %s",filesystem.resolve(genFolder)),RDotJava.createJavacStepForDummyRDotJavaFiles(javaSourceFiles,BuildTargets.getGenPath(dummyRDotJava.getBuildTarget(),"__%s__srcs"),Paths.get(rDotJavaBinFolder),ANDROID_JAVAC_OPTIONS,null,pathResolver,new FakeProjectFilesystem()).getDescription(TestExecutionContext.newInstance()),String.format("calculate_abi %s",rDotJavaBinFolder));
   MoreAsserts.assertSteps("DummyRDotJava.getBuildSteps() must return these exact steps.",expectedStepDescriptions,steps,TestExecutionContext.newInstance());
   assertEquals(ImmutableSet.of(Paths.get(rDotJavaBinFolder)),buildableContext.getRecordedArtifacts());
   Sha1HashCode expectedSha1=AndroidResource.ABI_HASHER.apply(ImmutableList.of((HasAndroidResourceDeps)resourceRule1,(HasAndroidResourceDeps)resourceRule2));
