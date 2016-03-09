@@ -1,0 +1,13 @@
+{
+  try (Fixture fixture=new Fixture("pipeline_test")){
+    Cell cell=fixture.getCell();
+    Path rootBuildFilePath=cell.getFilesystem().resolve("BUCK");
+    Path aBuildFilePath=cell.getFilesystem().resolve("a/BUCK");
+    fixture.getParsePipeline().getAllTargetNodes(cell,rootBuildFilePath);
+    Optional<ImmutableList<Map<String,Object>>> rootRawNodes=fixture.getCache().lookupRawNodes(cell,rootBuildFilePath);
+    fixture.getCache().putRawNodesIfNotPresent(cell,aBuildFilePath,rootRawNodes.get());
+    expectedException.expect(IllegalStateException.class);
+    expectedException.expectMessage("Raw data claims to come from [], but we tried rooting it at [a].");
+    fixture.getParsePipeline().getTargetNode(cell,BuildTargetFactory.newInstance(cell.getFilesystem(),"//a:lib"));
+  }
+ }

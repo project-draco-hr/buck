@@ -1,6 +1,7 @@
 {
   BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(cell,rawNode);
   Description<?> description=cell.getDescription(buildRuleType);
+  UnflavoredBuildTarget unflavoredBuildTarget=target.getUnflavoredBuildTarget();
   if (target.isFlavored()) {
     if (description instanceof Flavored) {
       if (!((Flavored)description).hasFlavors(ImmutableSet.copyOf(target.getFlavors()))) {
@@ -8,9 +9,13 @@
       }
     }
  else {
-      LOG.warn("Target %s (type %s) must implement the Flavored interface " + "before we can check if it supports flavors: %s",target.getUnflavoredBuildTarget(),buildRuleType,target.getFlavors());
-      throw new HumanReadableException("Target %s (type %s) does not currently support flavors (tried %s)",target.getUnflavoredBuildTarget(),buildRuleType,target.getFlavors());
+      LOG.warn("Target %s (type %s) must implement the Flavored interface " + "before we can check if it supports flavors: %s",unflavoredBuildTarget,buildRuleType,target.getFlavors());
+      throw new HumanReadableException("Target %s (type %s) does not currently support flavors (tried %s)",unflavoredBuildTarget,buildRuleType,target.getFlavors());
     }
+  }
+  UnflavoredBuildTarget unflavoredBuildTargetFromRawData=ParsePipeline.parseBuildTargetFromRawRule(cell.getRoot(),rawNode,buildFile);
+  if (!unflavoredBuildTarget.equals(unflavoredBuildTargetFromRawData)) {
+    throw new IllegalStateException(String.format("Inconsistent internal state, target from data: %s, expected: %s, raw data: %s",unflavoredBuildTargetFromRawData,unflavoredBuildTarget,Joiner.on(',').withKeyValueSeparator("->").join(rawNode)));
   }
   Cell targetCell=cell.getCell(target);
   BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetCell.getFilesystem(),target.withoutCell(),new FilesystemBackedBuildFileTree(cell.getFilesystem(),cell.getBuildFileName()),targetCell.isEnforcingBuckPackageBoundaries());
