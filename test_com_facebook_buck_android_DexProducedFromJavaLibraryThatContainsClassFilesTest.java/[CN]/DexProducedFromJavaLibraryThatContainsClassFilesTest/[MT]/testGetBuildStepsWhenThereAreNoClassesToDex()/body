@@ -11,11 +11,12 @@
   List<Step> steps=preDex.getBuildSteps(context,buildableContext);
   verifyAll();
   resetAll();
-  expect(projectFilesystem.resolve(Paths.get("buck-out/gen/foo"))).andReturn(Paths.get("/home/user/buck-out/gen/foo"));
-  expect(projectFilesystem.resolve(Paths.get("buck-out/gen/foo/bar.dex.jar"))).andReturn(Paths.get("/home/user/buck-out/gen/foo/bar.dex.jar"));
+  Path dexOutput=BuildTargets.getGenPath(buildTarget,"%s.dex.jar");
+  expect(projectFilesystem.resolve(dexOutput.getParent())).andReturn(Paths.get("/home/user/").resolve(dexOutput.getParent()));
+  expect(projectFilesystem.resolve(dexOutput)).andReturn(Paths.get("/home/user/").resolve(dexOutput));
   replayAll();
   ExecutionContext executionContext=TestExecutionContext.newBuilder().build();
-  MoreAsserts.assertSteps("Do not generate a .dex.jar file.",ImmutableList.of(String.format("rm -f %s",Paths.get("/home/user/buck-out/gen/foo/bar.dex.jar")),String.format("mkdir -p %s",Paths.get("/home/user/buck-out/gen/foo")),"record_empty_dx"),steps,executionContext);
+  MoreAsserts.assertSteps("Do not generate a .dex.jar file.",ImmutableList.of(String.format("rm -f %s",Paths.get("/home/user/").resolve(dexOutput)),String.format("mkdir -p %s",Paths.get("/home/user/").resolve(dexOutput.getParent())),"record_empty_dx"),steps,executionContext);
   verifyAll();
   resetAll();
   replayAll();

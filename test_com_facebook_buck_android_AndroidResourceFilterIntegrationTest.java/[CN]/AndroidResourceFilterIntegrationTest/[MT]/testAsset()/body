@@ -1,13 +1,13 @@
 {
   workspace.enableDirCache();
-  workspace.runBuckBuild("//apps/sample:app").assertSuccess();
-  String apkFilePath=String.format(APK_PATH_FORMAT,"app");
-  Path apkFile=workspace.getPath(apkFilePath);
+  String target="//apps/sample:app";
+  workspace.runBuckBuild(target).assertSuccess();
+  Path apkFile=workspace.getPath(BuildTargets.getGenPath(BuildTargetFactory.newInstance(target),"%s.apk"));
   ZipInspector zipInspector=new ZipInspector(apkFile);
   long firstCrc=zipInspector.getCrc("assets/asset_file.txt");
   workspace.replaceFileContents("res/com/sample/asset_only/assets/asset_file.txt","Hello","Bye");
-  workspace.runBuckBuild("//apps/sample:app").assertSuccess();
-  apkFile=workspace.getPath(apkFilePath);
+  workspace.runBuckBuild(target).assertSuccess();
+  apkFile=workspace.getPath(BuildTargets.getGenPath(BuildTargetFactory.newInstance(target),"%s.apk"));
   zipInspector=new ZipInspector(apkFile);
   long secondCrc=zipInspector.getCrc("assets/asset_file.txt");
   assertNotEquals("Rebuilt APK file must include the new asset file.",firstCrc,secondCrc);

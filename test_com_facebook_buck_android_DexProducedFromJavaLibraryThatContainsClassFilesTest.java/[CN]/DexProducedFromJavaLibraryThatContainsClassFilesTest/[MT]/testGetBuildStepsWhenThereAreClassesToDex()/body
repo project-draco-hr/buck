@@ -6,12 +6,15 @@
     }
   }
 ;
-  javaLibraryRule.setOutputFile("buck-out/gen/foo/bar.jar");
+  Path jarOutput=BuildTargets.getGenPath(javaLibraryRule.getBuildTarget(),"%s.jar");
+  javaLibraryRule.setOutputFile(jarOutput.toString());
   BuildContext context=createMock(BuildContext.class);
   FakeBuildableContext buildableContext=new FakeBuildableContext();
   replayAll();
-  ProjectFilesystem filesystem=FakeProjectFilesystem.createJavaOnlyFilesystem("/home/user");
-  createFiles(filesystem,"buck-out/gen/foo/bar#dex.dex.jar","buck-out/gen/foo/bar.jar");
+  String rootPath="/home/user";
+  ProjectFilesystem filesystem=FakeProjectFilesystem.createJavaOnlyFilesystem(rootPath);
+  Path dexOutput=BuildTargets.getGenPath(javaLibraryRule.getBuildTarget().withFlavors(AndroidBinaryGraphEnhancer.DEX_FLAVOR),"%s.dex.jar");
+  createFiles(filesystem,dexOutput.toString(),jarOutput.toString());
   BuildTarget buildTarget=BuildTargetFactory.newInstance("//foo:bar#dex");
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(buildTarget).setProjectFilesystem(filesystem).build();
   DexProducedFromJavaLibrary preDex=new DexProducedFromJavaLibrary(params,pathResolver,javaLibraryRule);
@@ -22,8 +25,8 @@
   expect(androidPlatformTarget.getDxExecutable()).andReturn(Paths.get("/usr/bin/dx"));
   replayAll();
   ExecutionContext executionContext=TestExecutionContext.newBuilder().setAndroidPlatformTargetSupplier(Suppliers.ofInstance(androidPlatformTarget)).build();
-  String expectedDxCommand=String.format("%s --dex --no-optimize --force-jumbo --output %s %s",Paths.get("/usr/bin/dx"),Paths.get("/home/user/buck-out/gen/foo/bar#dex.dex.jar"),Paths.get("/home/user/buck-out/gen/foo/bar.jar"));
-  MoreAsserts.assertSteps("Generate bar.dex.jar.",ImmutableList.of(String.format("rm -f %s",Paths.get("/home/user/buck-out/gen/foo/bar#dex.dex.jar")),String.format("mkdir -p %s",Paths.get("/home/user/buck-out/gen/foo")),"estimate_linear_alloc","(cd /home/user && " + expectedDxCommand + ")","zip-scrub buck-out/gen/foo/bar#dex.dex.jar","record_dx_success"),steps,executionContext);
+  String expectedDxCommand=String.format("%s --dex --no-optimize --force-jumbo --output %s %s",Paths.get("/usr/bin/dx"),Paths.get(rootPath).resolve(dexOutput),Paths.get(rootPath).resolve(jarOutput));
+  MoreAsserts.assertSteps("Generate bar.dex.jar.",ImmutableList.of(String.format("rm -f %s",Paths.get(rootPath).resolve(dexOutput)),String.format("mkdir -p %s",Paths.get(rootPath).resolve(dexOutput).getParent()),"estimate_linear_alloc","(cd /home/user && " + expectedDxCommand + ")",String.format("zip-scrub %s",dexOutput),"record_dx_success"),steps,executionContext);
   verifyAll();
   resetAll();
   replayAll();

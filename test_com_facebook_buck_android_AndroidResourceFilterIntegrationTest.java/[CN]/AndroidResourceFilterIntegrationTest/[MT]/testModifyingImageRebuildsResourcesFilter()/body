@@ -1,16 +1,17 @@
 {
-  ProjectWorkspace.ProcessResult result=workspace.runBuckBuild("//apps/sample:app_mdpi");
+  String target="//apps/sample:app_mdpi";
+  ProjectWorkspace.ProcessResult result=workspace.runBuckBuild(target);
   result.assertSuccess();
-  Path apkFile=workspace.getPath(String.format(APK_PATH_FORMAT,"app_mdpi"));
+  Path apkFile=workspace.getPath(BuildTargets.getGenPath(BuildTargetFactory.newInstance(target),"%s.apk"));
   String iconPath=isBuildToolsNew ? "res/drawable-mdpi-v4/app_icon.png" : "res/drawable-mdpi/app_icon.png";
   long firstImageCrc=new ZipInspector(apkFile).getCrc(iconPath);
   workspace.copyFile("res/com/sample/base/res/drawable-hdpi/app_icon.png","res/com/sample/base/res/drawable-mdpi/app_icon.png");
   workspace.resetBuildLogFile();
-  result=workspace.runBuckBuild("//apps/sample:app_mdpi");
+  result=workspace.runBuckBuild(target);
   result.assertSuccess();
   BuckBuildLog buildLog=workspace.getBuildLog();
-  buildLog.assertTargetBuiltLocally("//apps/sample:app_mdpi");
-  apkFile=workspace.getPath(String.format(APK_PATH_FORMAT,"app_mdpi"));
+  buildLog.assertTargetBuiltLocally(target);
+  apkFile=workspace.getPath(BuildTargets.getGenPath(BuildTargetFactory.newInstance(target),"%s.apk"));
   long secondImageCrc=new ZipInspector(apkFile).getCrc(iconPath);
   assertNotEquals(firstImageCrc,secondImageCrc);
 }
