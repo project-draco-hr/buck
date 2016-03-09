@@ -1,0 +1,29 @@
+{
+  ImmutableMap<String,ShowOptions> showRulesResult=ImmutableMap.of();
+  if (isShowOutput() || isShowRuleKey() || isShowTargetHash()) {
+    try {
+      showRulesResult=computeShowRules(params,executor);
+    }
+ catch (    NoSuchBuildTargetException e) {
+      throw new HumanReadableException("Error getting rules: %s",e.getHumanReadableErrorMessage());
+    }
+catch (    BuildTargetException|BuildFileParseException e) {
+      params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
+      return 1;
+    }
+    if (!getPrintJson()) {
+      printShowRules(showRulesResult,params);
+      return 0;
+    }
+  }
+  Optional<ImmutableSet<BuildRuleType>> buildRuleTypes=getBuildRuleTypesFromParams(params);
+  if (!buildRuleTypes.isPresent()) {
+    return 1;
+  }
+  Optional<Pair<ImmutableSet<BuildTarget>,TargetGraph>> graphAndTargets=buildTargetGraphAndTargets(params,executor);
+  if (!graphAndTargets.isPresent()) {
+    return 1;
+  }
+  SortedMap<String,TargetNode<?>> matchingNodes=getMatchingNodes(params,graphAndTargets.get().getFirst(),graphAndTargets.get().getSecond(),buildRuleTypes);
+  return printResults(params,executor,matchingNodes,showRulesResult);
+}
