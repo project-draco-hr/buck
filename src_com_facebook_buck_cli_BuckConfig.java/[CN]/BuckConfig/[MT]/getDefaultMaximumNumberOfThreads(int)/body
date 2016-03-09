@@ -1,0 +1,34 @@
+{
+  double ratio=config.getFloat("build","thread_core_ratio").or(DEFAULT_THREAD_CORE_RATIO);
+  if (ratio <= 0.0F) {
+    throw new HumanReadableException("thread_core_ratio must be greater than zero (was " + ratio + ")");
+  }
+  int scaledValue=(int)Math.ceil(ratio * detectedProcessorCount);
+  int threadLimit=detectedProcessorCount;
+  Optional<Long> reservedCores=getNumberOfReservedCores();
+  if (reservedCores.isPresent()) {
+    threadLimit-=reservedCores.get();
+  }
+  if (scaledValue > threadLimit) {
+    scaledValue=threadLimit;
+  }
+  Optional<Long> minThreads=getThreadCoreRatioMinThreads();
+  if (minThreads.isPresent()) {
+    scaledValue=Math.max(scaledValue,minThreads.get().intValue());
+  }
+  Optional<Long> maxThreads=getThreadCoreRatioMaxThreads();
+  if (maxThreads.isPresent()) {
+    long maxThreadsValue=maxThreads.get();
+    if (minThreads.isPresent() && minThreads.get() > maxThreadsValue) {
+      throw new HumanReadableException("thread_core_ratio_max_cores must be larger than thread_core_ratio_min_cores");
+    }
+    if (maxThreadsValue > threadLimit) {
+      throw new HumanReadableException("thread_core_ratio_max_cores is larger than thread_core_ratio_reserved_cores allows");
+    }
+    scaledValue=Math.min(scaledValue,(int)maxThreadsValue);
+  }
+  if (scaledValue <= 0) {
+    throw new HumanReadableException("Configuration resulted in an invalid number of build threads (" + scaledValue + ").");
+  }
+  return scaledValue;
+}
