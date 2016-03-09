@@ -2,20 +2,21 @@
   ListenableFuture<Optional<String>> contentHash=Futures.transformAsync(Futures.<Void>immediateFuture(null),new AsyncFunction<Void,Optional<String>>(){
     @Override public ListenableFuture<Optional<String>> apply(    Void input) throws Exception {
       long fileSize=projectFilesystem.getFileSize(output.getPath());
-      if (fileSize < twoLevelStoreThreshold) {
+      if (!performTwoLevelStores || fileSize < twoLevelStoreThreshold) {
         return Futures.immediateFuture(Optional.<String>absent());
       }
-      String hashCode="2c00" + projectFilesystem.computeSha1(output.getPath());
-      return Futures.transform(delegate.store(ImmutableSet.of(new RuleKey(hashCode)),metadata,output),Functions.constant(Optional.of(hashCode)));
+      String hashCode=projectFilesystem.computeSha1(output.getPath()) + "2c00";
+      return Futures.transform(delegate.store(ImmutableSet.of(new RuleKey(hashCode)),ImmutableMap.<String,String>of(),output),Functions.constant(Optional.of(hashCode)));
     }
   }
 ,listeningExecutorService);
   return Futures.transformAsync(contentHash,new AsyncFunction<Optional<String>,Boolean>(){
-    @Override public ListenableFuture<Boolean> apply(    Optional<String> input) throws Exception {
-      if (!input.isPresent()) {
+    @Override public ListenableFuture<Boolean> apply(    Optional<String> contentHash) throws Exception {
+      if (!contentHash.isPresent()) {
         return Futures.immediateFuture(false);
       }
-      return Futures.transform(delegate.store(ruleKeys,ImmutableMap.of(METADATA_KEY,input.get()),BorrowablePath.notBorrowablePath(emptyFilePath)),Functions.constant(true));
+      ImmutableMap<String,String> metadataWithCacheKey=ImmutableMap.<String,String>builder().putAll(metadata).put(METADATA_KEY,contentHash.get()).build();
+      return Futures.transform(delegate.store(ruleKeys,metadataWithCacheKey,BorrowablePath.notBorrowablePath(emptyFilePath)),Functions.constant(true));
     }
   }
 ,listeningExecutorService);
