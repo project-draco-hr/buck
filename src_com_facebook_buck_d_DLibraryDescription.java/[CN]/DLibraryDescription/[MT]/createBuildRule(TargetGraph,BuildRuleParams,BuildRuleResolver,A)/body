@@ -1,7 +1,12 @@
 {
   SourcePathResolver pathResolver=new SourcePathResolver(buildRuleResolver);
-  if (params.getBuildTarget().getFlavors().contains(CxxDescriptionEnhancer.STATIC_FLAVOR)) {
-    return createStaticLibraryBuildRule(params,buildRuleResolver,pathResolver,dBuckConfig,cxxPlatform,args.srcs,ImmutableList.<String>of(),CxxSourceRuleFactory.PicType.PDC);
+  if (params.getBuildTarget().getFlavors().contains(DDescriptionUtils.SOURCE_LINK_TREE)) {
+    return DDescriptionUtils.createSourceSymlinkTree(params.getBuildTarget(),params,pathResolver,args.srcs);
   }
-  return new DLibrary(params,buildRuleResolver,pathResolver);
+  BuildTarget baseTarget=params.getBuildTarget().withoutFlavors(ImmutableSet.of(cxxPlatform.getFlavor(),CxxDescriptionEnhancer.STATIC_FLAVOR,DDescriptionUtils.SOURCE_LINK_TREE));
+  DIncludes dIncludes=DIncludes.builder().setLinkTree(new BuildTargetSourcePath(DDescriptionUtils.getSymlinkTreeTarget(baseTarget))).setSources(args.srcs.getPaths()).build();
+  if (params.getBuildTarget().getFlavors().contains(CxxDescriptionEnhancer.STATIC_FLAVOR)) {
+    return createStaticLibraryBuildRule(params,buildRuleResolver,pathResolver,cxxPlatform,dBuckConfig,ImmutableList.<String>of(),args.srcs.getPaths(),dIncludes,CxxSourceRuleFactory.PicType.PDC);
+  }
+  return new DLibrary(params,buildRuleResolver,pathResolver,dIncludes);
 }

@@ -1,0 +1,22 @@
+{
+  Optional<BuildRule> existingRule=buildRuleResolver.getRuleOptional(compileTarget);
+  if (existingRule.isPresent()) {
+    return (DCompileBuildRule)existingRule.get();
+  }
+ else {
+    Tool compiler=dBuckConfig.getDCompiler();
+    Map<BuildTarget,DIncludes> transitiveIncludes=new TreeMap<>();
+    transitiveIncludes.put(baseParams.getBuildTarget(),includes);
+    for (    Map.Entry<BuildTarget,DLibrary> library : getTransitiveDLibraryRules(baseParams.getDeps()).entrySet()) {
+      transitiveIncludes.put(library.getKey(),library.getValue().getIncludes());
+    }
+    ImmutableSortedSet.Builder<BuildRule> depsBuilder=ImmutableSortedSet.naturalOrder();
+    depsBuilder.addAll(compiler.getDeps(sourcePathResolver));
+    depsBuilder.addAll(sourcePathResolver.filterBuildRuleInputs(src));
+    for (    DIncludes dIncludes : transitiveIncludes.values()) {
+      depsBuilder.addAll(dIncludes.getDeps(sourcePathResolver));
+    }
+    ImmutableSortedSet<BuildRule> deps=depsBuilder.build();
+    return buildRuleResolver.addToIndex(new DCompileBuildRule(baseParams.copyWithChanges(compileTarget,Suppliers.ofInstance(deps),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),sourcePathResolver,compiler,ImmutableList.<String>builder().addAll(dBuckConfig.getBaseCompilerFlags()).addAll(compilerFlags).build(),ImmutableSortedSet.of(src),ImmutableList.copyOf(transitiveIncludes.values())));
+  }
+}
