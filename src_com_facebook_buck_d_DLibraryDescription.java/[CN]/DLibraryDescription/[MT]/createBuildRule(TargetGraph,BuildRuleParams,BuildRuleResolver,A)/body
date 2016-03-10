@@ -3,9 +3,10 @@
   if (params.getBuildTarget().getFlavors().contains(DDescriptionUtils.SOURCE_LINK_TREE)) {
     return DDescriptionUtils.createSourceSymlinkTree(params.getBuildTarget(),params,pathResolver,args.srcs);
   }
-  BuildTarget baseTarget=params.getBuildTarget().withoutFlavors(ImmutableSet.of(cxxPlatform.getFlavor(),CxxDescriptionEnhancer.STATIC_FLAVOR,DDescriptionUtils.SOURCE_LINK_TREE));
-  DIncludes dIncludes=DIncludes.builder().setLinkTree(new BuildTargetSourcePath(DDescriptionUtils.getSymlinkTreeTarget(baseTarget))).setSources(args.srcs.getPaths()).build();
+  BuildTarget sourceTreeTarget=params.getBuildTarget().withFlavors(DDescriptionUtils.SOURCE_LINK_TREE);
+  DIncludes dIncludes=DIncludes.builder().setLinkTree(new BuildTargetSourcePath(sourceTreeTarget)).setSources(args.srcs.getPaths()).build();
   if (params.getBuildTarget().getFlavors().contains(CxxDescriptionEnhancer.STATIC_FLAVOR)) {
+    buildRuleResolver.requireRule(sourceTreeTarget);
     return createStaticLibraryBuildRule(params,buildRuleResolver,pathResolver,cxxPlatform,dBuckConfig,ImmutableList.<String>of(),args.srcs.getPaths(),dIncludes,CxxSourceRuleFactory.PicType.PDC);
   }
   return new DLibrary(params,buildRuleResolver,pathResolver,dIncludes);
