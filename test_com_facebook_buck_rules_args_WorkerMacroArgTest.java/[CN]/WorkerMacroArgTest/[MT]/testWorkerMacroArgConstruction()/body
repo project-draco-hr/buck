@@ -1,0 +1,13 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  BuildRule shBinaryRule=new ShBinaryBuilder(BuildTargetFactory.newInstance("//:my_exe")).setMain(new FakeSourcePath("bin/exe")).build(resolver);
+  String startupArgs="startupargs";
+  WorkerToolBuilder.newWorkerToolBuilder(BuildTargetFactory.newInstance("//:worker_rule")).setExe(shBinaryRule.getBuildTarget()).setArgs(startupArgs).build(resolver);
+  MacroHandler macroHandler=new MacroHandler(ImmutableMap.<String,MacroExpander>of("worker",new WorkerMacroExpander()));
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildTarget target=BuildTargetFactory.newInstance("//:rule");
+  String jobArgs="jobargs";
+  WorkerMacroArg arg=new WorkerMacroArg(macroHandler,target,TestCellBuilder.createCellRoots(filesystem),resolver,"$(worker //:worker_rule) " + jobArgs);
+  assertThat(arg.getJobArgs(),Matchers.equalTo(jobArgs));
+  assertThat(arg.getStartupArgs(),Matchers.equalTo(startupArgs));
+}

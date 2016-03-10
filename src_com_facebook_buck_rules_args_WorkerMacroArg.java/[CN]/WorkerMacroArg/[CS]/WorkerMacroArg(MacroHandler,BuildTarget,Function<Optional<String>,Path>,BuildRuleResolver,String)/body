@@ -1,0 +1,19 @@
+{
+  super(macroHandler,target,cellNames,resolver,unexpanded);
+  for (  MacroMatchResult matchResult : macroHandler.getMacroMatchResults(unexpanded)) {
+    if (macroHandler.getExpander(matchResult.getMacroType()) instanceof WorkerMacroExpander && matchResult.getStartIndex() != 0) {
+      throw new MacroException(String.format("the worker macro in \"%s\" must be at the beginning",unexpanded));
+    }
+  }
+  ImmutableList<BuildTarget> targets=macroHandler.extractParseTimeDeps(target,cellNames,unexpanded);
+  if (targets.size() < 1) {
+    throw new MacroException(String.format("Unable to extract any build targets for the macros " + "used in \"%s\" of target %s",unexpanded,target));
+  }
+  BuildRule workerTool=resolver.getRule(targets.get(0));
+  if (!(workerTool instanceof WorkerTool)) {
+    throw new MacroException(String.format("%s used in worker macro, \"%s\", of target %s does " + "not correspond to a worker_tool",targets.get(0),unexpanded,target));
+  }
+  this.workerTool=(WorkerTool)workerTool;
+  startupCommand=this.workerTool.getBinaryBuildRule().getExecutableCommand().getCommandPrefix(new SourcePathResolver(resolver));
+  jobArgs=macroHandler.expand(target,cellNames,resolver,unexpanded).trim();
+}

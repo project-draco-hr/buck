@@ -1,0 +1,12 @@
+{
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  BuildRule genrule=createGenruleBuilderThatUsesWorkerMacro(ruleResolver).build(ruleResolver);
+  List<Step> steps=genrule.getBuildSteps(null,new FakeBuildableContext());
+  ExecutionContext executionContext=newEmptyExecutionContext(Platform.LINUX);
+  assertEquals(5,steps.size());
+  Step fifthStep=steps.get(4);
+  assertTrue(fifthStep instanceof WorkerShellStep);
+  WorkerShellStep workerShellStep=(WorkerShellStep)fifthStep;
+  assertThat(workerShellStep.getShortName(),Matchers.equalTo("worker"));
+  assertThat(workerShellStep.getEnvironmentVariables(executionContext),Matchers.hasEntry("OUT",new FakeProjectFilesystem().resolve(GEN_DIR + "/genrule_with_worker/output.txt").toString()));
+}

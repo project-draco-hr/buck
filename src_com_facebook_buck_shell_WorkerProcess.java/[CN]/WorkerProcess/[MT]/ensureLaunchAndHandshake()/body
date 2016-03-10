@@ -1,0 +1,16 @@
+{
+  if (handshakePerformed) {
+    return;
+  }
+  LOG.debug("Starting up process %d using command: \'%s\'",this.hashCode(),Joiner.on(' ').join(processParams.getCommand()));
+  ProcessExecutor.LaunchedProcess launchedProcess=executor.launchProcess(processParams);
+  JsonWriter processStdinWriter=new JsonWriter(new BufferedWriter(new OutputStreamWriter(launchedProcess.getOutputStream())));
+  JsonReader processStdoutReader=new JsonReader(new BufferedReader(new InputStreamReader(launchedProcess.getInputStream())));
+  protocol=new WorkerProcessProtocolZero(executor,launchedProcess,processStdinWriter,processStdoutReader);
+  int messageID=currentMessageID.getAndAdd(1);
+  LOG.debug("Sending handshake to process %d",this.hashCode());
+  protocol.sendHandshake(messageID);
+  LOG.debug("Receiving handshake from process %d",this.hashCode());
+  protocol.receiveHandshake(messageID);
+  handshakePerformed=true;
+}

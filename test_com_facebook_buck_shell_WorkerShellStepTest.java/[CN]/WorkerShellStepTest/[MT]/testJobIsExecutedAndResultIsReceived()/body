@@ -1,0 +1,22 @@
+{
+  WorkerShellStep step=createXargsShellStep(createJobParams(ImmutableList.of("startupCommand"),"startupArgs","myJobArgs"),null,null);
+  WorkerJobResult jobResult=WorkerJobResult.of(0,Optional.of("my stdout"),Optional.of("my stderr"));
+  WorkerProcess workerProcess=new FakeWorkerProcess(ImmutableMap.of("myJobArgs",jobResult));
+  ConcurrentHashMap<String,WorkerProcess> workerProcessMap=new ConcurrentHashMap<>();
+  workerProcessMap.put("/bin/bash -e startupCommand startupArgs",workerProcess);
+  BuckEventBus eventBus=BuckEventBusFactory.newInstance();
+  FakeBuckEventListener listener=new FakeBuckEventListener();
+  eventBus.register(listener);
+  Console console=new TestConsole(Verbosity.ALL);
+  ExecutionContext context=TestExecutionContext.newBuilder().setPlatform(Platform.LINUX).setWorkerProcesses(workerProcessMap).setConsole(console).setEventBus(eventBus).build();
+  int exitCode=step.execute(context);
+  assertThat(exitCode,Matchers.equalTo(0));
+  BuckEvent firstEvent=listener.getEvents().get(0);
+  assertTrue(firstEvent instanceof ConsoleEvent);
+  assertThat(((ConsoleEvent)firstEvent).getLevel(),Matchers.is(Level.INFO));
+  assertThat(((ConsoleEvent)firstEvent).getMessage(),Matchers.is("my stdout"));
+  BuckEvent secondEvent=listener.getEvents().get(1);
+  assertTrue(secondEvent instanceof ConsoleEvent);
+  assertThat(((ConsoleEvent)secondEvent).getLevel(),Matchers.is(Level.WARNING));
+  assertThat(((ConsoleEvent)secondEvent).getMessage(),Matchers.is("my stderr"));
+}

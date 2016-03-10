@@ -1,0 +1,13 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  BuildRule nonWorkerBuildRule=new FakeBuildRule(BuildTargetFactory.newInstance("//:not_worker_rule"),new SourcePathResolver(resolver));
+  resolver.addToIndex(nonWorkerBuildRule);
+  MacroHandler macroHandler=new MacroHandler(ImmutableMap.<String,MacroExpander>of("worker",new WorkerMacroExpander()));
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  try {
+    new WorkerMacroArg(macroHandler,BuildTargetFactory.newInstance("//:rule"),TestCellBuilder.createCellRoots(filesystem),resolver,"$(worker //:not_worker_rule)");
+  }
+ catch (  MacroException e) {
+    assertThat(e.getMessage(),Matchers.containsString("does not correspond to a worker_tool"));
+  }
+}
