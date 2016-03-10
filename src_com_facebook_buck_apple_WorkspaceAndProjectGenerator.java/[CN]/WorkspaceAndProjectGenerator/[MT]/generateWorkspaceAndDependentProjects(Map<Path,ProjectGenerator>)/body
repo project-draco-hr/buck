@@ -28,7 +28,7 @@
   Optional<BuildTarget> targetToBuildWithBuck=getTargetToBuildWithBuck();
   if (combinedProject) {
     LOG.debug("Generating a combined project");
-    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,rootCell.getFilesystem(),outputDirectory.getParent(),workspaceName,buildFileName,projectGeneratorOptions,targetToBuildWithBuck,buildWithBuckFlags,executableFinder,environment,cxxPlatforms,defaultCxxPlatform,sourcePathResolverForNode,buckEventBus,attemptToDetermineBestCxxPlatform,halideBuckConfig,cxxBuckConfig).setAdditionalCombinedTestTargets(groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
+    ProjectGenerator generator=new ProjectGenerator(projectGraph,targetsInRequiredProjects,rootCell,outputDirectory.getParent(),workspaceName,buildFileName,projectGeneratorOptions,targetToBuildWithBuck,buildWithBuckFlags,executableFinder,environment,cxxPlatforms,defaultCxxPlatform,sourcePathResolverForNode,buckEventBus,attemptToDetermineBestCxxPlatform,halideBuckConfig,cxxBuckConfig).setAdditionalCombinedTestTargets(groupedTests).setTestsToGenerateAsStaticLibraries(groupableTests);
     combinedProjectGenerator=Optional.of(generator);
     generator.createXcodeProjects();
     workspaceGenerator.addFilePath(generator.getProjectPath(),Optional.<Path>absent());
@@ -56,7 +56,6 @@
         projectDirectoryToBuildTargetsBuilder.put(buildTarget.getBasePath(),buildTarget);
       }
       ImmutableMultimap<Path,BuildTarget> projectDirectoryToBuildTargets=projectDirectoryToBuildTargetsBuilder.build();
-      ProjectFilesystem targetFilesystem=projectCell.getFilesystem();
       Path relativeTargetCell=rootCell.getRoot().relativize(projectCell.getRoot());
       for (      Path projectDirectory : projectDirectoryToBuildTargets.keySet()) {
         final ImmutableSet<BuildTarget> rules=filterRulesForProjectDirectory(projectGraph,ImmutableSet.copyOf(projectDirectoryToBuildTargets.get(projectDirectory)));
@@ -73,7 +72,7 @@
  else {
             projectName=projectDirectory.getFileName().toString();
           }
-          generator=new ProjectGenerator(projectGraph,rules,targetFilesystem,projectDirectory,projectName,buildFileName,projectGeneratorOptions,Optionals.bind(targetToBuildWithBuck,new Function<BuildTarget,Optional<BuildTarget>>(){
+          generator=new ProjectGenerator(projectGraph,rules,projectCell,projectDirectory,projectName,buildFileName,projectGeneratorOptions,Optionals.bind(targetToBuildWithBuck,new Function<BuildTarget,Optional<BuildTarget>>(){
             @Override public Optional<BuildTarget> apply(            BuildTarget input){
               return rules.contains(input) ? Optional.of(input) : Optional.<BuildTarget>absent();
             }
@@ -94,7 +93,7 @@
       }
     }
     if (!groupedTests.isEmpty()) {
-      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),rootCell.getFilesystem(),BuildTargets.getGenPath(workspaceBuildTarget,"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions,Optional.<BuildTarget>absent(),buildWithBuckFlags,executableFinder,environment,cxxPlatforms,defaultCxxPlatform,sourcePathResolverForNode,buckEventBus,attemptToDetermineBestCxxPlatform,halideBuckConfig,cxxBuckConfig);
+      ProjectGenerator combinedTestsProjectGenerator=new ProjectGenerator(projectGraph,ImmutableSortedSet.<BuildTarget>of(),rootCell,BuildTargets.getGenPath(workspaceBuildTarget,"%s-CombinedTestBundles"),"_CombinedTestBundles",buildFileName,projectGeneratorOptions,Optional.<BuildTarget>absent(),buildWithBuckFlags,executableFinder,environment,cxxPlatforms,defaultCxxPlatform,sourcePathResolverForNode,buckEventBus,attemptToDetermineBestCxxPlatform,halideBuckConfig,cxxBuckConfig);
       combinedTestsProjectGenerator.setAdditionalCombinedTestTargets(groupedTests).createXcodeProjects();
       workspaceGenerator.addFilePath(combinedTestsProjectGenerator.getProjectPath());
       requiredBuildTargetsBuilder.addAll(combinedTestsProjectGenerator.getRequiredBuildTargets());

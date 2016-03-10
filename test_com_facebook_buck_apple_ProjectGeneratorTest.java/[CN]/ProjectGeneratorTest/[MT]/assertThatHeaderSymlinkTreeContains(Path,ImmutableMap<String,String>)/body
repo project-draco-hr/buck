@@ -1,10 +1,4 @@
 {
-  for (  Map.Entry<String,String> entry : content.entrySet()) {
-    Path link=root.resolve(Paths.get(entry.getKey()));
-    Path target=Paths.get(entry.getValue()).toAbsolutePath();
-    assertTrue(projectFilesystem.isSymLink(link));
-    assertEquals(target,projectFilesystem.readSymLink(link));
-  }
   byte[] headerMapBytes;
   try (InputStream headerMapInputStream=projectFilesystem.newFileInputStream(root.resolve(".tree.hmap"))){
     headerMapBytes=ByteStreams.toByteArray(headerMapInputStream);
@@ -12,7 +6,12 @@
    HeaderMap headerMap=HeaderMap.deserialize(headerMapBytes);
   assertNotNull(headerMap);
   assertThat(headerMap.getNumEntries(),equalTo(content.size()));
-  for (  String key : content.keySet()) {
-    assertThat(headerMap.lookup(key),equalTo(BuckConstant.BUCK_OUTPUT_PATH.relativize(root).resolve(key).toString()));
+  for (  Map.Entry<String,String> entry : content.entrySet()) {
+    String key=entry.getKey();
+    Path link=root.resolve(Paths.get(key));
+    Path target=Paths.get(entry.getValue()).toAbsolutePath();
+    assertTrue(projectFilesystem.isSymLink(link));
+    assertEquals(target,projectFilesystem.readSymLink(link));
+    assertThat(headerMap.lookup(key),equalTo(Paths.get("../../").resolve(projectCell.getRoot().getFileName()).resolve(link).toString()));
   }
 }
