@@ -1,54 +1,11 @@
 {
   LOG.debug("Getting target hash for %s",matchingBuildTargets);
-  Iterable<BuildTarget> matchingBuildTargetsWithTests;
-  final TargetGraph targetGraphWithTests;
-  if (isDetectTestChanges()) {
-    ImmutableSet<BuildTarget> explicitTestTargets;
-    explicitTestTargets=TargetGraphAndTargets.getExplicitTestTargets(matchingBuildTargets,targetGraph,true);
-    LOG.debug("Got explicit test targets: %s",explicitTestTargets);
-    matchingBuildTargetsWithTests=Sets.union(matchingBuildTargets,explicitTestTargets);
-    targetGraphWithTests=params.getParser().buildTargetGraph(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),executor,matchingBuildTargetsWithTests);
+  Pair<Iterable<BuildTarget>,TargetGraph> targetsAndGraph=computeTargetsAndGraphToShowTargetHash(params,executor,matchingBuildTargets,targetGraph);
+  Iterable<BuildTarget> matchingBuildTargetsWithTests=targetsAndGraph.getFirst();
+  TargetGraph targetGraphWithTests=targetsAndGraph.getSecond();
+  FileHashLoader fileHashLoader=createOrGetFileHashLoader(params);
+  ImmutableMap<BuildTarget,HashCode> buildTargetHashes=TargetGraphHashing.hashTargetGraph(params.getCell(),targetGraphWithTests,fileHashLoader,matchingBuildTargetsWithTests);
+  for (  BuildTarget target : matchingBuildTargets) {
+    processTargetHash(targetGraphWithTests,target,buildTargetHashes,showRulesResult);
   }
- else {
-    matchingBuildTargetsWithTests=matchingBuildTargets;
-    targetGraphWithTests=targetGraph;
-  }
-  TargetHashFileMode targetHashFileMode=getTargetHashFileMode();
-  FileHashLoader fileHashLoader=null;
-switch (targetHashFileMode) {
-case PATHS_AND_CONTENTS:
-    fileHashLoader=params.getFileHashCache();
-  break;
-case PATHS_ONLY:
-fileHashLoader=new FilePathHashLoader(params.getCell().getRoot(),getTargetHashModifiedPaths());
-break;
-}
-if (fileHashLoader == null) {
-throw new IllegalStateException("Invalid value for target hash file mode: " + targetHashFileMode);
-}
-ImmutableMap<BuildTarget,HashCode> buildTargetHashes=TargetGraphHashing.hashTargetGraph(params.getCell(),targetGraphWithTests,fileHashLoader,matchingBuildTargetsWithTests);
-for (BuildTarget target : matchingBuildTargets) {
-TargetNode<?> targetNode=targetGraphWithTests.get(target);
-ImmutableSet<TargetNode<?>> dependencyClosure=getDependencyClosure(targetGraphWithTests,targetNode);
-Hasher hasher=Hashing.sha1().newHasher();
-ImmutableSortedSet.Builder<TargetNode<?>> nodesWithDepsAndTests=ImmutableSortedSet.naturalOrder();
-nodesWithDepsAndTests.addAll(dependencyClosure);
-if (isDetectTestChanges()) {
-nodesWithDepsAndTests.addAll(FluentIterable.from(dependencyClosure).transformAndConcat(new Function<TargetNode<?>,Iterable<TargetNode<?>>>(){
-@Override public Iterable<TargetNode<?>> apply(TargetNode<?> node){
-  return targetGraphWithTests.getAll(TargetNodes.getTestTargetsForNode(node));
-}
-}
-));
-}
-LOG.debug("Hashing target %s with dependent nodes %s",target,nodesWithDepsAndTests.build());
-for (TargetNode<?> nodeToHash : nodesWithDepsAndTests.build()) {
-HashCode dependencyHash=buildTargetHashes.get(nodeToHash.getBuildTarget());
-Preconditions.checkNotNull(dependencyHash,"Couldn't get hash for node: %s",nodeToHash);
-hasher.putBytes(dependencyHash.asBytes());
-}
-ShowOptions.Builder showOptionsBuilder=getShowOptionBuilder(showRulesResult,target);
-String hash=hasher.hash().toString();
-showOptionsBuilder.setTargetHash(hash);
-}
 }
