@@ -24,7 +24,7 @@
   Tool clangPath=new VersionedTool(getToolPath("clang",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-clang",version);
   Tool clangXxPath=new VersionedTool(getToolPath("clang++",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-clang++",version);
   Tool ar=new VersionedTool(getToolPath("ar",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-ar",version);
-  Tool ranlib=new VersionedTool(getToolPath("ranlib",toolSearchPaths,executableFinder),ImmutableList.<String>of("-s"),"apple-ranlib",version);
+  Tool ranlib=new VersionedTool(getToolPath("ranlib",toolSearchPaths,executableFinder),ImmutableList.of("-s"),"apple-ranlib",version);
   Tool strip=new VersionedTool(getToolPath("strip",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-strip",version);
   Tool nm=new VersionedTool(getToolPath("nm",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-nm",version);
   Tool actool=new VersionedTool(getToolPath("actool",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-actool",version);
@@ -65,7 +65,13 @@
  catch (  Exception e) {
     buildVersion=Optional.absent();
   }
-  CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,config,new DefaultCompiler(clangPath),new DefaultPreprocessor(clangPath),Suppliers.<Compiler>ofInstance(new ClangCompiler(clangPath)),Suppliers.<Compiler>ofInstance(new ClangCompiler(clangXxPath)),Suppliers.<Preprocessor>ofInstance(new ClangPreprocessor(clangPath)),Suppliers.<Preprocessor>ofInstance(new ClangPreprocessor(clangXxPath)),new DarwinLinker(clangXxPath),ImmutableList.<String>builder().addAll(cflags).addAll(ldflags).build(),strip,new BsdArchiver(ar),ranlib,nm,asflags,ImmutableList.<String>of(),cflags,ImmutableList.<String>of(),"dylib","%s.dylib",Optional.of(debugPathSanitizer),macros);
+  PreprocessorProvider aspp=new PreprocessorProvider(new ConstantToolProvider(clangPath),CxxToolProvider.Type.DEFAULT);
+  CompilerProvider as=new CompilerProvider(new ConstantToolProvider(clangPath),CxxToolProvider.Type.DEFAULT);
+  PreprocessorProvider cpp=new PreprocessorProvider(new ConstantToolProvider(clangPath),CxxToolProvider.Type.CLANG);
+  CompilerProvider cc=new CompilerProvider(new ConstantToolProvider(clangPath),CxxToolProvider.Type.CLANG);
+  PreprocessorProvider cxxpp=new PreprocessorProvider(new ConstantToolProvider(clangXxPath),CxxToolProvider.Type.CLANG);
+  CompilerProvider cxx=new CompilerProvider(new ConstantToolProvider(clangXxPath),CxxToolProvider.Type.CLANG);
+  CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,config,as,aspp,cc,cxx,cpp,cxxpp,new DarwinLinker(clangXxPath),ImmutableList.<String>builder().addAll(cflags).addAll(ldflags).build(),strip,new BsdArchiver(ar),ranlib,nm,asflags,ImmutableList.<String>of(),cflags,ImmutableList.<String>of(),"dylib","%s.dylib",Optional.of(debugPathSanitizer),macros);
   ApplePlatform platform=targetSdk.getApplePlatform();
   ImmutableList<String> swiftParams=ImmutableList.of("-frontend","-sdk",sdkPaths.getSdkPath().toString(),"-target",targetArchitecture + "-apple-" + platform.getSwiftName().or(platform.getName())+ targetSdk.getVersion());
   ImmutableList<String> swiftStdlibToolParams=ImmutableList.of("--copy","--verbose","--strip-bitcode","--platform",platform.getName());

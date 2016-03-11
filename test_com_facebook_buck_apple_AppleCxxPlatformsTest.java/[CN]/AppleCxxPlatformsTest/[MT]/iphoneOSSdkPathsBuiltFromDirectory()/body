@@ -5,7 +5,8 @@
   ImmutableSet<Path> paths=ImmutableSet.<Path>builder().add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/dsymutil")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/strip")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/nm")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/codesign_allocate")).add(Paths.get("Platforms/iPhoneOS.platform/Developer/usr/bin/libtool")).add(Paths.get("Platforms/iPhoneOS.platform/Developer/usr/bin/ar")).add(Paths.get("usr/bin/actool")).add(Paths.get("usr/bin/ibtool")).add(Paths.get("usr/bin/lldb")).add(Paths.get("usr/bin/xctest")).add(Paths.get("Tools/otest")).build();
   AppleCxxPlatform appleCxxPlatform=AppleCxxPlatforms.buildWithExecutableChecker(targetSdk,"7.0","armv7",appleSdkPaths,FakeBuckConfig.builder().build(),new FakeExecutableFinder(paths));
   CxxPlatform cxxPlatform=appleCxxPlatform.getCxxPlatform();
-  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver resolver=new SourcePathResolver(ruleResolver);
   assertEquals(ImmutableList.of("usr/bin/actool"),appleCxxPlatform.getActool().getCommandPrefix(resolver));
   assertEquals(ImmutableList.of("usr/bin/ibtool"),appleCxxPlatform.getIbtool().getCommandPrefix(resolver));
   assertEquals(ImmutableList.of("usr/bin/lldb"),appleCxxPlatform.getLldb().getCommandPrefix(resolver));
@@ -15,12 +16,12 @@
   assertThat(appleCxxPlatform.getOtest().isPresent(),is(true));
   assertEquals(ImmutableList.of("Tools/otest"),appleCxxPlatform.getOtest().get().getCommandPrefix(resolver));
   assertEquals(ImmutableFlavor.of("iphoneos8.0-armv7"),cxxPlatform.getFlavor());
-  assertEquals(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang").toString(),cxxPlatform.getCc().getCommandPrefix(resolver).get(0));
-  assertThat(ImmutableList.<String>builder().addAll(cxxPlatform.getCc().getCommandPrefix(resolver)).addAll(cxxPlatform.getCflags()).build(),hasConsecutiveItems("-isysroot",Paths.get("Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS8.0.sdk").toString()));
+  assertEquals(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang").toString(),cxxPlatform.getCc().resolve(ruleResolver).getCommandPrefix(resolver).get(0));
+  assertThat(ImmutableList.<String>builder().addAll(cxxPlatform.getCc().resolve(ruleResolver).getCommandPrefix(resolver)).addAll(cxxPlatform.getCflags()).build(),hasConsecutiveItems("-isysroot",Paths.get("Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS8.0.sdk").toString()));
   assertThat(cxxPlatform.getCflags(),hasConsecutiveItems("-arch","armv7"));
   assertThat(cxxPlatform.getAsflags(),hasConsecutiveItems("-arch","armv7"));
   assertThat(cxxPlatform.getCflags(),hasConsecutiveItems("-mios-version-min=7.0"));
   assertThat(cxxPlatform.getLdflags(),hasConsecutiveItems("-Wl,-sdk_version","-Wl,8.0"));
-  assertEquals(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++").toString(),cxxPlatform.getCxx().getCommandPrefix(resolver).get(0));
+  assertEquals(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++").toString(),cxxPlatform.getCxx().resolve(ruleResolver).getCommandPrefix(resolver).get(0));
   assertEquals(Paths.get("Platforms/iPhoneOS.platform/Developer/usr/bin/ar").toString(),cxxPlatform.getAr().getCommandPrefix(resolver).get(0));
 }

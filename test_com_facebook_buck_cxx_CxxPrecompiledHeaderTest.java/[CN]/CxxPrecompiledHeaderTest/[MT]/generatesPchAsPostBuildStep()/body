@@ -2,8 +2,14 @@
   BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
   BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  Preprocessor preprocessorSupportingPch=new DefaultPreprocessor(CxxPlatformUtils.DEFAULT_PLATFORM.getCpp().resolve(resolver)){
+    @Override public boolean supportsPrecompiledHeaders(){
+      return true;
+    }
+  }
+;
   SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
-  CxxPrecompiledHeader precompiledHeader=new CxxPrecompiledHeader(params,sourcePathResolver,Paths.get("foo.pch"),new PreprocessorDelegate(sourcePathResolver,CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER,Paths.get("./"),PREPROCESSOR_SUPPORTING_PCH,PreprocessorFlags.builder().build(),CxxDescriptionEnhancer.frameworkPathToSearchPath(DEFAULT_PLATFORM,sourcePathResolver),ImmutableList.<CxxHeaders>of()),new FakeSourcePath("foo.h"),CxxSource.Type.C,CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER);
+  CxxPrecompiledHeader precompiledHeader=new CxxPrecompiledHeader(params,sourcePathResolver,Paths.get("foo.pch"),new PreprocessorDelegate(sourcePathResolver,CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER,Paths.get("./"),preprocessorSupportingPch,PreprocessorFlags.builder().build(),CxxDescriptionEnhancer.frameworkPathToSearchPath(CxxPlatformUtils.DEFAULT_PLATFORM,sourcePathResolver),ImmutableList.<CxxHeaders>of()),new FakeSourcePath("foo.h"),CxxSource.Type.C,CxxPlatforms.DEFAULT_DEBUG_PATH_SANITIZER);
   ImmutableList<Step> steps=precompiledHeader.getBuildSteps(FakeBuildContext.NOOP_CONTEXT,new FakeBuildableContext());
   assertThat("Nothing should be done for cachable steps",steps,empty());
   ImmutableList<Step> postBuildSteps=precompiledHeader.getPostBuildSteps(FakeBuildContext.NOOP_CONTEXT,new FakeBuildableContext());

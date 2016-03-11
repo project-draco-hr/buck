@@ -5,18 +5,19 @@
   ImmutableSet<Path> paths=ImmutableSet.<Path>builder().add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/dsymutil")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/lipo")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/ranlib")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/strip")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/nm")).add(Paths.get("Platforms/WatchOS.platform/Developer/usr/bin/libtool")).add(Paths.get("Platforms/WatchOS.platform/Developer/usr/bin/ar")).add(Paths.get("usr/bin/actool")).add(Paths.get("usr/bin/ibtool")).add(Paths.get("usr/bin/lldb")).add(Paths.get("usr/bin/xctest")).build();
   AppleCxxPlatform appleCxxPlatform=AppleCxxPlatforms.buildWithExecutableChecker(targetSdk,"2.0","armv7k",appleSdkPaths,FakeBuckConfig.builder().build(),new FakeExecutableFinder(paths));
   CxxPlatform cxxPlatform=appleCxxPlatform.getCxxPlatform();
-  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver resolver=new SourcePathResolver(ruleResolver);
   assertEquals(ImmutableList.of("usr/bin/actool"),appleCxxPlatform.getActool().getCommandPrefix(resolver));
   assertEquals(ImmutableList.of("usr/bin/ibtool"),appleCxxPlatform.getIbtool().getCommandPrefix(resolver));
   assertEquals(ImmutableList.of("usr/bin/lldb"),appleCxxPlatform.getLldb().getCommandPrefix(resolver));
   assertEquals(ImmutableList.of("Toolchains/XcodeDefault.xctoolchain/usr/bin/dsymutil"),appleCxxPlatform.getDsymutil().getCommandPrefix(resolver));
   assertEquals(ImmutableList.of("usr/bin/xctest"),appleCxxPlatform.getXctest().getCommandPrefix(resolver));
   assertEquals(ImmutableFlavor.of("watchos2.0-armv7k"),cxxPlatform.getFlavor());
-  assertEquals(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang").toString(),cxxPlatform.getCc().getCommandPrefix(resolver).get(0));
-  assertThat(ImmutableList.<String>builder().addAll(cxxPlatform.getCc().getCommandPrefix(resolver)).addAll(cxxPlatform.getCflags()).build(),hasConsecutiveItems("-isysroot",Paths.get("Platforms/WatchOS.platform/Developer/SDKs/WatchOS2.0.sdk").toString()));
+  assertEquals(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang").toString(),cxxPlatform.getCc().resolve(ruleResolver).getCommandPrefix(resolver).get(0));
+  assertThat(ImmutableList.<String>builder().addAll(cxxPlatform.getCc().resolve(ruleResolver).getCommandPrefix(resolver)).addAll(cxxPlatform.getCflags()).build(),hasConsecutiveItems("-isysroot",Paths.get("Platforms/WatchOS.platform/Developer/SDKs/WatchOS2.0.sdk").toString()));
   assertThat(cxxPlatform.getCflags(),hasConsecutiveItems("-arch","armv7k"));
   assertThat(cxxPlatform.getCflags(),hasConsecutiveItems("-mwatchos-version-min=2.0"));
   assertThat(cxxPlatform.getLdflags(),hasConsecutiveItems("-Wl,-sdk_version","-Wl,2.0"));
-  assertEquals(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++").toString(),cxxPlatform.getCxx().getCommandPrefix(resolver).get(0));
+  assertEquals(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/clang++").toString(),cxxPlatform.getCxx().resolve(ruleResolver).getCommandPrefix(resolver).get(0));
   assertEquals(Paths.get("Platforms/WatchOS.platform/Developer/usr/bin/ar").toString(),cxxPlatform.getAr().getCommandPrefix(resolver).get(0));
 }

@@ -1,21 +1,7 @@
 {
-  Optional<String> value=getValue(section,field);
-  if (!value.isPresent()) {
+  Optional<ToolProvider> provider=getToolProvider(section,field);
+  if (!provider.isPresent()) {
     return Optional.absent();
   }
-  Optional<BuildTarget> target=getMaybeBuildTarget(section,field);
-  if (target.isPresent()) {
-    Optional<BuildRule> rule=resolver.getRuleOptional(target.get());
-    if (!rule.isPresent()) {
-      throw new HumanReadableException("[%s] %s: no rule found for %s",section,field,target.get());
-    }
-    if (!(rule.get() instanceof BinaryBuildRule)) {
-      throw new HumanReadableException("[%s] %s: %s must be an executable rule",section,field,target.get());
-    }
-    return Optional.of(((BinaryBuildRule)rule.get()).getExecutableCommand());
-  }
- else {
-    checkPathExists(value.get(),String.format("Overridden %s:%s path not found: ",section,field));
-    return Optional.<Tool>of(new HashedFileTool(getPathFromVfs(value.get())));
-  }
+  return Optional.of(provider.get().resolve(resolver));
 }
