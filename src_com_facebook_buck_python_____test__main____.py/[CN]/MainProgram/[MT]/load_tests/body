@@ -1,6 +1,14 @@
 def load_tests(self):
     loader = self.create_loader()
+    if self.options.collect_coverage:
+        self.start_coverage()
+        patterns = self.options.coverage_include.split(',')
+        if (patterns and ('*' not in patterns)):
+            sys.meta_path.append(CoverageToggleImportFinder(patterns, self.cov))
     if self.test_args:
-        return loader.load_args(self.test_args)
+        suite = loader.load_args(self.test_args)
     else:
-        return loader.load_all()
+        suite = loader.load_all()
+    if self.options.collect_coverage:
+        self.cov.start()
+    return suite
