@@ -2,11 +2,13 @@
   assumeTrue(Platform.detect() == Platform.MACOS);
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_extension",tmp);
   workspace.setUp();
-  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("targets","--show-output","//:DemoExtension#no-debug");
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoExtension#no-debug");
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("targets","--show-output",target.getFullyQualifiedName());
   result.assertSuccess();
-  assertEquals("//:DemoExtension#no-debug buck-out/gen/DemoExtension#no-debug,no-include-frameworks/" + "DemoExtension.appex",result.getStdout().trim());
-  result=workspace.runBuckCommand("build","//:DemoExtension#no-debug");
+  Path extensionPath=BuildTargets.getGenPath(BuildTarget.builder(target).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".appex");
+  assertEquals(String.format("%s %s",target.getFullyQualifiedName(),extensionPath),result.getStdout().trim());
+  result=workspace.runBuckCommand("build",target.getFullyQualifiedName());
   result.assertSuccess();
-  Path outputBinary=tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoExtension#no-debug,no-include-frameworks/DemoExtension.appex/DemoExtension");
+  Path outputBinary=workspace.getPath(extensionPath.resolve(target.getShortName()));
   assertTrue(String.format("Extension binary could not be found inside the appex dir [%s].",outputBinary),Files.exists(outputBinary));
 }

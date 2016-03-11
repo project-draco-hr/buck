@@ -2,7 +2,9 @@
   assumeTrue(Platform.detect() == Platform.MACOS);
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_application_bundle_no_debug",tmp);
   workspace.setUp();
-  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("targets","--show-output","//:DemoApp#no-debug");
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoApp#no-debug");
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("targets","--show-output",target.getFullyQualifiedName());
   result.assertSuccess();
-  assertEquals("//:DemoApp#no-debug buck-out/gen/DemoApp#no-debug,no-include-frameworks/DemoApp.app",result.getStdout().trim());
+  Path appPath=BuildTargets.getGenPath(BuildTarget.builder(target).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".app");
+  assertEquals(String.format("%s %s",target.getFullyQualifiedName(),appPath),result.getStdout().trim());
 }

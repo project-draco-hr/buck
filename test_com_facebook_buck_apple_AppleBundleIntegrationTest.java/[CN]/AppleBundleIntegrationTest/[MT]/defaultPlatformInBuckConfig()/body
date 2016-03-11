@@ -2,7 +2,9 @@
   assumeTrue(Platform.detect() == Platform.MACOS);
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"default_platform_in_buckconfig_app_bundle",tmp);
   workspace.setUp();
-  workspace.runBuckCommand("build","//:DemoApp").assertSuccess();
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoApp");
+  workspace.runBuckCommand("build",target.getFullyQualifiedName()).assertSuccess();
   workspace.verify();
-  assertTrue(Files.exists(tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoApp#no-debug,no-include-frameworks/DemoApp.app/DemoApp")));
+  Path appPath=BuildTargets.getGenPath(BuildTarget.builder(target).addFlavors(AppleDebugFormat.NONE.getFlavor()).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".app");
+  assertTrue(Files.exists(workspace.getPath(appPath.resolve(target.getShortName()))));
 }

@@ -2,7 +2,9 @@
   assumeTrue(Platform.detect() == Platform.MACOS);
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"app_bundle_with_xib_and_storyboard",tmp);
   workspace.setUp();
-  workspace.runBuckCommand("build","//:DemoApp#iphonesimulator-x86_64,no-debug").assertSuccess();
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoApp#iphonesimulator-x86_64,no-debug");
+  workspace.runBuckCommand("build",target.getFullyQualifiedName()).assertSuccess();
   workspace.verify();
-  assertTrue(Files.exists(tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoApp#iphonesimulator-x86_64,no-debug,no-include-frameworks/DemoApp.app/" + "AppViewController.nib")));
+  Path appPath=BuildTargets.getGenPath(BuildTarget.builder(target).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".app");
+  assertTrue(Files.exists(workspace.getPath(appPath.resolve("AppViewController.nib"))));
 }

@@ -1,13 +1,16 @@
 {
   assumeTrue(Platform.detect() == Platform.MACOS);
-  Path genDir=tmp.getRootPath().relativize(tmp.getRootPath().resolve(BuckConstant.GEN_DIR));
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_application_bundle_no_debug",tmp);
   workspace.setUp();
   ProjectWorkspace.ProcessResult result;
-  result=workspace.runBuckCommand("targets","--show-output","//:DemoApp#no-debug");
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoApp#no-debug");
+  result=workspace.runBuckCommand("targets","--show-output",target.getFullyQualifiedName());
   result.assertSuccess();
-  assertThat(result.getStdout(),Matchers.startsWith("//:DemoApp#no-debug " + genDir.resolve("DemoApp#no-debug,no-include-frameworks/DemoApp.app").toString()));
-  result=workspace.runBuckCommand("targets","--show-output","//:DemoApp#dwarf-and-dsym");
+  Path appPath=BuildTargets.getGenPath(BuildTarget.builder(target).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".app");
+  assertThat(result.getStdout(),Matchers.startsWith(target.getFullyQualifiedName() + " " + appPath.toString()));
+  target=BuildTargetFactory.newInstance("//:DemoApp#dwarf-and-dsym");
+  result=workspace.runBuckCommand("targets","--show-output",target.getFullyQualifiedName());
   result.assertSuccess();
-  assertThat(result.getStdout(),Matchers.startsWith("//:DemoApp#dwarf-and-dsym " + genDir.resolve("DemoApp#dwarf-and-dsym,no-include-frameworks/DemoApp.app").toString()));
+  appPath=BuildTargets.getGenPath(BuildTarget.builder(target).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".app");
+  assertThat(result.getStdout(),Matchers.startsWith(target.getFullyQualifiedName() + " " + appPath.toString()));
 }

@@ -2,9 +2,11 @@
   assumeTrue(Platform.detect() == Platform.MACOS);
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_fat_application_bundle_no_debug",tmp);
   workspace.setUp();
-  workspace.runBuckCommand("build","//:DemoApp#iphonesimulator-i386,iphonesimulator-x86_64,no-debug").assertSuccess();
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoApp#iphonesimulator-i386,iphonesimulator-x86_64,no-debug");
+  workspace.runBuckCommand("build",target.getFullyQualifiedName()).assertSuccess();
   workspace.verify();
-  Path outputFile=tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoApp#iphonesimulator-i386,iphonesimulator-x86_64,no-debug,no-include-frameworks/" + "DemoApp.app/DemoApp");
+  Path appPath=workspace.getPath(BuildTargets.getGenPath(BuildTarget.builder(target).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".app"));
+  Path outputFile=appPath.resolve(target.getShortName());
   assertTrue(Files.exists(outputFile));
   ProcessExecutor.Result result=workspace.runCommand("lipo",outputFile.toString(),"-verify_arch","i386","x86_64");
   assertEquals(0,result.getExitCode());

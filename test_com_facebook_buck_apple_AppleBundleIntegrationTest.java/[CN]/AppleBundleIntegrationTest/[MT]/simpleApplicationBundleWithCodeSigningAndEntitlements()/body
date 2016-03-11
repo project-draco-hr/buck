@@ -3,8 +3,10 @@
   assumeTrue(FakeAppleDeveloperEnvironment.supportsCodeSigning());
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_application_bundle_with_codesigning_and_entitlements",tmp);
   workspace.setUp();
-  workspace.runBuckCommand("build","//:DemoApp#iphoneos-arm64,no-debug").assertSuccess();
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoApp#iphoneos-arm64,no-debug");
+  workspace.runBuckCommand("build",target.getFullyQualifiedName()).assertSuccess();
   workspace.verify();
-  assertTrue(Files.exists(tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoApp#iphoneos-arm64,no-debug,no-include-frameworks/DemoApp.app/DemoApp")));
-  assertTrue(checkCodeSigning("DemoApp#iphoneos-arm64,no-debug,no-include-frameworks/DemoApp.app"));
+  Path appPath=workspace.getPath(BuildTargets.getGenPath(BuildTarget.builder(target).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".app"));
+  assertTrue(Files.exists(appPath.resolve(target.getShortName())));
+  assertTrue(checkCodeSigning(appPath));
 }

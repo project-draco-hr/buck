@@ -3,8 +3,11 @@
   assumeTrue(AppleNativeIntegrationTestUtils.isApplePlatformAvailable(ApplePlatform.WATCHOS));
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"watch_application_bundle",tmp);
   workspace.setUp();
-  workspace.runBuckCommand("build","//:DemoApp#no-debug").assertSuccess();
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoApp#no-debug");
+  workspace.runBuckCommand("build",target.getFullyQualifiedName()).assertSuccess();
   workspace.verify();
-  assertTrue(Files.exists(tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoApp#no-debug,no-include-frameworks/DemoApp.app/Watch/" + "DemoWatchApp.app/DemoWatchApp")));
-  assertTrue(Files.exists(tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoApp#no-debug,no-include-frameworks/DemoApp.app/Watch/" + "DemoWatchApp.app/PlugIns/DemoWatchAppExtension.appex/" + "DemoWatchAppExtension")));
+  Path appPath=workspace.getPath(BuildTargets.getGenPath(BuildTarget.builder(target).addFlavors(AppleDebugFormat.NONE.getFlavor()).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".app"));
+  Path watchAppPath=appPath.resolve("Watch/DemoWatchApp.app");
+  assertTrue(Files.exists(watchAppPath.resolve("DemoWatchApp")));
+  assertTrue(Files.exists(watchAppPath.resolve("PlugIns/DemoWatchAppExtension.appex/DemoWatchAppExtension")));
 }

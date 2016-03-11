@@ -2,12 +2,13 @@
   assumeTrue(Platform.detect() == Platform.MACOS);
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_app_with_extension",tmp);
   workspace.setUp();
-  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("targets","--show-output","//:DemoAppWithExtension#no-debug");
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoAppWithExtension#no-debug");
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("targets","--show-output",target.getFullyQualifiedName());
   result.assertSuccess();
-  assertEquals("//:DemoAppWithExtension#no-debug " + "buck-out/gen/DemoAppWithExtension#no-debug,no-include-frameworks/" + "DemoAppWithExtension.app",result.getStdout().trim());
-  result=workspace.runBuckCommand("build","//:DemoAppWithExtension#no-debug");
+  Path appPath=BuildTargets.getGenPath(BuildTarget.builder(target).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".app");
+  assertEquals(String.format("%s %s",target.getFullyQualifiedName(),appPath),result.getStdout().trim());
+  result=workspace.runBuckCommand("build",target.getFullyQualifiedName());
   result.assertSuccess();
-  Path bundleDir=tmp.getRootPath().resolve(BuckConstant.GEN_DIR).resolve("DemoAppWithExtension#no-debug,no-include-frameworks/DemoAppWithExtension.app");
-  assertTrue(Files.exists(bundleDir.resolve("DemoAppWithExtension")));
-  assertTrue(Files.exists(bundleDir.resolve("PlugIns/DemoExtension.appex/DemoExtension")));
+  assertTrue(Files.exists(workspace.getPath(appPath.resolve("DemoAppWithExtension"))));
+  assertTrue(Files.exists(workspace.getPath(appPath.resolve("PlugIns/DemoExtension.appex/DemoExtension"))));
 }
