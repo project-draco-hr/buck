@@ -1,11 +1,11 @@
 {
-  Path compilationDatabase=workspace.buildAndReturnOutput("//Apps/Weather:Weather#iphonesimulator-x86_64,compilation-database");
-  assertEquals(Paths.get("buck-out/gen/Apps/Weather/" + "__Weather#compilation-database,iphonesimulator-x86_64.json"),tmp.getRoot().relativize(compilationDatabase));
+  BuildTarget target=BuildTargetFactory.newInstance("//Apps/Weather:Weather#iphonesimulator-x86_64,compilation-database");
+  Path compilationDatabase=workspace.buildAndReturnOutput(target.getFullyQualifiedName());
   Map<String,CxxCompilationDatabaseEntry> fileToEntry=CxxCompilationDatabaseUtils.parseCompilationDatabaseJsonFile(compilationDatabase);
   ImmutableSet<String> frameworks=ImmutableSet.of(Paths.get("/System/Library/Frameworks/Foundation.framework").getParent().toString(),Paths.get("/System/Library/Frameworks/UIKit.framework").getParent().toString());
-  String pathToPrivateHeaders=String.format("buck-out/gen/Apps/Weather/Weather#iphonesimulator-x86_64,%s.hmap",CxxDescriptionEnhancer.HEADER_SYMLINK_TREE_FLAVOR);
-  String pathToPublicHeaders=String.format("buck-out/gen/Libraries/EXExample/EXExample#%s,iphonesimulator-x86_64.hmap",CxxDescriptionEnhancer.EXPORTED_HEADER_SYMLINK_TREE_FLAVOR);
+  String pathToPrivateHeaders=BuildTargets.getGenPath(target.withFlavors(ImmutableFlavor.of("iphonesimulator-x86_64"),CxxDescriptionEnhancer.HEADER_SYMLINK_TREE_FLAVOR),"%s.hmap").toString();
+  String pathToPublicHeaders=BuildTargets.getGenPath(BuildTargetFactory.newInstance("//Libraries/EXExample:EXExample#iphonesimulator-x86_64," + CxxDescriptionEnhancer.EXPORTED_HEADER_SYMLINK_TREE_FLAVOR),"%s.hmap").toString();
   Iterable<String> includes=ImmutableList.of(pathToPrivateHeaders,pathToPublicHeaders,BuckConstant.BUCK_OUTPUT_DIRECTORY);
-  assertFlags("Apps/Weather/Weather/EXViewController.m","buck-out/gen/Apps/Weather/Weather#compile-" + sanitize("Weather/EXViewController.m.o") + ",iphonesimulator-x86_64/Weather/EXViewController.m.o",false,fileToEntry,frameworks,includes);
-  assertFlags("Apps/Weather/Weather/main.m","buck-out/gen/Apps/Weather/Weather#compile-" + sanitize("Weather/main.m.o") + ",iphonesimulator-x86_64/Weather/main.m.o",false,fileToEntry,frameworks,includes);
+  assertFlags("Apps/Weather/Weather/EXViewController.m",BuildTargets.getGenPath(target.withFlavors(ImmutableFlavor.of("iphonesimulator-x86_64"),ImmutableFlavor.of("compile-" + sanitize("Weather/EXViewController.m.o"))),"%s").resolve("Weather/EXViewController.m.o").toString(),false,fileToEntry,frameworks,includes);
+  assertFlags("Apps/Weather/Weather/main.m",BuildTargets.getGenPath(target.withFlavors(ImmutableFlavor.of("iphonesimulator-x86_64"),ImmutableFlavor.of("compile-" + sanitize("Weather/main.m.o"))),"%s").resolve("Weather/main.m.o").toString(),false,fileToEntry,frameworks,includes);
 }
