@@ -2,10 +2,11 @@
   ImmutableMap<Linker.LinkableDepType,String> runtimes=ImmutableMap.of(Linker.LinkableDepType.SHARED,"-ldummy-shared-libc",Linker.LinkableDepType.STATIC,"-ldummy-static-libc",Linker.LinkableDepType.STATIC_PIC,"-ldummy-static-pic-libc");
   CxxPlatform cxxPlatform=CxxPlatform.builder().from(CXX_PLATFORM).putAllRuntimeLdflags(runtimes.asMultimap()).build();
   BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
-  SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
   for (  Map.Entry<Linker.LinkableDepType,String> ent : runtimes.entrySet()) {
-    CxxLink lib=CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,pathResolver,target,Linker.LinkType.SHARED,Optional.<String>absent(),DEFAULT_OUTPUT,ent.getKey(),EMPTY_DEPS,Optional.<Linker.CxxRuntimeType>absent(),Optional.<SourcePath>absent(),ImmutableSet.<BuildTarget>of(),NativeLinkableInput.builder().setArgs(DEFAULT_INPUTS).build());
+    CxxLink lib=CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxPlatform,params,ruleResolver,pathResolver,target,Linker.LinkType.SHARED,Optional.<String>absent(),DEFAULT_OUTPUT,ent.getKey(),EMPTY_DEPS,Optional.<Linker.CxxRuntimeType>absent(),Optional.<SourcePath>absent(),ImmutableSet.<BuildTarget>of(),NativeLinkableInput.builder().setArgs(DEFAULT_INPUTS).build());
     assertThat(Arg.stringify(lib.getArgs()),hasItem(ent.getValue()));
   }
 }

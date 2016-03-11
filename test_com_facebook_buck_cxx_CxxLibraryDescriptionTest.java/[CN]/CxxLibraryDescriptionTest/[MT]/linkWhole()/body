@@ -2,12 +2,12 @@
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
   CxxPlatform cxxPlatform=CxxLibraryBuilder.createDefaultPlatform();
   BuildTarget target=BuildTargetFactory.newInstance("//:test");
-  Linker linker=cxxPlatform.getLd();
-  ImmutableList<String> linkWholeFlags=FluentIterable.from(linker.linkWhole(new StringArg("sentinel"))).transformAndConcat(Arg.stringListFunction()).filter(Predicates.not(Predicates.equalTo("sentinel"))).toList();
   CxxLibraryBuilder normalBuilder=new CxxLibraryBuilder(target);
   TargetGraph normalGraph=TargetGraphFactory.newInstance(normalBuilder.build());
   BuildRuleResolver resolver=new BuildRuleResolver(normalGraph,new BuildTargetNodeToBuildRuleTransformer());
   CxxLibrary normal=(CxxLibrary)normalBuilder.setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("test.cpp")))).build(resolver,filesystem,normalGraph);
+  Linker linker=cxxPlatform.getLd().resolve(resolver);
+  ImmutableList<String> linkWholeFlags=FluentIterable.from(linker.linkWhole(new StringArg("sentinel"))).transformAndConcat(Arg.stringListFunction()).filter(Predicates.not(Predicates.equalTo("sentinel"))).toList();
   NativeLinkableInput input=normal.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.STATIC);
   assertThat(Arg.stringify(input.getArgs()),Matchers.not(Matchers.hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()]))));
   CxxLibraryBuilder linkWholeBuilder=new CxxLibraryBuilder(target).setLinkWhole(true).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("foo.cpp"))));
