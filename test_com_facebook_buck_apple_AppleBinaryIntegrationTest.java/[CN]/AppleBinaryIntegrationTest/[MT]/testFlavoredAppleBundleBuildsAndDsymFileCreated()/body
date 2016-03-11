@@ -2,8 +2,11 @@
   assumeTrue(Platform.detect() == Platform.MACOS);
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_application_bundle_dwarf_and_dsym",tmp);
   workspace.setUp();
-  workspace.runBuckCommand("build","--config","apple.default_debug_info_format=none","//:DemoApp#dwarf-and-dsym").assertSuccess();
-  Path output=getGenDir().resolve("DemoApp#dwarf-and-dsym,no-include-frameworks/DemoApp.app.dSYM/Contents/" + "Resources/DWARF/DemoApp");
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoApp#dwarf-and-dsym");
+  workspace.runBuckCommand("build",target.getFullyQualifiedName()).assertSuccess();
+  workspace.runBuckCommand("build","--config","apple.default_debug_info_format=none",target.getFullyQualifiedName()).assertSuccess();
+  BuildTarget appTarget=target.withFlavors(AppleDebugFormat.DWARF_AND_DSYM.getFlavor(),AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR);
+  Path output=workspace.getPath(BuildTargets.getGenPath(appTarget,"%s").resolve(target.getShortName() + ".app.dSYM").resolve("Contents/Resources/DWARF").resolve(target.getShortName()));
   assertThat(Files.exists(output),Matchers.equalTo(true));
   AppleDsymTestUtil.checkDsymFileHasDebugSymbolForMain(workspace,output);
 }
