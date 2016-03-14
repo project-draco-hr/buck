@@ -1,0 +1,18 @@
+{
+  InferFlavors.checkNoInferFlavors(params.getBuildTarget().getFlavors());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  ImmutableMap<Path,SourcePath> headers=CxxDescriptionEnhancer.parseHeaders(params.getBuildTarget(),pathResolver,Optional.of(cxxPlatform),args);
+  HeaderSymlinkTree headerSymlinkTree=CxxDescriptionEnhancer.requireHeaderSymlinkTree(params,resolver,pathResolver,cxxPlatform,headers,HeaderVisibility.PRIVATE);
+  ImmutableList<CxxPreprocessorInput> preprocessorInputs;
+  if (args instanceof CxxBinaryDescription.Arg) {
+    preprocessorInputs=computePreprocessorInputForCxxBinaryDescriptionArg(params,cxxPlatform,(CxxBinaryDescription.Arg)args,headerSymlinkTree);
+  }
+ else   if (args instanceof CxxLibraryDescription.Arg) {
+    preprocessorInputs=computePreprocessorInputForCxxLibraryDescriptionArg(params,resolver,pathResolver,cxxPlatform,(CxxLibraryDescription.Arg)args,headerSymlinkTree);
+  }
+ else {
+    throw new IllegalStateException("Only Binary and Library args supported.");
+  }
+  CxxSourceRuleFactory factory=CxxSourceRuleFactory.of(params,resolver,pathResolver,cxxPlatform,preprocessorInputs,CxxFlags.getLanguageFlags(args.compilerFlags,args.platformCompilerFlags,args.langCompilerFlags,cxxPlatform),args.prefixHeader,CxxSourceRuleFactory.PicType.PDC);
+  return factory.requireInferCaptureBuildRules(sources,inferBuckConfig,sourceFilter);
+}
