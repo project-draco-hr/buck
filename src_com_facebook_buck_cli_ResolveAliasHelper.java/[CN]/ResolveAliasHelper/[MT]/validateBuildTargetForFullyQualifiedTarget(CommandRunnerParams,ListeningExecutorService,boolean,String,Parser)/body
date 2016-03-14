@@ -7,19 +7,19 @@
     return null;
   }
   Cell owningCell=params.getCell().getCell(buildTarget);
-  Path buildFile=null;
+  Path buildFile;
   try {
     buildFile=owningCell.getAbsolutePathToBuildFile(buildTarget);
   }
  catch (  Cell.MissingBuildFileException e) {
-    return null;
+    throw new HumanReadableException(e);
   }
   ImmutableSet<TargetNode<?>> targetNodes;
-  try (CommandThreadManager pool=new CommandThreadManager("Targets",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
-    targetNodes=parser.getAllTargetNodes(params.getBuckEventBus(),owningCell,getEnableProfiling(),pool.getExecutor(),buildFile);
+  try {
+    targetNodes=parser.getAllTargetNodes(params.getBuckEventBus(),owningCell,enableProfiling,executor,buildFile);
   }
  catch (  BuildFileParseException e) {
-    return null;
+    throw new HumanReadableException(e);
   }
   for (  TargetNode<?> candidate : targetNodes) {
     if (candidate.getBuildTarget().equals(buildTarget)) {

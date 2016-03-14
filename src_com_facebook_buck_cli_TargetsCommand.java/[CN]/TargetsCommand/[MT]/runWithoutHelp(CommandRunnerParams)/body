@@ -1,11 +1,12 @@
 {
-  if (isResolveAlias()) {
-    return doResolveAlias(params);
-  }
   if (isShowRuleKey() && isShowTargetHash()) {
     throw new HumanReadableException("Cannot show rule key and target hash at the same time.");
   }
   try (CommandThreadManager pool=new CommandThreadManager("Targets",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
-    return runWithExecutor(params,pool.getExecutor());
+    ListeningExecutorService executor=pool.getExecutor();
+    if (isResolveAlias()) {
+      return ResolveAliasHelper.resolveAlias(params,executor,getEnableProfiling(),getArguments());
+    }
+    return runWithExecutor(params,executor);
   }
  }
