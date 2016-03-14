@@ -1,0 +1,44 @@
+{
+  ParserConfig parserConfig=new ParserConfig(rootCell.getBuckConfig());
+  ParserConfig.BuildFileSearchMethod buildFileSearchMethod;
+  if (parserConfig.getBuildFileSearchMethod().isPresent()) {
+    buildFileSearchMethod=parserConfig.getBuildFileSearchMethod().get();
+  }
+ else   if (parserConfig.getAllowSymlinks() == ParserConfig.AllowSymlinks.FORBID) {
+    buildFileSearchMethod=ParserConfig.BuildFileSearchMethod.WATCHMAN;
+  }
+ else {
+    buildFileSearchMethod=ParserConfig.BuildFileSearchMethod.FILESYSTEM_CRAWL;
+  }
+  ImmutableList.Builder<ListenableFuture<ImmutableSet<BuildTarget>>> targetFutures=ImmutableList.builder();
+  for (  final TargetNodeSpec spec : specs) {
+    ImmutableSet<Path> buildFiles;
+    try (SimplePerfEvent.Scope perfEventScope=SimplePerfEvent.scope(eventBus,PerfEventId.of("FindBuildFiles"),"targetNodeSpec",spec)){
+      buildFiles=spec.getBuildFileSpec().findBuildFiles(rootCell,buildFileSearchMethod);
+    }
+     for (    Path buildFile : buildFiles) {
+      if (!rootCell.getFilesystem().isFile(buildFile)) {
+        throw new MissingBuildFileException(spec,rootCell.getFilesystem().getRootPath().relativize(buildFile));
+      }
+      targetFutures.add(Futures.transform(state.getAllTargetNodesJob(rootCell,buildFile),new Function<ImmutableSet<TargetNode<?>>,ImmutableSet<BuildTarget>>(){
+        @Override public ImmutableSet<BuildTarget> apply(        ImmutableSet<TargetNode<?>> nodes){
+          return spec.filter(nodes);
+        }
+      }
+));
+    }
+  }
+  ImmutableSet.Builder<BuildTarget> targets=ImmutableSet.builder();
+  try {
+    for (    ImmutableSet<BuildTarget> partialTargets : Futures.allAsList(targetFutures.build()).get()) {
+      targets.addAll(partialTargets);
+    }
+  }
+ catch (  ExecutionException e) {
+    Throwables.propagateIfInstanceOf(e.getCause(),BuildFileParseException.class);
+    Throwables.propagateIfInstanceOf(e.getCause(),BuildTargetException.class);
+    Throwables.propagateIfInstanceOf(e.getCause(),IOException.class);
+    throw ParsePipeline.propagateRuntimeException(e);
+  }
+  return targets.build();
+}
