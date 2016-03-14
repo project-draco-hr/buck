@@ -1,7 +1,12 @@
-def process_with_diagnostics(build_file, build_file_processor, to_parent):
+def process_with_diagnostics(build_file, build_file_processor, to_parent, should_profile=False):
     build_file = cygwin_adjusted_path(build_file)
     diagnostics = set()
     values = []
+    if should_profile:
+        profile = cProfile.Profile()
+        profile.enable()
+    else:
+        profile = None
     try:
         try:
             values = build_file_processor.process(build_file.rstrip(), diagnostics=diagnostics)
@@ -10,5 +15,12 @@ def process_with_diagnostics(build_file, build_file_processor, to_parent):
                 diagnostics.add(DiagnosticMessageAndLevel(message=format_traceback_and_exception(), level='fatal'))
             raise e
     finally:
-        to_parent.write(encode_result(values, diagnostics))
+        if (profile is not None):
+            profile.disable()
+            s = StringIO.StringIO()
+            pstats.Stats(profile, stream=s).sort_stats('cumulative').print_stats()
+            profile_result = s.getvalue()
+        else:
+            profile_result = None
+        to_parent.write(encode_result(values, diagnostics, profile_result))
         to_parent.flush()
