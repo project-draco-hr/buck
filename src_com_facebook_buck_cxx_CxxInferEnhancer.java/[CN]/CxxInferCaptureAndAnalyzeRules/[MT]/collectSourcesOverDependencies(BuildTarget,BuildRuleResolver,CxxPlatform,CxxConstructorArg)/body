@@ -1,0 +1,15 @@
+{
+  Preconditions.checkState(buildTarget.getFlavors().contains(InferFlavors.INFER_CAPTURE_ALL.get()));
+  CxxSourceSet.Builder sourcesBuilder=CxxSourceSet.builder();
+  for (  BuildTarget dep : args.deps.get()) {
+    BuildTarget newTarget=BuildTarget.builder(dep).addFlavors(InferFlavors.INFER_CAPTURE_ALL.get()).build();
+    Optional<CxxSourceSet> sources=ruleResolver.requireMetadata(newTarget,CxxSourceSet.class);
+    Preconditions.checkState(sources.isPresent(),"Expected a valid set of sources for:\n%s",Joiner.on(", ").join(newTarget.getFlavors()));
+    sourcesBuilder.addAllSourcesSet(sources.get().getSourcesSet());
+  }
+  Set<Flavor> flavors=Sets.newHashSet(buildTarget.getFlavors());
+  flavors.removeAll(InferFlavors.getAll());
+  BuildTarget cleanTarget=BuildTarget.builder(buildTarget).setFlavors(flavors).build();
+  sourcesBuilder.addAllSourcesSet(collectSources(cleanTarget,ruleResolver,cxxPlatform,args).entrySet());
+  return sourcesBuilder.build();
+}
