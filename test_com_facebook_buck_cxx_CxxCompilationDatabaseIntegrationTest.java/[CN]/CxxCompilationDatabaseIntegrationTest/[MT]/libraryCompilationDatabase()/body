@@ -1,14 +1,15 @@
 {
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"compilation_database",tmp);
   workspace.setUp();
-  Path compilationDatabase=workspace.buildAndReturnOutput("//:library_with_header#default,compilation-database");
+  BuildTarget target=BuildTargetFactory.newInstance("//:library_with_header#default,compilation-database");
+  Path compilationDatabase=workspace.buildAndReturnOutput(target.getFullyQualifiedName());
   Path rootPath=tmp.getRootPath();
-  assertEquals(Paths.get("buck-out/gen/__library_with_header#compilation-database,default.json"),rootPath.relativize(compilationDatabase));
-  String headerSymlinkTreeFolder=String.format("buck-out/gen/library_with_header#default,%s",CxxDescriptionEnhancer.HEADER_SYMLINK_TREE_FLAVOR);
-  String exportedHeaderSymlinkTreeFoler=String.format("buck-out/gen/library_with_header#default,%s",CxxDescriptionEnhancer.EXPORTED_HEADER_SYMLINK_TREE_FLAVOR);
+  assertEquals(BuildTargets.getGenPath(target,"__%s.json"),rootPath.relativize(compilationDatabase));
+  Path headerSymlinkTreeFolder=BuildTargets.getGenPath(target.withFlavors(ImmutableFlavor.of("default"),CxxDescriptionEnhancer.HEADER_SYMLINK_TREE_FLAVOR),"%s");
+  Path exportedHeaderSymlinkTreeFolder=BuildTargets.getGenPath(target.withFlavors(ImmutableFlavor.of("default"),CxxDescriptionEnhancer.EXPORTED_HEADER_SYMLINK_TREE_FLAVOR),"%s");
   assertTrue(Files.exists(rootPath.resolve(headerSymlinkTreeFolder)));
-  assertTrue(Files.exists(rootPath.resolve(exportedHeaderSymlinkTreeFoler)));
+  assertTrue(Files.exists(rootPath.resolve(exportedHeaderSymlinkTreeFolder)));
   Map<String,CxxCompilationDatabaseEntry> fileToEntry=CxxCompilationDatabaseUtils.parseCompilationDatabaseJsonFile(compilationDatabase);
   assertEquals(1,fileToEntry.size());
-  assertHasEntry(fileToEntry,"bar.cpp",new ImmutableList.Builder<String>().add(COMPILER_PATH).add("-fPIC").add("-fPIC").add("-I").add(headerSymlinkTreeIncludePath(headerSymlinkTreeFolder)).add("-I").add(headerSymlinkTreeIncludePath(exportedHeaderSymlinkTreeFoler)).addAll(getExtraFlagsForHeaderMaps()).addAll(COMPILER_SPECIFIC_FLAGS).add("-x").add("c++").add("-c").add("-o").add("buck-out/gen/library_with_header#compile-pic-" + sanitize("bar.cpp.o") + ",default/bar.cpp.o").add(rootPath.resolve(Paths.get("bar.cpp")).toRealPath().toString()).build());
+  assertHasEntry(fileToEntry,"bar.cpp",new ImmutableList.Builder<String>().add(COMPILER_PATH).add("-fPIC").add("-fPIC").add("-I").add(headerSymlinkTreeIncludePath(headerSymlinkTreeFolder)).add("-I").add(headerSymlinkTreeIncludePath(exportedHeaderSymlinkTreeFolder)).addAll(getExtraFlagsForHeaderMaps()).addAll(COMPILER_SPECIFIC_FLAGS).add("-x").add("c++").add("-c").add("-o").add(BuildTargets.getGenPath(target.withFlavors(ImmutableFlavor.of("default"),ImmutableFlavor.of("compile-pic-" + sanitize("bar.cpp.o"))),"%s/bar.cpp.o").toString()).add(rootPath.resolve(Paths.get("bar.cpp")).toRealPath().toString()).build());
 }
