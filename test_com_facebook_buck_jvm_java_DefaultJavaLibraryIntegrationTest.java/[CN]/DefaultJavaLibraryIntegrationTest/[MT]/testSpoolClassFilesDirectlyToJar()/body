@@ -1,12 +1,13 @@
 {
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"spool_class_files_directly_to_jar",tmp);
   workspace.setUp();
-  ProcessResult result=workspace.runBuckBuild("//:a");
+  BuildTarget target=BuildTargetFactory.newInstance("//:a");
+  ProcessResult result=workspace.runBuckBuild(target.getFullyQualifiedName());
   result.assertSuccess();
-  Path classesDir=workspace.getPath("buck-out/bin/lib__a__classes");
+  Path classesDir=workspace.getPath(BuildTargets.getScratchPath(target,"lib__%s__classes"));
   assertThat(Files.exists(classesDir),is(Boolean.TRUE));
   assertThat("There should be no class files in disk",ImmutableList.copyOf(classesDir.toFile().listFiles()),hasSize(0));
-  Path jarPath=workspace.getPath("buck-out/gen/lib__a__output/a.jar");
+  Path jarPath=workspace.getPath(BuildTargets.getGenPath(target,"lib__%s__output/a.jar"));
   assertTrue(Files.exists(jarPath));
   ZipInputStream zip=new ZipInputStream(new FileInputStream(jarPath.toFile()));
   assertThat(zip.getNextEntry().getName(),is("A.class"));
