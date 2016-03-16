@@ -1,0 +1,35 @@
+{
+  Deque<Explorable> toExplore=Lists.newLinkedList();
+  for (  T node : initialNodes) {
+    toExplore.add(new Explorable(node));
+  }
+  Set<T> inProgress=Sets.newHashSet();
+  LinkedHashSet<T> explored=Sets.newLinkedHashSet();
+  while (!toExplore.isEmpty()) {
+    Explorable explorable=toExplore.peek();
+    T node=explorable.node;
+    if (explored.contains(node)) {
+      toExplore.removeFirst();
+      continue;
+    }
+    inProgress.add(node);
+    int stackSize=toExplore.size();
+    for (Iterator<T> iter=explorable.children; iter.hasNext(); ) {
+      T child=iter.next();
+      if (inProgress.contains(child)) {
+        throw createCycleException(child,toExplore);
+      }
+ else       if (!explored.contains(child)) {
+        toExplore.addFirst(new Explorable(child));
+        break;
+      }
+    }
+    if (stackSize == toExplore.size()) {
+      toExplore.removeFirst();
+      inProgress.remove(node);
+      explored.add(node);
+    }
+  }
+  Preconditions.checkState(inProgress.isEmpty(),"No more nodes should be in progress.");
+  return Iterables.unmodifiableIterable(explored);
+}
