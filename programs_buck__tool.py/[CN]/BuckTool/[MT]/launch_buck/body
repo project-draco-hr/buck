@@ -26,11 +26,18 @@ def launch_buck(self, build_id):
         buck_socket_path = self._buck_project.get_buckd_socket_path()
         if (use_buckd and self._is_buckd_running() and os.path.exists(buck_socket_path)):
             with Tracing('buck', args={'command': sys.argv[1:], }):
-                with NailgunConnection('local:.buckd/sock', cwd=self._buck_project.root) as c:
-                    exit_code = c.send_command('com.facebook.buck.cli.Main', sys.argv[1:], env=env, cwd=self._buck_project.root)
-                    if (exit_code == 2):
-                        print('Daemon is busy, please wait', 'or run "buck kill" to terminate it.', file=sys.stderr)
-                    return exit_code
+                exit_code = 2
+                last_diagnostic_time = 0
+                while (exit_code == 2):
+                    with NailgunConnection('local:.buckd/sock', cwd=self._buck_project.root) as c:
+                        exit_code = c.send_command('com.facebook.buck.cli.Main', sys.argv[1:], env=env, cwd=self._buck_project.root)
+                        if (exit_code == 2):
+                            now = time.time()
+                            if ((now - last_diagnostic_time) > DAEMON_BUSY_MESSAGE_SECONDS):
+                                print('Daemon is busy, waiting for it to exit...', file=sys.stderr)
+                                last_diagnostic_time = now
+                            time.sleep(0.1)
+                return exit_code
         command = ['buck']
         extra_default_options = ['-Djava.io.tmpdir={0}'.format(self._tmp_dir)]
         command.extend(self._get_java_args(buck_version_uid, extra_default_options))
