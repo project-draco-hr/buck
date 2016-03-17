@@ -6,5 +6,11 @@
   workspace.runBuckCommand("build",packageTarget.getFullyQualifiedName()).assertSuccess();
   Path destination=workspace.getDestPath();
   Unzip.extractZipFile(workspace.getPath(BuildTargets.getGenPath(packageTarget,"%s.ipa")),destination,Unzip.ExistingFileMode.OVERWRITE_AND_CLEAN_DIRECTORIES);
-  assertTrue(Files.exists(destination.resolve("Payload/DemoApp.app/Watch/DemoWatchApp.app/_WatchKitStub/WK")));
+  Path stubInsideBundle=destination.resolve("Payload/DemoApp.app/Watch/DemoWatchApp.app/_WatchKitStub/WK");
+  Path stubOutsideBundle=destination.resolve("WatchKitSupport2/WK");
+  assertTrue(Files.exists(stubInsideBundle));
+  assertTrue(Files.isExecutable(stubOutsideBundle));
+  assertTrue(Files.isDirectory(destination.resolve("Symbols")));
+  assertTrue(isDirEmpty(destination.resolve("Symbols")));
+  assertEquals(new String(Files.readAllBytes(stubInsideBundle)),new String(Files.readAllBytes(stubOutsideBundle)));
 }

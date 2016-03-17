@@ -1,0 +1,16 @@
+{
+  for (  BuildRule rule : bundle.getDeps()) {
+    if (rule instanceof BuildRuleWithAppleBundle) {
+      AppleBundle appleBundle=((BuildRuleWithAppleBundle)rule).getAppleBundle();
+      if (appleBundle.getBinary().isPresent() && appleBundle.getPlatformName().startsWith("watch")) {
+        BuildRule binary=appleBundle.getBinary().get();
+        if (binary instanceof WriteFile) {
+          commands.add(new MkdirStep(getProjectFilesystem(),temp.resolve("Symbols")));
+          Path watchKitSupportDir=temp.resolve("WatchKitSupport2");
+          commands.add(new MkdirStep(getProjectFilesystem(),watchKitSupportDir));
+          commands.add(new WriteFileStep(getProjectFilesystem(),ByteSource.wrap(((WriteFile)binary).getFileContents()),watchKitSupportDir.resolve("WK"),true));
+        }
+      }
+    }
+  }
+}
