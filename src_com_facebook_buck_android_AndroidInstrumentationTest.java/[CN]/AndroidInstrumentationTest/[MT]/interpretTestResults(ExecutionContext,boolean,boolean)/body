@@ -2,19 +2,19 @@
   return new Callable<TestResults>(){
     @Override public TestResults call() throws Exception {
       final ImmutableList.Builder<TestCaseSummary> summaries=ImmutableList.builder();
-      List<IDevice> devices;
+      IDevice device;
       AdbHelper adbHelper=AdbHelper.get(context,true);
       try {
-        devices=adbHelper.getDevices(true);
+        device=adbHelper.getSingleDevice();
       }
  catch (      InterruptedException e) {
-        devices=Lists.newArrayList();
+        device=null;
       }
-      if (devices.isEmpty()) {
+      if (device == null) {
         summaries.add(getTestClassAssumedSummary());
       }
-      for (      IDevice device : devices) {
-        Path testResultPath=getProjectFilesystem().resolve(getPathToTestOutputDirectory().resolve(BuckXmlTestRunListener.TEST_RESULT_FILE_PREFIX + device.getSerialNumber() + BuckXmlTestRunListener.TEST_RESULT_FILE_SUFFIX));
+ else {
+        Path testResultPath=getProjectFilesystem().resolve(getPathToTestOutputDirectory().resolve(BuckXmlTestRunListener.TEST_RESULT_FILE));
         summaries.add(XmlTestResultParser.parseAndroid(testResultPath,device.getSerialNumber()));
       }
       return TestResults.of(getBuildTarget(),summaries.build(),contacts,FluentIterable.from(labels).transform(Functions.toStringFunction()).toSet());
