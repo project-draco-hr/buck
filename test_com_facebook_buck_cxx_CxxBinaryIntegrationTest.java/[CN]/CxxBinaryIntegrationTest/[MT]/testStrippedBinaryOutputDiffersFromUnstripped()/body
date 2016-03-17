@@ -1,0 +1,14 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  BuildTarget unstrippedTarget=BuildTargetFactory.newInstance("//:test");
+  BuildTarget strippedTarget=unstrippedTarget.withFlavors(CxxStrip.StripStyle.DEBUGGING_SYMBOLS.getFlavor());
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"header_namespace",tmp);
+  workspace.setUp();
+  ProjectWorkspace.ProcessResult strippedResult=workspace.runBuckCommand("targets","--show-output",strippedTarget.getFullyQualifiedName());
+  strippedResult.assertSuccess();
+  ProjectWorkspace.ProcessResult unstrippedResult=workspace.runBuckCommand("targets","--show-output",unstrippedTarget.getFullyQualifiedName());
+  unstrippedResult.assertSuccess();
+  String strippedOutput=strippedResult.getStdout().split(" ")[1];
+  String unstrippedOutput=unstrippedResult.getStdout().split(" ")[1];
+  assertThat(strippedOutput,Matchers.not(Matchers.equalTo(unstrippedOutput)));
+}

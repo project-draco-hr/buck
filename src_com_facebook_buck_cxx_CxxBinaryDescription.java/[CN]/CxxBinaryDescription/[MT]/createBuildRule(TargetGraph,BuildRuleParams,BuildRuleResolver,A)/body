@@ -1,4 +1,6 @@
 {
+  Optional<CxxStrip.StripStyle> flavoredStripStyle=CxxStrip.StripStyle.FLAVOR_DOMAIN.getValue(params.getBuildTarget());
+  params=params.copyWithBuildTarget(params.getBuildTarget().withoutFlavors(CxxStrip.StripStyle.FLAVOR_DOMAIN.getFlavors()));
   ImmutableSet<Flavor> flavors=ImmutableSet.copyOf(params.getBuildTarget().getFlavors());
   CxxPlatform cxxPlatform=cxxPlatforms.getValue(flavors).or(defaultCxxPlatform);
   if (flavors.contains(CxxDescriptionEnhancer.HEADER_SYMLINK_TREE_FLAVOR)) {
@@ -9,7 +11,7 @@
   }
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   if (flavors.contains(CxxCompilationDatabase.COMPILATION_DATABASE)) {
-    CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(params.withoutFlavor(CxxCompilationDatabase.COMPILATION_DATABASE),resolver,cxxPlatform,args,preprocessMode);
+    CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(params.withoutFlavor(CxxCompilationDatabase.COMPILATION_DATABASE),resolver,cxxPlatform,args,preprocessMode,flavoredStripStyle);
     return CxxCompilationDatabase.createCompilationDatabase(params,pathResolver,preprocessMode,cxxLinkAndCompileRules.compileRules);
   }
   if (flavors.contains(CxxCompilationDatabase.UBER_COMPILATION_DATABASE)) {
@@ -27,6 +29,7 @@
   if (flavors.contains(CxxInferEnhancer.InferFlavors.INFER_CAPTURE_ONLY.get())) {
     return CxxInferEnhancer.requireInferCaptureAggregatorBuildRuleForCxxDescriptionArg(params,resolver,pathResolver,cxxPlatform,args,inferBuckConfig,new CxxInferSourceFilter(inferBuckConfig));
   }
-  CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(params,resolver,cxxPlatform,args,preprocessMode);
-  return new CxxBinary(params.appendExtraDeps(cxxLinkAndCompileRules.executable.getDeps(pathResolver)),resolver,pathResolver,cxxLinkAndCompileRules.cxxLink,cxxLinkAndCompileRules.executable,args.frameworks.get(),args.tests.get());
+  CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(params,resolver,cxxPlatform,args,preprocessMode,flavoredStripStyle);
+  params=CxxStrip.restoreStripStyleFlavorInParams(params,flavoredStripStyle);
+  return new CxxBinary(params.appendExtraDeps(cxxLinkAndCompileRules.executable.getDeps(pathResolver)),resolver,pathResolver,cxxLinkAndCompileRules.getBinaryRule(),cxxLinkAndCompileRules.executable,args.frameworks.get(),args.tests.get());
 }

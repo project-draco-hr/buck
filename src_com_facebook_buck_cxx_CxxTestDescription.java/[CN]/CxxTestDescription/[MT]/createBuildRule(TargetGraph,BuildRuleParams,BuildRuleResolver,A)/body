@@ -1,11 +1,20 @@
 {
+  Optional<CxxStrip.StripStyle> flavoredStripStyle=CxxStrip.StripStyle.FLAVOR_DOMAIN.getValue(inputParams.getBuildTarget());
+  final BuildRuleParams params;
+  if (flavoredStripStyle.isPresent()) {
+    params=inputParams.withoutFlavor(flavoredStripStyle.get().getFlavor());
+  }
+ else {
+    params=inputParams;
+  }
   CxxPlatform cxxPlatform=cxxPlatforms.getValue(params.getBuildTarget()).or(defaultCxxPlatform);
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   if (params.getBuildTarget().getFlavors().contains(CxxCompilationDatabase.COMPILATION_DATABASE)) {
     return CxxDescriptionEnhancer.createCompilationDatabase(params,resolver,pathResolver,cxxPlatform,cxxBuckConfig.getPreprocessMode(),args);
   }
-  final CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(params,resolver,cxxPlatform,args,cxxBuckConfig.getPreprocessMode());
+  final CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(params,resolver,cxxPlatform,args,cxxBuckConfig.getPreprocessMode(),flavoredStripStyle);
   BuildRuleParams testParams=params.appendExtraDeps(cxxLinkAndCompileRules.executable.getDeps(pathResolver));
+  testParams=CxxStrip.restoreStripStyleFlavorInParams(testParams,flavoredStripStyle);
   Supplier<ImmutableMap<String,String>> testEnv=new Supplier<ImmutableMap<String,String>>(){
     @Override public ImmutableMap<String,String> get(){
       return ImmutableMap.copyOf(Maps.transformValues(args.env.or(ImmutableMap.<String,String>of()),CxxDescriptionEnhancer.MACRO_HANDLER.getExpander(params.getBuildTarget(),params.getCellRoots(),resolver)));
@@ -21,7 +30,7 @@
   Supplier<ImmutableSortedSet<BuildRule>> additionalDeps=new Supplier<ImmutableSortedSet<BuildRule>>(){
     @Override public ImmutableSortedSet<BuildRule> get(){
       ImmutableSortedSet.Builder<BuildRule> deps=ImmutableSortedSet.naturalOrder();
-      deps.addAll(Sets.difference(params.getDeps(),cxxLinkAndCompileRules.cxxLink.getDeps()));
+      deps.addAll(Sets.difference(params.getDeps(),cxxLinkAndCompileRules.getBinaryRule().getDeps()));
       for (      String part : Iterables.concat(args.args.or(ImmutableList.<String>of()),args.env.or(ImmutableMap.<String,String>of()).values())) {
         try {
           deps.addAll(CxxDescriptionEnhancer.MACRO_HANDLER.extractBuildTimeDeps(params.getBuildTarget(),params.getCellRoots(),resolver,part));
@@ -39,12 +48,12 @@
 switch (type) {
 case GTEST:
 {
-      test=new CxxGtestTest(testParams,pathResolver,cxxLinkAndCompileRules.cxxLink,cxxLinkAndCompileRules.executable,testEnv,testArgs,additionalDeps,args.labels.get(),args.contacts.get(),resolver.getAllRules(args.sourceUnderTest.get()),args.runTestSeparately.or(false),args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs),cxxBuckConfig.getMaximumTestOutputSize());
+      test=new CxxGtestTest(testParams,pathResolver,cxxLinkAndCompileRules.getBinaryRule(),cxxLinkAndCompileRules.executable,testEnv,testArgs,additionalDeps,args.labels.get(),args.contacts.get(),resolver.getAllRules(args.sourceUnderTest.get()),args.runTestSeparately.or(false),args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs),cxxBuckConfig.getMaximumTestOutputSize());
       break;
     }
 case BOOST:
 {
-    test=new CxxBoostTest(testParams,pathResolver,cxxLinkAndCompileRules.cxxLink,cxxLinkAndCompileRules.executable,testEnv,testArgs,additionalDeps,args.labels.get(),args.contacts.get(),resolver.getAllRules(args.sourceUnderTest.get()),args.runTestSeparately.or(false),args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs));
+    test=new CxxBoostTest(testParams,pathResolver,cxxLinkAndCompileRules.getBinaryRule(),cxxLinkAndCompileRules.executable,testEnv,testArgs,additionalDeps,args.labels.get(),args.contacts.get(),resolver.getAllRules(args.sourceUnderTest.get()),args.runTestSeparately.or(false),args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs));
     break;
   }
 default :

@@ -1,0 +1,15 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  BuildTarget strippedTarget=BuildTargetFactory.newInstance("//:test").withFlavors(CxxStrip.StripStyle.DEBUGGING_SYMBOLS.getFlavor());
+  BuildTarget unstrippedTarget=strippedTarget.withoutFlavors(CxxStrip.StripStyle.FLAVOR_DOMAIN.getFlavors());
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"header_namespace",tmp);
+  workspace.setUp();
+  workspace.enableDirCache();
+  workspace.runBuckCommand("build","--config","cxx.cxxflags=-g",strippedTarget.getFullyQualifiedName()).assertSuccess();
+  workspace.runBuckCommand("clean").assertSuccess();
+  workspace.runBuckCommand("build","--config","cxx.cxxflags=-g",strippedTarget.getFullyQualifiedName()).assertSuccess();
+  Path strippedPath=workspace.getPath(BuildTargets.getGenPath(BuildTarget.builder(strippedTarget).addFlavors(CxxStrip.RULE_FLAVOR).build(),"%s"));
+  Path unstrippedPath=workspace.getPath(BuildTargets.getGenPath(unstrippedTarget,"%s"));
+  assertThat(Files.exists(strippedPath),Matchers.equalTo(true));
+  assertThat(Files.exists(unstrippedPath),Matchers.equalTo(false));
+}
