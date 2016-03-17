@@ -7,16 +7,22 @@
   for (  SourcePath rawResource : resources) {
     Optional<BuildRule> underlyingRule=resolver.getRule(rawResource);
     Path relativePathToResource=resolver.getRelativePath(rawResource);
-    String resource=null;
-    if (underlyingRule.orNull() instanceof HasOutputName) {
-      resource=MorePaths.pathWithUnixSeparators(underlyingRule.get().getBuildTarget().getBasePath().resolve(((HasOutputName)underlyingRule.get()).getOutputName()));
+    String resource;
+    if (underlyingRule.isPresent()) {
+      BuildTarget underlyingTarget=underlyingRule.get().getBuildTarget();
+      if (underlyingRule.get() instanceof HasOutputName) {
+        resource=MorePaths.pathWithUnixSeparators(underlyingTarget.getBasePath().resolve(((HasOutputName)underlyingRule.get()).getOutputName()));
+      }
+ else {
+        Path genOutputParent=BuildTargets.getGenPath(underlyingTarget,"%s").getParent();
+        Path scratchOutputParent=BuildTargets.getScratchPath(underlyingTarget,"%s").getParent();
+        Optional<Path> outputPath=MorePaths.stripPrefix(relativePathToResource,genOutputParent).or(MorePaths.stripPrefix(relativePathToResource,scratchOutputParent));
+        Preconditions.checkState(outputPath.isPresent(),"%s is used as a resource but does not output to a default output directory",underlyingTarget.getFullyQualifiedName());
+        resource=MorePaths.pathWithUnixSeparators(underlyingTarget.getBasePath().resolve(outputPath.get()));
+      }
     }
-    if (resource == null) {
+ else {
       resource=MorePaths.pathWithUnixSeparators(relativePathToResource);
-    }
-    Matcher matcher;
-    if ((matcher=GENERATED_FILE_PATTERN.matcher(resource)).matches()) {
-      resource=matcher.group(1);
     }
     Path javaPackageAsPath=javaPackageFinder.findJavaPackageFolder(Paths.get(resource));
     Path relativeSymlinkPath;
