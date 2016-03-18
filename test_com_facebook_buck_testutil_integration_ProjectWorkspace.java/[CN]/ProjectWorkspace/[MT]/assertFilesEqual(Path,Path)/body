@@ -1,0 +1,43 @@
+{
+  if (!Files.isRegularFile(actual)) {
+    fail("Expected file " + actual + " could not be found.");
+  }
+  String extension=MorePaths.getFileExtension(actual);
+  String cleanPathToObservedFile=MoreStrings.withoutSuffix(templatePath.relativize(expected).toString(),EXPECTED_SUFFIX);
+switch (extension) {
+case "plist":
+case "stringsdict":
+    NSObject expectedObject;
+  try {
+    expectedObject=BinaryPropertyListParser.parse(expected.toFile());
+  }
+ catch (  Exception e) {
+    expectedObject=null;
+  }
+NSObject observedObject;
+try {
+observedObject=BinaryPropertyListParser.parse(actual.toFile());
+}
+ catch (Exception e) {
+observedObject=null;
+}
+assertTrue(String.format("In %s, expected plist to be of %s type.",cleanPathToObservedFile,(expectedObject != null) ? "binary" : "XML"),(expectedObject != null) == (observedObject != null));
+if (expectedObject != null) {
+String[] ignoredKeys={"DTSDKName","DTPlatformName","DTPlatformVersion","MinimumOSVersion","DTSDKBuild","DTPlatformBuild"};
+if (observedObject instanceof NSDictionary && expectedObject instanceof NSDictionary) {
+for (String key : ignoredKeys) {
+((NSDictionary)observedObject).remove(key);
+((NSDictionary)expectedObject).remove(key);
+}
+}
+assertEquals(String.format("In %s, expected binary plist contents to match.",cleanPathToObservedFile),expectedObject,observedObject);
+break;
+}
+ else {
+assertFileContentsEqual(expected,actual);
+}
+break;
+default :
+assertFileContentsEqual(expected,actual);
+}
+}
