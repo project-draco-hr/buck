@@ -1,0 +1,20 @@
+{
+  ListenableFuture<T> future=Futures.transformAsync(semaphore.acquire(weight),new AsyncFunction<Void,T>(){
+    @Override public ListenableFuture<T> apply(    @Nullable Void input){
+      try {
+        return Futures.immediateFuture(callable.call());
+      }
+ catch (      Throwable thrown) {
+        return Futures.immediateFailedFuture(thrown);
+      }
+    }
+  }
+,delegate);
+  future.addListener(new Runnable(){
+    @Override public void run(){
+      semaphore.release(weight);
+    }
+  }
+,com.google.common.util.concurrent.MoreExecutors.directExecutor());
+  return future;
+}

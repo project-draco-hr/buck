@@ -1,0 +1,20 @@
+{
+  ListeningSemaphore semaphore=new ListeningSemaphore(1);
+  semaphore.acquire(1);
+  ListenableFuture<Void> future=semaphore.acquire(1);
+  final AtomicBoolean flag=new AtomicBoolean(false);
+  Futures.transform(future,new Function<Void,Object>(){
+    @Override public Object apply(    Void input){
+      flag.set(true);
+      return null;
+    }
+  }
+);
+  assertFalse(future.isDone());
+  assertFalse(flag.get());
+  future.cancel(false);
+  semaphore.release(1);
+  assertFalse(flag.get());
+  assertThat(semaphore.availablePermits(),Matchers.equalTo(1));
+  assertThat(semaphore.getQueueLength(),Matchers.equalTo(0));
+}

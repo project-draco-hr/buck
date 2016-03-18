@@ -1,0 +1,20 @@
+{
+  ListeningSemaphore semaphore=new ListeningSemaphore(1);
+  ExplicitRunExecutorService wrappedService=new ExplicitRunExecutorService();
+  WeightedListeningExecutorService service=new WeightedListeningExecutorService(semaphore,1,wrappedService);
+  final AtomicBoolean flag=new AtomicBoolean(false);
+  ListenableFuture<Void> future=service.submit(new Callable<Void>(){
+    @Override public Void call() throws Exception {
+      flag.set(true);
+      return null;
+    }
+  }
+);
+  assertFalse(future.isDone());
+  assertThat(semaphore.availablePermits(),Matchers.equalTo(0));
+  future.cancel(false);
+  wrappedService.run();
+  assertTrue(future.isCancelled());
+  assertFalse(flag.get());
+  assertThat(semaphore.availablePermits(),Matchers.equalTo(1));
+}

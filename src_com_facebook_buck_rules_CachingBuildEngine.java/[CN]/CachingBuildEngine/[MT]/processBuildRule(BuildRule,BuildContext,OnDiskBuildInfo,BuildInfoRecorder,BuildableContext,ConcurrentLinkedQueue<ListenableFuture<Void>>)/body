@@ -58,14 +58,19 @@
           return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_ABI_RULE_KEY,CacheResult.localKeyUnchangedHit()));
         }
       }
-      if (buildMode != BuildMode.POPULATE_FROM_REMOTE_CACHE) {
-        executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
-        return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResult));
-      }
- else {
+      if (buildMode == BuildMode.POPULATE_FROM_REMOTE_CACHE) {
         LOG.info("Cannot populate cache for " + rule.getBuildTarget().getFullyQualifiedName());
-        return Futures.immediateFuture(BuildResult.canceled(rule,new HumanReadableException("Skipping %s: in cache population mode " + "local builds are disabled",rule)));
+        return Futures.immediateFuture(BuildResult.canceled(rule,new HumanReadableException("Skipping %s: in cache population mode local builds are disabled",rule)));
       }
+      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.suspended(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory));
+      return service.submit(new Callable<BuildResult>(){
+        @Override public BuildResult call() throws Exception {
+          context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory));
+          executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
+          return BuildResult.success(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResult);
+        }
+      }
+);
     }
   }
 ,service);
