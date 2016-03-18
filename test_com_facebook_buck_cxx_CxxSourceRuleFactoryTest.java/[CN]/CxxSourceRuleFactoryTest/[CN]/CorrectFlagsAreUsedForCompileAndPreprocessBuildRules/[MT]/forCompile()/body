@@ -1,5 +1,6 @@
 {
   CxxSource.Type sourceType=CxxSource.Type.fromExtension(MorePaths.getFileExtension(Paths.get(sourceName))).get();
+  Path scratchDir=Paths.get("scratchDir");
   BuckConfig buckConfig=FakeBuckConfig.builder().setSections(ImmutableMap.of("cxx",ImmutableMap.<String,String>builder().put("asflags",space.join(asflags)).put("cflags",space.join(cflags)).put("cxxflags",space.join(cxxflags)).build())).setFilesystem(PROJECT_FILESYSTEM).build();
   CxxPlatform platform=DefaultCxxPlatforms.build(new CxxBuckConfig(buckConfig));
   CxxSourceRuleFactory cxxSourceRuleFactory=CxxSourceRuleFactory.builder().setParams(params).setResolver(buildRuleResolver).setPathResolver(sourcePathResolver).setCxxPlatform(platform).setCompilerFlags(CxxFlags.getLanguageFlags(Optional.of(expectedCompilerFlags),Optional.<PatternMatchedCollection<ImmutableList<String>>>absent(),Optional.<ImmutableMap<AbstractCxxSource.Type,ImmutableList<String>>>absent(),platform)).setPicType(CxxSourceRuleFactory.PicType.PDC).build();
@@ -12,7 +13,7 @@
  else {
     rule=cxxSourceRuleFactory.requireCompileBuildRule(sourceName,source);
   }
-  ImmutableList<String> command=rule.makeMainStep().getCommand();
+  ImmutableList<String> command=rule.makeMainStep(scratchDir).getCommand();
   assertContains(command,expectedCompilerFlags);
   assertContains(command,expectedTypeSpecificFlags);
   assertContains(command,asflags);

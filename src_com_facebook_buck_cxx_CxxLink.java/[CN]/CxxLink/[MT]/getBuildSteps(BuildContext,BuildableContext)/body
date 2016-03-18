@@ -1,9 +1,10 @@
 {
   buildableContext.recordArtifact(output);
+  Path scratchDir=BuildTargets.getScratchPath(getBuildTarget(),"%s-tmp");
   Path argFilePath=getProjectFilesystem().getRootPath().resolve(BuildTargets.getScratchPath(getBuildTarget(),"%s__argfile.txt"));
   ImmutableSet.Builder<Path> cellRoots=ImmutableSet.builder();
   for (  BuildRule dep : getDeps()) {
     cellRoots.add(dep.getProjectFilesystem().getRootPath());
   }
-  return ImmutableList.of(new MkdirStep(getProjectFilesystem(),output.getParent()),new CxxPrepareForLinkStep(argFilePath,output,Arg.stringify(args)),new CxxLinkStep(getProjectFilesystem().getRootPath(),linker.getEnvironment(getResolver()),linker.getCommandPrefix(getResolver()),argFilePath),new FileScrubberStep(getProjectFilesystem(),output,linker.getScrubbers(cellRoots.build())));
+  return ImmutableList.of(new MkdirStep(getProjectFilesystem(),output.getParent()),new MakeCleanDirectoryStep(getProjectFilesystem(),scratchDir),new CxxPrepareForLinkStep(argFilePath,output,Arg.stringify(args)),new CxxLinkStep(getProjectFilesystem().getRootPath(),linker.getEnvironment(getResolver()),linker.getCommandPrefix(getResolver()),argFilePath,getProjectFilesystem().getRootPath().resolve(scratchDir)),new FileScrubberStep(getProjectFilesystem(),output,linker.getScrubbers(cellRoots.build())));
 }
