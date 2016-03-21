@@ -24,11 +24,23 @@
   BuildRuleParams binaryParams=params.copyWithChanges(getBinaryBuildTarget(params.getBuildTarget()),Suppliers.ofInstance(PythonUtil.getDepsFromComponents(pathResolver,allComponents)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   PythonBinary binary=binaryDescription.createPackageRule(binaryParams,resolver,pathResolver,pythonPlatform,cxxPlatform,mainModule,allComponents,args.buildArgs.or(ImmutableList.<String>of()),args.packageStyle.or(pythonBuckConfig.getPackageStyle()),PythonUtil.getPreloadNames(resolver,cxxPlatform,args.preloadDeps.get()));
   resolver.addToIndex(binary);
+  ImmutableList.Builder<Pair<Float,ImmutableSet<Path>>> neededCoverageBuilder=ImmutableList.builder();
+  for (  Pair<Float,BuildTarget> coveragePair : args.neededCoverage.get()) {
+    BuildRule buildRule=resolver.getRule(coveragePair.getSecond());
+    if (params.getDeps().contains(buildRule) && buildRule instanceof PythonLibrary) {
+      PythonLibrary pythonLibrary=(PythonLibrary)buildRule;
+      ImmutableMap<Path,SourcePath> pathToSourcePath=pythonLibrary.getSrcs(pythonPlatform);
+      neededCoverageBuilder.add(new Pair<Float,ImmutableSet<Path>>(coveragePair.getFirst(),pathToSourcePath.keySet()));
+    }
+ else {
+      throw new HumanReadableException("%s: needed_coverage requires a python library dependency. Found %s instead",params.getBuildTarget(),buildRule);
+    }
+  }
   Supplier<ImmutableMap<String,String>> testEnv=new Supplier<ImmutableMap<String,String>>(){
     @Override public ImmutableMap<String,String> get(){
       return ImmutableMap.copyOf(Maps.transformValues(args.env.or(ImmutableMap.<String,String>of()),MACRO_HANDLER.getExpander(params.getBuildTarget(),params.getCellRoots(),resolver)));
     }
   }
 ;
-  return new PythonTest(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps().get()).add(binary).build()),params.getExtraDeps()),pathResolver,testEnv,binary,ImmutableSortedSet.copyOf(Sets.difference(params.getDeps(),binaryParams.getDeps())),resolver.getAllRules(args.sourceUnderTest.or(ImmutableSortedSet.<BuildTarget>of())),args.labels.or(ImmutableSet.<Label>of()),args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs),args.contacts.or(ImmutableSet.<String>of()));
+  return new PythonTest(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps().get()).add(binary).build()),params.getExtraDeps()),pathResolver,testEnv,binary,ImmutableSortedSet.copyOf(Sets.difference(params.getDeps(),binaryParams.getDeps())),resolver.getAllRules(args.sourceUnderTest.or(ImmutableSortedSet.<BuildTarget>of())),args.labels.or(ImmutableSet.<Label>of()),neededCoverageBuilder.build(),args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs),args.contacts.or(ImmutableSet.<String>of()));
 }
