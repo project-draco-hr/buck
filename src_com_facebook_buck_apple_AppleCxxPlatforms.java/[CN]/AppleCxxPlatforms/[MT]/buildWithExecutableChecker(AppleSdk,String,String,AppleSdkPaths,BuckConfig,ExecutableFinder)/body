@@ -86,5 +86,29 @@
       platformBuilder.addSwiftStaticRuntimePaths(swiftStaticRuntimePath);
     }
   }
+  Optional<Path> developerPath=sdkPaths.getDeveloperPath();
+  if (developerPath.isPresent()) {
+    Path xcodeBundlePath=developerPath.get().getParent();
+    if (xcodeBundlePath != null) {
+      File xcodeInfoPlistPath=xcodeBundlePath.resolve("Info.plist").toFile();
+      try {
+        NSDictionary parsedXcodeInfoPlist=(NSDictionary)PropertyListParser.parse(xcodeInfoPlistPath);
+        NSObject xcodeVersionObject=parsedXcodeInfoPlist.objectForKey("DTXcode");
+        if (xcodeVersionObject != null) {
+          platformBuilder.setXcodeVersion(Optional.of(xcodeVersionObject.toString()));
+        }
+        NSObject xcodeBuildVersionObject=parsedXcodeInfoPlist.objectForKey("DTXcodeBuild");
+        if (xcodeBuildVersionObject != null) {
+          platformBuilder.setXcodeBuildVersion(Optional.of(xcodeBuildVersionObject.toString()));
+        }
+      }
+ catch (      IOException e) {
+        LOG.debug("Error reading Xcode's info plist %s; ignoring Xcode versions",xcodeInfoPlistPath);
+      }
+catch (      PropertyListFormatException|ParseException|ParserConfigurationException|SAXException e) {
+        LOG.debug("Error in parsing %s; ignoring Xcode versions",xcodeInfoPlistPath);
+      }
+    }
+  }
   return platformBuilder.build();
 }
