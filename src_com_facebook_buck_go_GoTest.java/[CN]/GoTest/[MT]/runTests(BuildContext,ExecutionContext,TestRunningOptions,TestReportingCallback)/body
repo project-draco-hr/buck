@@ -6,5 +6,10 @@
   if (testRuleTimeoutMs.isPresent()) {
     args.add("-test.timeout",testRuleTimeoutMs.get() + "ms");
   }
-  return ImmutableList.of(new MakeCleanDirectoryStep(getProjectFilesystem(),getPathToTestOutputDirectory()),new GoTestStep(getProjectFilesystem(),args.build(),testMain.getExecutableCommand().getEnvironment(getResolver()),getPathToTestExitCode(),processTimeoutMs,getPathToTestResults()));
+  return ImmutableList.of(new MakeCleanDirectoryStep(getProjectFilesystem(),getPathToTestOutputDirectory()),new MakeCleanDirectoryStep(getProjectFilesystem(),getPathToTestWorkingDirectory()),new SymlinkTreeStep(getProjectFilesystem(),getPathToTestWorkingDirectory(),ImmutableMap.copyOf(FluentIterable.from(resources).transform(new Function<SourcePath,Map.Entry<Path,Path>>(){
+    @Override public Map.Entry<Path,Path> apply(    SourcePath input){
+      return Maps.immutableEntry(getProjectFilesystem().getRootPath().getFileSystem().getPath(getResolver().getSourcePathName(getBuildTarget(),input)),getResolver().getAbsolutePath(input));
+    }
+  }
+))),new GoTestStep(getProjectFilesystem(),getPathToTestWorkingDirectory(),args.build(),testMain.getExecutableCommand().getEnvironment(getResolver()),getPathToTestExitCode(),processTimeoutMs,getPathToTestResults()));
 }
