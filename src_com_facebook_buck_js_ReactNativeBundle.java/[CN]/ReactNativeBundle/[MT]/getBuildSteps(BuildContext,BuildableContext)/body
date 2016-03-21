@@ -5,15 +5,12 @@
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),resource));
   final Path sourceMapOutput=getPathToSourceMap(getBuildTarget());
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),sourceMapOutput.getParent()));
-  steps.add(new ShellStep(getProjectFilesystem().getRootPath()){
-    @Override public String getShortName(){
-      return "bundle_react_native";
-    }
-    @Override protected ImmutableList<String> getShellCommandInternal(    ExecutionContext context){
-      return getBundleScript(getResolver().getAbsolutePath(jsPackager),getProjectFilesystem().resolve(getResolver().getAbsolutePath(entryPath)),platform,isUnbundle,isDevMode,packagerFlags,getProjectFilesystem().resolve(jsOutput).toString(),getProjectFilesystem().resolve(resource).toString(),getProjectFilesystem().resolve(sourceMapOutput).toString());
-    }
+  if (useWorker) {
+    appendWorkerSteps(steps,jsOutput,sourceMapOutput);
   }
-);
+ else {
+    appendShellSteps(steps,jsOutput,sourceMapOutput);
+  }
   buildableContext.recordArtifact(jsOutputDir);
   buildableContext.recordArtifact(resource);
   buildableContext.recordArtifact(sourceMapOutput.getParent());

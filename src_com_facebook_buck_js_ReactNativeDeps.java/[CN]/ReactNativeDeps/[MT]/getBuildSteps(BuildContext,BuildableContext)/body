@@ -2,20 +2,12 @@
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   final Path output=BuildTargets.getScratchPath(getBuildTarget(),"__%s/deps.txt");
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),output.getParent()));
-  steps.add(new ShellStep(getProjectFilesystem().getRootPath()){
-    @Override protected ImmutableList<String> getShellCommandInternal(    ExecutionContext context){
-      ImmutableList.Builder<String> builder=ImmutableList.builder();
-      builder.add(getResolver().getAbsolutePath(jsPackager).toString(),"list-dependencies",platform.toString(),getProjectFilesystem().resolve(getResolver().getAbsolutePath(entryPath)).toString(),"--output",getProjectFilesystem().resolve(output).toString());
-      if (packagerFlags.isPresent()) {
-        builder.addAll(Arrays.asList(packagerFlags.get().split(" ")));
-      }
-      return builder.build();
-    }
-    @Override public String getShortName(){
-      return "react-native-deps";
-    }
+  if (useWorker) {
+    appendWorkerSteps(steps,output);
   }
-);
+ else {
+    appendShellSteps(steps,output);
+  }
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),outputDir));
   steps.add(new AbstractExecutionStep("hash_js_inputs"){
     @Override public int execute(    ExecutionContext context) throws IOException {
