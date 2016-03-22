@@ -4,10 +4,14 @@
   final CompilationUnit compilationUnit=makeCompilationUnitFromSource(code);
   final ImmutableSortedSet.Builder<String> providedSymbols=ImmutableSortedSet.naturalOrder();
   final ImmutableSortedSet.Builder<String> requiredSymbols=ImmutableSortedSet.naturalOrder();
+  final ImmutableSortedSet.Builder<String> exportedSymbols=ImmutableSortedSet.naturalOrder();
   final ImmutableSortedSet.Builder<String> requiredSymbolsFromExplicitImports=ImmutableSortedSet.naturalOrder();
   compilationUnit.accept(new ASTVisitor(){
     @Nullable private String packageName;
-    private Set<String> simpleImportedTypes=new HashSet<>();
+    /** 
+ * Maps simple name to fully-qualified name. 
+ */
+    private Map<String,String> simpleImportedTypes=new HashMap<>();
     /** 
  * Maps wildcard import prefixes, such as {@code "java.util"} to the types in the respective
  * package if a wildcard import such as {@code import java.util.*} is used.
@@ -25,6 +29,14 @@
       String fullyQualifiedName=getFullyQualifiedTypeName(node);
       if (fullyQualifiedName != null) {
         providedSymbols.add(fullyQualifiedName);
+      }
+      @SuppressWarnings("unchecked") List<Type> interfaceTypes=node.superInterfaceTypes();
+      for (      Type interfaceType : interfaceTypes) {
+        tryAddType(interfaceType,DependencyType.EXPORTED);
+      }
+      Type superclassType=node.getSuperclassType();
+      if (superclassType != null) {
+        tryAddType(superclassType,DependencyType.EXPORTED);
       }
       return true;
     }
@@ -53,7 +65,7 @@
       if (!(parent instanceof PackageDeclaration) && !(parent instanceof ImportDeclaration)) {
         String symbol=ancestor.getFullyQualifiedName();
         if (CharMatcher.javaUpperCase().matches(symbol.charAt(0))) {
-          addTypeFromDotDelimitedSequence(symbol);
+          addTypeFromDotDelimitedSequence(symbol,DependencyType.REQUIRED);
         }
       }
       return false;
@@ -63,7 +75,7 @@
  * be a built-in type, such as "java.lang.Integer", in which case it will not be added to
  * the set of required symbols.
  */
-    private void addTypeFromDotDelimitedSequence(    String expr){
+    private void addTypeFromDotDelimitedSequence(    String expr,    DependencyType dependencyType){
       if (startsWithUppercaseChar(expr)) {
         int index=expr.indexOf('.');
         if (index >= 0) {
@@ -74,7 +86,7 @@
         }
       }
       expr=qualifyWithPackageNameIfNecessary(expr);
-      requiredSymbols.add(expr);
+      addSymbol(expr,dependencyType);
     }
     @Override public boolean visit(    ImportDeclaration node){
       String fullyQualifiedName=node.getName().getFullyQualifiedName();
@@ -93,10 +105,10 @@
         }
       }
       String simpleName=getSimpleNameFromFullyQualifiedName(fullyQualifiedName);
-      simpleImportedTypes.add(simpleName);
       int index=fullyQualifiedName.indexOf("." + simpleName);
       String enclosingType=fullyQualifiedName.substring(0,index + simpleName.length() + 1);
       requiredSymbolsFromExplicitImports.add(enclosingType);
+      simpleImportedTypes.put(simpleName,enclosingType);
       return false;
     }
     @Override public boolean visit(    MethodInvocation node){
@@ -105,7 +117,7 @@
       }
       String receiver=node.getExpression().toString();
       if (looksLikeAType(receiver)) {
-        addTypeFromDotDelimitedSequence(receiver);
+        addTypeFromDotDelimitedSequence(receiver,DependencyType.REQUIRED);
       }
       return true;
     }
@@ -113,41 +125,100 @@
  * An annotation on a member with zero arguments. 
  */
     @Override public boolean visit(    MarkerAnnotation node){
-      addSimpleTypeName(node.getTypeName());
+      DependencyType dependencyType=findDependencyTypeForAnnotation(node);
+      addSimpleTypeName(node.getTypeName(),dependencyType);
       return true;
     }
     /** 
  * An annotation on a member with named arguments. 
  */
     @Override public boolean visit(    NormalAnnotation node){
-      addSimpleTypeName(node.getTypeName());
+      DependencyType dependencyType=findDependencyTypeForAnnotation(node);
+      addSimpleTypeName(node.getTypeName(),dependencyType);
       return true;
     }
     /** 
  * An annotation on a member with a single, unnamed argument. 
  */
     @Override public boolean visit(    SingleMemberAnnotation node){
-      addSimpleTypeName(node.getTypeName());
+      DependencyType dependencyType=findDependencyTypeForAnnotation(node);
+      addSimpleTypeName(node.getTypeName(),dependencyType);
       return true;
+    }
+    private DependencyType findDependencyTypeForAnnotation(    Annotation annotation){
+      ASTNode parentNode=annotation.getParent();
+      if (parentNode == null) {
+        return DependencyType.REQUIRED;
+      }
+      if (parentNode instanceof BodyDeclaration) {
+        BodyDeclaration declaration=(BodyDeclaration)parentNode;
+        int modifiers=declaration.getModifiers();
+        if ((modifiers & Modifier.PRIVATE) == 0) {
+          return DependencyType.EXPORTED;
+        }
+      }
+      return DependencyType.REQUIRED;
     }
     @Override public boolean visit(    SimpleType node){
-      tryAddType(node);
+      tryAddType(node,DependencyType.REQUIRED);
       return true;
     }
-    private void tryAddType(    Type type){
+    @Override public boolean visit(    MethodDeclaration node){
+      if ((node.getModifiers() & Modifier.PRIVATE) != 0) {
+        return true;
+      }
+      Type returnType=node.getReturnType2();
+      if (returnType != null) {
+        tryAddType(returnType,DependencyType.EXPORTED);
+      }
+      @SuppressWarnings("unchecked") List<SingleVariableDeclaration> params=node.parameters();
+      for (      SingleVariableDeclaration decl : params) {
+        tryAddType(decl.getType(),DependencyType.EXPORTED);
+      }
+      @SuppressWarnings("unchecked") List<Type> exceptions=node.thrownExceptionTypes();
+      for (      Type exception : exceptions) {
+        tryAddType(exception,DependencyType.EXPORTED);
+      }
+      return true;
+    }
+    @Override public boolean visit(    FieldDeclaration node){
+      if ((node.getModifiers() & Modifier.PRIVATE) == 0) {
+        tryAddType(node.getType(),DependencyType.EXPORTED);
+      }
+      return true;
+    }
+    private void tryAddType(    Type type,    DependencyType dependencyType){
       if (type.isSimpleType()) {
         SimpleType simpleType=(SimpleType)type;
         Name simpleTypeName=simpleType.getName();
-        addSimpleTypeName(simpleTypeName);
+        String simpleName=simpleTypeName.toString();
+        if (!CharMatcher.JAVA_UPPER_CASE.matchesAllOf(simpleName)) {
+          addSimpleTypeName(simpleTypeName,dependencyType);
+        }
       }
  else       if (type.isArrayType()) {
         ArrayType arrayType=(ArrayType)type;
-        tryAddType(arrayType.getElementType());
+        tryAddType(arrayType.getElementType(),dependencyType);
+      }
+ else       if (type.isParameterizedType()) {
+        ParameterizedType parameterizedType=(ParameterizedType)type;
+        tryAddType(parameterizedType.getType(),dependencyType);
+        @SuppressWarnings("unchecked") List<Type> argTypes=parameterizedType.typeArguments();
+        for (        Type argType : argTypes) {
+          tryAddType(argType,dependencyType);
+        }
       }
     }
-    private void addSimpleTypeName(    Name simpleTypeName){
+    private void addSimpleTypeName(    Name simpleTypeName,    DependencyType dependencyType){
       String simpleName=simpleTypeName.toString();
-      if (JAVA_LANG_TYPES.contains(simpleName) || simpleImportedTypes.contains(simpleName)) {
+      if (JAVA_LANG_TYPES.contains(simpleName)) {
+        return;
+      }
+      String fullyQualifiedNameForSimpleName=simpleImportedTypes.get(simpleName);
+      if (fullyQualifiedNameForSimpleName != null) {
+        if (dependencyType == DependencyType.EXPORTED) {
+          addSymbol(fullyQualifiedNameForSimpleName,DependencyType.EXPORTED);
+        }
         return;
       }
       if (!wildcardImports.isEmpty()) {
@@ -155,14 +226,17 @@
           Set<String> types=entry.getValue();
           if (types.contains(simpleName)) {
             String packageName=entry.getKey();
-            requiredSymbols.add(packageName + "." + simpleName);
+            addSymbol(packageName + "." + simpleName,dependencyType);
             return;
           }
         }
       }
       String symbol=simpleTypeName.getFullyQualifiedName();
       symbol=qualifyWithPackageNameIfNecessary(symbol);
-      requiredSymbols.add(symbol);
+      addSymbol(symbol,dependencyType);
+    }
+    private void addSymbol(    String symbol,    DependencyType dependencyType){
+      ((dependencyType == DependencyType.REQUIRED) ? requiredSymbols : exportedSymbols).add(symbol);
     }
     private String qualifyWithPackageNameIfNecessary(    String symbol){
       if (!startsWithUppercaseChar(symbol)) {
@@ -179,12 +253,15 @@
     }
   }
 );
-  ImmutableSortedSet<String> totalRequiredSymbols;
+  ImmutableSortedSet<String> totalExportedSymbols=exportedSymbols.build();
+  Set<String> totalRequiredSymbols=new HashSet<>();
   if (isPoisonedByUnsupportedWildcardImport.get()) {
-    totalRequiredSymbols=requiredSymbolsFromExplicitImports.build();
+    totalRequiredSymbols.addAll(requiredSymbolsFromExplicitImports.build());
   }
  else {
-    totalRequiredSymbols=ImmutableSortedSet.<String>naturalOrder().addAll(requiredSymbolsFromExplicitImports.build()).addAll(requiredSymbols.build()).build();
+    totalRequiredSymbols.addAll(requiredSymbolsFromExplicitImports.build());
+    totalRequiredSymbols.addAll(requiredSymbols.build());
   }
-  return new JavaFileFeatures(providedSymbols.build(),totalRequiredSymbols);
+  totalRequiredSymbols.removeAll(totalExportedSymbols);
+  return new JavaFileFeatures(providedSymbols.build(),ImmutableSortedSet.copyOf(totalRequiredSymbols),totalExportedSymbols);
 }
