@@ -6,11 +6,16 @@
     long nowMillis=clock.currentTimeMillis();
     Stopwatch stopwatch=Stopwatch.createStarted();
     try {
-      pingClient.newCall(request).execute();
-      long requestLatencyMillis=stopwatch.elapsed(TimeUnit.MILLISECONDS);
-      perServerData.setPingRequestLatencyMillis(requestLatencyMillis);
-      healthManager.reportPingLatency(serverUri,nowMillis,requestLatencyMillis);
-      healthManager.reportRequestSuccess(serverUri,nowMillis);
+      Response response=pingClient.newCall(request).execute();
+      try {
+        long requestLatencyMillis=stopwatch.elapsed(TimeUnit.MILLISECONDS);
+        perServerData.setPingRequestLatencyMillis(requestLatencyMillis);
+        healthManager.reportPingLatency(serverUri,nowMillis,requestLatencyMillis);
+        healthManager.reportRequestSuccess(serverUri,nowMillis);
+      }
+  finally {
+        response.body().close();
+      }
     }
  catch (    IOException e) {
       healthManager.reportRequestError(serverUri,nowMillis);
