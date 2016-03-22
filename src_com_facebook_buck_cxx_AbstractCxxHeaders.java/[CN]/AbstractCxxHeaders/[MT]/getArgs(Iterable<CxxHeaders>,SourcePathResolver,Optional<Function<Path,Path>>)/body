@@ -1,0 +1,22 @@
+{
+  ImmutableList.Builder<String> args=ImmutableList.builder();
+  Multimap<CxxPreprocessables.IncludeType,String> headerMaps=LinkedHashMultimap.create();
+  Multimap<CxxPreprocessables.IncludeType,String> roots=LinkedHashMultimap.create();
+  for (  CxxHeaders cxxHeaders : cxxHeaderses) {
+    Optional<SourcePath> headerMap=cxxHeaders.getHeaderMap();
+    if (headerMap.isPresent()) {
+      headerMaps.put(cxxHeaders.getIncludeType(),resolveSourcePath(resolver,headerMap.get(),pathShortener));
+    }
+    roots.put(cxxHeaders.getIncludeType(),resolveSourcePath(resolver,cxxHeaders.getIncludeRoot(),pathShortener));
+  }
+  ImmutableSet<CxxPreprocessables.IncludeType> includeTypes=ImmutableSet.of(CxxPreprocessables.IncludeType.LOCAL,CxxPreprocessables.IncludeType.SYSTEM);
+  Preconditions.checkState(includeTypes.containsAll(headerMaps.keySet()));
+  for (  CxxPreprocessables.IncludeType includeType : includeTypes) {
+    args.addAll(MoreIterables.zipAndConcat(Iterables.cycle(includeType.getFlag()),headerMaps.get(includeType)));
+  }
+  Preconditions.checkState(includeTypes.containsAll(roots.keySet()));
+  for (  CxxPreprocessables.IncludeType includeType : includeTypes) {
+    args.addAll(MoreIterables.zipAndConcat(Iterables.cycle(includeType.getFlag()),roots.get(includeType)));
+  }
+  return args.build();
+}

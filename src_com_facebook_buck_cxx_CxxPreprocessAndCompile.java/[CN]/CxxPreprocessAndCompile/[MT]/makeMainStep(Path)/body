@@ -1,11 +1,13 @@
 {
-  ImmutableMap<Path,Path> replacementPaths;
-  try {
-    replacementPaths=preprocessDelegate.isPresent() ? preprocessDelegate.get().getReplacementPaths() : ImmutableMap.<Path,Path>of();
+  if (preprocessDelegate.isPresent()) {
+    try {
+      preprocessDelegate.get().checkForConflictingHeaders();
+    }
+ catch (    PreprocessorDelegate.ConflictingHeadersException e) {
+      throw e.getHumanReadableExceptionForBuildTarget(getBuildTarget());
+    }
   }
- catch (  CxxHeaders.ConflictingHeadersException e) {
-    throw e.getHumanReadableExceptionForBuildTarget(getBuildTarget());
-  }
+  ImmutableMap<Path,Path> replacementPaths=preprocessDelegate.isPresent() ? preprocessDelegate.get().getReplacementPaths() : ImmutableMap.<Path,Path>of();
   Optional<CxxPreprocessAndCompileStep.ToolCommand> preprocessorCommand;
   if (preprocessDelegate.isPresent()) {
     preprocessorCommand=Optional.of(new CxxPreprocessAndCompileStep.ToolCommand(getPreprocessorDelegate().get().getCommand(compilerDelegate.getCompilerFlags()),preprocessDelegate.get().getEnvironment(),preprocessDelegate.get().getFlagsForColorDiagnostics()));

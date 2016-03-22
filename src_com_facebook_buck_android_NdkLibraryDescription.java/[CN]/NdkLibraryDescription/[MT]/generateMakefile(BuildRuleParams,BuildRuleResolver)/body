@@ -6,8 +6,10 @@
     CxxPlatform cxxPlatform=entry.getValue().getCxxPlatform();
     CxxPreprocessorInput cxxPreprocessorInput=CxxPreprocessorInput.concat(CxxPreprocessables.getTransitiveCxxPreprocessorInput(cxxPlatform,params.getDeps(),Predicates.instanceOf(NdkLibrary.class)));
     deps.addAll(cxxPreprocessorInput.getDeps(resolver,pathResolver));
-    Iterable<String> ppflags=Iterables.concat(cxxPreprocessorInput.getPreprocessorFlags().get(CxxSource.Type.C),MoreIterables.zipAndConcat(Iterables.cycle("-I"),FluentIterable.from(cxxPreprocessorInput.getHeaderMaps()).transform(Functions.toStringFunction())),MoreIterables.zipAndConcat(Iterables.cycle("-I"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(Functions.toStringFunction())),MoreIterables.zipAndConcat(Iterables.cycle("-isystem"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(Functions.toStringFunction())));
-    String localCflags=Joiner.on(' ').join(escapeForMakefile(ppflags));
+    ImmutableList.Builder<String> ppFlags=ImmutableList.builder();
+    ppFlags.addAll(cxxPreprocessorInput.getPreprocessorFlags().get(CxxSource.Type.C));
+    ppFlags.addAll(CxxHeaders.getArgs(cxxPreprocessorInput.getIncludes(),pathResolver,Optional.<Function<Path,Path>>absent()));
+    String localCflags=Joiner.on(' ').join(escapeForMakefile(ppFlags.build()));
     NativeLinkableInput nativeLinkableInput=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,params.getDeps(),Linker.LinkableDepType.SHARED,Predicates.instanceOf(NdkLibrary.class));
     deps.addAll(FluentIterable.from(nativeLinkableInput.getArgs()).transformAndConcat(com.facebook.buck.rules.args.Arg.getDepsFunction(pathResolver)));
     String localLdflags=Joiner.on(' ').join(escapeForMakefile(com.facebook.buck.rules.args.Arg.stringify(nativeLinkableInput.getArgs())));

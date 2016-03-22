@@ -1,12 +1,10 @@
 {
-  try {
-    ImmutableMap.Builder<Path,Path> replacementPathsBuilder=ImmutableMap.builder();
-    for (    Map.Entry<Path,SourcePath> entry : CxxHeaders.concat(includes).getFullNameToPathMap().entrySet()) {
-      replacementPathsBuilder.put(Preconditions.checkNotNull(minLengthPathRepresentation.apply(entry.getKey())),resolver.getRelativePath(entry.getValue()));
+  Map<Path,Path> replacementPathsBuilder=new LinkedHashMap<>();
+  for (  CxxHeaders include : includes) {
+    Path root=resolver.getAbsolutePath(include.getRoot());
+    for (    Map.Entry<Path,SourcePath> entry : include.getNameToPathMap().entrySet()) {
+      replacementPathsBuilder.put(Preconditions.checkNotNull(minLengthPathRepresentation.apply(root.resolve(entry.getKey()))),resolver.getRelativePath(entry.getValue()));
     }
-    return replacementPathsBuilder.build();
   }
- catch (  CxxHeaders.ConflictingHeadersException e) {
-    throw new RuntimeException(e);
-  }
+  return ImmutableMap.copyOf(replacementPathsBuilder);
 }

@@ -1,23 +1,20 @@
 {
-  ProjectFilesystem projectFilesystem=new FakeProjectFilesystem();
   SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer()));
   BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
   CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(new CxxBuckConfig(FakeBuckConfig.builder().build()));
   final BuildTarget publicHeaderTarget=BuildTargetFactory.newInstance("//:header");
   final BuildTarget publicHeaderSymlinkTreeTarget=BuildTargetFactory.newInstance("//:symlink");
-  final Path publicHeaderSymlinkTreeRoot=projectFilesystem.resolve("symlink/tree/root");
   final BuildTarget privateHeaderTarget=BuildTargetFactory.newInstance("//:privateheader");
   final BuildTarget privateHeaderSymlinkTreeTarget=BuildTargetFactory.newInstance("//:privatesymlink");
-  final Path privateHeaderSymlinkTreeRoot=projectFilesystem.resolve("private/symlink/tree/root");
   final BuildRule archive=new FakeBuildRule("//:archive",pathResolver);
   final BuildRule sharedLibrary=new FakeBuildRule("//:shared",pathResolver);
   final Path sharedLibraryOutput=Paths.get("output/path/lib.so");
   final String sharedLibrarySoname="lib.so";
-  FakeCxxLibrary cxxLibrary=new FakeCxxLibrary(params,pathResolver,publicHeaderTarget,publicHeaderSymlinkTreeTarget,publicHeaderSymlinkTreeRoot,privateHeaderTarget,privateHeaderSymlinkTreeTarget,privateHeaderSymlinkTreeRoot,archive,sharedLibrary,sharedLibraryOutput,sharedLibrarySoname,ImmutableSortedSet.<BuildTarget>of());
-  CxxPreprocessorInput expectedPublicCxxPreprocessorInput=CxxPreprocessorInput.builder().addRules(publicHeaderTarget,publicHeaderSymlinkTreeTarget).addIncludeRoots(publicHeaderSymlinkTreeRoot).build();
+  FakeCxxLibrary cxxLibrary=new FakeCxxLibrary(params,pathResolver,publicHeaderTarget,publicHeaderSymlinkTreeTarget,privateHeaderTarget,privateHeaderSymlinkTreeTarget,archive,sharedLibrary,sharedLibraryOutput,sharedLibrarySoname,ImmutableSortedSet.<BuildTarget>of());
+  CxxPreprocessorInput expectedPublicCxxPreprocessorInput=CxxPreprocessorInput.builder().addIncludes(CxxHeaders.builder().setIncludeType(CxxPreprocessables.IncludeType.LOCAL).putNameToPathMap(Paths.get("header.h"),new BuildTargetSourcePath(publicHeaderTarget)).setRoot(new BuildTargetSourcePath(publicHeaderSymlinkTreeTarget)).build()).build();
   assertEquals(expectedPublicCxxPreprocessorInput,cxxLibrary.getCxxPreprocessorInput(cxxPlatform,HeaderVisibility.PUBLIC));
-  CxxPreprocessorInput expectedPrivateCxxPreprocessorInput=CxxPreprocessorInput.builder().addRules(privateHeaderTarget,privateHeaderSymlinkTreeTarget).addIncludeRoots(privateHeaderSymlinkTreeRoot).build();
+  CxxPreprocessorInput expectedPrivateCxxPreprocessorInput=CxxPreprocessorInput.builder().addIncludes(CxxHeaders.builder().setIncludeType(CxxPreprocessables.IncludeType.LOCAL).setRoot(new BuildTargetSourcePath(privateHeaderSymlinkTreeTarget)).putNameToPathMap(Paths.get("header.h"),new BuildTargetSourcePath(privateHeaderTarget)).build()).build();
   assertEquals(expectedPrivateCxxPreprocessorInput,cxxLibrary.getCxxPreprocessorInput(cxxPlatform,HeaderVisibility.PRIVATE));
   NativeLinkableInput expectedStaticNativeLinkableInput=NativeLinkableInput.of(ImmutableList.<Arg>of(new SourcePathArg(pathResolver,new BuildTargetSourcePath(archive.getBuildTarget()))),ImmutableSet.<FrameworkPath>of(),ImmutableSet.<FrameworkPath>of());
   assertEquals(expectedStaticNativeLinkableInput,cxxLibrary.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.STATIC));

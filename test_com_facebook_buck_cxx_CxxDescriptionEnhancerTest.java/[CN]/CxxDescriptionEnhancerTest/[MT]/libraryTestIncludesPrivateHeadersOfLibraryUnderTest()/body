@@ -3,9 +3,12 @@
   BuildTarget libTarget=BuildTargetFactory.newInstance("//:lib");
   BuildTarget testTarget=BuildTargetFactory.newInstance("//:test");
   BuildRuleParams libParams=new FakeBuildRuleParamsBuilder(libTarget).build();
-  ProjectFilesystem filesystem=libParams.getProjectFilesystem();
-  FakeCxxLibrary libRule=new FakeCxxLibrary(libParams,pathResolver,BuildTargetFactory.newInstance("//:header"),BuildTargetFactory.newInstance("//:symlink"),filesystem.resolve("symlink/tree/lib"),BuildTargetFactory.newInstance("//:privateheader"),BuildTargetFactory.newInstance("//:privatesymlink"),filesystem.resolve("private/symlink/tree/lib"),new FakeBuildRule("//:archive",pathResolver),new FakeBuildRule("//:shared",pathResolver),Paths.get("output/path/lib.so"),"lib.so",ImmutableSortedSet.of(testTarget));
+  FakeCxxLibrary libRule=new FakeCxxLibrary(libParams,pathResolver,BuildTargetFactory.newInstance("//:header"),BuildTargetFactory.newInstance("//:symlink"),BuildTargetFactory.newInstance("//:privateheader"),BuildTargetFactory.newInstance("//:privatesymlink"),new FakeBuildRule("//:archive",pathResolver),new FakeBuildRule("//:shared",pathResolver),Paths.get("output/path/lib.so"),"lib.so",ImmutableSortedSet.of(testTarget));
   BuildRuleParams testParams=new FakeBuildRuleParamsBuilder(testTarget).setDeclaredDeps(ImmutableSortedSet.<BuildRule>of(libRule)).build();
   ImmutableList<CxxPreprocessorInput> combinedInput=CxxDescriptionEnhancer.collectCxxPreprocessorInput(testParams,CxxPlatformUtils.DEFAULT_PLATFORM,ImmutableMultimap.<CxxSource.Type,String>of(),ImmutableList.<HeaderSymlinkTree>of(),ImmutableSet.<FrameworkPath>of(),CxxPreprocessables.getTransitiveCxxPreprocessorInput(CxxPlatformUtils.DEFAULT_PLATFORM,FluentIterable.from(testParams.getDeps()).filter(Predicates.instanceOf(CxxPreprocessorDep.class))));
-  assertThat("Test of library should include both public and private headers",CxxPreprocessorInput.concat(combinedInput).getIncludeRoots(),hasItems(filesystem.resolve("symlink/tree/lib"),filesystem.resolve("private/symlink/tree/lib")));
+  Set<SourcePath> roots=new HashSet<>();
+  for (  CxxHeaders headers : CxxPreprocessorInput.concat(combinedInput).getIncludes()) {
+    roots.add(headers.getRoot());
+  }
+  assertThat("Test of library should include both public and private headers",roots,Matchers.<SourcePath>hasItems(new BuildTargetSourcePath(BuildTargetFactory.newInstance("//:symlink")),new BuildTargetSourcePath(BuildTargetFactory.newInstance("//:privatesymlink"))));
 }
