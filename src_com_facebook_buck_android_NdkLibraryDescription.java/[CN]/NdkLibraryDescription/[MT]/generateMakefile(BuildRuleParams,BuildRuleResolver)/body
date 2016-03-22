@@ -4,15 +4,8 @@
   ImmutableSortedSet.Builder<BuildRule> deps=ImmutableSortedSet.naturalOrder();
   for (  Map.Entry<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> entry : cxxPlatforms.entrySet()) {
     CxxPlatform cxxPlatform=entry.getValue().getCxxPlatform();
-    CxxPreprocessorInput cxxPreprocessorInput;
-    try {
-      cxxPreprocessorInput=CxxPreprocessorInput.concat(CxxPreprocessables.getTransitiveCxxPreprocessorInput(cxxPlatform,params.getDeps(),Predicates.instanceOf(NdkLibrary.class)));
-    }
- catch (    CxxHeaders.ConflictingHeadersException e) {
-      throw e.getHumanReadableExceptionForBuildTarget(params.getBuildTarget());
-    }
-    deps.addAll(pathResolver.filterBuildRuleInputs(cxxPreprocessorInput.getIncludes().getNameToPathMap().values()));
-    deps.addAll(resolver.getAllRules(cxxPreprocessorInput.getRules()));
+    CxxPreprocessorInput cxxPreprocessorInput=CxxPreprocessorInput.concat(CxxPreprocessables.getTransitiveCxxPreprocessorInput(cxxPlatform,params.getDeps(),Predicates.instanceOf(NdkLibrary.class)));
+    deps.addAll(cxxPreprocessorInput.getDeps(resolver,pathResolver));
     Iterable<String> ppflags=Iterables.concat(cxxPreprocessorInput.getPreprocessorFlags().get(CxxSource.Type.C),MoreIterables.zipAndConcat(Iterables.cycle("-I"),FluentIterable.from(cxxPreprocessorInput.getHeaderMaps()).transform(Functions.toStringFunction())),MoreIterables.zipAndConcat(Iterables.cycle("-I"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(Functions.toStringFunction())),MoreIterables.zipAndConcat(Iterables.cycle("-isystem"),FluentIterable.from(cxxPreprocessorInput.getIncludeRoots()).transform(Functions.toStringFunction())));
     String localCflags=Joiner.on(' ').join(escapeForMakefile(ppflags));
     NativeLinkableInput nativeLinkableInput=NativeLinkables.getTransitiveNativeLinkableInput(cxxPlatform,params.getDeps(),Linker.LinkableDepType.SHARED,Predicates.instanceOf(NdkLibrary.class));

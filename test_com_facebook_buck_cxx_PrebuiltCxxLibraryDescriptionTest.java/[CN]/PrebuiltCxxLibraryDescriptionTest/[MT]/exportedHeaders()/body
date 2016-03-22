@@ -3,9 +3,10 @@
   PrebuiltCxxLibraryBuilder libBuilder=new PrebuiltCxxLibraryBuilder(TARGET).setExportedHeaders(SourceList.ofNamedSources(ImmutableSortedMap.<String,SourcePath>of("foo.h",new FakeSourcePath("foo.h"))));
   TargetGraph targetGraph=TargetGraphFactory.newInstance(libBuilder.build());
   BuildRuleResolver resolver=new BuildRuleResolver(targetGraph,new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   PrebuiltCxxLibrary lib=(PrebuiltCxxLibrary)libBuilder.build(resolver,filesystem,targetGraph);
   CxxPreprocessorInput input=lib.getCxxPreprocessorInput(CXX_PLATFORM,HeaderVisibility.PUBLIC);
-  assertThat(input.getIncludes().getNameToPathMap().keySet(),Matchers.hasItem(filesystem.getRootPath().getFileSystem().getPath("foo.h")));
-  assertThat(input.getRules(),Matchers.equalTo(getInputRules(lib)));
+  assertThat(CxxHeaders.concat(input.getIncludes()).getNameToPathMap().keySet(),Matchers.hasItem(filesystem.getRootPath().getFileSystem().getPath("foo.h")));
+  assertThat(ImmutableSortedSet.copyOf(input.getDeps(resolver,pathResolver)),Matchers.equalTo(resolver.getAllRules(getInputRules(lib))));
   assertThat(input.getSystemIncludeRoots(),Matchers.hasItem(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(lib.getBuildTarget(),CXX_PLATFORM.getFlavor(),HeaderVisibility.PUBLIC)));
 }

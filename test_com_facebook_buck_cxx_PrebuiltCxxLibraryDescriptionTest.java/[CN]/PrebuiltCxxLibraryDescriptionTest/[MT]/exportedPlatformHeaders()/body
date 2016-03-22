@@ -3,10 +3,11 @@
   PrebuiltCxxLibraryBuilder libBuilder=new PrebuiltCxxLibraryBuilder(TARGET).setExportedPlatformHeaders(PatternMatchedCollection.<SourceList>builder().add(Pattern.compile(CXX_PLATFORM.getFlavor().toString()),SourceList.ofNamedSources(ImmutableSortedMap.<String,SourcePath>of("foo.h",new FakeSourcePath("foo.h")))).add(Pattern.compile("DO NOT MATCH ANYTNING"),SourceList.ofNamedSources(ImmutableSortedMap.<String,SourcePath>of("bar.h",new FakeSourcePath("bar.h")))).build());
   TargetGraph targetGraph=TargetGraphFactory.newInstance(libBuilder.build());
   BuildRuleResolver resolver=new BuildRuleResolver(targetGraph,new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   PrebuiltCxxLibrary lib=(PrebuiltCxxLibrary)libBuilder.build(resolver,filesystem,targetGraph);
   CxxPreprocessorInput input=lib.getCxxPreprocessorInput(CXX_PLATFORM,HeaderVisibility.PUBLIC);
-  assertThat(input.getIncludes().getNameToPathMap().keySet(),Matchers.hasItem(filesystem.getRootPath().getFileSystem().getPath("foo.h")));
-  assertThat(input.getIncludes().getNameToPathMap().keySet(),Matchers.not(Matchers.hasItem(filesystem.getRootPath().getFileSystem().getPath("bar.h"))));
-  assertThat(input.getRules(),Matchers.equalTo(getInputRules(lib)));
+  assertThat(CxxHeaders.concat(input.getIncludes()).getNameToPathMap().keySet(),Matchers.hasItem(filesystem.getRootPath().getFileSystem().getPath("foo.h")));
+  assertThat(CxxHeaders.concat(input.getIncludes()).getNameToPathMap().keySet(),Matchers.not(Matchers.hasItem(filesystem.getRootPath().getFileSystem().getPath("bar.h"))));
+  assertThat(ImmutableSortedSet.copyOf(input.getDeps(resolver,pathResolver)),Matchers.equalTo(resolver.getAllRules(getInputRules(lib))));
   assertThat(input.getSystemIncludeRoots(),Matchers.hasItem(CxxDescriptionEnhancer.getHeaderSymlinkTreePath(lib.getBuildTarget(),CXX_PLATFORM.getFlavor(),HeaderVisibility.PUBLIC)));
 }

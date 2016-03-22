@@ -2,9 +2,10 @@
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
   CxxLibraryBuilder cxxLibraryBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:rule"));
   BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(cxxLibraryBuilder.build()),new BuildTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   CxxLibrary rule=(CxxLibrary)cxxLibraryBuilder.build(resolver,filesystem);
   CxxPreprocessorInput input=rule.getCxxPreprocessorInput(CxxPlatformUtils.DEFAULT_PLATFORM,HeaderVisibility.PUBLIC);
-  assertThat(input.getIncludes().getNameToPathMap().keySet(),Matchers.<Path>empty());
+  assertThat(CxxHeaders.concat(input.getIncludes()).getNameToPathMap().keySet(),Matchers.<Path>empty());
   assertThat(input.getSystemIncludeRoots(),Matchers.<Path>empty());
-  assertThat(input.getRules(),Matchers.<BuildTarget>empty());
+  assertThat(ImmutableSortedSet.copyOf(input.getDeps(resolver,pathResolver)),Matchers.<BuildRule>empty());
 }

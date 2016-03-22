@@ -7,9 +7,9 @@
   for (  SourcePath cSrc : cInput) {
     String name=pathResolver.getAbsolutePath(cSrc).toFile().getName();
     BuildTarget target=createCCompileBuildTarget(params.getBuildTarget(),name);
-    BuildRuleParams cCompileParams=params.copyWithChanges(target,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(cSrc).addAll(cxxPreprocessorInput.getIncludes().getNameToPathMap().values()).build())).addAll(BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,cxxPreprocessorInput.getRules())).addAll(cCompiler.getDeps(pathResolver)).addAll(params.getDeclaredDeps().get()).build()),params.getExtraDeps());
+    BuildRuleParams cCompileParams=params.copyWithChanges(target,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(cSrc)).addAll(cxxPreprocessorInput.getDeps(resolver,pathResolver)).addAll(cCompiler.getDeps(pathResolver)).addAll(params.getDeclaredDeps().get()).build()),params.getExtraDeps());
     Path outputPath=ocamlContext.getCOutput(pathResolver.getRelativePath(cSrc));
-    OCamlCCompile compileRule=new OCamlCCompile(cCompileParams,pathResolver,new OCamlCCompileStep.Args(cCompiler.getEnvironment(pathResolver),cCompiler.getCommandPrefix(pathResolver),ocamlContext.getOcamlCompiler().get(),outputPath,cSrc,cCompileFlags.build(),ImmutableMap.copyOf(cxxPreprocessorInput.getIncludes().getNameToPathMap())));
+    OCamlCCompile compileRule=new OCamlCCompile(cCompileParams,pathResolver,new OCamlCCompileStep.Args(cCompiler.getEnvironment(pathResolver),cCompiler.getCommandPrefix(pathResolver),ocamlContext.getOcamlCompiler().get(),outputPath,cSrc,cCompileFlags.build(),cxxPreprocessorInput.getIncludes()));
     resolver.addToIndex(compileRule);
     objects.add(new BuildTargetSourcePath(compileRule.getBuildTarget()));
   }
