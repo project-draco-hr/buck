@@ -2,13 +2,17 @@
   int numWritten=0;
   for (  DepsForBuildFiles.BuildFileWithDeps buildFileWithDeps : buildFilesWithDeps) {
     Path generatedFile=buildFileWithDeps.getCellPath().resolve(buildFileWithDeps.getBasePath()).resolve(autodepsFileName);
-    SortedMap<String,Object> deps=new TreeMap<>();
+    SortedMap<String,SortedMap<String,Iterable<String>>> depsForBuildFile=new TreeMap<>();
     for (    DepsForBuildFiles.DepsForRule depsForRule : buildFileWithDeps) {
-      Iterable<BuildTarget> depsAsBuildTargets=depsForRule;
-      List<String> depsAsStrings=FluentIterable.from(depsAsBuildTargets).transform(Functions.toStringFunction()).toList();
-      deps.put(depsForRule.getShortName(),depsAsStrings);
+      SortedMap<String,Iterable<String>> deps=new TreeMap<>();
+      for (      DependencyType type : DependencyType.values()) {
+        Iterable<BuildTarget> depsAsBuildTargets=depsForRule.depsForDependencyType(type);
+        Iterable<String> depsAsStrings=FluentIterable.from(depsAsBuildTargets).transform(Functions.toStringFunction());
+        deps.put(type.name().toLowerCase(),depsAsStrings);
+      }
+      depsForBuildFile.put(depsForRule.getShortName(),deps);
     }
-    if (writeSignedFile(deps,generatedFile,mapper)) {
+    if (writeSignedFile(depsForBuildFile,generatedFile,mapper)) {
       numWritten++;
     }
   }
