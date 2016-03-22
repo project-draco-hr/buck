@@ -1,0 +1,24 @@
+{
+  Clock fakeClock=new IncrementingFakeClock(TimeUnit.SECONDS.toNanos(1));
+  BuckEventBus eventBus=BuckEventBusFactory.newInstance(fakeClock);
+  EventBus rawEventBus=BuckEventBusFactory.getEventBusFor(eventBus);
+  TestConsole console=new TestConsole();
+  BuildTarget fakeTarget=BuildTargetFactory.newInstance("//banana:stand");
+  ImmutableSet<BuildTarget> buildTargets=ImmutableSet.of(fakeTarget);
+  Iterable<String> buildArgs=Iterables.transform(buildTargets,Functions.toStringFunction());
+  SimpleConsoleEventBusListener listener=new SimpleConsoleEventBusListener(console,fakeClock,TestResultSummaryVerbosity.of(false,false),Locale.US,logPath);
+  eventBus.register(listener);
+  ParseEvent.Started parseStarted=ParseEvent.started(buildTargets);
+  rawEventBus.post(configureTestEventAtTime(parseStarted,100L,TimeUnit.MILLISECONDS,0L));
+  rawEventBus.post(configureTestEventAtTime(ParseEvent.finished(parseStarted,Optional.<TargetGraph>absent()),300L,TimeUnit.MILLISECONDS,0L));
+  String expectedOutput="[-] PARSING BUCK FILES...FINISHED 0.2s\n";
+  assertOutput(expectedOutput,console);
+  ActionGraphEvent.Started actionGraphStarted=ActionGraphEvent.started();
+  rawEventBus.post(configureTestEventAtTime(actionGraphStarted,300L,TimeUnit.MILLISECONDS,0L));
+  rawEventBus.post(configureTestEventAtTime(ActionGraphEvent.finished(actionGraphStarted),500L,TimeUnit.MILLISECONDS,0L));
+  BuildEvent.Started buildEventStarted=BuildEvent.started(buildArgs);
+  rawEventBus.post(configureTestEventAtTime(buildEventStarted,500L,TimeUnit.MILLISECONDS,0L));
+  rawEventBus.post(configureTestEventAtTime(BuildEvent.finished(buildEventStarted,0),600L,TimeUnit.MILLISECONDS,0L));
+  expectedOutput+="[-] BUILDING...FINISHED 0.1s\n";
+  assertOutput(expectedOutput,console);
+}

@@ -3,10 +3,10 @@
   if (buildStarted != null && buildStarted.isDistributedBuild()) {
     getDistBuildDebugInfo(lines);
   }
-  if (parseStarted == null && parseFinished == null) {
+  if (parseStarted.isEmpty() && parseFinished.isEmpty()) {
     logEventPair("PARSING BUCK FILES",Optional.<String>absent(),currentTimeMillis,0L,projectBuildFileParseStarted,projectBuildFileParseFinished,getEstimatedProgressOfProcessingBuckFiles(),lines);
   }
-  long parseTime=logEventPair("PROCESSING BUCK FILES",Optional.<String>absent(),currentTimeMillis,0L,parseStarted,actionGraphFinished,getEstimatedProgressOfProcessingBuckFiles(),lines);
+  long parseTime=logEventPair("PROCESSING BUCK FILES",Optional.<String>absent(),currentTimeMillis,0L,buckFilesProcessing.values(),getEstimatedProgressOfProcessingBuckFiles(),lines);
   logEventPair("GENERATING PROJECT",Optional.<String>absent(),currentTimeMillis,0L,projectGenerationStarted,projectGenerationFinished,getEstimatedProgressOfGeneratingProjectFiles(),lines);
   if (parseTime != UNFINISHED_EVENT_PAIR) {
     lines.add(getNetworkStatsLine(buildFinished));
@@ -33,9 +33,16 @@
         buildTrace=String.format(locale,"Details: http://localhost:%s/trace/%s",port.get(),buildFinished.getBuildId());
       }
     }
+    if (buildStarted == null) {
+      return lines.build();
+    }
     String suffix=Joiner.on(" ").join(FluentIterable.of(new String[]{jobSummary,buildTrace}).filter(Predicates.notNull()));
     Optional<String> suffixOptional=suffix.isEmpty() ? Optional.<String>absent() : Optional.of(suffix);
-    long buildTime=logEventPair("BUILDING",suffixOptional,currentTimeMillis,parseTime,buildStarted,buildFinished,getApproximateBuildProgress(),lines);
+    long buildStartedTime=buildStarted.getTimestamp();
+    long buildFinishedTime=buildFinished != null ? buildFinished.getTimestamp() : currentTimeMillis;
+    Collection<EventPair> processingEvents=getEventsBetween(buildStartedTime,buildFinishedTime,buckFilesProcessing.values());
+    long offsetMs=getTotalCompletedTimeFromEventPairs(processingEvents);
+    long buildTime=logEventPair("BUILDING",suffixOptional,currentTimeMillis,offsetMs,this.buildStarted,this.buildFinished,getApproximateBuildProgress(),lines);
     int maxThreadLines=defaultThreadLineLimit;
     if (anyWarningsPrinted.get() && threadLineLimitOnWarning < maxThreadLines) {
       maxThreadLines=threadLineLimitOnWarning;
