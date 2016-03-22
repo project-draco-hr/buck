@@ -8,11 +8,25 @@
     int result=executor.waitForProcess(process,Long.MAX_VALUE,TimeUnit.SECONDS);
     if (result != 0) {
       LOG.error("Error running %s: %s",getDescription(context),listener.getStderr());
+      return result;
     }
-    return result;
   }
  catch (  IOException e) {
     LOG.error(e,"Could not execute command %s",command);
     return 1;
   }
+  if (Files.notExists(temp)) {
+    return 0;
+  }
+  try (DirectoryStream<Path> dirStream=Files.newDirectoryStream(temp)){
+    if (dirStream.iterator().hasNext()) {
+      Files.createDirectories(destinationDirectory);
+      MoreFiles.copyRecursively(temp,destinationDirectory);
+    }
+  }
+ catch (  IOException e) {
+    LOG.error(e,"Could not copy to %s",destinationDirectory);
+    return 1;
+  }
+  return 0;
 }
