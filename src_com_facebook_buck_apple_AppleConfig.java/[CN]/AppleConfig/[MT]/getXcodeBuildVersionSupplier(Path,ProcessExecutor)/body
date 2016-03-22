@@ -1,0 +1,35 @@
+{
+  Supplier<Optional<String>> supplier=xcodeVersionCache.get(developerPath);
+  if (supplier != null) {
+    return supplier;
+  }
+  supplier=Suppliers.memoize(new Supplier<Optional<String>>(){
+    @Override public Optional<String> get(){
+      ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().setCommand(ImmutableList.of(developerPath.resolve("usr/bin/xcodebuild").toString(),"-version")).build();
+      Set<ProcessExecutor.Option> options=EnumSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT);
+      ProcessExecutor.Result result;
+      try {
+        result=processExecutor.launchAndExecute(processExecutorParams,options,Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
+      }
+ catch (      InterruptedException|IOException e) {
+        LOG.warn("Could not execute xcodebuild to find Xcode build number.");
+        return Optional.absent();
+      }
+      if (result.getExitCode() != 0) {
+        throw new RuntimeException("xcodebuild -version failed: " + result.getStderr());
+      }
+      Matcher matcher=XCODE_BUILD_NUMBER_PATTERN.matcher(result.getStdout().get());
+      if (matcher.find()) {
+        String xcodeBuildNumber=matcher.group(1);
+        return Optional.<String>of(xcodeBuildNumber);
+      }
+ else {
+        LOG.warn("Xcode build number not found.");
+        return Optional.absent();
+      }
+    }
+  }
+);
+  xcodeVersionCache.put(developerPath,supplier);
+  return supplier;
+}

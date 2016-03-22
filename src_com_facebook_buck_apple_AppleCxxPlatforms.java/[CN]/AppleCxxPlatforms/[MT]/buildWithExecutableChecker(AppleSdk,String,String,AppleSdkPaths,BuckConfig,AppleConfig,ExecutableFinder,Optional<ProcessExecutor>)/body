@@ -97,16 +97,22 @@
         if (xcodeVersionObject != null) {
           platformBuilder.setXcodeVersion(Optional.of(xcodeVersionObject.toString()));
         }
-        NSObject xcodeBuildVersionObject=parsedXcodeInfoPlist.objectForKey("DTXcodeBuild");
-        if (xcodeBuildVersionObject != null) {
-          platformBuilder.setXcodeBuildVersion(Optional.of(xcodeBuildVersionObject.toString()));
-        }
       }
  catch (      IOException e) {
         LOG.debug("Error reading Xcode's info plist %s; ignoring Xcode versions",xcodeInfoPlistPath);
       }
 catch (      PropertyListFormatException|ParseException|ParserConfigurationException|SAXException e) {
         LOG.debug("Error in parsing %s; ignoring Xcode versions",xcodeInfoPlistPath);
+      }
+    }
+    if (processExecutor.isPresent()) {
+      try {
+        Optional<String> xcodeBuildVersion=appleConfig.getXcodeBuildVersionSupplier(developerPath.get(),processExecutor.get()).get();
+        platformBuilder.setXcodeBuildVersion(xcodeBuildVersion);
+        LOG.debug("Xcode build version is: " + xcodeBuildVersion.or("<absent>"));
+      }
+ catch (      IOException e) {
+        LOG.debug("Error in getting Xcode build version");
       }
     }
   }
