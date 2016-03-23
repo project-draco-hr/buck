@@ -1,0 +1,17 @@
+def main():
+    args = createArgParser().parse_args()
+    log('Running Performance Test!')
+    clean(args.repo_under_test)
+    revisions_to_test = get_revisions(args)
+    log(('Found revisions to test: %d' % len(revisions_to_test)))
+    log('\n'.join(revisions_to_test))
+    log('=== Warming up cache ===')
+    checkout(revisions_to_test[0], args.repo_under_test)
+    cwd = os.path.join(args.repo_under_test, args.project_under_test)
+    build_all_targets(args, cwd, 'old', 'readwrite', dir_cache_only=False, log_as_perftest=False)
+    build_all_targets(args, cwd, 'old', 'readwrite', log_as_perftest=False)
+    build_all_targets(args, cwd, 'new', 'readwrite', dir_cache_only=False, log_as_perftest=False)
+    results_for_new = build_all_targets(args, cwd, 'new', 'readwrite', log_as_perftest=False)
+    log('=== Cache Warm!  Running tests ===')
+    for i in xrange(1, args.revisions_to_go_back):
+        results_for_new = run_tests_for_diff(args, revisions_to_test, i, results_for_new)

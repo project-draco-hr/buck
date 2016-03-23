@@ -1,0 +1,52 @@
+def buck_build_target(args, cwd, targets, perftest_side, log_as_perftest=True):
+    'Builds a target with buck and returns performance information.\n    '
+    log(('Running buck build %s.' % ' '.join(targets)))
+    bucklogging_properties_path = os.path.join(cwd, '.bucklogging.local.properties')
+    with open(bucklogging_properties_path, 'w') as bucklogging_properties:
+        bucklogging_properties.write('.level=FINER\n            java.util.logging.FileHandler.level=FINER')
+    env = os.environ.copy()
+    env.update({'BUCK_REPOSITORY_DIRTY': '0', })
+    if log_as_perftest:
+        env.update({'BUCK_EXTRA_JAVA_ARGS': ('-Dbuck.perftest_id=%s, -Dbuck.perftest_side=%s' % (args.perftest_id, perftest_side)), })
+    start = datetime.now()
+    tmpFile = tempfile.TemporaryFile()
+    try:
+        subprocess.check_call((([args.path_to_buck, 'build', '--deep'] + targets) + ['-v', '5']), stdout=tmpFile, stderr=tmpFile, cwd=cwd, env=env)
+    except:
+        tmpFile.seek(0)
+        log(('Buck build failed: %s' % tmpFile.read()))
+        raise
+    tmpFile.seek(0)
+    finish = datetime.now()
+    java_utils_log_path = os.path.join(cwd, 'buck-out', 'log', 'buck-0.log')
+    if os.path.exists(java_utils_log_path):
+        pattern = BUCK_LOG_RULEKEY_LINE
+        build_output_file = open(java_utils_log_path)
+    else:
+        pattern = RULEKEY_LINE
+        build_output_file = tmpFile
+    rule_debug_map = {}
+    for line in build_output_file:
+        match = pattern.match(line)
+        if match:
+            rule_debug_map[match.group('rule_key')] = match.group('rule_key_debug')
+    logfile_path = os.path.join(cwd, 'buck-out', 'bin', 'build.log')
+    cache_results = defaultdict(list)
+    rule_key_map = {}
+    with open(logfile_path, 'r') as logfile:
+        for line in logfile.readlines():
+            line = line.strip()
+            match = BUILD_RESULT_LOG_LINE.search(line)
+            if match:
+                rule_name = match.group('rule_name')
+                rule_key = match.group('rule_key')
+                if (not (rule_key in rule_debug_map)):
+                    raise Exception('ERROR: build.log contains an entry\n                        which was not found in buck build -v 5 output.\n                        Rule: {0}, rule key: {1}'.format(rule_name, rule_key))
+                cache_results[match.group('cache_result')].append({'rule_name': rule_name, 'rule_key': rule_key, 'rule_key_debug': rule_debug_map[rule_key], })
+                rule_key_map[match.group('rule_name')] = (rule_key, rule_debug_map[rule_key])
+    result = BuildResult((finish - start), cache_results, rule_key_map)
+    cache_counts = {}
+    for (key, value) in result.cache_results.iteritems():
+        cache_counts[key] = len(value)
+    log(('Test Build Finished! Elapsed Seconds: %d, Cache Counts: %s' % (timedelta_total_seconds(result.time_delta), repr(cache_counts))))
+    return result
