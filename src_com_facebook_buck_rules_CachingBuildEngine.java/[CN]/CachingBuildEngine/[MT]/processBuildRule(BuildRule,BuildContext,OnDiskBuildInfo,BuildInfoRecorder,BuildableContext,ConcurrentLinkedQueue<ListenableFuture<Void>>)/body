@@ -5,14 +5,20 @@
   final RuleKeyFactories ruleKeyFactory=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem());
   Optional<RuleKey> cachedRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_RULE_KEY);
   if (ruleKeyFactory.defaultRuleKeyBuilderFactory.build(rule).equals(cachedRuleKey.orNull())) {
-    return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_RULE_KEY,CacheResult.localKeyUnchangedHit()));
+    return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_RULE_KEY,CacheResult.localKeyUnchangedHit())));
   }
   final CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory.build(rule),buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
   if (cacheResult.getType().isSuccess()) {
-    return Futures.immediateFuture(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult));
+    return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult)));
   }
   context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.suspended(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory));
-  return Futures.transformAsync(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,BuildResult>(){
+  ListenableFuture<List<BuildResult>> getDepResultsAndMarkRuleAsUsed=Futures.transformAsync(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,List<BuildResult>>(){
+    @Override public ListenableFuture<List<BuildResult>> apply(    List<BuildResult> input){
+      return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(input));
+    }
+  }
+);
+  return Futures.transformAsync(getDepResultsAndMarkRuleAsUsed,new AsyncFunction<List<BuildResult>,BuildResult>(){
     @Override public ListenableFuture<BuildResult> apply(    @Nonnull List<BuildResult> depResults) throws Exception {
       context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory));
       for (      BuildResult depResult : depResults) {

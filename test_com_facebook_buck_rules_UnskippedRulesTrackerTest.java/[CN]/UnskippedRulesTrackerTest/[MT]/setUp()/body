@@ -1,0 +1,20 @@
+{
+  ListeningExecutorService executor=listeningDecorator(MoreExecutors.newMultiThreadExecutor("UnskippedRulesTracker",7));
+  RuleDepsCache depsCache=new RuleDepsCache(executor);
+  unskippedRulesTracker=new UnskippedRulesTracker(depsCache,executor);
+  eventBus=new BuckEventBus(new FakeClock(1),new BuildId());
+  eventBus.register(new Object(){
+    @Subscribe public void onUnskippedRuleCountUpdated(    BuckEvent event){
+      events.add(event);
+    }
+  }
+);
+  ruleH=createRule("//:h");
+  ruleG=createRule("//:g");
+  ruleF=createRule("//:f");
+  ruleE=createRule("//:e",ImmutableSet.of(ruleG,ruleH));
+  ruleD=createRule("//:d",ImmutableSet.of(ruleG),ImmutableSet.of(ruleF));
+  ruleC=createRule("//:c",ImmutableSet.of(ruleD,ruleE));
+  ruleB=createRule("//:b",ImmutableSet.<BuildRule>of(),ImmutableSet.of(ruleD));
+  ruleA=createRule("//:a",ImmutableSet.of(ruleD));
+}

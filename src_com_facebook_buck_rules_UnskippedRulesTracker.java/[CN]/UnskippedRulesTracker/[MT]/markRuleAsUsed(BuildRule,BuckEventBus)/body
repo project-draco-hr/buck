@@ -1,0 +1,19 @@
+{
+  ListenableFuture<Void> future=acquireReference(rule);
+  if (rule instanceof HasRuntimeDeps) {
+    future=MoreFutures.chainExceptions(future,acquireReferences(((HasRuntimeDeps)rule).getRuntimeDeps()));
+  }
+  future=Futures.transformAsync(future,new AsyncFunction<Void,Void>(){
+    @Override public ListenableFuture<Void> apply(    Void input){
+      return Futures.transformAsync(ruleDepsCache.get(rule),releaseReferences,executor);
+    }
+  }
+);
+  future.addListener(new Runnable(){
+    @Override public void run(){
+      sendEventIfStateChanged(eventBus);
+    }
+  }
+,MoreExecutors.directExecutor());
+  return future;
+}
