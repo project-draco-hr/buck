@@ -15,12 +15,12 @@
   ProjectFilesystem filesystem=FakeProjectFilesystem.createJavaOnlyFilesystem();
   Path classpathFile=filesystem.resolve("foo");
   JUnitJvmArgs args=JUnitJvmArgs.builder().setTmpDirectory(directoryForTemp).setBuildId(pretendBuildId).setBuckModuleBaseSourceCodePath(modulePath).setClasspathFile(classpathFile).setTestRunnerClasspath(testRunnerClasspath).setExtraJvmArgs(vmArgs).setTestType(TestType.JUNIT).setDirectoryForTestResults(directoryForTestResults).addAllTestClasses(testClassNames).build();
-  JUnitStep junit=new JUnitStep(filesystem,ImmutableMap.<String,String>of(),Optional.<Long>absent(),args);
+  JUnitStep junit=new JUnitStep(filesystem,ImmutableMap.<String,String>of(),Optional.<Long>absent(),new ExternalJavaRuntimeLauncher("/foo/bar/custom/java"),args);
   ExecutionContext executionContext=EasyMock.createMock(ExecutionContext.class);
   EasyMock.expect(executionContext.getVerbosity()).andReturn(Verbosity.ALL);
   EasyMock.expect(executionContext.getDefaultTestTimeoutMillis()).andReturn(5000L);
   EasyMock.replay(executionContext);
   List<String> observedArgs=junit.getShellCommand(executionContext);
-  MoreAsserts.assertListEquals(ImmutableList.of("java","-Djava.io.tmpdir=" + filesystem.resolve(directoryForTemp),"-Dbuck.testrunner_classes=" + testRunnerClasspath,buildIdArg,modulePathArg,vmArg1,vmArg2,"-verbose","-classpath","@/opt/src/buck/foo" + File.pathSeparator + "build/classes/junit",FileClassPathRunner.class.getName(),"com.facebook.buck.testrunner.JUnitMain","--output",directoryForTestResults.toString(),"--default-test-timeout","5000",testClass1,testClass2),observedArgs);
+  MoreAsserts.assertListEquals(ImmutableList.of("/foo/bar/custom/java","-Djava.io.tmpdir=" + filesystem.resolve(directoryForTemp),"-Dbuck.testrunner_classes=" + testRunnerClasspath,buildIdArg,modulePathArg,vmArg1,vmArg2,"-verbose","-classpath","@/opt/src/buck/foo" + File.pathSeparator + "build/classes/junit",FileClassPathRunner.class.getName(),"com.facebook.buck.testrunner.JUnitMain","--output",directoryForTestResults.toString(),"--default-test-timeout","5000",testClass1,testClass2),observedArgs);
   EasyMock.verify(executionContext);
 }

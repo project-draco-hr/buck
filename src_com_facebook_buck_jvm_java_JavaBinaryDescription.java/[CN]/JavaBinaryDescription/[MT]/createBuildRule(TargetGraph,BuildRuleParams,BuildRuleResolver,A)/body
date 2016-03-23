@@ -6,12 +6,12 @@
     binaryParams=params.copyWithChanges(BuildTarget.builder(params.getBuildTarget()).addFlavors(FAT_JAR_INNER_JAR_FLAVOR).build(),params.getDeclaredDeps(),params.getExtraDeps());
   }
   ImmutableSetMultimap<JavaLibrary,Path> transitiveClasspathEntries=Classpaths.getClasspathEntries(binaryParams.getDeps());
-  BuildRule rule=new JavaBinary(binaryParams.appendExtraDeps(transitiveClasspathEntries.keys()),pathResolver,args.mainClass.orNull(),args.manifestFile.orNull(),args.mergeManifests.or(true),args.metaInfDirectory.orNull(),args.blacklist.or(ImmutableSortedSet.<String>of()),new DefaultDirectoryTraverser(),transitiveClasspathEntries);
+  BuildRule rule=new JavaBinary(binaryParams.appendExtraDeps(transitiveClasspathEntries.keys()),pathResolver,javaOptions.getJavaRuntimeLauncher(),args.mainClass.orNull(),args.manifestFile.orNull(),args.mergeManifests.or(true),args.metaInfDirectory.orNull(),args.blacklist.or(ImmutableSortedSet.<String>of()),new DefaultDirectoryTraverser(),transitiveClasspathEntries);
   if (!nativeLibraries.isEmpty()) {
     BuildRule innerJarRule=rule;
     resolver.addToIndex(innerJarRule);
     SourcePath innerJar=new BuildTargetSourcePath(innerJarRule.getBuildTarget());
-    rule=new JarFattener(params.appendExtraDeps(Suppliers.<Iterable<BuildRule>>ofInstance(pathResolver.filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(innerJar).addAll(nativeLibraries.values()).build()))),pathResolver,javacOptions,innerJar,nativeLibraries);
+    rule=new JarFattener(params.appendExtraDeps(Suppliers.<Iterable<BuildRule>>ofInstance(pathResolver.filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(innerJar).addAll(nativeLibraries.values()).build()))),pathResolver,javacOptions,innerJar,nativeLibraries,javaOptions.getJavaRuntimeLauncher());
   }
   return rule;
 }
