@@ -1,0 +1,15 @@
+{
+  ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
+  if (inputs.isEmpty()) {
+    stepsBuilder.add(new WriteFileStep(filesystem,"!<arch>",output,false));
+  }
+ else {
+    ImmutableList<String> archiveCommandPrefix=ImmutableList.<String>builder().addAll(archiver).add("qc").add(filesystem.resolve(output).toString()).build();
+    CommandSplitter commandSplitter=new CommandSplitter(archiveCommandPrefix);
+    Iterable<String> arguments=Iterables.transform(inputs,Functions.toStringFunction());
+    for (    ImmutableList<String> command : commandSplitter.getCommandsForArguments(arguments)) {
+      stepsBuilder.add(getArchiveStep(filesystem.getRootPath(),environment,command));
+    }
+  }
+  return stepsBuilder.build();
+}
