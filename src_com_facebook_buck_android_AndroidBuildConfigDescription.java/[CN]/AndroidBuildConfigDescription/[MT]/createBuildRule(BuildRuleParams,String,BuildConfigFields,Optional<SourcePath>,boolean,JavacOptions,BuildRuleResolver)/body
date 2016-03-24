@@ -3,16 +3,16 @@
   BuildTarget buildConfigBuildTarget;
   if (!params.getBuildTarget().isFlavored()) {
     Preconditions.checkArgument(!useConstantExpressions);
-    buildConfigBuildTarget=BuildTarget.builder(params.getBuildTarget().getUnflavoredBuildTarget()).addFlavors(GEN_JAVA_FLAVOR).build();
+    buildConfigBuildTarget=params.getBuildTarget().withFlavors(GEN_JAVA_FLAVOR);
   }
  else {
     Preconditions.checkArgument(useConstantExpressions);
-    buildConfigBuildTarget=BuildTarget.builder(params.getBuildTarget().getUnflavoredBuildTarget()).addFlavors(ImmutableFlavor.of(GEN_JAVA_FLAVOR.getName() + '_' + javaPackage.replace('.','_'))).build();
+    buildConfigBuildTarget=params.getBuildTarget().withFlavors(ImmutableFlavor.of(GEN_JAVA_FLAVOR.getName() + '_' + javaPackage.replace('.','_')));
   }
   BuildRuleParams buildConfigParams=params.copyWithChanges(buildConfigBuildTarget,params.getDeclaredDeps(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getExtraDeps().get()).addAll(pathResolver.filterBuildRuleInputs(valuesFile.asSet())).build()));
   AndroidBuildConfig androidBuildConfig=new AndroidBuildConfig(buildConfigParams,pathResolver,javaPackage,values,valuesFile,useConstantExpressions);
   ruleResolver.addToIndex(androidBuildConfig);
-  BuildTarget abiJarTarget=BuildTarget.builder(params.getBuildTarget()).addFlavors(CalculateAbi.FLAVOR).build();
+  BuildTarget abiJarTarget=params.getBuildTarget().withAppendedFlavor(CalculateAbi.FLAVOR);
   BuildRuleParams javaLibraryParams=params.copyWithChanges(params.getBuildTarget(),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(androidBuildConfig)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   AndroidBuildConfigJavaLibrary library=ruleResolver.addToIndex(new AndroidBuildConfigJavaLibrary(javaLibraryParams,pathResolver,javacOptions,new BuildTargetSourcePath(abiJarTarget),androidBuildConfig));
   ruleResolver.addToIndex(CalculateAbi.of(abiJarTarget,pathResolver,params,new BuildTargetSourcePath(library.getBuildTarget())));
