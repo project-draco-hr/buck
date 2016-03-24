@@ -6,14 +6,8 @@
   JavacOptions javacOptions=new JavaBuckConfig(params.getBuckConfig()).getDefaultJavacOptions();
   IjProject project=new IjProject(targetGraphAndTargets,getJavaPackageFinder(params.getBuckConfig()),JavaFileParser.createJavaFileParser(javacOptions),ruleResolver,sourcePathResolver,params.getCell().getFilesystem(),getIntellijAggregationMode(params.getBuckConfig()),params.getBuckConfig());
   ImmutableSet<BuildTarget> requiredBuildTargets=project.write(runIjCleaner);
-  if (!requiredBuildTargets.isEmpty()) {
-    BuildCommand buildCommand=new BuildCommand(FluentIterable.from(requiredBuildTargets).transform(Functions.toStringFunction()).toList());
-    buildCommand.setKeepGoing(true);
-    int exitCode=buildCommand.run(params);
-    if (exitCode != 0) {
-      params.getConsole().getAnsi().printHighlightedSuccessText(params.getConsole().getStdErr(),"Because the build did not complete successfully some parts of the project may not\n" + "work correctly with IntelliJ. Please fix the errors and run this command again.\n");
-    }
-    return exitCode;
+  if (requiredBuildTargets.isEmpty()) {
+    return 0;
   }
-  return 0;
+  return shouldProcessAnnotations() ? buildRequiredTargetsWithoutUsingCacheForAnnotatedTargets(params,targetGraphAndTargets,requiredBuildTargets) : runBuild(params,requiredBuildTargets);
 }
