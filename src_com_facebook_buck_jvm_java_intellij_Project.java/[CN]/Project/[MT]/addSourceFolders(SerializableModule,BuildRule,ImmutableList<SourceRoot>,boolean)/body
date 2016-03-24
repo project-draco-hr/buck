@@ -5,6 +5,20 @@
   if (buildRule.getProperties().is(PACKAGING) && sourceRoots.isEmpty()) {
     return false;
   }
+  JavaLibrary javaLibrary=null;
+  if (buildRule instanceof JavaLibrary) {
+    javaLibrary=(JavaLibrary)buildRule;
+    Path basePath=buildRule.getBuildTarget().getBasePath();
+    for (    SourcePath path : javaLibrary.getSources()) {
+      if (!(path instanceof PathSourcePath)) {
+        Path pathToTarget=resolver.getRelativePath(path);
+        Path relativePath=basePath.relativize(Paths.get("")).resolve(pathToTarget).getParent();
+        String url=String.format("file://$MODULE_DIR$/%s",relativePath.toString());
+        SerializableModule.SourceFolder sourceFolder=new SerializableModule.SourceFolder(url,isTestSource,"");
+        module.sourceFolders.add(sourceFolder);
+      }
+    }
+  }
   if (sourceRoots.isEmpty()) {
     String url="file://$MODULE_DIR$";
     String packagePrefix=javaPackageFinder.findJavaPackage(Preconditions.checkNotNull(module.pathToImlFile));
