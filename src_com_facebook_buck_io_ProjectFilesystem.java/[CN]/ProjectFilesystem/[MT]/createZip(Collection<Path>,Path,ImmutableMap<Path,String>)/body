@@ -1,21 +1,16 @@
 {
   try (CustomZipOutputStream zip=ZipOutputStreams.newOutputStream(out)){
     for (    Path path : pathsToIncludeInZip) {
-      boolean isDirectory=isDirectory(path,LinkOption.NOFOLLOW_LINKS);
+      boolean isDirectory=isDirectory(path);
       CustomZipEntry entry=new CustomZipEntry(path,isDirectory);
       entry.setFakeTime();
       entry.setExternalAttributes(getFileAttributesForZipEntry(path));
       zip.putNextEntry(entry);
       if (!isDirectory) {
-        if (isSymLink(path)) {
-          zip.write(readSymLink(path).toString().getBytes(Charsets.UTF_8));
+        try (InputStream input=newFileInputStream(path)){
+          ByteStreams.copy(input,zip);
         }
- else {
-          try (InputStream input=newFileInputStream(path)){
-            ByteStreams.copy(input,zip);
-          }
-         }
-      }
+       }
       zip.closeEntry();
     }
     for (    Map.Entry<Path,String> fileContentsEntry : additionalFileContents.entrySet()) {
