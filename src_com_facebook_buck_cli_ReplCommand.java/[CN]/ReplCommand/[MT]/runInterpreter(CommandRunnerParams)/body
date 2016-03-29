@@ -1,0 +1,36 @@
+{
+  if (!isNashornAvailable()) {
+    params.getBuckEventBus().post(ConsoleEvent.severe("This feature requires Nashorn " + "JavaScript engine. This comes bundled with Java 8."));
+    return 0;
+  }
+  ScriptEngine engine=initializeEngine(params);
+  BufferedReader bufferRead=new BufferedReader(new InputStreamReader(params.getStdIn()));
+  String line="";
+  boolean eof=false;
+  while (!eof) {
+    params.getConsole().getStdOut().print("buck $ ");
+    try {
+      if ((line=bufferRead.readLine()) != null) {
+        engine.eval(line);
+      }
+ else {
+        eof=true;
+        break;
+      }
+    }
+ catch (    ScriptException e) {
+      if (!e.getMessage().contains(EXIT_MESSAGE)) {
+        params.getConsole().getStdOut().println("Script error: " + e.getMessage());
+      }
+ else {
+        eof=true;
+        break;
+      }
+    }
+catch (    Exception e) {
+      params.getConsole().getStdOut().println(e.getMessage());
+    }
+  }
+  bufferRead.close();
+  return 0;
+}
