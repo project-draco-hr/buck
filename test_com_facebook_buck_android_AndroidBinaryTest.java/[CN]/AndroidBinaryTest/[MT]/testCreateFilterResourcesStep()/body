@@ -1,12 +1,13 @@
 {
   BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
   BuildRule keystoreRule=addKeystoreRule(resolver);
-  AndroidBinaryBuilder builder=AndroidBinaryBuilder.createBuilder(BuildTargetFactory.newInstance("//:target")).setManifest(new FakeSourcePath("AndroidManifest.xml")).setKeystore(keystoreRule.getBuildTarget()).setResourceFilter(new ResourceFilter(ImmutableList.of("mdpi"))).setResourceCompressionMode(ResourceCompressionMode.ENABLED_WITH_STRINGS_AS_ASSETS);
+  BuildTarget target=BuildTargetFactory.newInstance("//:target");
+  AndroidBinaryBuilder builder=AndroidBinaryBuilder.createBuilder(target).setManifest(new FakeSourcePath("AndroidManifest.xml")).setKeystore(keystoreRule.getBuildTarget()).setResourceFilter(new ResourceFilter(ImmutableList.of("mdpi"))).setResourceCompressionMode(ResourceCompressionMode.ENABLED_WITH_STRINGS_AS_ASSETS);
   AndroidBinary buildRule=(AndroidBinary)builder.build(resolver);
   ImmutableList<Path> resourceDirectories=ImmutableList.of(Paths.get("one"),Paths.get("two"));
   FilteredResourcesProvider resourcesProvider=buildRule.getEnhancementResult().getAaptPackageResources().getFilteredResourcesProvider();
   assertTrue(resourcesProvider instanceof ResourcesFilter);
   ImmutableList.Builder<Path> filteredDirs=ImmutableList.builder();
   ((ResourcesFilter)resourcesProvider).createFilterResourcesStep(resourceDirectories,ImmutableSet.<Path>of(),ImmutableSet.<String>of(),filteredDirs);
-  assertEquals(ImmutableList.of(Paths.get("buck-out/bin/__filtered__target#resources_filter__/0"),Paths.get("buck-out/bin/__filtered__target#resources_filter__/1")),filteredDirs.build());
+  assertEquals(ImmutableList.of(BuildTargets.getScratchPath(target.withFlavors(AndroidBinaryGraphEnhancer.RESOURCES_FILTER_FLAVOR),"__filtered__%s__/0"),BuildTargets.getScratchPath(target.withFlavors(AndroidBinaryGraphEnhancer.RESOURCES_FILTER_FLAVOR),"__filtered__%s__/1")),filteredDirs.build());
 }
