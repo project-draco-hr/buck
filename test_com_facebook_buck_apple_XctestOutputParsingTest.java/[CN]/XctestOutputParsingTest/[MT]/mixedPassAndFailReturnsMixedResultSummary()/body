@@ -1,7 +1,9 @@
 {
   Path outputPath=TestDataHelper.getTestDataDirectory(this).resolve("xctest-output/mixed-pass-and-fail.txt");
   try (Reader outputReader=Files.newBufferedReader(outputPath,StandardCharsets.UTF_8)){
-    List<TestCaseSummary> summaries=XctestOutputParsing.parseOutputFromReader(outputReader);
+    TestCaseSummariesBuildingXctestEventHandler xctestEventHandler=new TestCaseSummariesBuildingXctestEventHandler(TestRule.NOOP_REPORTING_CALLBACK);
+    XctestOutputParsing.streamOutput(outputReader,xctestEventHandler);
+    List<TestCaseSummary> summaries=xctestEventHandler.getTestCaseSummaries();
     assertThat(summaries,hasSize(2));
     Matcher<TestResultSummary> isOtherTestsTestSomethingSuccess=allOf(hasProperty("testCaseName",equalTo("OtherTests")),hasProperty("testName",equalTo("testSomething")),hasProperty("type",equalTo(ResultType.SUCCESS)),hasProperty("time",equalTo(3L)),hasProperty("message",nullValue(String.class)),hasProperty("stacktrace",nullValue(String.class)),hasProperty("stdOut",nullValue(String.class)),hasProperty("stdErr",nullValue(String.class)));
     List<TestResultSummary> otherTestsResults=summaries.get(0).getTestResults();

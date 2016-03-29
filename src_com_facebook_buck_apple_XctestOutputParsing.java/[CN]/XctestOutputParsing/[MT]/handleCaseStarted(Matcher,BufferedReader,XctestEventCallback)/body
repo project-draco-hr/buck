@@ -1,0 +1,44 @@
+{
+  BeginTestCaseEvent event=new BeginTestCaseEvent();
+  event.test=matcher.group(1);
+  Matcher nameMatcher=XctestOutputParsing.CASE_PATTERN.matcher(event.test);
+  if (nameMatcher.find()) {
+    event.className=nameMatcher.group(1);
+    event.methodName=nameMatcher.group(2);
+  }
+  eventCallback.handleBeginTestCaseEvent(event);
+  LOG.debug("Started test case: %s",event.test);
+  StringBuilder output=new StringBuilder();
+  ImmutableList.Builder<TestError> exceptions=new ImmutableList.Builder<TestError>();
+  try {
+    String line;
+    while ((line=outputBufferedReader.readLine()) != null) {
+      LOG.debug("Parsing xctest case line: %s",line);
+      Matcher caseFinishedMatcher=XctestOutputParsing.CASE_FINISHED_PATTERN.matcher(line);
+      if (caseFinishedMatcher.find()) {
+        handleCaseFinished(caseFinishedMatcher,exceptions.build(),output.toString(),eventCallback);
+        return;
+      }
+      Matcher errorMatcher=XctestOutputParsing.ERROR_PATTERN.matcher(line);
+      if (errorMatcher.find()) {
+        handleError(errorMatcher,exceptions);
+        continue;
+      }
+      output.append(line);
+      output.append("\n");
+    }
+  }
+ catch (  IOException e) {
+    LOG.error("Error reading line");
+  }
+  LOG.error("Test case did not end!");
+  EndTestCaseEvent endEvent=new EndTestCaseEvent();
+  endEvent.test=event.test;
+  endEvent.className=event.className;
+  endEvent.methodName=event.methodName;
+  endEvent.totalDuration=0;
+  endEvent.output=output.toString();
+  endEvent.succeeded=false;
+  endEvent.exceptions=exceptions.build();
+  eventCallback.handleEndTestCaseEvent(endEvent);
+}

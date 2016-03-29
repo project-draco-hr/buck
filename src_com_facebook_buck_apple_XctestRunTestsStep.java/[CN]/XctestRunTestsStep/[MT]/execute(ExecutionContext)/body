@@ -1,19 +1,36 @@
 {
-  ProcessExecutorParams.Builder builder=ProcessExecutorParams.builder();
-  builder.setCommand(getCommand());
-  builder.setEnvironment(getEnv(context));
-  builder.setRedirectError(ProcessBuilder.Redirect.to(filesystem.resolve(outputPath).toFile()));
-  int exitCode;
+  ProcessExecutorParams.Builder builder=ProcessExecutorParams.builder().addAllCommand(getCommand()).setDirectory(filesystem.getRootPath().toAbsolutePath().toFile()).setRedirectErrorStream(true).setEnvironment(getEnv(context));
+  ProcessExecutorParams params=builder.build();
+  LOG.debug("xctest command: %s",Joiner.on(" ").join(params.getCommand()));
   try {
     ProcessExecutor executor=context.getProcessExecutor();
-    ProcessExecutor.Result result=executor.launchAndExecute(builder.build(),ImmutableSet.<ProcessExecutor.Option>of(),Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
-    LOG.debug("xctest exit code: %d",result.getExitCode());
-    exitCode=0;
+    ProcessExecutor.LaunchedProcess launchedProcess=executor.launchProcess(params);
+    int exitCode;
+    try (OutputStream outputStream=filesystem.newFileOutputStream(outputPath);TeeInputStream outputWrapperStream=new TeeInputStream(launchedProcess.getInputStream(),outputStream)){
+      if (outputReadingCallback.isPresent()) {
+        outputReadingCallback.get().readOutput(outputWrapperStream);
+      }
+ else {
+        outputWrapperStream.close();
+        ByteStreams.copy(launchedProcess.getInputStream(),outputStream);
+      }
+      exitCode=executor.waitForLaunchedProcess(launchedProcess);
+      exitCode=0;
+      LOG.debug("Finished running command, exit code %d",exitCode);
+    }
+  finally {
+      context.getProcessExecutor().destroyLaunchedProcess(launchedProcess);
+      context.getProcessExecutor().waitForLaunchedProcess(launchedProcess);
+    }
+    if (exitCode != 0) {
+      context.getConsole().printErrorText(String.format(Locale.US,"xctest failed with exit code %d",exitCode));
+    }
+    return exitCode;
   }
  catch (  IOException e) {
-    LOG.error(e,"Error while running %s",getCommand());
-    e.printStackTrace(context.getStdErr());
-    exitCode=1;
+    LOG.error(e,"Exception while running %s",params.getCommand());
+    MoreThrowables.propagateIfInterrupt(e);
+    context.getConsole().printBuildFailureWithStacktrace(e);
+    return 1;
   }
-  return exitCode;
 }

@@ -1,0 +1,53 @@
+{
+  EndTestSuiteEvent event=new EndTestSuiteEvent();
+  event.suite=matcher.group(1);
+  String line;
+  try {
+    line=outputBufferedReader.readLine();
+    if (line == null) {
+      LOG.error("Missing suite finished details line");
+      return;
+    }
+  }
+ catch (  IOException e) {
+    LOG.error("Error reading finished details line");
+    return;
+  }
+  Matcher detailsMatcher=XctestOutputParsing.SUITE_FINISHED_DETAILS_PATTERN.matcher(line);
+  if (!detailsMatcher.find()) {
+    LOG.error("Invalid suite finished details line: %s",line);
+    return;
+  }
+  try {
+    event.testCaseCount=Integer.parseInt(detailsMatcher.group(2));
+  }
+ catch (  NumberFormatException e) {
+    LOG.error("Invalid test case count: %s",detailsMatcher.group(2));
+  }
+  try {
+    event.totalFailureCount=Integer.parseInt(detailsMatcher.group(3));
+  }
+ catch (  NumberFormatException e) {
+    LOG.error("Invalid total failures: %s",detailsMatcher.group(3));
+  }
+  try {
+    event.unexpectedExceptionCount=Integer.parseInt(detailsMatcher.group(4));
+  }
+ catch (  NumberFormatException e) {
+    LOG.error("Invalid unexpected failures: %s",detailsMatcher.group(4));
+  }
+  try {
+    event.testDuration=Double.parseDouble(detailsMatcher.group(5));
+  }
+ catch (  NumberFormatException e) {
+    LOG.error("Invalid test duration: %s",detailsMatcher.group(5));
+  }
+  try {
+    event.totalDuration=Double.parseDouble(detailsMatcher.group(6));
+  }
+ catch (  NumberFormatException e) {
+    LOG.error("Invalid total duration: %s",detailsMatcher.group(6));
+  }
+  eventCallback.handleEndTestSuiteEvent(event);
+  LOG.debug("Finished suite: %s",event.suite);
+}

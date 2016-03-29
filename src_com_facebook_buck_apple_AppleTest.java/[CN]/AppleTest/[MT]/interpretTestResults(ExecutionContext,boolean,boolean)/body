@@ -5,11 +5,16 @@
       if (xctoolStdoutReader.isPresent()) {
         testCaseSummaries=xctoolStdoutReader.get().getTestCaseSummaries();
       }
+ else       if (xctestOutputReader.isPresent()) {
+        testCaseSummaries=xctestOutputReader.get().getTestCaseSummaries();
+      }
  else {
         Path resolvedOutputPath=getProjectFilesystem().resolve(testOutputPath);
         try (BufferedReader reader=Files.newBufferedReader(resolvedOutputPath,StandardCharsets.UTF_8)){
           if (useXctest) {
-            testCaseSummaries=XctestOutputParsing.parseOutputFromReader(reader);
+            TestCaseSummariesBuildingXctestEventHandler xctestEventHandler=new TestCaseSummariesBuildingXctestEventHandler(NOOP_REPORTING_CALLBACK);
+            XctestOutputParsing.streamOutput(reader,xctestEventHandler);
+            testCaseSummaries=xctestEventHandler.getTestCaseSummaries();
           }
  else {
             TestCaseSummariesBuildingXctoolEventHandler xctoolEventHandler=new TestCaseSummariesBuildingXctoolEventHandler(NOOP_REPORTING_CALLBACK);
