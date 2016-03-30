@@ -4,7 +4,7 @@
   BuildTarget target=BuildTargetFactory.newInstance("//:test");
   CxxLibraryBuilder normalBuilder=new CxxLibraryBuilder(target);
   TargetGraph normalGraph=TargetGraphFactory.newInstance(normalBuilder.build());
-  BuildRuleResolver resolver=new BuildRuleResolver(normalGraph,new BuildTargetNodeToBuildRuleTransformer());
+  BuildRuleResolver resolver=new BuildRuleResolver(normalGraph,new DefaultTargetNodeToBuildRuleTransformer());
   CxxLibrary normal=(CxxLibrary)normalBuilder.setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("test.cpp")))).build(resolver,filesystem,normalGraph);
   Linker linker=cxxPlatform.getLd().resolve(resolver);
   ImmutableList<String> linkWholeFlags=FluentIterable.from(linker.linkWhole(new StringArg("sentinel"))).transformAndConcat(Arg.stringListFunction()).filter(Predicates.not(Predicates.equalTo("sentinel"))).toList();
@@ -12,7 +12,7 @@
   assertThat(Arg.stringify(input.getArgs()),Matchers.not(hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()]))));
   CxxLibraryBuilder linkWholeBuilder=new CxxLibraryBuilder(target).setLinkWhole(true).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("foo.cpp"))));
   TargetGraph linkWholeGraph=TargetGraphFactory.newInstance(linkWholeBuilder.build());
-  resolver=new BuildRuleResolver(normalGraph,new BuildTargetNodeToBuildRuleTransformer());
+  resolver=new BuildRuleResolver(normalGraph,new DefaultTargetNodeToBuildRuleTransformer());
   CxxLibrary linkWhole=(CxxLibrary)linkWholeBuilder.setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("test.cpp")))).build(resolver,filesystem,linkWholeGraph);
   NativeLinkableInput linkWholeInput=linkWhole.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.STATIC);
   assertThat(Arg.stringify(linkWholeInput.getArgs()),hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()])));

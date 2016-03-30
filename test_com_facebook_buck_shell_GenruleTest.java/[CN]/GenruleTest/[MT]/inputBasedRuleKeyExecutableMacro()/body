@@ -1,7 +1,7 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
   GenruleBuilder ruleBuilder=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:rule")).setCmd("run $(exe //:dep)").setOut("output");
-  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
   BuildRule dep=new ShBinaryBuilder(BuildTargetFactory.newInstance("//:dep")).setMain(new PathSourcePath(filesystem,Paths.get("dep.exe"))).build(resolver,filesystem);
   filesystem.writeContentsToPath("something",Paths.get("dep.exe"));
   filesystem.writeContentsToPath("something",dep.getPathToOutput());
@@ -10,7 +10,7 @@
   InputBasedRuleKeyBuilderFactory inputBasedRuleKeyBuilderFactory=new InputBasedRuleKeyBuilderFactory(new DefaultFileHashCache(filesystem),new SourcePathResolver(resolver),defaultRuleKeyBuilderFactory);
   RuleKey originalRuleKey=defaultRuleKeyBuilderFactory.build(rule);
   RuleKey originalInputRuleKey=inputBasedRuleKeyBuilderFactory.build(rule);
-  resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
   Genrule extra=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:extra")).setOut("something").build(resolver);
   new ShBinaryBuilder(BuildTargetFactory.newInstance("//:dep")).setMain(new PathSourcePath(filesystem,Paths.get("dep.exe"))).setDeps(ImmutableSortedSet.of(extra.getBuildTarget())).build(resolver,filesystem);
   rule=ruleBuilder.build(resolver);
@@ -20,7 +20,7 @@
   RuleKey unchangedInputBasedRuleKey=inputBasedRuleKeyBuilderFactory.build(rule);
   assertThat(unchangedRuleKey,Matchers.not(Matchers.equalTo(originalRuleKey)));
   assertThat(unchangedInputBasedRuleKey,Matchers.equalTo(originalInputRuleKey));
-  resolver=new BuildRuleResolver(TargetGraph.EMPTY,new BuildTargetNodeToBuildRuleTransformer());
+  resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
   dep=new ShBinaryBuilder(BuildTargetFactory.newInstance("//:dep")).setMain(new PathSourcePath(filesystem,Paths.get("dep.exe"))).build(resolver,filesystem);
   filesystem.writeContentsToPath("something else",dep.getPathToOutput());
   rule=ruleBuilder.build(resolver);
