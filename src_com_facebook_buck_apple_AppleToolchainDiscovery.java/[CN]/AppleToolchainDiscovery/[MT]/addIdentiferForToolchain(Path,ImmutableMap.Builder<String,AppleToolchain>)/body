@@ -1,11 +1,13 @@
 {
-  try (InputStream toolchainInfoPlist=Files.newInputStream(toolchainDir.resolve("ToolchainInfo.plist"));BufferedInputStream bufferedToolchainInfoPlist=new BufferedInputStream(toolchainInfoPlist)){
+  Path toolchainInfoPlistPath=toolchainDir.resolve("ToolchainInfo.plist");
+  try (InputStream toolchainInfoPlist=Files.newInputStream(toolchainInfoPlistPath);BufferedInputStream bufferedToolchainInfoPlist=new BufferedInputStream(toolchainInfoPlist)){
     NSDictionary parsedToolchainInfoPlist;
     try {
       parsedToolchainInfoPlist=(NSDictionary)PropertyListParser.parse(bufferedToolchainInfoPlist);
     }
- catch (    Exception e) {
-      throw new IOException(e);
+ catch (    PropertyListFormatException|ParseException|ParserConfigurationException|SAXException e) {
+      LOG.error(e,"Failed to parse ToolchainInfo.plist: %s, ignoring",toolchainInfoPlistPath);
+      return;
     }
     NSObject identifierObject=parsedToolchainInfoPlist.objectForKey("Identifier");
     NSObject versionObject=parsedToolchainInfoPlist.objectForKey("DTSDKBuild");

@@ -58,11 +58,23 @@
   }
   ImmutableMap<String,String> macros=macrosBuilder.build();
   Optional<String> buildVersion;
-  try (InputStream versionPlist=Files.newInputStream(sdkPaths.getPlatformPath().resolve("version.plist"))){
+  Path platformVersionPlistPath=sdkPaths.getPlatformPath().resolve("version.plist");
+  try (InputStream versionPlist=Files.newInputStream(platformVersionPlistPath)){
     NSDictionary versionInfo=(NSDictionary)PropertyListParser.parse(versionPlist);
-    buildVersion=Optional.of(versionInfo.objectForKey("ProductBuildVersion").toString());
+    try {
+      buildVersion=Optional.of(versionInfo.objectForKey("ProductBuildVersion").toString());
+    }
+ catch (    NullPointerException e) {
+      LOG.warn("In %s, missing ProductBuildVersion. Build version will be unset for this platform.",platformVersionPlistPath);
+      buildVersion=Optional.absent();
+    }
   }
- catch (  Exception e) {
+ catch (  NoSuchFileException e) {
+    LOG.warn("%s does not exist. Build version will be unset for this platform.",platformVersionPlistPath);
+    buildVersion=Optional.absent();
+  }
+catch (  PropertyListFormatException|SAXException|ParserConfigurationException|ParseException|IOException e) {
+    LOG.warn(e,"Failed to parse %s. Build version will be unset for this platform.",platformVersionPlistPath);
     buildVersion=Optional.absent();
   }
   PreprocessorProvider aspp=new PreprocessorProvider(new ConstantToolProvider(clangPath),CxxToolProvider.Type.DEFAULT);
