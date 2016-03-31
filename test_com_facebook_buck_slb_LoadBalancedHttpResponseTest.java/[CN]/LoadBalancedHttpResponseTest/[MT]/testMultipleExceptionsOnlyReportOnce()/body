@@ -1,0 +1,24 @@
+{
+  final int exceptionCount=42;
+  EasyMock.expect(mockBufferedSource.inputStream()).andReturn(mockInputStream).once();
+  EasyMock.expect(mockInputStream.read()).andThrow(new IOException()).times(exceptionCount);
+  mockInputStream.close();
+  EasyMock.expectLastCall().once();
+  mockLoadBalancer.reportRequestException(EasyMock.eq(SERVER));
+  EasyMock.expectLastCall().once();
+  replayAll();
+  try (LoadBalancedHttpResponse response=new LoadBalancedHttpResponse(SERVER,mockLoadBalancer,this.response)){
+    try (InputStream inputStream=response.getBody()){
+      for (int i=0; i < exceptionCount; ++i) {
+        try {
+          inputStream.read();
+        }
+ catch (        IOException e) {
+          continue;
+        }
+        Assert.fail("An IOException should've been thrown.");
+      }
+    }
+   }
+   verifyAll();
+}

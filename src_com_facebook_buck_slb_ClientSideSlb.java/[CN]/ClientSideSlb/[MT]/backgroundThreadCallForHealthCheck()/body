@@ -8,7 +8,10 @@
     try {
       Response response=pingClient.newCall(request).execute();
       try {
-        long requestLatencyMillis=stopwatch.elapsed(TimeUnit.MILLISECONDS);
+        try (InputStream inputStream=response.body().byteStream()){
+          ByteStreams.copy(inputStream,ByteStreams.nullOutputStream());
+        }
+         long requestLatencyMillis=stopwatch.elapsed(TimeUnit.MILLISECONDS);
         perServerData.setPingRequestLatencyMillis(requestLatencyMillis);
         healthManager.reportPingLatency(serverUri,nowMillis,requestLatencyMillis);
         healthManager.reportRequestSuccess(serverUri,nowMillis);
