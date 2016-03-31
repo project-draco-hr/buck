@@ -4,15 +4,19 @@
   }
   if (object instanceof Collection<?>) {
     Collection<?> collection=(Collection<?>)object;
-    if (collection.size() == 2) {
+    if (collection.size() == 2 || collection.size() == 3) {
       Iterator<?> iter=collection.iterator();
       Float neededRatio=floatTypeCoercer.coerce(cellRoots,filesystem,pathRelativeToProjectRoot,iter.next());
       if (neededRatio < 0 || neededRatio > 1) {
         throw CoerceFailedException.simple(object,getOutputClass(),"the needed coverage ratio should be in range [0; 1]");
       }
       BuildTarget buildTarget=buildTargetTypeCoercer.coerce(cellRoots,filesystem,pathRelativeToProjectRoot,iter.next());
-      return NeededCoverageSpec.of(neededRatio,buildTarget);
+      Optional<String> pathName=Optional.absent();
+      if (iter.hasNext()) {
+        pathName=Optional.of(pathNameTypeCoercer.coerce(cellRoots,filesystem,pathRelativeToProjectRoot,iter.next()));
+      }
+      return NeededCoverageSpec.of(neededRatio,buildTarget,pathName);
     }
   }
-  throw CoerceFailedException.simple(object,getOutputClass(),"input should be a tuple of needed coverage ratio and a build target");
+  throw CoerceFailedException.simple(object,getOutputClass(),"input should be a tuple of needed coverage ratio, a build target, and optionally a path");
 }
