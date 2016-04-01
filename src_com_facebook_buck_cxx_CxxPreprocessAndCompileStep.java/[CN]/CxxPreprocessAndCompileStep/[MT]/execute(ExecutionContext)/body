@@ -9,20 +9,8 @@
       exitCode=executeOther(context);
     }
     if (operation.isPreprocess() && exitCode == 0) {
-      LOG.debug("Processing dependency file %s as Makefile",getDepTemp());
-      ImmutableMap<String,Object> params=ImmutableMap.<String,Object>of("input",this.input,"output",this.output);
-      try (InputStream input=filesystem.newFileInputStream(getDepTemp());BufferedReader reader=new BufferedReader(new InputStreamReader(input));OutputStream output=filesystem.newFileOutputStream(depFile);BufferedWriter writer=new BufferedWriter(new OutputStreamWriter(output));SimplePerfEvent.Scope perfEvent=SimplePerfEvent.scope(context.getBuckEventBus(),PerfEventId.of("depfile-parse"),params)){
-        for (        String prereq : Depfiles.parseDepfile(reader).getPrereqs()) {
-          Path path=Paths.get(prereq);
-          Optional<Path> absolutePath=headerPathNormalizer.getAbsolutePathForUnnormalizedPath(path);
-          if (absolutePath.isPresent()) {
-            Preconditions.checkState(absolutePath.get().isAbsolute());
-            writer.write(absolutePath.get().toString());
-            writer.newLine();
-          }
-        }
-      }
-     }
+      Depfiles.parseAndWriteBuckCompatibleDepfile(context,filesystem,headerPathNormalizer,getDepTemp(),depFile,input,output);
+    }
     if (exitCode == 0 && shouldSanitizeOutputBinary()) {
       try {
         sanitizer.restoreCompilationDirectory(filesystem.getRootPath().toAbsolutePath().resolve(output),filesystem.getRootPath().toAbsolutePath());
