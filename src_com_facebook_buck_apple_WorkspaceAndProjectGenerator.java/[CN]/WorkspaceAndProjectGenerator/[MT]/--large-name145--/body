@@ -12,15 +12,12 @@
     if (isMainScheme) {
       orderedRunTestTargets=orderedRunTestTargets.append(synthesizedCombinedTestTargets);
     }
-    Optional<String> runnablePath;
+    Optional<String> runnablePath=schemeConfigArg.explicitRunnablePath;
     Optional<BuildTarget> targetToBuildWithBuck=getTargetToBuildWithBuck();
-    if (buildWithBuck && targetToBuildWithBuck.isPresent()) {
+    if (buildWithBuck && targetToBuildWithBuck.isPresent() && !runnablePath.isPresent()) {
       Optional<String> productName=getProductName(schemeNameToSrcTargetNode.get(schemeName),targetToBuildWithBuck);
       String binaryName=AppleBundle.getBinaryName(targetToBuildWithBuck.get(),productName);
       runnablePath=Optional.of(rootCell.getFilesystem().resolve(ProjectGenerator.getScratchPathForAppBundle(targetToBuildWithBuck.get(),binaryName)).toString());
-    }
- else {
-      runnablePath=Optional.absent();
     }
     Optional<String> remoteRunnablePath;
     if (schemeConfigArg.isRemoteRunnable.or(false)) {
@@ -29,7 +26,7 @@
  else {
       remoteRunnablePath=Optional.absent();
     }
-    SchemeGenerator schemeGenerator=new SchemeGenerator(rootCell.getFilesystem(),schemeConfigArg.srcTarget.transform(buildTargetToPBXTargetTransformer),orderedBuildTargets,orderedBuildTestTargets,orderedRunTestTargets,schemeName,combinedProject ? outputDirectory : outputDirectory.resolve(workspaceName + ".xcworkspace"),buildWithBuck,parallelizeBuild,runnablePath,remoteRunnablePath,XcodeWorkspaceConfigDescription.getActionConfigNamesFromArg(workspaceArguments),targetToProjectPathMap);
+    SchemeGenerator schemeGenerator=new SchemeGenerator(rootCell.getFilesystem(),schemeConfigArg.srcTarget.transform(buildTargetToPBXTargetTransformer),orderedBuildTargets,orderedBuildTestTargets,orderedRunTestTargets,schemeName,combinedProject ? outputDirectory : outputDirectory.resolve(workspaceName + ".xcworkspace"),buildWithBuck,parallelizeBuild,runnablePath,remoteRunnablePath,XcodeWorkspaceConfigDescription.getActionConfigNamesFromArg(workspaceArguments),targetToProjectPathMap,schemeConfigArg.launchStyle.or(XCScheme.LaunchAction.LaunchStyle.AUTO));
     schemeGenerator.writeScheme();
     schemeGenerators.put(schemeName,schemeGenerator);
   }
