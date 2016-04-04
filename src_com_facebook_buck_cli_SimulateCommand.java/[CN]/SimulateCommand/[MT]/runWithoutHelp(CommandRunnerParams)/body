@@ -1,6 +1,6 @@
 {
   BuildCommand buildCommand=new BuildCommand(arguments);
-  Pair<ActionGraph,BuildRuleResolver> actionGraphAndResolver;
+  ActionGraphAndResolver actionGraphAndResolver;
   try (CommandThreadManager pool=new CommandThreadManager("Simulate",params.getBuckConfig().getWorkQueueExecutionOrder(),getConcurrencyLimit(params.getBuckConfig()))){
     actionGraphAndResolver=buildCommand.createActionGraphAndResolver(params,pool.getExecutor());
   }
@@ -8,7 +8,7 @@
     return 1;
   }
   SimulateTimes times=Strings.isNullOrEmpty(simulateTimesFile) ? SimulateTimes.createEmpty(ruleFallbackTimeMillis) : SimulateTimes.createFromJsonFile(params.getObjectMapper(),simulateTimesFile,ruleFallbackTimeMillis);
-  BuildSimulator simulator=new BuildSimulator(times,actionGraphAndResolver.getFirst(),actionGraphAndResolver.getSecond(),params.getBuckConfig().getNumThreads());
+  BuildSimulator simulator=new BuildSimulator(times,actionGraphAndResolver.getActionGraph(),actionGraphAndResolver.getResolver(),params.getBuckConfig().getNumThreads());
   SimulateReport report=simulator.simulateBuild(params.getClock().currentTimeMillis(),buildCommand.getBuildTargets());
   outputReport(params.getObjectMapper(),report);
   String finishedMsg=String.format("Simulation report was successfully written to [%s]",simulateReportFile);
