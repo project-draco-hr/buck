@@ -11,8 +11,10 @@
   }
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   if (flavors.contains(CxxCompilationDatabase.COMPILATION_DATABASE)) {
-    CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(params.withoutFlavor(CxxCompilationDatabase.COMPILATION_DATABASE),resolver,cxxBuckConfig,cxxPlatform,args,flavoredStripStyle);
-    return CxxCompilationDatabase.createCompilationDatabase(params,pathResolver,cxxBuckConfig.getPreprocessMode(),cxxLinkAndCompileRules.compileRules);
+    BuildRuleParams paramsWithoutFlavor=params.withoutFlavor(CxxCompilationDatabase.COMPILATION_DATABASE);
+    CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(paramsWithoutFlavor,resolver,cxxBuckConfig,cxxPlatform,args,flavoredStripStyle);
+    HeaderSymlinkTree privateHeaderSymlinkTreeRule=CxxDescriptionEnhancer.createHeaderSymlinkTree(paramsWithoutFlavor,resolver,pathResolver,cxxPlatform,CxxDescriptionEnhancer.parseHeaders(params.getBuildTarget(),pathResolver,Optional.of(cxxPlatform),args),HeaderVisibility.PRIVATE);
+    return CxxCompilationDatabase.createCompilationDatabase(params,pathResolver,cxxBuckConfig.getPreprocessMode(),cxxLinkAndCompileRules.compileRules,privateHeaderSymlinkTreeRule,Optional.<HeaderSymlinkTree>absent());
   }
   if (flavors.contains(CxxCompilationDatabase.UBER_COMPILATION_DATABASE)) {
     return CxxDescriptionEnhancer.createUberCompilationDatabase(cxxPlatforms.getValue(flavors).isPresent() ? params : params.withFlavor(defaultCxxPlatform.getFlavor()),resolver);
