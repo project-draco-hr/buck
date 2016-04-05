@@ -1,0 +1,10 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  Path depOutput=Paths.get(filename);
+  FakeBuildRule dep=resolver.addToIndex(new FakeBuildRule(BuildTargetFactory.newInstance("//:dep"),fileSystem,pathResolver));
+  dep.setOutputFile(depOutput.toString());
+  fileSystem.writeContentsToPath(fileContents,dep.getPathToOutput());
+  BuildRule rule=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:rule")).setOut(filename).setSrcs(ImmutableList.<SourcePath>of(new BuildTargetSourcePath(dep.getBuildTarget()))).build(resolver,fileSystem);
+  return new ContentAgnosticRuleKeyBuilderFactory(pathResolver).build(rule);
+}
