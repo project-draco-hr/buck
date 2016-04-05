@@ -2,11 +2,15 @@
   if (testSelectorList.isEmpty()) {
     return getShellStepWithArgs("-o",resultsOutputPath.toString()).execute(context);
   }
-  ShellStep listStep=getShellStepWithArgs("-l","-L","buck");
-  int exitCode=listStep.execute(context);
-  if (timedOut || exitCode != 0) {
-    return exitCode;
+  ProcessExecutorParams params=ProcessExecutorParams.builder().setCommand(ImmutableList.<String>builder().addAll(commandPrefix).add("-l","-L","buck").build()).setDirectory(workingDirectory.toFile()).setEnvironment(environment.get()).build();
+  ProcessExecutor.Result result=context.getProcessExecutor().launchAndExecute(params,EnumSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT),Optional.<String>absent(),testRuleTimeoutMs,Optional.of(timeoutHandler));
+  if (timedOut) {
+    return 1;
   }
-  String testsToRunRegex=getTestsToRunRegexFromListOutput(listStep.getStdout());
+ else   if (result.getExitCode() != 0) {
+    return result.getExitCode();
+  }
+  Preconditions.checkState(result.getStdout().isPresent());
+  String testsToRunRegex=getTestsToRunRegexFromListOutput(result.getStdout().get());
   return getShellStepWithArgs("--hide-output","-o",resultsOutputPath.toString(),"-r",testsToRunRegex).execute(context);
 }
