@@ -1,13 +1,13 @@
 {
   AndroidPackageableCollection packageableCollection=enhancementResult.getPackageableCollection();
-  ImmutableSet<Path> classpathEntriesToDex;
+  ImmutableSet<Path> classpathEntriesToDex=FluentIterable.from(enhancementResult.getClasspathEntriesToDex()).transform(getResolver().deprecatedPathFunction()).toSet();
   if (preprocessJavaClassesBash.isPresent()) {
     final Path preprocessJavaClassesInDir=getBinPath("java_classes_preprocess_in_%s");
     final Path preprocessJavaClassesOutDir=getBinPath("java_classes_preprocess_out_%s");
     steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),preprocessJavaClassesInDir));
     steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),preprocessJavaClassesOutDir));
-    steps.add(new SymlinkFilesIntoDirectoryStep(getProjectFilesystem(),getProjectFilesystem().getRootPath(),enhancementResult.getClasspathEntriesToDex(),preprocessJavaClassesInDir));
-    classpathEntriesToDex=FluentIterable.from(enhancementResult.getClasspathEntriesToDex()).transform(new Function<Path,Path>(){
+    steps.add(new SymlinkFilesIntoDirectoryStep(getProjectFilesystem(),getProjectFilesystem().getRootPath(),classpathEntriesToDex,preprocessJavaClassesInDir));
+    classpathEntriesToDex=FluentIterable.from(classpathEntriesToDex).transform(new Function<Path,Path>(){
       @Override public Path apply(      Path classpathEntry){
         return preprocessJavaClassesOutDir.resolve(classpathEntry);
       }
@@ -25,9 +25,6 @@
       }
     }
 );
-  }
- else {
-    classpathEntriesToDex=enhancementResult.getClasspathEntriesToDex();
   }
   if (packageType.isBuildWithObfuscation()) {
     classpathEntriesToDex=addProguardCommands(classpathEntriesToDex,ImmutableSet.copyOf(getResolver().deprecatedAllPaths(packageableCollection.getProguardConfigs())),steps,buildableContext);
