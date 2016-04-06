@@ -6,9 +6,8 @@
     ndkVersion=androidDirectoryResolver.getNdkVersion();
   }
   AppleConfig appleConfig=new AppleConfig(config);
-  ImmutableMap.Builder<Flavor,AppleCxxPlatform> platformFlavorsToAppleCxxPlatformsBuilder=ImmutableMap.builder();
-  buildAppleCxxPlatforms(appleConfig.getAppleDeveloperDirectorySupplier(processExecutor),appleConfig.getExtraToolchainPaths(),appleConfig.getExtraPlatformPaths(),config,appleConfig,platformFlavorsToAppleCxxPlatformsBuilder,processExecutor);
-  ImmutableMap<Flavor,AppleCxxPlatform> platformFlavorsToAppleCxxPlatforms=platformFlavorsToAppleCxxPlatformsBuilder.build();
+  ImmutableList<AppleCxxPlatform> appleCxxPlatforms=buildAppleCxxPlatforms(appleConfig.getAppleDeveloperDirectorySupplier(processExecutor),appleConfig.getExtraToolchainPaths(),appleConfig.getExtraPlatformPaths(),config,appleConfig,processExecutor);
+  FlavorDomain<AppleCxxPlatform> platformFlavorsToAppleCxxPlatforms=FlavorDomain.from("Apple C++ Platform",appleCxxPlatforms);
   Optional<Path> ndkRoot=androidDirectoryResolver.findAndroidNdkDir();
   ImmutableMap.Builder<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> ndkCxxPlatformsBuilder=ImmutableMap.builder();
   if (ndkRoot.isPresent()) {
@@ -23,8 +22,8 @@
   for (  NdkCxxPlatform ndkCxxPlatform : ndkCxxPlatforms.values()) {
     cxxPlatformsBuilder.put(ndkCxxPlatform.getCxxPlatform().getFlavor(),ndkCxxPlatform.getCxxPlatform());
   }
-  for (  Map.Entry<Flavor,AppleCxxPlatform> entry : platformFlavorsToAppleCxxPlatforms.entrySet()) {
-    cxxPlatformsBuilder.put(entry.getKey(),entry.getValue().getCxxPlatform());
+  for (  AppleCxxPlatform appleCxxPlatform : platformFlavorsToAppleCxxPlatforms.getValues()) {
+    cxxPlatformsBuilder.put(appleCxxPlatform.getCxxPlatform().getFlavor(),appleCxxPlatform.getCxxPlatform());
   }
   CxxPlatform systemDefaultCxxPlatform=getHostCxxPlatformFromConfig(cxxBuckConfig,cxxPlatformsBuilder.build(),DefaultCxxPlatforms.build(platform,cxxBuckConfig));
   cxxPlatformsBuilder.put(systemDefaultCxxPlatform.getFlavor(),systemDefaultCxxPlatform);
