@@ -1,0 +1,29 @@
+{
+  ImmutableList.Builder<Arg> argsBuilder=ImmutableList.builder();
+  argsBuilder.addAll(extraLdflags);
+  List<SourcePath> undefinedSymbolsOnlyRoots=new ArrayList<>();
+  for (  BuildTarget target : Sets.difference(spec.getRoots().keySet(),spec.getGraph().getNodes())) {
+    undefinedSymbolsOnlyRoots.add(new BuildTargetSourcePath(getRootTarget(params.getBuildTarget(),target)));
+  }
+  argsBuilder.addAll(createUndefinedSymbolsArgs(params,ruleResolver,pathResolver,cxxPlatform,undefinedSymbolsOnlyRoots));
+  ImmutableList<BuildTarget> targets=TopologicalSort.sort(spec.getGraph(),Predicates.<BuildTarget>alwaysTrue()).reverse();
+  for (  BuildTarget target : targets) {
+    SharedNativeLinkTarget root=spec.getRoots().get(target);
+    if (root != null) {
+      argsBuilder.add(new SourcePathArg(pathResolver,new BuildTargetSourcePath(getRootTarget(params.getBuildTarget(),root.getBuildTarget()))));
+      continue;
+    }
+    NativeLinkable nativeLinkable=Preconditions.checkNotNull(spec.getBody().get(target));
+    NativeLinkableInput input=NativeLinkables.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.STATIC_PIC,nativeLinkable);
+    argsBuilder.addAll(input.getArgs());
+  }
+  ImmutableMap<BuildTarget,NativeLinkable> deps=NativeLinkables.getNativeLinkables(cxxPlatform,spec.getDeps().values(),Linker.LinkableDepType.SHARED);
+  for (  NativeLinkable nativeLinkable : deps.values()) {
+    NativeLinkableInput input=NativeLinkables.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.SHARED,nativeLinkable);
+    argsBuilder.addAll(input.getArgs());
+  }
+  BuildTarget omnibusTarget=params.getBuildTarget().withAppendedFlavor(OMNIBUS_FLAVOR);
+  String omnibusSoname=getOmnibusSoname(cxxPlatform);
+  ruleResolver.addToIndex(CxxLinkableEnhancer.createCxxLinkableSharedBuildRule(cxxBuckConfig,cxxPlatform,params,ruleResolver,pathResolver,omnibusTarget,BuildTargets.getGenPath(omnibusTarget,"%s").resolve(omnibusSoname),Optional.of(omnibusSoname),argsBuilder.build()));
+  return OmnibusLibrary.of(omnibusSoname,new BuildTargetSourcePath(omnibusTarget));
+}

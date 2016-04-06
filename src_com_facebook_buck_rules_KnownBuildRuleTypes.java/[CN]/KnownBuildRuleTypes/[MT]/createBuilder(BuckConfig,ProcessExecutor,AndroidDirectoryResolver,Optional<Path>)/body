@@ -46,7 +46,7 @@
   PythonBuckConfig pyConfig=new PythonBuckConfig(config,new ExecutableFinder());
   ImmutableList<PythonPlatform> pythonPlatformsList=pyConfig.getPythonPlatforms(processExecutor);
   FlavorDomain<PythonPlatform> pythonPlatforms=FlavorDomain.from("Python Platform",pythonPlatformsList);
-  PythonBinaryDescription pythonBinaryDescription=new PythonBinaryDescription(pyConfig,pythonPlatforms,defaultCxxPlatform,cxxPlatforms);
+  PythonBinaryDescription pythonBinaryDescription=new PythonBinaryDescription(pyConfig,pythonPlatforms,cxxBuckConfig,defaultCxxPlatform,cxxPlatforms);
   Optional<Long> defaultTestRuleTimeoutMs=config.getLong("test","rule_timeout");
   Downloader downloader;
   DownloadConfig downloadConfig=new DownloadConfig(config);
@@ -74,10 +74,10 @@
   SwiftLibraryDescription swiftLibraryDescription=new SwiftLibraryDescription(cxxPlatforms,platformFlavorsToAppleCxxPlatforms,defaultCxxPlatform);
   builder.register(swiftLibraryDescription);
   ListeningExecutorService dxExecutorService=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(SmartDexingStep.determineOptimalThreadCount(),new CommandThreadFactory("SmartDexing")));
-  builder.register(new AndroidAarDescription(new AndroidManifestDescription(),ndkCxxPlatforms));
-  builder.register(new AndroidBinaryDescription(defaultJavaOptions,defaultJavacOptions,proGuardConfig,ndkCxxPlatforms,dxExecutorService));
+  builder.register(new AndroidAarDescription(new AndroidManifestDescription(),cxxBuckConfig,ndkCxxPlatforms));
+  builder.register(new AndroidBinaryDescription(defaultJavaOptions,defaultJavacOptions,proGuardConfig,ndkCxxPlatforms,dxExecutorService,cxxBuckConfig));
   builder.register(new AndroidBuildConfigDescription(defaultJavacOptions));
-  builder.register(new AndroidInstrumentationApkDescription(proGuardConfig,defaultJavacOptions,ndkCxxPlatforms,dxExecutorService));
+  builder.register(new AndroidInstrumentationApkDescription(proGuardConfig,defaultJavacOptions,ndkCxxPlatforms,dxExecutorService,cxxBuckConfig));
   builder.register(new AndroidInstrumentationTestDescription(defaultJavaOptions,defaultTestRuleTimeoutMs));
   builder.register(new AndroidLibraryDescription(defaultJavacOptions));
   builder.register(new AndroidManifestDescription());
@@ -98,9 +98,9 @@
   builder.register(new CxxLuaExtensionDescription(luaConfig,cxxBuckConfig,cxxPlatforms));
   builder.register(new CxxPythonExtensionDescription(pythonPlatforms,cxxBuckConfig,cxxPlatforms));
   builder.register(new CxxTestDescription(cxxBuckConfig,defaultCxxPlatform,cxxPlatforms,defaultTestRuleTimeoutMs));
-  builder.register(new DBinaryDescription(dBuckConfig,defaultCxxPlatform));
+  builder.register(new DBinaryDescription(dBuckConfig,cxxBuckConfig,defaultCxxPlatform));
   builder.register(new DLibraryDescription(dBuckConfig,defaultCxxPlatform));
-  builder.register(new DTestDescription(dBuckConfig,defaultTestRuleTimeoutMs,defaultCxxPlatform));
+  builder.register(new DTestDescription(dBuckConfig,cxxBuckConfig,defaultCxxPlatform,defaultTestRuleTimeoutMs));
   builder.register(new ExportFileDescription());
   builder.register(new GenruleDescription());
   builder.register(new GenAidlDescription());
@@ -123,7 +123,7 @@
   OCamlBuckConfig ocamlBuckConfig=new OCamlBuckConfig(platform,config);
   builder.register(new OCamlBinaryDescription(ocamlBuckConfig));
   builder.register(new OCamlLibraryDescription(ocamlBuckConfig));
-  builder.register(new PrebuiltCxxLibraryDescription(cxxPlatforms));
+  builder.register(new PrebuiltCxxLibraryDescription(cxxBuckConfig,cxxPlatforms));
   builder.register(new PrebuiltDotNetLibraryDescription());
   builder.register(new PrebuiltJarDescription());
   builder.register(new PrebuiltNativeLibraryDescription());
@@ -132,7 +132,7 @@
   builder.register(new ProjectConfigDescription());
   builder.register(pythonBinaryDescription);
   builder.register(new PythonLibraryDescription());
-  builder.register(new PythonTestDescription(pythonBinaryDescription,pyConfig,pythonPlatforms,defaultCxxPlatform,defaultTestRuleTimeoutMs,cxxPlatforms));
+  builder.register(new PythonTestDescription(pythonBinaryDescription,pyConfig,pythonPlatforms,cxxBuckConfig,defaultCxxPlatform,defaultTestRuleTimeoutMs,cxxPlatforms));
   builder.register(new RemoteFileDescription(downloader));
   builder.register(new RobolectricTestDescription(defaultJavaOptions,defaultJavacOptions,defaultTestRuleTimeoutMs,defaultCxxPlatform,testTempDirOverride));
   builder.register(new RustBinaryDescription(rustBuckConfig));
