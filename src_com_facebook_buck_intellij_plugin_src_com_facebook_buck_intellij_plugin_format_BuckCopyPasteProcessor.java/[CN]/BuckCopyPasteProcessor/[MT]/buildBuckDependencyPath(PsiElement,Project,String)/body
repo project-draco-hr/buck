@@ -1,28 +1,19 @@
 {
-  String original=path;
-  Matcher matcher=DEPENDENCY_PATTERN.matcher(path);
+  Matcher matcher=UNSOLVED_DEPENDENCY_PATTERN.matcher(path);
   if (matcher.matches()) {
     path=matcher.group(2);
+    return resolveUnsolvedBuckDependency(element,project,path);
   }
-  VirtualFile buckFile=referenceNameToBuckFile(project,path);
-  if (buckFile != null) {
-    path=buckFile.getPath().replaceFirst(project.getBasePath(),"");
-    path="/" + path.replace('.','/');
-    path=path.substring(0,path.lastIndexOf("/"));
-    String target=BuckBuildUtil.extractBuckTarget(project,buckFile);
-    if (target != null) {
-      path+=target;
-    }
+  if (SOLVED_DEPENDENCY_PATTERN.matcher(path).matches()) {
+    if (!(path.startsWith("//") || path.startsWith(":"))) {
+      if (path.startsWith("/")) {
+        path="/" + path;
+      }
  else {
-      String lastWord=path.substring(path.lastIndexOf("/") + 1,path.length());
-      path+=":" + lastWord;
+        path="//" + path;
+      }
     }
-    if (element.getNode().getElementType() == TokenType.WHITE_SPACE) {
-      path="'" + path + "',";
-    }
-    return path;
+    path="'" + path + "',";
   }
- else {
-    return original;
-  }
+  return path;
 }
