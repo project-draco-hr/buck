@@ -1,3 +1,12 @@
 {
-  runAaptPackageDependsOnReactNativeBundle();
+  workspace.enableDirCache();
+  BuildTarget target=BuildTargetFactory.newInstance("//apps/sample:app-without-rn-res");
+  workspace.runBuckBuild(target.getFullyQualifiedName()).assertSuccess();
+  ZipInspector zipInspector=new ZipInspector(workspace.getPath(BuildTargets.getGenPath(target,"%s.apk")));
+  zipInspector.assertFileExists("assets/SampleBundle.js");
+  workspace.runBuckCommand("clean");
+  workspace.replaceFileContents("apps/sample/BUCK","#REPLACE_ME_WITH_ANOTHER_RES","'//res/com/sample/unused:unused'");
+  workspace.runBuckBuild(target.getFullyQualifiedName()).assertSuccess();
+  zipInspector=new ZipInspector(workspace.getPath(BuildTargets.getGenPath(target,"%s.apk")));
+  zipInspector.assertFileExists("assets/SampleBundle.js");
 }
