@@ -2,15 +2,17 @@
   final SortedMap<String,ImmutableSortedSet<Path>> targetToInputs=new TreeMap<>();
   new AbstractBottomUpTraversal<TargetNode<?>,Void>(graph){
     @Override public void visit(    TargetNode<?> node){
+      Optional<Cell> cellRoot=params.getCell().getCellIfKnown(node.getBuildTarget());
+      Cell cell=cellRoot.isPresent() ? cellRoot.get() : params.getCell();
       LOG.debug("Looking at inputs for %s",node.getBuildTarget().getFullyQualifiedName());
       SortedSet<Path> targetInputs=new TreeSet<>();
       for (      Path input : node.getInputs()) {
         LOG.debug("Walking input %s",input);
         try {
-          if (!params.getCell().getFilesystem().exists(input)) {
-            throw new HumanReadableException("Target %s refers to non-existent input file: %s",node,input);
+          if (!cell.getFilesystem().exists(input)) {
+            throw new HumanReadableException("Target %s refers to non-existent input file: %s",node,params.getCell().getRoot().relativize(cell.getRoot().resolve(input)));
           }
-          targetInputs.addAll(params.getCell().getFilesystem().getFilesUnderPath(input));
+          targetInputs.addAll(cell.getFilesystem().getFilesUnderPath(input));
         }
  catch (        IOException e) {
           throw new RuntimeException(e);
