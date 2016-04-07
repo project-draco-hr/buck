@@ -131,7 +131,11 @@
           TypeCoercerFactory typeCoercerFactory=new DefaultTypeCoercerFactory(objectMapper);
           parser=new Parser(new ParserConfig(rootCell.getBuckConfig()),typeCoercerFactory,new ConstructorArgMarshaller(typeCoercerFactory));
         }
+        ActionGraphCache actionGraphCache=getActionGraphCacheFromDaemon(context,rootCell);
         counterRegistry.registerCounters(parser.getCounters());
+        if (context.isPresent()) {
+          counterRegistry.registerCounters(actionGraphCache.getCounters());
+        }
         JavaUtilsLoggingBuildListener.ensureLogFileIsWritten(rootCell.getFilesystem());
         Optional<ProcessManager> processManager;
         if (platform == Platform.WINDOWS) {
@@ -149,7 +153,7 @@
             buildEventBus.register(listener);
           }
         }
-        exitCode=command.run(new CommandRunnerParams(console,stdIn,rootCell,androidPlatformTargetSupplier,artifactCache,buildEventBus,parser,platform,clientEnvironment,rootCell.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,clock,processManager,webServer,buckConfig,fileHashCache,executors,buildEnvironmentDescription));
+        exitCode=command.run(new CommandRunnerParams(console,stdIn,rootCell,androidPlatformTargetSupplier,artifactCache,buildEventBus,parser,platform,clientEnvironment,rootCell.getBuckConfig().createDefaultJavaPackageFinder(),objectMapper,clock,processManager,webServer,buckConfig,fileHashCache,executors,buildEnvironmentDescription,actionGraphCache));
         closeHttpExecutorService(cacheBuckConfig,Optional.of(buildEventBus),httpWriteExecutorService);
         buildEventBus.post(CommandEvent.finished(startedEvent,exitCode));
       }
