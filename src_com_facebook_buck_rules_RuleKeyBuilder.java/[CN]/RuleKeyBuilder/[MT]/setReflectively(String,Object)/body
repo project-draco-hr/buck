@@ -11,7 +11,7 @@
   }
   int oldSize=keyStack.size();
   keyStack.push(key);
-  try {
+  try (RuleKeyLogger.Scope keyScope=ruleKeyLogger.pushKey(key)){
     if (val instanceof Collection) {
       val=((Collection<?>)val).iterator();
     }
@@ -29,13 +29,19 @@
       if (!(val instanceof SortedMap | val instanceof ImmutableMap)) {
         logger.info("Adding an unsorted map to the rule key (%s). " + "Expect unstable ordering and caches misses: %s",key,val);
       }
-      feed("{".getBytes(StandardCharsets.UTF_8));
-      for (      Map.Entry<?,?> entry : ((Map<?,?>)val).entrySet()) {
-        setReflectively(key,entry.getKey());
-        feed(" -> ".getBytes(StandardCharsets.UTF_8));
-        setReflectively(key,entry.getValue());
+      try (RuleKeyLogger.Scope mapScope=ruleKeyLogger.pushMap()){
+        feed("{".getBytes(StandardCharsets.UTF_8));
+        for (        Map.Entry<?,?> entry : ((Map<?,?>)val).entrySet()) {
+          try (RuleKeyLogger.Scope mapKeyScope=ruleKeyLogger.pushMapKey()){
+            setReflectively(key,entry.getKey());
+          }
+           feed(" -> ".getBytes(StandardCharsets.UTF_8));
+          try (RuleKeyLogger.Scope mapValueScope=ruleKeyLogger.pushMapValue()){
+            setReflectively(key,entry.getValue());
+          }
+         }
       }
-      return feed("}".getBytes(StandardCharsets.UTF_8));
+       return feed("}".getBytes(StandardCharsets.UTF_8));
     }
     if (val instanceof Supplier) {
       Object newVal=((Supplier<?>)val).get();

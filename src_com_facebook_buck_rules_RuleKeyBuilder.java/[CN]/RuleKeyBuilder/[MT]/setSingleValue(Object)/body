@@ -1,37 +1,36 @@
 {
   if (val == null) {
+    ruleKeyLogger.addNullValue();
     return feed(new byte[0]);
   }
  else   if (val instanceof Boolean) {
-    if (logElms != null) {
-      logElms.add(String.format("boolean(\"%s\"):",(boolean)val ? "true" : "false"));
-    }
+    ruleKeyLogger.addValue((boolean)val);
     feed(((boolean)val ? "t" : "f").getBytes(StandardCharsets.UTF_8));
   }
  else   if (val instanceof Enum) {
-    if (logElms != null) {
-      logElms.add(String.format("enum(%s):",val));
-    }
+    ruleKeyLogger.addValue((Enum<?>)val);
     feed(String.valueOf(val).getBytes(StandardCharsets.UTF_8));
   }
  else   if (val instanceof Number) {
-    if (logElms != null) {
-      logElms.add(String.format("number(%s):",val));
-    }
     Class<?> wrapped=Primitives.wrap(val.getClass());
     if (Double.class.equals(wrapped)) {
+      ruleKeyLogger.addValue((Double)val);
       hasher.putDouble(((Double)val).doubleValue());
     }
  else     if (Float.class.equals(wrapped)) {
+      ruleKeyLogger.addValue((Float)val);
       hasher.putFloat(((Float)val).floatValue());
     }
  else     if (Integer.class.equals(wrapped)) {
+      ruleKeyLogger.addValue((Integer)val);
       hasher.putInt(((Integer)val).intValue());
     }
  else     if (Long.class.equals(wrapped)) {
+      ruleKeyLogger.addValue((Long)val);
       hasher.putLong(((Long)val).longValue());
     }
  else     if (Short.class.equals(wrapped)) {
+      ruleKeyLogger.addValue((Short)val);
       hasher.putShort(((Short)val).shortValue());
     }
  else {
@@ -42,31 +41,24 @@
     throw new HumanReadableException("It's not possible to reliably disambiguate Paths. They are disallowed from rule keys");
   }
  else   if (val instanceof String) {
-    if (logElms != null) {
-      logElms.add(String.format("string(\"%s\"):",val));
-    }
+    ruleKeyLogger.addValue((String)val);
     feed(((String)val).getBytes(StandardCharsets.UTF_8));
   }
  else   if (val instanceof BuildRule) {
     return setBuildRule((BuildRule)val);
   }
  else   if (val instanceof BuildRuleType) {
-    if (logElms != null) {
-      logElms.add(String.format("ruleKeyType(%s):",val));
-    }
+    ruleKeyLogger.addValue((BuildRuleType)val);
     feed(val.toString().getBytes(StandardCharsets.UTF_8));
   }
  else   if (val instanceof RuleKey) {
-    if (logElms != null) {
-      logElms.add(String.format("ruleKey(sha1=%s):",val));
-    }
+    ruleKeyLogger.addValue((RuleKey)val);
     feed(val.toString().getBytes(StandardCharsets.UTF_8));
   }
  else   if (val instanceof BuildTarget || val instanceof UnflavoredBuildTarget) {
-    if (logElms != null) {
-      logElms.add(String.format("target(%s):",val));
-    }
-    feed(((HasBuildTarget)val).getBuildTarget().getFullyQualifiedName().getBytes(StandardCharsets.UTF_8));
+    BuildTarget buildTarget=((HasBuildTarget)val).getBuildTarget();
+    ruleKeyLogger.addValue(buildTarget);
+    feed(buildTarget.getFullyQualifiedName().getBytes(StandardCharsets.UTF_8));
   }
  else   if (val instanceof Either) {
     Either<?,?> either=(Either<?,?>)val;
@@ -85,29 +77,31 @@
     return setNonHashingSourcePath(nonHashableSourcePathContainer.getSourcePath());
   }
  else   if (val instanceof SourceRoot) {
-    if (logElms != null) {
-      logElms.add(String.format("sourceroot(%s):",val));
-    }
-    feed(((SourceRoot)val).getName().getBytes(StandardCharsets.UTF_8));
+    SourceRoot sourceRoot=((SourceRoot)val);
+    ruleKeyLogger.addValue(sourceRoot);
+    feed(sourceRoot.getName().getBytes(StandardCharsets.UTF_8));
   }
  else   if (val instanceof SourceWithFlags) {
     SourceWithFlags source=(SourceWithFlags)val;
-    setSingleValue(source.getSourcePath());
-    feed("[".getBytes(StandardCharsets.UTF_8));
-    for (    String flag : source.getFlags()) {
-      feed(flag.getBytes(StandardCharsets.UTF_8));
-      feed(",".getBytes(StandardCharsets.UTF_8));
+    try (RuleKeyLogger.Scope scope=ruleKeyLogger.pushSourceWithFlags()){
+      setSourcePath(source.getSourcePath());
+      feed("[".getBytes(StandardCharsets.UTF_8));
+      for (      String flag : source.getFlags()) {
+        ruleKeyLogger.addValue(flag);
+        feed(flag.getBytes(StandardCharsets.UTF_8));
+        feed(",".getBytes(StandardCharsets.UTF_8));
+      }
+      feed("]".getBytes(StandardCharsets.UTF_8));
     }
-    feed("]".getBytes(StandardCharsets.UTF_8));
-  }
+   }
  else   if (val instanceof Sha1HashCode) {
-    setSingleValue(((Sha1HashCode)val).getHash());
+    Sha1HashCode hashCode=(Sha1HashCode)val;
+    setSingleValue(hashCode.getHash());
   }
  else   if (val instanceof byte[]) {
-    if (logElms != null) {
-      logElms.add(String.format("byteArray(%s):",val));
-    }
-    feed((byte[])val);
+    byte[] bytes=(byte[])val;
+    ruleKeyLogger.addValue(bytes);
+    feed(bytes);
   }
  else {
     throw new RuntimeException("Unsupported value type: " + val.getClass());
