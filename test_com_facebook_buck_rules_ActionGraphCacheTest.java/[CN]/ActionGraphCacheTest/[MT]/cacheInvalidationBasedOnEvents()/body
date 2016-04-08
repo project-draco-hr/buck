@@ -1,0 +1,24 @@
+{
+  ActionGraphCache cache=new ActionGraphCache();
+  Path file=tmpFilePath.newFile("foo.txt");
+  cache.getActionGraph(eventBus,targetGraph);
+  assertFalse(cache.isEmpty());
+  cache.invalidateBasedOn(WatchEventsForTests.createOverflowEvent());
+  assertTrue(cache.isEmpty());
+  cache.getActionGraph(eventBus,targetGraph);
+  assertFalse(cache.isEmpty());
+  cache.invalidateBasedOn(WatchEventsForTests.createPathEvent(file,StandardWatchEventKinds.ENTRY_CREATE));
+  assertTrue(cache.isEmpty());
+  cache.getActionGraph(eventBus,targetGraph);
+  assertFalse(cache.isEmpty());
+  cache.invalidateBasedOn(WatchEventsForTests.createPathEvent(file,StandardWatchEventKinds.ENTRY_DELETE));
+  assertTrue(cache.isEmpty());
+  cache.getActionGraph(eventBus,targetGraph);
+  assertFalse(cache.isEmpty());
+  cache.invalidateBasedOn(WatchEventsForTests.createPathEvent(file,StandardWatchEventKinds.ENTRY_MODIFY));
+  cache.getActionGraph(eventBus,targetGraph);
+  assertFalse(cache.isEmpty());
+  ImmutableList<Counter> counters=cache.getCounters();
+  assertEquals(((IntegerCounter)counters.get(CACHE_HIT_COUNTER_INDEX)).get(),1);
+  assertEquals(((IntegerCounter)counters.get(CACHE_MISS_COUNTER_INDEX)).get(),4);
+}
