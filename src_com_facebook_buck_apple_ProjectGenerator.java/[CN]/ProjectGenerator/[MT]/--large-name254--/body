@@ -8,26 +8,30 @@
   ImmutableSet<SourcePath> exportedHeaders=ImmutableSet.copyOf(getHeaderSourcePaths(arg.exportedHeaders));
   ImmutableSet<SourcePath> headers=ImmutableSet.copyOf(getHeaderSourcePaths(arg.headers));
   ImmutableMap<CxxSource.Type,ImmutableList<String>> langPreprocessorFlags=targetNode.getConstructorArg().langPreprocessorFlags.get();
-  mutator.setTargetName(getXcodeTargetName(buildTarget)).setLangPreprocessorFlags(langPreprocessorFlags).setProduct(productType,buildTargetName,Paths.get(String.format(productOutputFormat,buildTargetName))).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setPublicHeaders(exportedHeaders).setPrivateHeaders(headers).setPrefixHeader(arg.prefixHeader).setRecursiveResources(recursiveResources).setDirectResources(directResources);
-  if (bundle.isPresent()) {
+  mutator.setTargetName(getXcodeTargetName(buildTarget)).setProduct(productType,buildTargetName,Paths.get(String.format(productOutputFormat,buildTargetName)));
+  boolean isFocusedOnTarget=shouldIncludeBuildTargetIntoFocusedProject(buildTarget);
+  if (isFocusedOnTarget) {
+    mutator.setLangPreprocessorFlags(langPreprocessorFlags).setPublicHeaders(exportedHeaders).setPrefixHeader(arg.prefixHeader).setSourcesWithFlags(ImmutableSet.copyOf(arg.srcs.get())).setPrivateHeaders(headers).setRecursiveResources(recursiveResources).setDirectResources(directResources);
+  }
+  if (bundle.isPresent() && isFocusedOnTarget) {
     HasAppleBundleFields bundleArg=bundle.get().getConstructorArg();
     mutator.setInfoPlist(Optional.of(bundleArg.getInfoPlist()));
   }
   Optional<TargetNode<AppleNativeTargetDescriptionArg>> appleTargetNode=targetNode.castArg(AppleNativeTargetDescriptionArg.class);
-  if (appleTargetNode.isPresent()) {
+  if (appleTargetNode.isPresent() && isFocusedOnTarget) {
     AppleNativeTargetDescriptionArg appleArg=appleTargetNode.get().getConstructorArg();
     mutator=mutator.setExtraXcodeSources(ImmutableSet.copyOf(appleArg.extraXcodeSources.get()));
   }
-  if (options.contains(Option.CREATE_DIRECTORY_STRUCTURE)) {
+  if (options.contains(Option.CREATE_DIRECTORY_STRUCTURE) && isFocusedOnTarget) {
     mutator.setTargetGroupPath(FluentIterable.from(buildTarget.getBasePath()).transform(Functions.toStringFunction()).toList());
   }
-  if (!recursiveAssetCatalogs.isEmpty()) {
+  if (!recursiveAssetCatalogs.isEmpty() && isFocusedOnTarget) {
     mutator.setRecursiveAssetCatalogs(recursiveAssetCatalogs);
   }
-  if (!directAssetCatalogs.isEmpty()) {
+  if (!directAssetCatalogs.isEmpty() && isFocusedOnTarget) {
     mutator.setDirectAssetCatalogs(directAssetCatalogs);
   }
-  if (includeFrameworks) {
+  if (includeFrameworks && isFocusedOnTarget) {
     ImmutableSet.Builder<FrameworkPath> frameworksBuilder=ImmutableSet.builder();
     frameworksBuilder.addAll(targetNode.getConstructorArg().frameworks.get());
     frameworksBuilder.addAll(targetNode.getConstructorArg().libraries.get());
@@ -38,16 +42,18 @@
   ImmutableList.Builder<TargetNode<?>> preScriptPhases=ImmutableList.builder();
   ImmutableList.Builder<TargetNode<?>> postScriptPhases=ImmutableList.builder();
   boolean skipRNBundle=ReactNativeFlavors.skipBundling(buildTargetNode.getBuildTarget());
-  if (bundle.isPresent() && targetNode != bundle.get()) {
+  if (bundle.isPresent() && targetNode != bundle.get() && isFocusedOnTarget) {
     collectBuildScriptDependencies(targetGraph.getAll(bundle.get().getDeclaredDeps()),preScriptPhases,postScriptPhases,skipRNBundle);
   }
   collectBuildScriptDependencies(targetGraph.getAll(targetNode.getDeclaredDeps()),preScriptPhases,postScriptPhases,skipRNBundle);
-  mutator.setPreBuildRunScriptPhasesFromTargetNodes(preScriptPhases.build());
-  if (copyFilesPhases.isPresent()) {
-    mutator.setCopyFilesPhases(copyFilesPhases.get());
+  if (isFocusedOnTarget) {
+    mutator.setPreBuildRunScriptPhasesFromTargetNodes(preScriptPhases.build());
+    if (copyFilesPhases.isPresent()) {
+      mutator.setCopyFilesPhases(copyFilesPhases.get());
+    }
+    mutator.setPostBuildRunScriptPhasesFromTargetNodes(postScriptPhases.build());
+    mutator.skipReactNativeBundle(skipRNBundle);
   }
-  mutator.setPostBuildRunScriptPhasesFromTargetNodes(postScriptPhases.build());
-  mutator.skipReactNativeBundle(skipRNBundle);
   NewNativeTargetProjectMutator.Result targetBuilderResult;
   try {
     targetBuilderResult=mutator.buildTargetAndAddToProject(project);
@@ -61,7 +67,7 @@
   buckReference.setExplicitFileType(Optional.of("text.script.python"));
   ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
   extraSettingsBuilder.put("TARGET_NAME",buildTargetName).put("SRCROOT",pathRelativizer.outputPathToBuildTargetPath(buildTarget).toString());
-  if (bundleLoaderNode.isPresent()) {
+  if (bundleLoaderNode.isPresent() && isFocusedOnTarget) {
     TargetNode<AppleBundleDescription.Arg> bundleLoader=bundleLoaderNode.get();
     String bundleLoaderProductName=getProductNameForBuildTarget(bundleLoader.getBuildTarget());
     String bundleLoaderBundleName=bundleLoaderProductName + "." + getExtensionString(bundleLoader.getConstructorArg().getExtension());
@@ -97,11 +103,16 @@
   ImmutableMap.Builder<String,String> appendConfigsBuilder=ImmutableMap.builder();
   ImmutableSet<Path> recursiveHeaderSearchPaths=collectRecursiveHeaderSearchPaths(targetNode);
   ImmutableSet<Path> headerMapBases=recursiveHeaderSearchPaths.isEmpty() ? ImmutableSet.<Path>of() : ImmutableSet.of(pathRelativizer.outputDirToRootRelative(BuckConstant.BUCK_OUTPUT_PATH));
-  appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterables.concat(recursiveHeaderSearchPaths,headerMapBases))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(ImmutableSet.of(targetNode)))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(ImmutableList.of(targetNode)))).put("OTHER_CFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(cxxBuckConfig.getFlags("cflags").or(DEFAULT_CFLAGS),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode)),targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get()),Escaper.BASH_ESCAPER))).put("OTHER_CPLUSPLUSFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(cxxBuckConfig.getFlags("cxxflags").or(DEFAULT_CXXFLAGS),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode)),targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get()),Escaper.BASH_ESCAPER))).put("OTHER_LDFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(targetNode.getConstructorArg().linkerFlags.get(),collectRecursiveExportedLinkerFlags(ImmutableList.of(targetNode))),Escaper.BASH_ESCAPER)));
+  appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterables.concat(recursiveHeaderSearchPaths,headerMapBases))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(ImmutableSet.of(targetNode)))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(ImmutableList.of(targetNode))));
+  if (isFocusedOnTarget) {
+    appendConfigsBuilder.put("OTHER_CFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(cxxBuckConfig.getFlags("cflags").or(DEFAULT_CFLAGS),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode)),targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get()),Escaper.BASH_ESCAPER))).put("OTHER_CPLUSPLUSFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(cxxBuckConfig.getFlags("cxxflags").or(DEFAULT_CXXFLAGS),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode)),targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get()),Escaper.BASH_ESCAPER))).put("OTHER_LDFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(targetNode.getConstructorArg().linkerFlags.get(),collectRecursiveExportedLinkerFlags(ImmutableList.of(targetNode))),Escaper.BASH_ESCAPER)));
+  }
   ImmutableMap<String,String> appendedConfig=appendConfigsBuilder.build();
-  Optional<ImmutableSortedMap<String,ImmutableMap<String,String>>> configs=getXcodeBuildConfigurationsForTargetNode(targetNode,appendedConfig);
   PBXNativeTarget target=targetBuilderResult.target;
-  setTargetBuildConfigurations(getConfigurationNameToXcconfigPath(buildTarget),target,project.getMainGroup(),configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendedConfig);
+  if (isFocusedOnTarget) {
+    Optional<ImmutableSortedMap<String,ImmutableMap<String,String>>> configs=getXcodeBuildConfigurationsForTargetNode(targetNode,appendedConfig);
+    setTargetBuildConfigurations(getConfigurationNameToXcconfigPath(buildTarget),target,project.getMainGroup(),configs.get(),extraSettingsBuilder.build(),defaultSettingsBuilder.build(),appendedConfig);
+  }
   createHeaderSymlinkTree(sourcePathResolver,getPublicCxxHeaders(targetNode),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PUBLIC));
   createHeaderSymlinkTree(sourcePathResolver,getPrivateCxxHeaders(targetNode),AppleDescriptions.getPathToHeaderSymlinkTree(targetNode,HeaderVisibility.PRIVATE));
   if (appleTargetNode.isPresent()) {
