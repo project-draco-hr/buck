@@ -11,16 +11,14 @@
   if (cacheResult.getType().isSuccess()) {
     return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult)));
   }
-  context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.suspended(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory));
   ListenableFuture<List<BuildResult>> getDepResultsAndMarkRuleAsUsed=Futures.transformAsync(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,List<BuildResult>>(){
     @Override public ListenableFuture<List<BuildResult>> apply(    List<BuildResult> input){
       return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(input));
     }
   }
 );
-  return Futures.transformAsync(getDepResultsAndMarkRuleAsUsed,new AsyncFunction<List<BuildResult>,BuildResult>(){
-    @Override public ListenableFuture<BuildResult> apply(    @Nonnull List<BuildResult> depResults) throws Exception {
-      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory));
+  AsyncFunction<List<BuildResult>,BuildResult> callback=new AsyncFunction<List<BuildResult>,BuildResult>(){
+    @Override public ListenableFuture<BuildResult> apply(    List<BuildResult> depResults) throws Exception {
       for (      BuildResult depResult : depResults) {
         if (buildMode != BuildMode.POPULATE_FROM_REMOTE_CACHE && depResult.getStatus() != BuildRuleStatus.SUCCESS) {
           return Futures.immediateFuture(BuildResult.canceled(rule,Preconditions.checkNotNull(depResult.getFailure())));
@@ -68,17 +66,18 @@
         LOG.info("Cannot populate cache for " + rule.getBuildTarget().getFullyQualifiedName());
         return Futures.immediateFuture(BuildResult.canceled(rule,new HumanReadableException("Skipping %s: in cache population mode local builds are disabled",rule)));
       }
-      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.suspended(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory));
       RuleScheduleInfo ruleScheduleInfo=getRuleScheduleInfo(rule);
       return service.submit(new Callable<BuildResult>(){
         @Override public BuildResult call() throws Exception {
-          context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory));
-          executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
-          return BuildResult.success(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResult);
-        }
+          try (BuildRuleEvent.Scope scope=BuildRuleEvent.resumeSuspendScope(context.getEventBus(),rule,ruleKeyFactory.defaultRuleKeyBuilderFactory)){
+            executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
+            return BuildResult.success(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResult);
+          }
+         }
       }
 ,DEFAULT_BUILD_WEIGHT * ruleScheduleInfo.getJobsMultiplier());
     }
   }
-,service);
+;
+  return Futures.transformAsync(getDepResultsAndMarkRuleAsUsed,ruleAsyncFunction(rule,context,callback),service);
 }

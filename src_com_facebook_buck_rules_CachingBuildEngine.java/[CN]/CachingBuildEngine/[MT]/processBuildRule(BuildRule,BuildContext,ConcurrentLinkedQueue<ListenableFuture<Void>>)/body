@@ -1,16 +1,18 @@
 {
   final RuleKeyFactories keyFactories=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem());
   final FileHashCache fileHashCache=fileHashCaches.getUnchecked(rule.getProjectFilesystem());
-  context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule,keyFactories.defaultRuleKeyBuilderFactory));
   final OnDiskBuildInfo onDiskBuildInfo=context.createOnDiskBuildInfoFor(rule.getBuildTarget(),rule.getProjectFilesystem());
   final BuildInfoRecorder buildInfoRecorder=context.createBuildInfoRecorder(rule.getBuildTarget(),rule.getProjectFilesystem()).addBuildMetadata(BuildInfo.METADATA_KEY_FOR_RULE_KEY,keyFactories.defaultRuleKeyBuilderFactory.build(rule).toString());
   final BuildableContext buildableContext=new DefaultBuildableContext(buildInfoRecorder);
-  ListenableFuture<BuildResult> buildResult=processBuildRule(rule,context,onDiskBuildInfo,buildInfoRecorder,buildableContext,asyncCallbacks);
-  if (buildMode == BuildMode.DEEP || buildMode == BuildMode.POPULATE_FROM_REMOTE_CACHE) {
+  ListenableFuture<BuildResult> buildResult;
+  try (BuildRuleEvent.Scope scope=BuildRuleEvent.resumeSuspendScope(context.getEventBus(),rule,keyFactories.defaultRuleKeyBuilderFactory)){
+    buildResult=processBuildRule(rule,context,onDiskBuildInfo,buildInfoRecorder,buildableContext,asyncCallbacks);
+  }
+   if (buildMode == BuildMode.DEEP || buildMode == BuildMode.POPULATE_FROM_REMOTE_CACHE) {
     buildResult=MoreFutures.chainExceptions(getDepResults(rule,context,asyncCallbacks),buildResult);
   }
   AsyncFunction<BuildResult,BuildResult> callback=new AsyncFunction<BuildResult,BuildResult>(){
-    @Override public ListenableFuture<BuildResult> apply(    @Nonnull BuildResult input) throws Exception {
+    @Override public ListenableFuture<BuildResult> apply(    BuildResult input) throws Exception {
       if (input.getStatus() != BuildRuleStatus.SUCCESS) {
         return Futures.immediateFuture(input);
       }
@@ -63,7 +65,7 @@
     }
   }
 ;
-  buildResult=Futures.transformAsync(buildResult,callback);
+  buildResult=Futures.transformAsync(buildResult,ruleAsyncFunction(rule,context,callback));
   final SettableFuture<BuildResult> result=SettableFuture.create();
   asyncCallbacks.add(MoreFutures.addListenableCallback(buildResult,new FutureCallback<BuildResult>(){
     private void cleanupAfterError(){
@@ -101,6 +103,7 @@
       Optional<Long> outputSize=Optional.absent();
       Optional<HashCode> outputHash=Optional.absent();
       Optional<BuildRuleSuccessType> successType=Optional.absent();
+      context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.resumed(rule,keyFactories.defaultRuleKeyBuilderFactory));
       if (input.getStatus() == BuildRuleStatus.FAIL) {
         firstFailure=input.getFailure();
         cleanupAfterError();

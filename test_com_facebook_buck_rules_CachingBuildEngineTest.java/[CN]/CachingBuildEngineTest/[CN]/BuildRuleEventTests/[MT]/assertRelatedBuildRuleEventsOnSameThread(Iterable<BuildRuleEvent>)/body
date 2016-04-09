@@ -1,0 +1,21 @@
+{
+  Map<BuildTarget,List<BuildRuleEvent>> grouped=new HashMap<>();
+  for (  BuildRuleEvent event : events) {
+    if (!grouped.containsKey(event.getBuildRule().getBuildTarget())) {
+      grouped.put(event.getBuildRule().getBuildTarget(),new ArrayList<BuildRuleEvent>());
+    }
+    grouped.get(event.getBuildRule().getBuildTarget()).add(event);
+  }
+  for (  List<BuildRuleEvent> queue : grouped.values()) {
+    TreeMap<Pair<Long,Integer>,BuildRuleEvent> orderedEvents=new TreeMap<>(Pair.<Long,Integer>comparator());
+    for (int idx=0; idx < queue.size(); idx++) {
+      orderedEvents.put(new Pair<>(queue.get(idx).getNanoTime(),idx),queue.get(idx));
+    }
+    Iterator<BuildRuleEvent> itr=orderedEvents.values().iterator();
+    while (itr.hasNext()) {
+      BuildRuleEvent event1=itr.next();
+      BuildRuleEvent event2=itr.next();
+      assertThat(String.format("%s (%d) != %s (%d) (%s)",event1,event1.getThreadId(),event2,event2.getThreadId(),orderedEvents.values()),event1.getThreadId(),equalTo(event2.getThreadId()));
+    }
+  }
+}

@@ -2,7 +2,7 @@
   ListenableFuture<RuleKey> ruleKey=ruleKeys.get(rule.getBuildTarget());
   if (ruleKey == null) {
     ListenableFuture<List<RuleKey>> depKeys=Futures.transformAsync(ruleDeps.get(rule),new AsyncFunction<ImmutableSortedSet<BuildRule>,List<RuleKey>>(){
-      @Override public ListenableFuture<List<RuleKey>> apply(      @Nonnull ImmutableSortedSet<BuildRule> deps){
+      @Override public ListenableFuture<List<RuleKey>> apply(      ImmutableSortedSet<BuildRule> deps){
         List<ListenableFuture<RuleKey>> depKeys=Lists.newArrayListWithExpectedSize(rule.getDeps().size());
         for (        BuildRule dep : deps) {
           depKeys.add(calculateRuleKey(dep,context));
@@ -14,14 +14,10 @@
     final RuleKeyFactories keyFactories=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem());
     ruleKey=Futures.transform(depKeys,new Function<List<RuleKey>,RuleKey>(){
       @Override public RuleKey apply(      List<RuleKey> input){
-        context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.started(rule));
-        try {
+        try (BuildRuleEvent.Scope scope=BuildRuleEvent.startSuspendScope(context.getEventBus(),rule,keyFactories.defaultRuleKeyBuilderFactory)){
           return keyFactories.defaultRuleKeyBuilderFactory.build(rule);
         }
-  finally {
-          context.getEventBus().logVerboseAndPost(LOG,BuildRuleEvent.suspended(rule,keyFactories.defaultRuleKeyBuilderFactory));
-        }
-      }
+       }
     }
 ,service);
     ruleKeys.put(rule.getBuildTarget(),ruleKey);
