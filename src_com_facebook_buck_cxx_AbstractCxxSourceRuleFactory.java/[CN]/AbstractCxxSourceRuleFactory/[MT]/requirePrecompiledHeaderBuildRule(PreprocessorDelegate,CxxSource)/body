@@ -1,0 +1,14 @@
+{
+  CxxToolFlags compilerFlags=computeCompilerFlags(source.getType(),source.getFlags());
+  String pchIdentifier=String.format("%s%s-%s",PCH_FLAVOR_PREFIX,source.getType().getLanguage(),preprocessorDelegate.hashCommand(compilerFlags));
+  BuildTarget target=BuildTarget.builder(getParams().getBuildTarget()).addFlavors(getCxxPlatform().getFlavor()).addFlavors(ImmutableFlavor.of(Flavor.replaceInvalidCharacters(pchIdentifier))).build();
+  Optional<CxxPrecompiledHeader> existingRule=getResolver().getRuleOptionalWithType(target,CxxPrecompiledHeader.class);
+  if (existingRule.isPresent()) {
+    return existingRule.get();
+  }
+  Path output=BuildTargets.getGenPath(target,"%s.gch");
+  SourcePath path=Preconditions.checkNotNull(preprocessorDelegate.getPrefixHeader().get());
+  CxxPrecompiledHeader rule=new CxxPrecompiledHeader(getParams().copyWithChanges(target,new DepsBuilder().addPreprocessDeps().add(preprocessorDelegate.getPreprocessor()).add(path),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),getPathResolver(),output,preprocessorDelegate,compilerFlags,path,source.getType(),getCxxPlatform().getDebugPathSanitizer());
+  getResolver().addToIndex(rule);
+  return rule;
+}

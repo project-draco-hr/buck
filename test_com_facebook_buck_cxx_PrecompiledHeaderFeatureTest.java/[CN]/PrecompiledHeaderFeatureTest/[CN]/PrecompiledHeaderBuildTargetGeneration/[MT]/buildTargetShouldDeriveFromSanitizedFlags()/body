@@ -1,0 +1,14 @@
+{
+class TestData {
+    public CxxPrecompiledHeader generate(    Path from){
+      CxxSourceRuleFactory factory=preconfiguredSourceRuleFactoryBuilder().setCxxPlatform(PLATFORM_SUPPORTING_PCH.withDebugPathSanitizer(new DebugPathSanitizer(250,File.separatorChar,Paths.get("."),ImmutableBiMap.of(from,Paths.get("melon"))))).build();
+      BuildRule rule=factory.createPreprocessAndCompileBuildRule("foo.c",preconfiguredCxxSourceBuilder().addFlags("-I",from.toString()).build(),CxxPreprocessMode.COMBINED);
+      return FluentIterable.from(rule.getDeps()).filter(CxxPrecompiledHeader.class).first().get();
+    }
+  }
+  TestData testData=new TestData();
+  Path root=Preconditions.checkNotNull(Iterables.getFirst(FileSystems.getDefault().getRootDirectories(),Paths.get(File.separator)));
+  CxxPrecompiledHeader firstRule=testData.generate(root.resolve("first"));
+  CxxPrecompiledHeader secondRule=testData.generate(root.resolve("second"));
+  assertEquals("Build target flavor generator should normalize away the absolute paths",firstRule.getBuildTarget(),secondRule.getBuildTarget());
+}

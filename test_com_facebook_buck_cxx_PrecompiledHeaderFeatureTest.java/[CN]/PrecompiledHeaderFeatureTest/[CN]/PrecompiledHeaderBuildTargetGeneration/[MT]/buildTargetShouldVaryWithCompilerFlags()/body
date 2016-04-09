@@ -1,0 +1,13 @@
+{
+class TestData {
+    public CxxPrecompiledHeader generate(    Iterable<String> flags){
+      CxxSourceRuleFactory factory=preconfiguredSourceRuleFactoryBuilder().putAllCompilerFlags(CxxSource.Type.C_CPP_OUTPUT,flags).build();
+      BuildRule rule=factory.createPreprocessAndCompileBuildRule("foo.c",preconfiguredCxxSourceBuilder().build(),CxxPreprocessMode.COMBINED);
+      return FluentIterable.from(rule.getDeps()).filter(CxxPrecompiledHeader.class).first().get();
+    }
+  }
+  TestData testData=new TestData();
+  CxxPrecompiledHeader firstRule=testData.generate(ImmutableList.of("-target=x86_64-apple-darwin-macho"));
+  CxxPrecompiledHeader secondRule=testData.generate(ImmutableList.of("-target=armv7-apple-watchos-macho"));
+  assertNotEquals("Build target flavor generator should account for compiler flags",firstRule.getBuildTarget(),secondRule.getBuildTarget());
+}

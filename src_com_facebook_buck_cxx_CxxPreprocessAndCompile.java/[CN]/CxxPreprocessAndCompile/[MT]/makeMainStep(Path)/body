@@ -9,7 +9,7 @@
   }
   HeaderPathNormalizer headerPathNormalizer=preprocessDelegate.isPresent() ? preprocessDelegate.get().getHeaderPathNormalizer() : HeaderPathNormalizer.empty(getResolver());
   Optional<CxxPreprocessAndCompileStep.ToolCommand> preprocessorCommand;
-  if (preprocessDelegate.isPresent()) {
+  if (operation.isPreprocess()) {
     preprocessorCommand=Optional.of(new CxxPreprocessAndCompileStep.ToolCommand(getPreprocessorDelegate().get().getCommand(compilerDelegate.getCompilerFlags()),preprocessDelegate.get().getEnvironment(),preprocessDelegate.get().getFlagsForColorDiagnostics()));
   }
  else {
@@ -17,7 +17,17 @@
   }
   Optional<CxxPreprocessAndCompileStep.ToolCommand> compilerCommand;
   if (operation.isCompile()) {
-    compilerCommand=Optional.of(new CxxPreprocessAndCompileStep.ToolCommand(compilerDelegate.getCommand(operation == CxxPreprocessAndCompileStep.Operation.COMPILE_MUNGE_DEBUGINFO ? preprocessDelegate.get().getFlagsWithSearchPaths() : CxxToolFlags.of()),compilerDelegate.getEnvironment(),compilerDelegate.getFlagsForColorDiagnostics()));
+    ImmutableList<String> command;
+    if (operation == CxxPreprocessAndCompileStep.Operation.COMPILE_MUNGE_DEBUGINFO) {
+      command=compilerDelegate.getCommand(preprocessDelegate.get().getFlagsWithSearchPaths());
+      if (precompiledHeader.isPresent()) {
+        command=ImmutableList.<String>builder().addAll(command).add("-include-pch",getResolver().getAbsolutePath(precompiledHeader.get().getSourcePath()).toString()).build();
+      }
+    }
+ else {
+      command=compilerDelegate.getCommand(CxxToolFlags.of());
+    }
+    compilerCommand=Optional.of(new CxxPreprocessAndCompileStep.ToolCommand(command,compilerDelegate.getEnvironment(),compilerDelegate.getFlagsForColorDiagnostics()));
   }
  else {
     compilerCommand=Optional.absent();

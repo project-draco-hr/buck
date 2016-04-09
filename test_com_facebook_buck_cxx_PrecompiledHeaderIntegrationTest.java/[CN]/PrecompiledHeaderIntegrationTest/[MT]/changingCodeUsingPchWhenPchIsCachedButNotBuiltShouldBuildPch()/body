@@ -1,0 +1,12 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  workspace.enableDirCache();
+  workspace.runBuckBuild("//:some_binary#default").assertSuccess();
+  workspace.runBuckCommand("clean");
+  workspace.writeContentsToPath("int lib_func() { return 0; }","lib.c");
+  workspace.runBuckBuild("//:some_binary#default").assertSuccess();
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  assertThat(buildLog,reportedTargetSuccessType(findPchTarget(),BuildRuleSuccessType.BUILT_LOCALLY));
+  assertThat(workspace.asCell().getFilesystem(),ProjectFilesystemMatchers.pathExists(workspace.getPath("buck-out/gen/" + findPchTarget().getShortNameAndFlavorPostfix() + ".gch")));
+  assertThat(buildLog,reportedTargetSuccessType(workspace.newBuildTarget("//:some_library#default,static"),BuildRuleSuccessType.BUILT_LOCALLY));
+}

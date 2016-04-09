@@ -1,0 +1,13 @@
+{
+class TestData {
+    public CxxPrecompiledHeader generate(    String flags){
+      CxxSourceRuleFactory factory=preconfiguredSourceRuleFactoryBuilder().setCxxPreprocessorInput(ImmutableList.of(CxxPreprocessorInput.builder().setPreprocessorFlags(ImmutableMultimap.of(CxxSource.Type.C,flags)).build())).build();
+      BuildRule rule=factory.createPreprocessAndCompileBuildRule("foo.c",preconfiguredCxxSourceBuilder().build(),CxxPreprocessMode.COMBINED);
+      return FluentIterable.from(rule.getDeps()).filter(CxxPrecompiledHeader.class).first().get();
+    }
+  }
+  TestData testData=new TestData();
+  CxxPrecompiledHeader firstRule=testData.generate("-DNDEBUG");
+  CxxPrecompiledHeader secondRule=testData.generate("-UNDEBUG");
+  assertNotEquals("Build target flavor generator should account for preprocessor flags",firstRule.getBuildTarget(),secondRule.getBuildTarget());
+}
