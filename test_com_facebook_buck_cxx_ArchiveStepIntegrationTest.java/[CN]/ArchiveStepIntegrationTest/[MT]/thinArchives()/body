@@ -1,0 +1,26 @@
+{
+  ProjectFilesystem filesystem=new ProjectFilesystem(tmp.getRoot().toPath());
+  CxxPlatform platform=DefaultCxxPlatforms.build(new CxxBuckConfig(FakeBuckConfig.builder().build()));
+  assumeTrue(platform.getAr().supportsThinArchives());
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer()));
+  Tool archiver=platform.getAr();
+  Path output=filesystem.getRootPath().getFileSystem().getPath("foo/libthin.a");
+  filesystem.mkdirs(output.getParent());
+  Path input=filesystem.getRootPath().getFileSystem().getPath("bar/blah.dat");
+  filesystem.mkdirs(input.getParent());
+  filesystem.writeContentsToPath(Strings.repeat("hello\n",5 * 1024 * 1024),input);
+  ArchiveStep archiveStep=new ArchiveStep(filesystem,archiver.getEnvironment(sourcePathResolver),archiver.getCommandPrefix(sourcePathResolver),Archive.Contents.THIN,output,ImmutableList.of(input));
+  ExecutionContext executionContext=TestExecutionContext.newInstance();
+  TestConsole console=(TestConsole)executionContext.getConsole();
+  int exitCode=archiveStep.execute(executionContext);
+  assertEquals("archive step failed: " + console.getTextWrittenToStdErr(),0,exitCode);
+  assertThat(filesystem.readFirstLine(output),Matchers.equalTo(Optional.of("!<thin>")));
+  assertThat(filesystem.getFileSize(output),Matchers.lessThan(1000L));
+  try (OutputStream outputStream=Files.newOutputStream(filesystem.resolve(output),StandardOpenOption.WRITE)){
+    outputStream.write(ObjectFileScrubbers.GLOBAL_HEADER);
+  }
+   try (ArArchiveInputStream stream=new ArArchiveInputStream(new FileInputStream(filesystem.resolve(output).toFile()))){
+    ArArchiveEntry entry=stream.getNextArEntry();
+    assertThat(entry.getName(),Matchers.equalTo(output.getParent().relativize(input).toString()));
+  }
+ }

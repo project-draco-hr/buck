@@ -6,14 +6,13 @@
   linkerArgsBuilder.addAll(Preconditions.checkNotNull(exportedLinkerFlags.apply(cxxPlatform)));
   if (!headerOnly.apply(cxxPlatform)) {
     if (type != Linker.LinkableDepType.SHARED || linkage == Linkage.STATIC) {
-      BuildRule rule=getLibraryLinkRule(cxxPlatform,type);
-      Arg library=new SourcePathArg(getResolver(),new BuildTargetSourcePath(rule.getBuildTarget()));
+      Archive archive=(Archive)requireBuildRule(cxxPlatform.getFlavor(),type == Linker.LinkableDepType.STATIC ? CxxDescriptionEnhancer.STATIC_FLAVOR : CxxDescriptionEnhancer.STATIC_PIC_FLAVOR);
       if (linkWhole) {
         Linker linker=cxxPlatform.getLd().resolve(ruleResolver);
-        linkerArgsBuilder.addAll(linker.linkWhole(library));
+        linkerArgsBuilder.addAll(linker.linkWhole(archive.toArg()));
       }
  else {
-        linkerArgsBuilder.add(library);
+        linkerArgsBuilder.add(archive.toArg());
       }
     }
  else {

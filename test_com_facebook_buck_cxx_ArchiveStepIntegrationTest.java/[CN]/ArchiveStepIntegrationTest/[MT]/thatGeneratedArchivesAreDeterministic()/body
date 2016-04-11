@@ -3,12 +3,11 @@
   CxxPlatform platform=DefaultCxxPlatforms.build(new CxxBuckConfig(FakeBuckConfig.builder().build()));
   SourcePathResolver sourcePathResolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer()));
   Tool archiver=platform.getAr();
-  Path output=filesystem.resolve(Paths.get("output.a"));
-  Path relativeInput=Paths.get("input.dat");
-  Path input=filesystem.resolve(relativeInput);
-  filesystem.writeContentsToPath("blah",relativeInput);
-  Preconditions.checkState(input.toFile().setExecutable(true));
-  ArchiveStep archiveStep=new ArchiveStep(filesystem,archiver.getEnvironment(sourcePathResolver),archiver.getCommandPrefix(sourcePathResolver),output,ImmutableList.of(input));
+  Path output=filesystem.getRootPath().getFileSystem().getPath("output.a");
+  Path input=filesystem.getRootPath().getFileSystem().getPath("input.dat");
+  filesystem.writeContentsToPath("blah",input);
+  Preconditions.checkState(filesystem.resolve(input).toFile().setExecutable(true));
+  ArchiveStep archiveStep=new ArchiveStep(filesystem,archiver.getEnvironment(sourcePathResolver),archiver.getCommandPrefix(sourcePathResolver),Archive.Contents.NORMAL,output,ImmutableList.of(input));
   FileScrubberStep fileScrubberStep=new FileScrubberStep(filesystem,output,platform.getAr().getScrubbers());
   ExecutionContext executionContext=TestExecutionContext.newInstance();
   TestConsole console=(TestConsole)executionContext.getConsole();
@@ -16,7 +15,7 @@
   assertEquals("archive step failed: " + console.getTextWrittenToStdErr(),0,exitCode);
   exitCode=fileScrubberStep.execute(executionContext);
   assertEquals("archive scrub step failed: " + console.getTextWrittenToStdErr(),0,exitCode);
-  try (ArArchiveInputStream stream=new ArArchiveInputStream(new FileInputStream(output.toFile()))){
+  try (ArArchiveInputStream stream=new ArArchiveInputStream(new FileInputStream(filesystem.resolve(output).toFile()))){
     ArArchiveEntry entry=stream.getNextArEntry();
     assertEquals(0,entry.getLastModified());
     assertEquals(0,entry.getUserId());

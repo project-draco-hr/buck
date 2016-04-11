@@ -1,0 +1,48 @@
+{
+  return new FileScrubber(){
+    /** 
+ * Efficiently modifies the archive backed by the given buffer to remove any non-deterministic
+ * meta-data such as timestamps, UIDs, and GIDs.
+ */
+    @SuppressWarnings("PMD.AvoidUsingOctalValues") @Override public void scrubFile(    FileChannel file) throws IOException, ScrubException {
+      try {
+        ByteBuffer header=ByteBuffer.allocate(GLOBAL_HEADER_SIZE);
+        file.read(header);
+        header.position(0);
+        byte[] globalHeader=getBytes(header,GLOBAL_HEADER_SIZE);
+        boolean thin=checkHeader(globalHeader);
+        final int entrySize=16 + 12 + 6+ 6+ 8+ 10+ 2;
+        long start=GLOBAL_HEADER_SIZE;
+        ByteBuffer buffer=ByteBuffer.allocate(entrySize);
+        while (start < file.size()) {
+          checkArchive(file.size() - start >= entrySize,"Invalid entry metadata format");
+          buffer.clear();
+          file.position(start);
+          int read=file.read(buffer);
+          checkArchive(read == entrySize,"Not all bytes have been read");
+          buffer.position(0);
+          String fileName=new String(getBytes(buffer,16),Charsets.US_ASCII).trim();
+          putIntAsDecimalString(buffer,12,0);
+          putIntAsDecimalString(buffer,6,0);
+          putIntAsDecimalString(buffer,6,0);
+          putIntAsOctalString(buffer,8,0100644);
+          long fileSize=getDecimalStringAsLong(buffer,10);
+          byte[] fileMagic=getBytes(buffer,2);
+          checkArchive(Arrays.equals(END_OF_FILE_HEADER_MARKER,fileMagic),"invalid file magic");
+          buffer.position(0);
+          file.position(start);
+          int written=file.write(buffer);
+          checkArchive(written == entrySize,"Not all bytes have been written");
+          start+=entrySize;
+          if (!thin || SPECIAL_ENTRIES.contains(fileName)) {
+            start+=fileSize + fileSize % 2;
+          }
+        }
+      }
+ catch (      BufferUnderflowException|ReadOnlyBufferException e) {
+        throw new ScrubException(e.getMessage());
+      }
+    }
+  }
+;
+}
