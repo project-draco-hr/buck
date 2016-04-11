@@ -12,15 +12,6 @@
     }
   }
 );
-  final LoadingCache<TargetNode<?>,SourcePathResolver> sourcePathResolverCache=CacheBuilder.newBuilder().build(new CacheLoader<TargetNode<?>,SourcePathResolver>(){
-    @Override public SourcePathResolver load(    TargetNode<?> targetNode){
-      TargetGraphToActionGraph targetGraphToActionGraph=targetGraphToActionGraphSupplier.get();
-      TargetGraph subgraph=targetGraphAndTargets.getTargetGraph().getSubgraph(ImmutableSet.of(targetNode));
-      BuildRuleResolver buildRuleResolver=targetGraphToActionGraph.apply(subgraph).getResolver();
-      return new SourcePathResolver(buildRuleResolver);
-    }
-  }
-);
   LOG.debug("Generating workspace for config targets %s",targets);
   ImmutableSet<TargetNode<?>> testTargetNodes=targetGraphAndTargets.getAssociatedTests();
   ImmutableSet<TargetNode<AppleTestDescription.Arg>> groupableTests=combineTestBundles ? AppleBuildRules.filterGroupableTests(testTargetNodes) : ImmutableSet.<TargetNode<AppleTestDescription.Arg>>of();
@@ -45,7 +36,10 @@
     CxxPlatform defaultCxxPlatform=params.getCell().getKnownBuildRuleTypes().getDefaultCxxPlatforms();
     WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(params.getCell(),targetGraphAndTargets.getTargetGraph(),workspaceArgs,inputTarget,options,combinedProject,buildWithBuck,buildWithBuckFlags,focusModules,!appleConfig.getXcodeDisableParallelizeBuild(),appleConfig.shouldAttemptToDetermineBestCxxPlatform(),new ExecutableFinder(),params.getEnvironment(),params.getCell().getKnownBuildRuleTypes().getCxxPlatforms(),defaultCxxPlatform,new ParserConfig(params.getBuckConfig()).getBuildFileName(),new Function<TargetNode<?>,SourcePathResolver>(){
       @Override public SourcePathResolver apply(      TargetNode<?> input){
-        return sourcePathResolverCache.getUnchecked(input);
+        TargetGraphToActionGraph targetGraphToActionGraph=targetGraphToActionGraphSupplier.get();
+        TargetGraph subgraph=targetGraphAndTargets.getTargetGraph().getSubgraph(ImmutableSet.of(input));
+        BuildRuleResolver buildRuleResolver=targetGraphToActionGraph.apply(subgraph).getResolver();
+        return new SourcePathResolver(buildRuleResolver);
       }
     }
 ,params.getBuckEventBus(),halideBuckConfig,cxxBuckConfig);
