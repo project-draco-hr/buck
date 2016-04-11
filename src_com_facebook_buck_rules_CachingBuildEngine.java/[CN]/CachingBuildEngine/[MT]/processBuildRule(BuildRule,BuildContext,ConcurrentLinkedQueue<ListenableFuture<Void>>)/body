@@ -113,13 +113,20 @@
         BuildRuleSuccessType success=Preconditions.checkNotNull(input.getSuccess());
         successType=Optional.of(success);
         uploadToCache(success);
-        if (success == BuildRuleSuccessType.BUILT_LOCALLY) {
+        if (success.outputsHaveChanged()) {
           try {
             outputSize=Optional.of(buildInfoRecorder.getOutputSize());
+          }
+ catch (          IOException e) {
+            context.getEventBus().post(ThrowableConsoleEvent.create(e,"Error getting output size for %s.",rule));
+          }
+        }
+        if (success == BuildRuleSuccessType.BUILT_LOCALLY && rule.isCacheable()) {
+          try {
             outputHash=Optional.of(buildInfoRecorder.getOutputHash(fileHashCache));
           }
  catch (          IOException e) {
-            context.getEventBus().post(ThrowableConsoleEvent.create(e,"Error getting output hash and size for %s.",rule));
+            context.getEventBus().post(ThrowableConsoleEvent.create(e,"Error getting output hash for %s.",rule));
           }
         }
       }
