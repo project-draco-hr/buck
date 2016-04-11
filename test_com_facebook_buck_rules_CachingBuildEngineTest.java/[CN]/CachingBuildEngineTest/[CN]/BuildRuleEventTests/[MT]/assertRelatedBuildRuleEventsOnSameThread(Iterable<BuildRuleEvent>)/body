@@ -7,15 +7,22 @@
     grouped.get(event.getBuildRule().getBuildTarget()).add(event);
   }
   for (  List<BuildRuleEvent> queue : grouped.values()) {
-    TreeMap<Pair<Long,Integer>,BuildRuleEvent> orderedEvents=new TreeMap<>(Pair.<Long,Integer>comparator());
-    for (int idx=0; idx < queue.size(); idx++) {
-      orderedEvents.put(new Pair<>(queue.get(idx).getNanoTime(),idx),queue.get(idx));
+    Collections.sort(queue,new Comparator<BuildRuleEvent>(){
+      @Override public int compare(      BuildRuleEvent o1,      BuildRuleEvent o2){
+        return Long.compare(o1.getNanoTime(),o2.getNanoTime());
+      }
     }
-    Iterator<BuildRuleEvent> itr=orderedEvents.values().iterator();
+);
+    Iterator<BuildRuleEvent> itr=queue.iterator();
     while (itr.hasNext()) {
       BuildRuleEvent event1=itr.next();
       BuildRuleEvent event2=itr.next();
-      assertThat(String.format("%s (%d) != %s (%d) (%s)",event1,event1.getThreadId(),event2,event2.getThreadId(),orderedEvents.values()),event1.getThreadId(),equalTo(event2.getThreadId()));
+      assertThat(String.format("%s (%d) != %s (%d) (%s)",event1,event1.getThreadId(),event2,event2.getThreadId(),FluentIterable.from(queue).transform(new Function<BuildRuleEvent,String>(){
+        @Override public String apply(        BuildRuleEvent event){
+          return String.format("%s@%s",event,event.getNanoTime());
+        }
+      }
+).toList()),event1.getThreadId(),equalTo(event2.getThreadId()));
     }
   }
 }
