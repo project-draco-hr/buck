@@ -9,17 +9,20 @@
   commandLine.setRedirectErrorStream(true);
   Process p=commandLine.createProcess();
   BufferedReader reader=new BufferedReader(new InputStreamReader(p.getInputStream()));
-  String text="";
+  String error="";
   String line;
   while ((line=reader.readLine()) != null) {
-    text+=line;
+    error+=line;
     if (line.startsWith(BuckWSServerPortUtils.SEARCH_FOR)) {
       mPort=Integer.parseInt(line.replace(BuckWSServerPortUtils.SEARCH_FOR,""));
-      return mPort;
+      if (mPort == CONNECTION_FAILED) {
+        error="Your buck server may be turned off, since buck has the buck daemon on port " + mPort + ".\nTry adding to your '.buckconfig.local' file:\n"+ "[httpserver]\n"+ "    port = 0\n"+ "After that, try running the command again.\n";
+        break;
+      }
     }
   }
   if (mPort == CONNECTION_FAILED) {
-    LOG.error(CONNECTION_FAILED_MESSAGE + text);
+    throw new HumanReadableException(error);
   }
   return mPort;
 }
