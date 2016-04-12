@@ -1,0 +1,14 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_application_bundle_dwarf_and_dsym",tmp);
+  workspace.setUp();
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoApp#dwarf");
+  workspace.runBuckCommand("build",target.getFullyQualifiedName()).assertSuccess();
+  BuildTarget appTarget=target.withFlavors(AppleDebugFormat.DWARF.getFlavor(),AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR);
+  Path output=workspace.getPath(BuildTargets.getGenPath(appTarget,"%s").resolve(target.getShortName() + ".app").resolve(target.getShortName()));
+  assertThat(Files.exists(output),Matchers.equalTo(true));
+  ProcessExecutor.Result hasSymbol=workspace.runCommand("nm",output.toString());
+  String stdout=hasSymbol.getStdout().or("");
+  assertThat(stdout,containsString("t -[AppDelegate window]"));
+  assertThat(stdout,containsString("U _UIApplicationMain"));
+}

@@ -1,5 +1,12 @@
 {
   Optional<AppleDsym> appleDsym=createAppleDsymForDebugFormat(debugFormat,params,resolver,unstrippedBinaryRule,cxxPlatformFlavorDomain,defaultCxxPlatform,appleCxxPlatforms);
-  AppleDebuggableBinary rule=new AppleDebuggableBinary(params.copyWithChanges(strippedBinaryRule.getBuildTarget().withAppendedFlavors(AppleDebuggableBinary.RULE_FLAVOR,debugFormat.getFlavor()),Suppliers.ofInstance(AppleDebuggableBinary.getRequiredDeps(debugFormat,strippedBinaryRule,unstrippedBinaryRule,appleDsym)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),new SourcePathResolver(resolver),strippedBinaryRule);
+  BuildRule buildRuleForDebugFormat;
+  if (debugFormat == AppleDebugFormat.DWARF) {
+    buildRuleForDebugFormat=unstrippedBinaryRule;
+  }
+ else {
+    buildRuleForDebugFormat=strippedBinaryRule;
+  }
+  AppleDebuggableBinary rule=new AppleDebuggableBinary(params.copyWithChanges(strippedBinaryRule.getBuildTarget().withAppendedFlavors(AppleDebuggableBinary.RULE_FLAVOR,debugFormat.getFlavor()),Suppliers.ofInstance(AppleDebuggableBinary.getRequiredRuntimeDeps(debugFormat,strippedBinaryRule,unstrippedBinaryRule,appleDsym)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),new SourcePathResolver(resolver),buildRuleForDebugFormat);
   return rule;
 }

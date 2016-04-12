@@ -9,4 +9,10 @@
   Path output=workspace.getPath(BuildTargets.getGenPath(appTarget,"%s").resolve(target.getShortName() + ".app.dSYM").resolve("Contents/Resources/DWARF").resolve(target.getShortName()));
   assertThat(Files.exists(output),Matchers.equalTo(true));
   AppleDsymTestUtil.checkDsymFileHasDebugSymbolForMain(workspace,output);
+  Path binaryOutput=workspace.getPath(BuildTargets.getGenPath(appTarget,"%s").resolve(target.getShortName() + ".app").resolve(target.getShortName()));
+  assertThat(Files.exists(binaryOutput),Matchers.equalTo(true));
+  ProcessExecutor.Result hasSymbol=workspace.runCommand("nm",binaryOutput.toString());
+  String stdout=hasSymbol.getStdout().or("");
+  assertThat(stdout,Matchers.not(containsString("t -[AppDelegate window]")));
+  assertThat(stdout,containsString("U _UIApplicationMain"));
 }

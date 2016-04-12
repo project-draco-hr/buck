@@ -2,18 +2,17 @@
   if (FluentIterable.from(flavors).allMatch(IS_SUPPORTED_FLAVOR)) {
     return true;
   }
-  Collection<ImmutableSortedSet<Flavor>> thinFlavorSets=FatBinaryInfos.generateThinFlavors(platformFlavorsToAppleCxxPlatforms.getFlavors(),ImmutableSortedSet.copyOf(flavors));
+  final ImmutableSet<Flavor> delegateFlavors=ImmutableSet.copyOf(Sets.difference(flavors,AppleDebugFormat.FLAVOR_DOMAIN.getFlavors()));
+  Collection<ImmutableSortedSet<Flavor>> thinFlavorSets=FatBinaryInfos.generateThinFlavors(platformFlavorsToAppleCxxPlatforms.getFlavors(),ImmutableSortedSet.copyOf(delegateFlavors));
   if (thinFlavorSets.size() > 1) {
     return Iterables.all(thinFlavorSets,new Predicate<ImmutableSortedSet<Flavor>>(){
       @Override public boolean apply(      ImmutableSortedSet<Flavor> input){
-        Set<Flavor> flavors=Sets.newHashSet(input);
-        flavors.removeAll(AppleDebugFormat.FLAVOR_DOMAIN.getFlavors());
-        return delegate.hasFlavors(ImmutableSet.copyOf(flavors));
+        return delegate.hasFlavors(input);
       }
     }
 );
   }
  else {
-    return delegate.hasFlavors(flavors);
+    return delegate.hasFlavors(delegateFlavors);
   }
 }

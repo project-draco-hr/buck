@@ -7,4 +7,11 @@
   assertThat(Files.exists(workspace.getPath(BuildTargets.getGenPath(target,"%s").resolve(target.getShortName() + ".app.dSYM").resolve("Contents/Resources/DWARF").resolve(target.getShortName()))),Matchers.equalTo(false));
   assertThat(Files.exists(workspace.getPath(BuildTargets.getGenPath(target.withFlavors(AppleDebugFormat.DWARF_AND_DSYM.getFlavor()),"%s").resolve(target.getShortName() + ".app.dSYM").resolve("Contents/Resources/DWARF").resolve(target.getShortName()))),Matchers.equalTo(false));
   assertThat(Files.exists(workspace.getPath(BuildTargets.getGenPath(target.withFlavors(),"%s").resolve(target.getShortName() + ".app.dSYM").resolve("Contents/Resources/DWARF").resolve(target.getShortName()))),Matchers.equalTo(false));
+  BuildTarget appTarget=target.withFlavors(AppleDebugFormat.NONE.getFlavor(),AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR);
+  Path binaryOutput=workspace.getPath(BuildTargets.getGenPath(appTarget,"%s").resolve(target.getShortName() + ".app").resolve(target.getShortName()));
+  assertThat(Files.exists(binaryOutput),Matchers.equalTo(true));
+  ProcessExecutor.Result hasSymbol=workspace.runCommand("nm",binaryOutput.toString());
+  String stdout=hasSymbol.getStdout().or("");
+  assertThat(stdout,Matchers.not(containsString("t -[AppDelegate window]")));
+  assertThat(stdout,containsString("U _UIApplicationMain"));
 }
