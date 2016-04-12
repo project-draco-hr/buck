@@ -1,0 +1,19 @@
+{
+  Preconditions.checkArgument(hasBinary && appleDsym.isPresent());
+  Path dsymPath=appleDsym.get().getPathToOutput();
+  Path dsymSourcePath=bundleRoot.getParent().resolve(dsymPath.getFileName());
+  Path dsymDestinationPath=bundleRoot.getParent().resolve(bundleRoot.getFileName() + "." + AppleBundleExtension.DSYM.toFileExtension());
+  stepsBuilder.add(new RmStep(getProjectFilesystem(),dsymDestinationPath,true,true));
+  stepsBuilder.add(new MoveStep(getProjectFilesystem(),dsymSourcePath,dsymDestinationPath));
+  String dwarfFilename=AppleDsym.getDwarfFilenameForDsymTarget(appleDsym.get().getBuildTarget());
+  if (unstrippedBinaryRule.isPresent()) {
+    Path unstrippedOutput=unstrippedBinaryRule.get().getPathToOutput();
+    Preconditions.checkNotNull(unstrippedOutput,"Unstripped binary %s of bundle %s has null output path. It shouldn't be null, as " + "it used to determine the name of dwarf file inside dSYM bundle.",unstrippedBinaryRule.get(),this);
+    dwarfFilename=unstrippedOutput.getFileName().toString();
+  }
+  Path dwarfFolder=dsymDestinationPath.resolve(DSYM_DWARF_FILE_FOLDER);
+  Path dwarfSourcePath=dwarfFolder.resolve(dwarfFilename);
+  Path dwarfDestinationPath=dwarfFolder.resolve(MorePaths.getNameWithoutExtension(bundleRoot));
+  stepsBuilder.add(new MoveStep(getProjectFilesystem(),dwarfSourcePath,dwarfDestinationPath));
+  buildableContext.recordArtifact(dsymDestinationPath);
+}

@@ -1,0 +1,18 @@
+{
+  CxxLibraryDescription.Arg delegateArg=delegate.createUnpopulatedConstructorArg();
+  AppleDescriptions.populateCxxLibraryDescriptionArg(pathResolver,delegateArg,args,params.getBuildTarget());
+  BuildTarget unstrippedTarget=params.getBuildTarget().withoutFlavors(AppleDebugFormat.FLAVOR_DOMAIN.getFlavors());
+  BuildTarget existingTarget=BuildTarget.copyOf(unstrippedTarget);
+  if (existingTarget.getFlavors().contains(CxxDescriptionEnhancer.MACH_O_BUNDLE_FLAVOR)) {
+    existingTarget=existingTarget.withoutFlavors(ImmutableSet.of(CxxDescriptionEnhancer.MACH_O_BUNDLE_FLAVOR)).withAppendedFlavor(CxxDescriptionEnhancer.SHARED_FLAVOR);
+  }
+  Optional<BuildRule> existingRule=resolver.getRuleOptional(existingTarget);
+  if (existingRule.isPresent()) {
+    return existingRule.get();
+  }
+ else {
+    BuildRule rule=delegate.createBuildRule(params.copyWithBuildTarget(unstrippedTarget),resolver,delegateArg,linkableDepType,bundleLoader,blacklist);
+    resolver.addToIndex(rule);
+    return rule;
+  }
+}

@@ -1,0 +1,52 @@
+{
+  AppleCxxPlatform appleCxxPlatform=ApplePlatforms.getAppleCxxPlatformForBuildTarget(cxxPlatformFlavorDomain,defaultCxxPlatform,appleCxxPlatforms,params.getBuildTarget(),FatBinaryInfos.create(appleCxxPlatforms,params.getBuildTarget()));
+  AppleBundleDestinations destinations=AppleBundleDestinations.platformDestinations(appleCxxPlatform.getAppleSdk().getApplePlatform());
+  ImmutableSet.Builder<SourcePath> bundleDirsBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> dirsContainingResourceDirsBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> bundleFilesBuilder=ImmutableSet.builder();
+  ImmutableSet.Builder<SourcePath> bundleVariantFilesBuilder=ImmutableSet.builder();
+  AppleResources.collectResourceDirsAndFiles(targetGraph,targetGraph.get(params.getBuildTarget()),bundleDirsBuilder,dirsContainingResourceDirsBuilder,bundleFilesBuilder,bundleVariantFilesBuilder);
+  ImmutableSet<SourcePath> bundleDirs=bundleDirsBuilder.build();
+  ImmutableSet<SourcePath> dirsContainingResourceDirs=dirsContainingResourceDirsBuilder.build();
+  ImmutableSet<SourcePath> bundleFiles=bundleFilesBuilder.build();
+  ImmutableSet<SourcePath> bundleVariantFiles=bundleVariantFilesBuilder.build();
+  ImmutableSet.Builder<SourcePath> frameworksBuilder=ImmutableSet.builder();
+  if (INCLUDE_FRAMEWORKS.getRequiredValue(params.getBuildTarget())) {
+    for (    BuildTarget dep : deps) {
+      Optional<FrameworkDependencies> frameworkDependencies=resolver.requireMetadata(BuildTarget.builder(dep).addFlavors(FRAMEWORK_FLAVOR).addFlavors(NO_INCLUDE_FRAMEWORKS_FLAVOR).addFlavors(appleCxxPlatform.getCxxPlatform().getFlavor()).build(),FrameworkDependencies.class);
+      if (frameworkDependencies.isPresent()) {
+        frameworksBuilder.addAll(frameworkDependencies.get().getSourcePaths());
+      }
+    }
+  }
+  ImmutableSet<SourcePath> frameworks=frameworksBuilder.build();
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
+  Optional<AppleAssetCatalog> assetCatalog=createBuildRuleForTransitiveAssetCatalogDependencies(targetGraph,params,sourcePathResolver,appleCxxPlatform.getAppleSdk().getApplePlatform(),appleCxxPlatform.getActool());
+  BuildRule flavoredBinaryRule=getFlavoredBinaryRule(cxxPlatformFlavorDomain,defaultCxxPlatform,targetGraph,params.getBuildTarget().getFlavors(),resolver,binary);
+  if (!AppleDebuggableBinary.isBuildRuleDebuggable(flavoredBinaryRule)) {
+    debugFormat=AppleDebugFormat.NONE;
+  }
+  BuildTarget unstrippedTarget=flavoredBinaryRule.getBuildTarget().withoutFlavors(ImmutableSet.of(CxxStrip.RULE_FLAVOR)).withoutFlavors(StripStyle.FLAVOR_DOMAIN.getFlavors()).withoutFlavors(ImmutableSet.of(AppleDebuggableBinary.RULE_FLAVOR)).withoutFlavors(AppleDebugFormat.FLAVOR_DOMAIN.getFlavors()).withoutFlavors(ImmutableSet.of(AppleBinaryDescription.APP_FLAVOR));
+  if (unstrippedTarget.getFlavors().contains(CxxDescriptionEnhancer.MACH_O_BUNDLE_FLAVOR)) {
+    unstrippedTarget=unstrippedTarget.withoutFlavors(ImmutableSet.of(CxxDescriptionEnhancer.MACH_O_BUNDLE_FLAVOR)).withAppendedFlavor(CxxDescriptionEnhancer.SHARED_FLAVOR);
+  }
+  if (unstrippedTarget.getFlavors().contains(AppleTestDescription.BUNDLE_FLAVOR)) {
+    unstrippedTarget=unstrippedTarget.withAppendedFlavor(AppleDebuggableBinary.RULE_FLAVOR);
+  }
+  BuildRule unstrippedBinaryRule=resolver.requireRule(unstrippedTarget);
+  BuildRule targetDebuggableBinaryRule;
+  Optional<AppleDsym> appleDsym;
+  if (unstrippedBinaryRule instanceof ProvidesStaticLibraryDeps) {
+    BuildTarget binaryBuildTarget=getBinaryFromBuildRuleWithBinary(flavoredBinaryRule).getBuildTarget().withoutFlavors(AppleDebugFormat.FLAVOR_DOMAIN.getFlavors());
+    BuildRuleParams binaryParams=params.copyWithBuildTarget(binaryBuildTarget);
+    targetDebuggableBinaryRule=createAppleDebuggableBinary(binaryParams,resolver,getBinaryFromBuildRuleWithBinary(flavoredBinaryRule),(ProvidesStaticLibraryDeps)unstrippedBinaryRule,debugFormat,cxxPlatformFlavorDomain,defaultCxxPlatform,appleCxxPlatforms);
+    appleDsym=createAppleDsymForDebugFormat(debugFormat,params,resolver,(ProvidesStaticLibraryDeps)unstrippedBinaryRule,cxxPlatformFlavorDomain,defaultCxxPlatform,appleCxxPlatforms);
+  }
+ else {
+    targetDebuggableBinaryRule=unstrippedBinaryRule;
+    appleDsym=Optional.absent();
+  }
+  BuildRuleParams bundleParamsWithFlavoredBinaryDep=getBundleParamsWithUpdatedDeps(params,binary,ImmutableSet.<BuildRule>builder().add(targetDebuggableBinaryRule).addAll(assetCatalog.asSet()).addAll(BuildRules.toBuildRulesFor(params.getBuildTarget(),resolver,SourcePaths.filterBuildTargetSourcePaths(Iterables.concat(ImmutableList.of(bundleFiles,bundleDirs,dirsContainingResourceDirs,bundleVariantFiles,frameworks))))).addAll(appleDsym.asSet()).build());
+  ImmutableMap<SourcePath,String> extensionBundlePaths=collectFirstLevelAppleDependencyBundles(params.getDeps(),destinations);
+  return new AppleBundle(bundleParamsWithFlavoredBinaryDep,sourcePathResolver,extension,productName,infoPlist,infoPlistSubstitutions.get(),Optional.of(getBinaryFromBuildRuleWithBinary(flavoredBinaryRule)),Optional.of(unstrippedBinaryRule),appleDsym,destinations,bundleDirs,bundleFiles,dirsContainingResourceDirs,extensionBundlePaths,Optional.of(bundleVariantFiles),frameworks,appleCxxPlatform,assetCatalog,tests,codeSignIdentityStore,provisioningProfileStore);
+}

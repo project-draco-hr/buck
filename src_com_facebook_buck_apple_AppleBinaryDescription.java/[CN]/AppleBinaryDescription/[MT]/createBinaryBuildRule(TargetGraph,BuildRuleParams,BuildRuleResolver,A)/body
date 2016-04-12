@@ -1,5 +1,10 @@
 {
-  BuildTarget binaryBuildTarget=params.getBuildTarget().withoutFlavors(AppleDebugFormat.FLAVOR_DOMAIN.getFlavors());
-  BuildRule binaryBuildRule=createBinary(targetGraph,params.copyWithBuildTarget(binaryBuildTarget),resolver,args);
-  return binaryBuildRule;
+  BuildTarget unstrippedBinaryBuildTarget=params.getBuildTarget().withoutFlavors(AppleDebugFormat.FLAVOR_DOMAIN.getFlavors()).withoutFlavors(StripStyle.FLAVOR_DOMAIN.getFlavors());
+  BuildRule unstrippedBinaryRule=createBinary(targetGraph,params.copyWithBuildTarget(unstrippedBinaryBuildTarget),resolver,args);
+  if (shouldWrapIntoAppleDebuggableBinary(params.getBuildTarget(),unstrippedBinaryRule)) {
+    return createAppleDebuggableBinary(targetGraph,params,resolver,args,unstrippedBinaryBuildTarget,(ProvidesStaticLibraryDeps)unstrippedBinaryRule);
+  }
+ else {
+    return unstrippedBinaryRule;
+  }
 }

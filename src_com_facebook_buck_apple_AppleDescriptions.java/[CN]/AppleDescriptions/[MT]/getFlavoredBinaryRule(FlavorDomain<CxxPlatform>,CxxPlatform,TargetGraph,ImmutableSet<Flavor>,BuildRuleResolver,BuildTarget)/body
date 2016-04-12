@@ -2,7 +2,7 @@
   if (flavors.contains(AppleDescriptions.FRAMEWORK_FLAVOR)) {
     flavors=ImmutableSet.<Flavor>builder().addAll(flavors).add(CxxDescriptionEnhancer.SHARED_FLAVOR).build();
   }
-  flavors=ImmutableSet.copyOf(Sets.difference(flavors,ImmutableSet.of(ReactNativeFlavors.DO_NOT_BUNDLE,AppleDescriptions.FRAMEWORK_FLAVOR,AppleDebugFormat.DWARF_AND_DSYM.getFlavor(),AppleDebugFormat.NONE.getFlavor(),AppleBinaryDescription.APP_FLAVOR)));
+  flavors=ImmutableSet.copyOf(Sets.difference(flavors,ImmutableSet.of(ReactNativeFlavors.DO_NOT_BUNDLE,AppleDescriptions.FRAMEWORK_FLAVOR,AppleBinaryDescription.APP_FLAVOR)));
   if (!cxxPlatformFlavorDomain.containsAnyOf(flavors)) {
     flavors=new ImmutableSet.Builder<Flavor>().addAll(flavors).add(defaultCxxPlatform.getFlavor()).build();
   }
@@ -15,8 +15,19 @@
   }
   BuildTarget buildTarget=buildTargetBuilder.build();
   final TargetNode<?> binaryTargetNode=targetGraph.get(buildTarget);
+  if (binaryTargetNode.getDescription() instanceof AppleTestDescription) {
+    return resolver.getRule(binary);
+  }
   if (binaryTargetNode.getDescription() instanceof AppleLibraryDescription && (Sets.intersection(AppleBundleDescription.SUPPORTED_LIBRARY_FLAVORS,buildTarget.getFlavors()).size() != 1)) {
     throw new HumanReadableException("AppleExtension bundle [%s] must have exactly one of these flavors: [%s].",binaryTargetNode.getBuildTarget().toString(),Joiner.on(", ").join(AppleBundleDescription.SUPPORTED_LIBRARY_FLAVORS));
+  }
+  if (!StripStyle.FLAVOR_DOMAIN.containsAnyOf(buildTarget.getFlavors())) {
+    if (binaryTargetNode.getDescription() instanceof AppleLibraryDescription || binaryTargetNode.getDescription() instanceof AppleTestDescription) {
+      buildTarget=buildTarget.withAppendedFlavor(StripStyle.NON_GLOBAL_SYMBOLS.getFlavor());
+    }
+ else {
+      buildTarget=buildTarget.withAppendedFlavor(StripStyle.ALL_SYMBOLS.getFlavor());
+    }
   }
   return resolver.requireRule(buildTarget);
 }
