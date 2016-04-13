@@ -5,14 +5,15 @@
     ImmutableList<String> prereqs=Depfiles.parseDepfile(reader).getPrereqs();
     Preconditions.checkState(inputPath.toString().equals(prereqs.get(0)));
     ImmutableList<String> headers=prereqs.subList(1,prereqs.size());
-    for (    String header : headers) {
-      Optional<Path> absolutePath=headerPathNormalizer.getAbsolutePathForUnnormalizedPath(Paths.get(header));
+    for (    String rawHeader : headers) {
+      Path header=Paths.get(rawHeader).normalize();
+      Optional<Path> absolutePath=headerPathNormalizer.getAbsolutePathForUnnormalizedPath(header);
       if (absolutePath.isPresent()) {
         Preconditions.checkState(absolutePath.get().isAbsolute());
         writer.write(absolutePath.get().toString());
         writer.newLine();
       }
- else       if (headerVerification.getMode() != HeaderVerification.Mode.IGNORE && !headerVerification.isWhitelisted(header)) {
+ else       if (headerVerification.getMode() != HeaderVerification.Mode.IGNORE && !headerVerification.isWhitelisted(header.toString())) {
         context.getBuckEventBus().post(ConsoleEvent.create(headerVerification.getMode() == HeaderVerification.Mode.ERROR ? Level.SEVERE : Level.WARNING,"%s: included an untracked header \"%s\"",inputPath,header));
         if (headerVerification.getMode() == HeaderVerification.Mode.ERROR) {
           return 1;
