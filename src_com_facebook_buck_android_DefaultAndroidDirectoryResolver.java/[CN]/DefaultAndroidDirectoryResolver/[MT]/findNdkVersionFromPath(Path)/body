@@ -1,10 +1,23 @@
 {
-  Path releaseVersion=ndkPath.resolve("RELEASE.TXT");
-  Optional<String> contents=projectFilesystem.readFirstLineFromFile(releaseVersion);
-  if (contents.isPresent()) {
-    StringTokenizer stringTokenizer=new StringTokenizer(contents.get());
-    if (stringTokenizer.hasMoreTokens()) {
-      return Optional.of(stringTokenizer.nextToken());
+  Path releaseVersion=ndkPath.resolve(NDK_POST_R11_VERSION_FILENAME);
+  if (Files.exists(releaseVersion)) {
+    try (InputStream inputFile=new FileInputStream(releaseVersion.toFile())){
+      Properties sourceProperties=new Properties();
+      sourceProperties.load(inputFile);
+      return Optional.of(sourceProperties.getProperty("Pkg.Revision"));
+    }
+ catch (    IOException e) {
+      throw new HumanReadableException(e,"Failed to read the Android NDK version from: %s",releaseVersion);
+    }
+  }
+ else {
+    releaseVersion=ndkPath.resolve(NDK_PRE_R11_VERSION_FILENAME);
+    Optional<String> contents=projectFilesystem.readFirstLineFromFile(releaseVersion);
+    if (contents.isPresent()) {
+      StringTokenizer stringTokenizer=new StringTokenizer(contents.get());
+      if (stringTokenizer.hasMoreTokens()) {
+        return Optional.of(stringTokenizer.nextToken());
+      }
     }
   }
   return Optional.absent();
