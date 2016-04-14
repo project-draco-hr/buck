@@ -1,5 +1,5 @@
 {
-  auditClasspathCommand.printClasspath(params,TargetGraphFactory.newInstance(ImmutableSet.<TargetNode<?>>of()),targetGraphTransformer,ImmutableSet.<BuildTarget>of());
+  auditClasspathCommand.printClasspath(params,TargetGraphFactory.newInstance(ImmutableSet.<TargetNode<?>>of()),ImmutableSet.<BuildTarget>of());
   assertEquals("",console.getTextWrittenToStdOut());
   assertEquals("",console.getTextWrittenToStdErr());
   BuildTarget javaLibraryTarget=BuildTargetFactory.newInstance("//:test-java-library");
@@ -12,17 +12,17 @@
   TargetNode<?> testAndroidNode=AndroidBinaryBuilder.createBuilder(testAndroidTarget).setManifest(new FakeSourcePath("AndroidManifest.xml")).setKeystore(keystoreTarget).setOriginalDeps(ImmutableSortedSet.of(androidLibraryTarget,javaLibraryTarget)).build();
   BuildTarget testJavaTarget=BuildTargetFactory.newInstance("//:project-tests");
   TargetNode<?> testJavaNode=JavaTestBuilder.createBuilder(testJavaTarget).addDep(javaLibraryTarget).setSourceUnderTest(ImmutableSortedSet.of(javaLibraryTarget)).addSrc(Paths.get("src/com/facebook/test/ProjectTests.java")).build();
-  auditClasspathCommand.printClasspath(params,TargetGraphFactory.newInstance(ImmutableSet.of(javaLibraryNode,androidLibraryNode,keystoreNode,testAndroidNode,testJavaNode)),targetGraphTransformer,ImmutableSet.<BuildTarget>of());
+  auditClasspathCommand.printClasspath(params,TargetGraphFactory.newInstance(ImmutableSet.of(javaLibraryNode,androidLibraryNode,keystoreNode,testAndroidNode,testJavaNode)),ImmutableSet.<BuildTarget>of());
   assertEquals("",console.getTextWrittenToStdOut());
   assertEquals("",console.getTextWrittenToStdErr());
-  auditClasspathCommand.printClasspath(params,TargetGraphFactory.newInstance(ImmutableSet.of(javaLibraryNode,androidLibraryNode,keystoreNode,testAndroidNode,testJavaNode)),targetGraphTransformer,ImmutableSet.of(testAndroidTarget));
+  auditClasspathCommand.printClasspath(params,TargetGraphFactory.newInstance(ImmutableSet.of(javaLibraryNode,androidLibraryNode,keystoreNode,testAndroidNode,testJavaNode)),ImmutableSet.of(testAndroidTarget));
   Path root=javaLibraryTarget.getUnflavoredBuildTarget().getCellPath();
   SortedSet<String> expectedPaths=Sets.newTreeSet(Arrays.asList(root.resolve(BuildTargets.getGenPath(androidLibraryTarget,"lib__%s__output").resolve(androidLibraryTarget.getShortName() + ".jar")).toString(),root.resolve(BuildTargets.getGenPath(javaLibraryTarget,"lib__%s__output").resolve(javaLibraryTarget.getShortName() + ".jar")).toString()));
   String expectedClasspath=Joiner.on("\n").join(expectedPaths) + "\n";
   assertEquals(expectedClasspath,console.getTextWrittenToStdOut());
   assertEquals("",console.getTextWrittenToStdErr());
   setUp();
-  auditClasspathCommand.printClasspath(params,TargetGraphFactory.newInstance(ImmutableSet.of(javaLibraryNode,androidLibraryNode,keystoreNode,testAndroidNode,testJavaNode)),targetGraphTransformer,ImmutableSet.of(testAndroidTarget,javaLibraryTarget,androidLibraryTarget,testJavaTarget));
+  auditClasspathCommand.printClasspath(params,TargetGraphFactory.newInstance(ImmutableSet.of(javaLibraryNode,androidLibraryNode,keystoreNode,testAndroidNode,testJavaNode)),ImmutableSet.of(testAndroidTarget,javaLibraryTarget,androidLibraryTarget,testJavaTarget));
   expectedPaths.add(root.resolve(BuildTargets.getGenPath(testJavaTarget,"lib__%s__output").resolve(testJavaTarget.getShortName() + ".jar")).toString());
   expectedClasspath=Joiner.on("\n").join(expectedPaths) + "\n";
   assertEquals(expectedClasspath,console.getTextWrittenToStdOut());

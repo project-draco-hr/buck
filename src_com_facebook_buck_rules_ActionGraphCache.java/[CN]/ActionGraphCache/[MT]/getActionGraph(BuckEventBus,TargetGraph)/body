@@ -1,7 +1,7 @@
 {
-  TargetNodeToBuildRuleTransformer transformer=new DefaultTargetNodeToBuildRuleTransformer();
-  TargetGraphToActionGraph targetGraphToActionGraph=new TargetGraphToActionGraph(eventBus,transformer);
-  Pair<TargetGraph,ActionGraphAndResolver> newActionGraph=new Pair<TargetGraph,ActionGraphAndResolver>(targetGraph,targetGraphToActionGraph.apply(targetGraph));
+  ActionGraphEvent.Started started=ActionGraphEvent.started();
+  eventBus.post(started);
+  Pair<TargetGraph,ActionGraphAndResolver> newActionGraph=new Pair<TargetGraph,ActionGraphAndResolver>(targetGraph,createActionGraph(eventBus,new DefaultTargetNodeToBuildRuleTransformer(),targetGraph));
   if (lastActionGraph != null && lastActionGraph.getFirst().equals(targetGraph)) {
     cacheHitCounter.inc();
   }
@@ -9,5 +9,6 @@
     cacheMissCounter.inc();
   }
   lastActionGraph=newActionGraph;
+  eventBus.post(ActionGraphEvent.finished(started));
   return lastActionGraph.getSecond();
 }

@@ -6,12 +6,6 @@
  else {
     targets=passedInTargetsSet;
   }
-  final Supplier<TargetGraphToActionGraph> targetGraphToActionGraphSupplier=Suppliers.memoize(new Supplier<TargetGraphToActionGraph>(){
-    @Override public TargetGraphToActionGraph get(){
-      return new TargetGraphToActionGraph(params.getBuckEventBus(),new DefaultTargetNodeToBuildRuleTransformer());
-    }
-  }
-);
   LOG.debug("Generating workspace for config targets %s",targets);
   ImmutableSet<TargetNode<?>> testTargetNodes=targetGraphAndTargets.getAssociatedTests();
   ImmutableSet<TargetNode<AppleTestDescription.Arg>> groupableTests=combineTestBundles ? AppleBuildRules.filterGroupableTests(testTargetNodes) : ImmutableSet.<TargetNode<AppleTestDescription.Arg>>of();
@@ -36,10 +30,7 @@
     CxxPlatform defaultCxxPlatform=params.getCell().getKnownBuildRuleTypes().getDefaultCxxPlatforms();
     WorkspaceAndProjectGenerator generator=new WorkspaceAndProjectGenerator(params.getCell(),targetGraphAndTargets.getTargetGraph(),workspaceArgs,inputTarget,options,combinedProject,buildWithBuck,buildWithBuckFlags,focusModules,!appleConfig.getXcodeDisableParallelizeBuild(),appleConfig.shouldAttemptToDetermineBestCxxPlatform(),new ExecutableFinder(),params.getEnvironment(),params.getCell().getKnownBuildRuleTypes().getCxxPlatforms(),defaultCxxPlatform,new ParserConfig(params.getBuckConfig()).getBuildFileName(),new Function<TargetNode<?>,SourcePathResolver>(){
       @Override public SourcePathResolver apply(      TargetNode<?> input){
-        TargetGraphToActionGraph targetGraphToActionGraph=targetGraphToActionGraphSupplier.get();
-        TargetGraph subgraph=targetGraphAndTargets.getTargetGraph().getSubgraph(ImmutableSet.of(input));
-        BuildRuleResolver buildRuleResolver=targetGraphToActionGraph.apply(subgraph).getResolver();
-        return new SourcePathResolver(buildRuleResolver);
+        return new SourcePathResolver(ActionGraphCache.getFreshActionGraph(params.getBuckEventBus(),targetGraphAndTargets.getTargetGraph().getSubgraph(ImmutableSet.of(input))).getResolver());
       }
     }
 ,params.getBuckEventBus(),halideBuckConfig,cxxBuckConfig);
