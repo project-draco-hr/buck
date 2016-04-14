@@ -3,5 +3,12 @@
   if (!(rule instanceof BinaryBuildRule)) {
     throw new HumanReadableException("The 'exe' argument of %s, %s, needs to correspond to a " + "binary rule, such as sh_binary().",params.getBuildTarget(),args.exe.getFullyQualifiedName());
   }
-  return new WorkerTool(params,new SourcePathResolver(resolver),(BinaryBuildRule)rule,args.args.or(""));
+  String startupArgs;
+  try {
+    startupArgs=MACRO_HANDLER.expand(params.getBuildTarget(),params.getCellRoots(),resolver,args.args.or(""));
+  }
+ catch (  MacroException e) {
+    throw new HumanReadableException(e,"%s: %s",params.getBuildTarget(),e.getMessage());
+  }
+  return new WorkerTool(params,new SourcePathResolver(resolver),(BinaryBuildRule)rule,startupArgs);
 }
