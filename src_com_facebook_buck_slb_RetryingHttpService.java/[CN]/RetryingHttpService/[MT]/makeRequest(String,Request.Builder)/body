@@ -1,0 +1,22 @@
+{
+  List<IOException> allExceptions=Lists.newArrayList();
+  for (int retryCount=0; retryCount < maxNumberOfAttempts; retryCount++) {
+    try {
+      if (retryCount > 0) {
+        retryCountCounter.inc();
+      }
+      HttpResponse response=decoratedService.makeRequest(path,request);
+      if (retryCount > 0) {
+        successAfterRetryCountCounter.inc();
+      }
+      return response;
+    }
+ catch (    IOException exception) {
+      allExceptions.add(exception);
+    }
+  }
+  if (maxNumberOfAttempts > 0) {
+    failAfterAllRetriesCountCounter.inc();
+  }
+  throw new RetryingHttpServiceException(allExceptions);
+}
