@@ -1,6 +1,14 @@
 {
-  if (AndroidDebugBridge.getBridge() == null || !(AndroidDebugBridge.getBridge().hasInitialDeviceList() && AndroidDebugBridge.getBridge().isConnected())) {
+  if (AndroidDebugBridge.getBridge() == null || !isAdbInitialized(AndroidDebugBridge.getBridge())) {
     AndroidDebugBridge.initIfNeeded(true);
-    AndroidDebugBridge.createBridge(ADB_PATH,false);
+    AndroidDebugBridge.createBridge(BuckExecutableDetector.getAdbExecutable(),false);
+  }
+  long start=System.currentTimeMillis();
+  while (!isAdbInitialized(AndroidDebugBridge.getBridge())) {
+    long timeLeft=start + ADB_CONNECT_TIMEOUT_MS - System.currentTimeMillis();
+    if (timeLeft <= 0) {
+      break;
+    }
+    Thread.sleep(ADB_CONNECT_TIME_STEP_MS);
   }
 }

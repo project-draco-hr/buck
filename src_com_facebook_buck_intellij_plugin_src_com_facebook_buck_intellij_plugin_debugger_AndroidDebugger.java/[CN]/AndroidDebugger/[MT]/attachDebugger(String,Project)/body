@@ -1,23 +1,26 @@
 {
+  IDevice[] devices=AndroidDebugBridge.getBridge().getDevices();
+  if (devices.length == 0) {
+    return;
+  }
+  IDevice device=devices[0];
+  Client client;
+  int currentRetryNumber=0;
+  int currentRetryTime=RETRY_TIME;
+  do {
+    client=device.getClient(packageName);
+    currentRetryTime*=2;
+    Thread.sleep(currentRetryTime);
+    currentRetryNumber++;
+  }
+ while (client == null && currentRetryNumber < MAX_RETRIES);
+  if (client == null) {
+    throw new HumanReadableException("Connecting to the adb debug server timed out." + "Can't find package with name " + packageName + ".");
+  }
+  String debugPort=String.valueOf(client.getDebuggerListenPort());
+  final RunnerAndConfigurationSettings settings=createRunConfiguration(project,debugPort);
   ApplicationManager.getApplication().invokeLater(new Runnable(){
     @Override public void run(){
-      IDevice[] devices=AndroidDebugBridge.getBridge().getDevices();
-      if (devices.length == 0) {
-        return;
-      }
-      IDevice device=devices[0];
-      Client client;
-      do {
-        client=device.getClient(packageName);
-        try {
-          Thread.sleep(10);
-        }
- catch (        InterruptedException e) {
-        }
-      }
- while (client == null);
-      String debugPort=String.valueOf(client.getDebuggerListenPort());
-      final RunnerAndConfigurationSettings settings=createRunConfiguration(project,debugPort);
       ProgramRunnerUtil.executeConfiguration(project,settings,DefaultDebugExecutor.getDebugExecutorInstance());
     }
   }
