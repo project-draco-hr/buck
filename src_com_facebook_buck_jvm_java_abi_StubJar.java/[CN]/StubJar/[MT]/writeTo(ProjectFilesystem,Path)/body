@@ -5,18 +5,7 @@
   }
   Walker walker=Walkers.getWalkerFor(toMirror);
   try (OutputStream fos=filesystem.newFileOutputStream(path);JarOutputStream jar=new JarOutputStream(fos)){
-    walker.walk(new FileAction(){
-      @Override public void visit(      Path relativizedPath,      InputStream stream) throws IOException {
-        String fileName=relativizedPath.toString();
-        if (!fileName.endsWith(".class")) {
-          return;
-        }
-        ClassReader classReader=new ClassReader(stream);
-        ClassMirror visitor=new ClassMirror(fileName);
-        classReader.accept(visitor,SKIP_CODE | SKIP_DEBUG | SKIP_FRAMES);
-        visitor.writeTo(jar);
-      }
-    }
-);
+    final CreateStubAction createStubAction=new CreateStubAction(jar);
+    walker.walk(createStubAction);
   }
  }
