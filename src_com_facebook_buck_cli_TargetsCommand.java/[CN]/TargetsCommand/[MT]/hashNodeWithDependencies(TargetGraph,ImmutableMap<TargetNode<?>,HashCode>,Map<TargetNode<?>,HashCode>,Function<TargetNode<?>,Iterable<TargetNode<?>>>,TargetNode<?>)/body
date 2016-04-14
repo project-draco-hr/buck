@@ -1,0 +1,21 @@
+{
+  HashCode nodeHashCode=buildTargetHashes.get(node);
+  Preconditions.checkNotNull(nodeHashCode,"Cannot determine hash for target: " + node);
+  Hasher hasher=Hashing.sha1().newHasher();
+  hasher.putBytes(nodeHashCode.asBytes());
+  Iterable<TargetNode<?>> nodes=targetGraphWithTests.getAll(node.getDeps());
+  LOG.debug("Hashing target %s with dependent nodes %s",node,nodes);
+  for (  TargetNode<?> nodeToHash : nodes) {
+    HashCode dependencyHash=hashesWithTests.get(nodeToHash);
+    Preconditions.checkNotNull(dependencyHash,"Couldn't get hash for node: %s",nodeToHash);
+    hasher.putBytes(dependencyHash.asBytes());
+  }
+  if (isDetectTestChanges()) {
+    for (    TargetNode<?> nodeToHash : Preconditions.checkNotNull(getTestTargetNodesFunction.apply(node))) {
+      HashCode testNodeHashCode=buildTargetHashes.get(nodeToHash);
+      Preconditions.checkNotNull(testNodeHashCode,"Cannot find hash for target " + nodeToHash);
+      hasher.putBytes(testNodeHashCode.asBytes());
+    }
+  }
+  hashesWithTests.put(node,hasher.hash());
+}

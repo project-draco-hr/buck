@@ -1,0 +1,22 @@
+{
+  if (!isDetectTestChanges()) {
+    return buildTargetHashes;
+  }
+  final Function<TargetNode<?>,Iterable<TargetNode<?>>> getTestTargetNodesFunction=new Function<TargetNode<?>,Iterable<TargetNode<?>>>(){
+    @Override public Iterable<TargetNode<?>> apply(    TargetNode<?> node){
+      return targetGraphWithTests.getAll(TargetNodes.getTestTargetsForNode(node));
+    }
+  }
+;
+  AcyclicDepthFirstPostOrderTraversal<TargetNode<?>> traversal=new AcyclicDepthFirstPostOrderTraversal<>(new GraphTraversable<TargetNode<?>>(){
+    @Override public Iterator<TargetNode<?>> findChildren(    TargetNode<?> node){
+      return targetGraphWithTests.getAll(node.getDeps()).iterator();
+    }
+  }
+);
+  Map<TargetNode<?>,HashCode> hashesWithTests=Maps.newHashMap();
+  for (  TargetNode<?> node : traversal.traverse(inputTargets)) {
+    hashNodeWithDependencies(targetGraphWithTests,buildTargetHashes,hashesWithTests,getTestTargetNodesFunction,node);
+  }
+  return ImmutableMap.copyOf(hashesWithTests);
+}

@@ -6,14 +6,18 @@
   TargetGraph targetGraphA=createGraphWithANodeAndADep(nodeTarget,HashCode.fromLong(12345),depTarget,HashCode.fromLong(64738));
   TargetGraph targetGraphB=createGraphWithANodeAndADep(nodeTarget,HashCode.fromLong(12345),depTarget,HashCode.fromLong(84552));
   FileHashCache fileHashCache=new FakeFileHashCache(ImmutableMap.of(projectFilesystem.resolve("foo/FooLib.java"),HashCode.fromString("abcdef"),projectFilesystem.resolve("dep/DepLib.java"),HashCode.fromString("123456")));
-  Map<BuildTarget,HashCode> resultA=TargetGraphHashing.hashTargetGraph(cellBuilder.build(),targetGraphA,fileHashCache,ImmutableList.of(nodeTarget));
-  Map<BuildTarget,HashCode> resultB=TargetGraphHashing.hashTargetGraph(cellBuilder.build(),targetGraphB,fileHashCache,ImmutableList.of(nodeTarget));
+  TargetNode<?> nodeA=targetGraphA.get(nodeTarget);
+  Map<TargetNode<?>,HashCode> resultA=TargetGraphHashing.hashTargetGraph(cellBuilder.build(),targetGraphA,fileHashCache,ImmutableList.<TargetNode<?>>of(nodeA));
+  TargetNode<?> nodeB=targetGraphB.get(nodeTarget);
+  Map<TargetNode<?>,HashCode> resultB=TargetGraphHashing.hashTargetGraph(cellBuilder.build(),targetGraphB,fileHashCache,ImmutableList.<TargetNode<?>>of(nodeB));
+  TargetNode<?> depNodeA=targetGraphA.get(depTarget);
+  TargetNode<?> depNodeB=targetGraphB.get(depTarget);
   assertThat(resultA,aMapWithSize(2));
-  assertThat(resultA,hasKey(nodeTarget));
-  assertThat(resultA,hasKey(depTarget));
+  assertThat(resultA,Matchers.<TargetNode<?>>hasKey(nodeA));
+  assertThat(resultA,Matchers.<TargetNode<?>>hasKey(depNodeA));
   assertThat(resultB,aMapWithSize(2));
-  assertThat(resultB,hasKey(nodeTarget));
-  assertThat(resultB,hasKey(depTarget));
-  assertThat(resultA.get(nodeTarget),not(equalTo(resultB.get(nodeTarget))));
-  assertThat(resultA.get(depTarget),not(equalTo(resultB.get(depTarget))));
+  assertThat(resultB,Matchers.<TargetNode<?>>hasKey(nodeB));
+  assertThat(resultB,Matchers.<TargetNode<?>>hasKey(depNodeB));
+  assertThat(resultA.get(nodeA),not(equalTo(resultB.get(nodeB))));
+  assertThat(resultA.get(depNodeA),not(equalTo(resultB.get(depNodeB))));
 }

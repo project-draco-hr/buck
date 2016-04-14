@@ -1,0 +1,39 @@
+{
+  Map<String,ShowOptions.Builder> showOptionBuilderMap=new HashMap<>();
+  if (isShowTargetHash()) {
+    computeShowTargetHash(params,executor,targetGraphAndTargetNodes,showOptionBuilderMap);
+  }
+  Optional<ActionGraph> actionGraph=Optional.absent();
+  Optional<BuildRuleResolver> buildRuleResolver=Optional.absent();
+  Optional<RuleKeyBuilderFactory> ruleKeyBuilderFactory=Optional.absent();
+  if (isShowRuleKey() || isShowOutput()) {
+    TargetGraphTransformer targetGraphTransformer=new TargetGraphToActionGraph(params.getBuckEventBus(),new DefaultTargetNodeToBuildRuleTransformer());
+    ActionGraphAndResolver result=Preconditions.checkNotNull(targetGraphTransformer.apply(targetGraphAndTargetNodes.getTargetGraph()));
+    actionGraph=Optional.of(result.getActionGraph());
+    buildRuleResolver=Optional.of(result.getResolver());
+    if (isShowRuleKey()) {
+      ruleKeyBuilderFactory=Optional.<RuleKeyBuilderFactory>of(new DefaultRuleKeyBuilderFactory(params.getFileHashCache(),new SourcePathResolver(result.getResolver())));
+    }
+  }
+  for (  TargetNode<?> targetNode : ImmutableSortedSet.copyOf(targetGraphAndTargetNodes.getTargetNodes())) {
+    ShowOptions.Builder showOptionsBuilder=getShowOptionBuilder(showOptionBuilderMap,targetNode);
+    Preconditions.checkNotNull(showOptionsBuilder);
+    if (actionGraph.isPresent()) {
+      BuildRule rule=buildRuleResolver.get().requireRule(targetNode.getBuildTarget());
+      if (isShowRuleKey()) {
+        showOptionsBuilder.setRuleKey(ruleKeyBuilderFactory.get().build(rule).toString());
+      }
+      if (isShowOutput()) {
+        Optional<Path> outputPath=getUserFacingOutputPath(rule);
+        if (outputPath.isPresent()) {
+          showOptionsBuilder.setOutputPath(outputPath.get().toString());
+        }
+      }
+    }
+  }
+  ImmutableMap.Builder<String,ShowOptions> builder=new ImmutableMap.Builder<>();
+  for (  Entry<String,ShowOptions.Builder> entry : showOptionBuilderMap.entrySet()) {
+    builder.put(entry.getKey(),entry.getValue().build());
+  }
+  return builder.build();
+}

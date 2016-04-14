@@ -1,0 +1,16 @@
+{
+  LOG.verbose("Hashing node %s",node);
+  StringHashing.hashStringAndLength(hasher,node.getBuildTarget().toString());
+  HashCode targetRuleHashCode=node.getRawInputsHashCode();
+  LOG.verbose("Got rules hash %s",targetRuleHashCode);
+  hasher.putBytes(targetRuleHashCode.asBytes());
+  ProjectFilesystem cellFilesystem=rootCell.getCell(node.getBuildTarget()).getFilesystem();
+  PathHashing.hashPaths(hasher,fileHashLoader,cellFilesystem,ImmutableSortedSet.copyOf(node.getInputs()));
+  for (  BuildTarget dependency : node.getDeps()) {
+    HashCode dependencyHashCode=buildTargetHashes.get(targetGraph.get(dependency));
+    Preconditions.checkState(dependencyHashCode != null);
+    LOG.verbose("Node %s: adding dependency %s (%s)",node,dependency,dependencyHashCode);
+    StringHashing.hashStringAndLength(hasher,dependency.toString());
+    hasher.putBytes(dependencyHashCode.asBytes());
+  }
+}
