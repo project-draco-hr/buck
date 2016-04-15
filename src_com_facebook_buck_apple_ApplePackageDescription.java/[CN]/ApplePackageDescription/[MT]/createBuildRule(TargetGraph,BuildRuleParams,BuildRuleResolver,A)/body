@@ -4,5 +4,11 @@
     throw new HumanReadableException("In %s, bundle='%s' must be an apple_bundle() but was %s().",params.getBuildTarget(),bundle.getFullyQualifiedName(),bundle.getType());
   }
   SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
-  return new ApplePackage(params,sourcePathResolver,((BuildRuleWithAppleBundle)bundle).getAppleBundle());
+  Optional<ApplePackageConfigAndPlatformInfo> applePackageConfigAndPlatformInfo=getApplePackageConfig(params.getBuildTarget());
+  if (applePackageConfigAndPlatformInfo.isPresent()) {
+    return new ExternallyBuiltApplePackage(params,sourcePathResolver,applePackageConfigAndPlatformInfo.get(),new BuildTargetSourcePath(bundle.getBuildTarget()));
+  }
+ else {
+    return new BuiltinApplePackage(params,sourcePathResolver,((BuildRuleWithAppleBundle)bundle).getAppleBundle());
+  }
 }

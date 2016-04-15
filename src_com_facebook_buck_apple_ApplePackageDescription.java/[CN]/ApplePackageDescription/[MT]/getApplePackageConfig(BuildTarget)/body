@@ -1,0 +1,18 @@
+{
+  Set<Flavor> platformFlavors=Sets.intersection(appleCxxPlatformFlavorDomain.getFlavors(),target.getFlavors());
+  Multimap<Optional<ApplePackageConfigAndPlatformInfo>,Flavor> packageConfigs=MultimapBuilder.hashKeys().arrayListValues().build();
+  for (  Flavor flavor : platformFlavors) {
+    AppleCxxPlatform platform=appleCxxPlatformFlavorDomain.getValue(flavor);
+    Optional<ApplePackageConfig> packageConfig=config.getPackageConfigForPlatform(platform.getAppleSdk().getApplePlatform());
+    packageConfigs.put(packageConfig.isPresent() ? Optional.of(ApplePackageConfigAndPlatformInfo.of(packageConfig.get(),platform)) : Optional.<ApplePackageConfigAndPlatformInfo>absent(),flavor);
+  }
+  if (packageConfigs.isEmpty()) {
+    return Optional.absent();
+  }
+ else   if (packageConfigs.keySet().size() == 1) {
+    return Iterables.getOnlyElement(packageConfigs.keySet());
+  }
+ else {
+    throw new HumanReadableException("In target %s: Multi-architecture package has different package configs for targets: %s",target.getFullyQualifiedName(),packageConfigs.asMap().values());
+  }
+}
