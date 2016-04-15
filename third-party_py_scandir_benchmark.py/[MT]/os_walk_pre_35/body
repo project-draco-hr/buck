@@ -1,0 +1,24 @@
+def os_walk_pre_35(top, topdown=True, onerror=None, followlinks=False):
+    "Pre Python 3.5 implementation of os.walk() that doesn't use scandir."
+    (islink, join, isdir) = (os.path.islink, os.path.join, os.path.isdir)
+    try:
+        names = os.listdir(top)
+    except OSError as err:
+        if (onerror is not None):
+            onerror(err)
+        return
+    (dirs, nondirs) = ([], [])
+    for name in names:
+        if isdir(join(top, name)):
+            dirs.append(name)
+        else:
+            nondirs.append(name)
+    if topdown:
+        yield (top, dirs, nondirs)
+    for name in dirs:
+        new_path = join(top, name)
+        if (followlinks or (not islink(new_path))):
+            for x in os_walk_pre_35(new_path, topdown, onerror, followlinks):
+                yield x
+    if (not topdown):
+        yield (top, dirs, nondirs)

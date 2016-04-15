@@ -1,0 +1,30 @@
+def test_symlink_to_directory(self):
+    if (not hasattr(os, 'symlink')):
+        return
+    link_name = os.path.join(self.temp_dir, 'link_to_dir')
+    try:
+        if ((sys.platform == 'win32') and (sys.version_info >= (3, 2))):
+            os.symlink(self.dir_name, link_name, target_is_directory=True)
+        else:
+            os.symlink(self.dir_name, link_name)
+    except NotImplementedError:
+        return
+    output = sorted(walk_func(self.temp_dir))
+    dirs = sorted(output[0][1])
+    files = sorted(output[0][2])
+    self.assertEqual(dirs, ['dir', 'link_to_dir'])
+    self.assertEqual(files, ['file'])
+    self.assertEqual(len(output), 2)
+    self.assertEqual(output[1][1], [])
+    self.assertEqual(output[1][2], ['subfile'])
+    output = sorted(walk_func(self.temp_dir, followlinks=True))
+    dirs = sorted(output[0][1])
+    files = sorted(output[0][2])
+    self.assertEqual(dirs, ['dir', 'link_to_dir'])
+    self.assertEqual(files, ['file'])
+    self.assertEqual(len(output), 3)
+    self.assertEqual(output[1][1], [])
+    self.assertEqual(output[1][2], ['subfile'])
+    self.assertEqual(os.path.basename(output[2][0]), 'link_to_dir')
+    self.assertEqual(output[2][1], [])
+    self.assertEqual(output[2][2], ['subfile'])

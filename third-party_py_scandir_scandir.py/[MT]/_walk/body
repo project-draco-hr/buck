@@ -1,0 +1,49 @@
+def _walk(top, topdown=True, onerror=None, followlinks=False):
+    "Like Python 3.5's implementation of os.walk() -- faster than\n    the pre-Python 3.5 version as it uses scandir() internally.\n    "
+    dirs = []
+    nondirs = []
+    try:
+        scandir_it = scandir(top)
+    except OSError as error:
+        if (onerror is not None):
+            onerror(error)
+        return
+    while True:
+        try:
+            try:
+                entry = next(scandir_it)
+            except StopIteration:
+                break
+        except OSError as error:
+            if (onerror is not None):
+                onerror(error)
+            return
+        try:
+            is_dir = entry.is_dir()
+        except OSError:
+            is_dir = False
+        if is_dir:
+            dirs.append(entry.name)
+        else:
+            nondirs.append(entry.name)
+        if ((not topdown) and is_dir):
+            if followlinks:
+                walk_into = True
+            else:
+                try:
+                    is_symlink = entry.is_symlink()
+                except OSError:
+                    is_symlink = False
+                walk_into = (not is_symlink)
+            if walk_into:
+                for entry in walk(entry.path, topdown, onerror, followlinks):
+                    yield entry
+    if topdown:
+        yield (top, dirs, nondirs)
+        for name in dirs:
+            new_path = join(top, name)
+            if (followlinks or (not islink(new_path))):
+                for entry in walk(new_path, topdown, onerror, followlinks):
+                    yield entry
+    else:
+        yield (top, dirs, nondirs)

@@ -1,0 +1,61 @@
+'Simple benchmark to compare the speed of scandir.walk() with os.walk().'
+import optparse
+import os
+import stat
+import sys
+import timeit
+import warnings
+with warnings.catch_warnings(record=True):
+    import scandir
+DEPTH = 4
+NUM_DIRS = 5
+NUM_FILES = 50
+if (__name__ == '__main__'):
+    usage = 'Usage: benchmark.py [-h] [tree_dir]\n\nCreate a large directory tree named "benchtree" (relative to this script) and\nbenchmark os.walk() versus scandir.walk(). If tree_dir is specified, benchmark\nusing it instead of creating a tree.'
+    parser = optparse.OptionParser(usage=usage)
+    parser.add_option('-s', '--size', action='store_true', help='get size of directory tree while walking')
+    parser.add_option('-c', '--scandir', type='choice', choices=['best', 'generic', 'c', 'python', 'os'], default='best', help='version of scandir() to use, default "%default"')
+    (options, args) = parser.parse_args()
+    if args:
+        tree_dir = args[0]
+    else:
+        tree_dir = os.path.join(os.path.dirname(__file__), 'benchtree')
+        if (not os.path.exists(tree_dir)):
+            print 'Creating tree at {0}: depth={1}, num_dirs={2}, num_files={3}'.format(tree_dir, DEPTH, NUM_DIRS, NUM_FILES)
+            create_tree(tree_dir)
+    if (options.scandir == 'generic'):
+        scandir.scandir = scandir.scandir_generic
+    elif (options.scandir == 'c'):
+        if (scandir.scandir_c is None):
+            print 'ERROR: Compiled C version of scandir not found!'
+            sys.exit(1)
+        scandir.scandir = scandir.scandir_c
+    elif (options.scandir == 'python'):
+        if (scandir.scandir_python is None):
+            print 'ERROR: Python version of scandir not found!'
+            sys.exit(1)
+        scandir.scandir = scandir.scandir_python
+    elif (options.scandir == 'os'):
+        if (not hasattr(os, 'scandir')):
+            print "ERROR: Python 3.5's os.scandir() not found!"
+            sys.exit(1)
+        scandir.scandir = os.scandir
+    elif hasattr(os, 'scandir'):
+        scandir.scandir = os.scandir
+    if (scandir.scandir == getattr(os, 'scandir', None)):
+        print "Using Python 3.5's builtin os.scandir()"
+    elif (scandir.scandir == scandir.scandir_c):
+        print 'Using fast C version of scandir'
+    elif (scandir.scandir == scandir.scandir_python):
+        print 'Using slower ctypes version of scandir'
+    elif (scandir.scandir == scandir.scandir_generic):
+        print 'Using very slow generic version of scandir'
+    else:
+        print 'ERROR: Unsure which version of scandir we are using!'
+        sys.exit(1)
+    if hasattr(os, 'scandir'):
+        os.walk = os_walk_pre_35
+        print 'Comparing against pre-Python 3.5 version of os.walk()'
+    else:
+        print 'Comparing against builtin version of os.walk()'
+    benchmark(tree_dir, get_size=options.size)
