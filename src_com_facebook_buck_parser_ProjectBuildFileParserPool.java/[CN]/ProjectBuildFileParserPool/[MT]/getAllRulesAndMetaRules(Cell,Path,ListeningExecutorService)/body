@@ -8,11 +8,16 @@
       Either<ProjectBuildFileParser,ListenableFuture<Void>> parserRequest=requestParser(cell);
       if (parserRequest.isLeft()) {
         ProjectBuildFileParser parser=parserRequest.getLeft();
+        boolean hadErrorDuringParsing=false;
         try {
           return Futures.immediateFuture(ImmutableList.copyOf(parser.getAllRulesAndMetaRules(buildFile)));
         }
-  finally {
-          returnParser(cell,parser);
+ catch (        BuildFileParseException e) {
+          hadErrorDuringParsing=true;
+          throw e;
+        }
+ finally {
+          returnParser(cell,parser,hadErrorDuringParsing);
         }
       }
  else {
