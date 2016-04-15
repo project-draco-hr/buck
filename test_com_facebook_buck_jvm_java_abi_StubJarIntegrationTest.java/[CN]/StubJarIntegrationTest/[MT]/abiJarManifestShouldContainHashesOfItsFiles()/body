@@ -1,0 +1,22 @@
+{
+  Path out=Paths.get("junit-abi.jar");
+  Path regularJar=testDataDir.resolve("junit.jar");
+  new StubJar(regularJar).writeTo(filesystem,out);
+  try (JarFile stubJar=new JarFile(filesystem.resolve(out).toFile())){
+    Manifest manifest=stubJar.getManifest();
+    Enumeration<JarEntry> entries=stubJar.entries();
+    while (entries.hasMoreElements()) {
+      JarEntry entry=entries.nextElement();
+      if (JarFile.MANIFEST_NAME.equals(entry.getName())) {
+        continue;
+      }
+      String seenDigest=manifest.getAttributes(entry.getName()).getValue("Murmur3-128-Digest");
+      String expectedDigest;
+      try (InputStream inputStream=stubJar.getInputStream(entry)){
+        ByteSource byteSource=ByteSource.wrap(ByteStreams.toByteArray(inputStream));
+        expectedDigest=byteSource.hash(Hashing.murmur3_128()).toString();
+      }
+       assertEquals(String.format("Digest mismatch for %s",entry.getName()),expectedDigest,seenDigest);
+    }
+  }
+ }
