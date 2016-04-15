@@ -1,0 +1,31 @@
+{
+  try {
+    Map<BuildTarget,HashCode> buildTargetHashes=new HashMap<>();
+    AcyclicDepthFirstPostOrderTraversal<TargetNode<?>> traversal=new AcyclicDepthFirstPostOrderTraversal<>(new GraphTraversable<TargetNode<?>>(){
+      @Override public Iterator<TargetNode<?>> findChildren(      TargetNode<?> node){
+        return targetGraph.getAll(node.getDeps()).iterator();
+      }
+    }
+);
+    for (    TargetNode<?> node : traversal.traverse(targetGraph.getAll(roots))) {
+      if (buildTargetHashes.containsKey(node.getBuildTarget())) {
+        LOG.verbose("Already hashed node %s, not hashing again.",node);
+        continue;
+      }
+      Hasher hasher=Hashing.sha1().newHasher();
+      try {
+        hashNode(rootCell,fileHashLoader,hasher,buildTargetHashes,node);
+      }
+ catch (      IOException e) {
+        throw new HumanReadableException(e,"Exception while attempting to hash %s: %s",node.getBuildTarget().getFullyQualifiedName(),e.getMessage());
+      }
+      HashCode result=hasher.hash();
+      LOG.debug("Hash for target %s: %s",node.getBuildTarget(),result);
+      buildTargetHashes.put(node.getBuildTarget(),result);
+    }
+    return ImmutableMap.copyOf(buildTargetHashes);
+  }
+ catch (  CycleException e) {
+    throw new RuntimeException(e);
+  }
+}
