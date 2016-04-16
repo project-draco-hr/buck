@@ -1,0 +1,18 @@
+{
+  HashCode nodeHashCode=getHashCodeOrThrow(buildTargetHashes,node.getBuildTarget());
+  Hasher hasher=Hashing.sha1().newHasher();
+  hasher.putBytes(nodeHashCode.asBytes());
+  Iterable<BuildTarget> dependentTargets=node.getDeps();
+  LOG.debug("Hashing target %s with dependent nodes %s",node,dependentTargets);
+  for (  BuildTarget targetToHash : dependentTargets) {
+    HashCode dependencyHash=getHashCodeOrThrow(hashesWithTests,targetToHash);
+    hasher.putBytes(dependencyHash.asBytes());
+  }
+  if (isDetectTestChanges()) {
+    for (    BuildTarget targetToHash : Preconditions.checkNotNull(NODE_TO_TEST_TARGETS.apply(node))) {
+      HashCode testNodeHashCode=getHashCodeOrThrow(buildTargetHashes,targetToHash);
+      hasher.putBytes(testNodeHashCode.asBytes());
+    }
+  }
+  hashesWithTests.put(node.getBuildTarget(),hasher.hash());
+}
