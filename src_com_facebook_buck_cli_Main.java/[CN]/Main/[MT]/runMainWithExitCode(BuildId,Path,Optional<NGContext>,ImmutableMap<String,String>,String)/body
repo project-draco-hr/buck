@@ -35,12 +35,12 @@
       commandSemaphoreNgClient=context;
     }
     if (!command.isReadOnly()) {
-      Optional<String> currentVersion=filesystem.readFileIfItExists(BuckConstant.CURRENT_VERSION_FILE);
+      Optional<String> currentVersion=filesystem.readFileIfItExists(BuckConstant.getCurrentVersionFile());
       if (!currentVersion.isPresent() || !currentVersion.get().equals(BuckVersion.getVersion())) {
-        moveToTrash(filesystem,console,buildId,BuckConstant.ANNOTATION_PATH,BuckConstant.GEN_PATH,BuckConstant.SCRATCH_PATH,BuckConstant.RES_PATH);
+        moveToTrash(filesystem,console,buildId,BuckConstant.getAnnotationPath(),BuckConstant.getGenPath(),BuckConstant.getScratchPath(),BuckConstant.getResPath());
         shouldCleanUpTrash=true;
-        filesystem.mkdirs(BuckConstant.CURRENT_VERSION_FILE.getParent());
-        filesystem.writeContentsToPath(BuckVersion.getVersion(),BuckConstant.CURRENT_VERSION_FILE);
+        filesystem.mkdirs(BuckConstant.getCurrentVersionFile().getParent());
+        filesystem.writeContentsToPath(BuckVersion.getVersion(),BuckConstant.getCurrentVersionFile());
       }
     }
     PropertyFinder propertyFinder=new DefaultPropertyFinder(filesystem,clientEnvironment);
@@ -79,7 +79,7 @@
       }
  else {
         cellHashCache=new DefaultFileHashCache(rootCell.getFilesystem());
-        buckOutHashCache=new DefaultFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath(),Optional.of(ImmutableSet.of(BuckConstant.BUCK_OUTPUT_PATH)),ImmutableSet.<ProjectFilesystem.PathOrGlobMatcher>of()));
+        buckOutHashCache=new DefaultFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath(),Optional.of(ImmutableSet.of(BuckConstant.getBuckOutputPath())),ImmutableSet.<ProjectFilesystem.PathOrGlobMatcher>of()));
       }
       ImmutableList.Builder<FileHashCache> allCaches=ImmutableList.builder();
       allCaches.add(cellHashCache);
@@ -101,7 +101,7 @@
       Locale locale=Locale.getDefault();
       Map<ExecutionContext.ExecutorPool,ListeningExecutorService> executors=new HashMap<>();
       executors.put(ExecutionContext.ExecutorPool.CPU,listeningDecorator(Executors.newCachedThreadPool()));
-      try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,new SuperConsoleConfig(buckConfig),console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer,locale,BuckConstant.LOG_PATH.resolve("test.log"));TempDirectoryCreator tempDirectoryCreator=new TempDirectoryCreator(testTempDirOverride);AsyncCloseable asyncCloseable=new AsyncCloseable(diskIoExecutorService);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId);CounterRegistry counterRegistry=new CounterRegistryImpl(MoreExecutors.newSingleThreadScheduledExecutor("CounterAggregatorThread"),buildEventBus,buckConfig.getCountersFirstFlushIntervalMillis(),buckConfig.getCountersFlushIntervalMillis())){
+      try (ConsoleLogLevelOverrider consoleLogLevelOverrider=new ConsoleLogLevelOverrider(buildId.toString(),verbosity);ConsoleHandlerRedirector consoleHandlerRedirector=new ConsoleHandlerRedirector(buildId.toString(),console.getStdErr(),Optional.<OutputStream>of(stdErr));AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,new SuperConsoleConfig(buckConfig),console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer,locale,BuckConstant.getLogPath().resolve("test.log"));TempDirectoryCreator tempDirectoryCreator=new TempDirectoryCreator(testTempDirOverride);AsyncCloseable asyncCloseable=new AsyncCloseable(diskIoExecutorService);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId);CounterRegistry counterRegistry=new CounterRegistryImpl(MoreExecutors.newSingleThreadScheduledExecutor("CounterAggregatorThread"),buildEventBus,buckConfig.getCountersFirstFlushIntervalMillis(),buckConfig.getCountersFlushIntervalMillis())){
         buildEventBus.register(HANG_MONITOR.getHangMonitor());
         ArtifactCache artifactCache=asyncCloseable.closeAsync(ArtifactCaches.newInstance(cacheBuckConfig,buildEventBus,filesystem,executionEnvironment.getWifiSsid(),httpWriteExecutorService));
         ProgressEstimator progressEstimator=new ProgressEstimator(filesystem.getRootPath(),buildEventBus,objectMapper);
