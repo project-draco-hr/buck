@@ -22,8 +22,18 @@
     eventBus.post(ArtifactCompressionEvent.finished(started));
   }
   ListenableFuture<Void> storeFuture=artifactCache.store(ruleKeys,buildMetadata,BorrowablePath.notBorrowablePath(zip));
-  storeFuture.addListener(new Runnable(){
-    @Override public void run(){
+  Futures.addCallback(storeFuture,new FutureCallback<Void>(){
+    @Override public void onSuccess(    Void result){
+      onCompletion();
+    }
+    @Override public void onFailure(    Throwable t){
+      onCompletion();
+      LOG.info(t,"Failed storing RuleKeys %s to the cache.",ruleKeys);
+      if (warnedUserOfCacheStoreFailure.compareAndSet(false,true)) {
+        eventBus.post(ConsoleEvent.severe("Failed storing an artifact to the cache," + "see log for details."));
+      }
+    }
+    private void onCompletion(){
       try {
         Files.deleteIfExists(zip);
       }
@@ -32,5 +42,5 @@
       }
     }
   }
-,directExecutor());
+);
 }
