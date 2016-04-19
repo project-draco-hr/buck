@@ -1,0 +1,13 @@
+{
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  DefaultFileHashCache cache=new DefaultFileHashCache(filesystem);
+  Path abiJarPath=Paths.get("test-abi.jar");
+  Path memberPath=Paths.get("SomeClass.class");
+  String memberContents="Some contents";
+  try (HashingDeterministicJarWriter jar=new HashingDeterministicJarWriter(new JarOutputStream(filesystem.newFileOutputStream(abiJarPath)))){
+    jar.writeEntry(memberPath.toString(),ByteSource.wrap(memberContents.getBytes(StandardCharsets.UTF_8)));
+  }
+   HashCode actual=cache.get(ArchiveMemberPath.of(filesystem.resolve(abiJarPath),memberPath));
+  HashCode expected=Hashing.murmur3_128().hashString(memberContents,StandardCharsets.UTF_8);
+  assertEquals(expected,actual);
+}

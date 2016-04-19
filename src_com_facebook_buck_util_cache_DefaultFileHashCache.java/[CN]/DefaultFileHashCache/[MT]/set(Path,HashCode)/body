@@ -1,18 +1,19 @@
 {
   final Path path=resolvePath(rawPath);
-  HashCodeAndFileType.Builder builder=HashCodeAndFileType.builder();
-  builder.setGetHashCode(hashCode);
+  HashCodeAndFileType value;
   if (projectFilesystem.isDirectory(path)) {
-    builder.setType(HashCodeAndFileType.Type.DIRECTORY);
-    builder.addAllChildren(FluentIterable.from(projectFilesystem.getFilesUnderPath(path)).transform(new Function<Path,Path>(){
+    value=HashCodeAndFileType.ofDirectory(hashCode,ImmutableSet.copyOf(FluentIterable.from(projectFilesystem.getFilesUnderPath(path)).transform(new Function<Path,Path>(){
       @Override public Path apply(      Path input){
         return path.relativize(input);
       }
     }
-));
+)));
+  }
+ else   if (rawPath.toString().endsWith(".jar")) {
+    value=HashCodeAndFileType.ofArchive(hashCode,projectFilesystem,projectFilesystem.getPathRelativeToProjectRoot(path).get());
   }
  else {
-    builder.setType(HashCodeAndFileType.Type.FILE);
+    value=HashCodeAndFileType.ofFile(hashCode);
   }
-  loadingCache.put(path,builder.build());
+  loadingCache.put(path,value);
 }
