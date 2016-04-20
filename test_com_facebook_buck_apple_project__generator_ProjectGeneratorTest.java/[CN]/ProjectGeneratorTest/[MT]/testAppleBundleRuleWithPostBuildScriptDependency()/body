@@ -1,0 +1,20 @@
+{
+  BuildTarget scriptTarget=BuildTarget.builder(rootPath,"//foo","post_build_script").addFlavors(DEFAULT_FLAVOR).build();
+  TargetNode<?> scriptNode=XcodePostbuildScriptBuilder.createBuilder(scriptTarget).setCmd("script.sh").build();
+  BuildTarget resourceTarget=BuildTarget.builder(rootPath,"//foo","resource").build();
+  TargetNode<?> resourceNode=AppleResourceBuilder.createBuilder(resourceTarget).setFiles(ImmutableSet.<SourcePath>of(new FakeSourcePath("bar.png"))).setDirs(ImmutableSet.<SourcePath>of()).build();
+  BuildTarget sharedLibraryTarget=BuildTarget.builder(rootPath,"//dep","shared").addFlavors(CxxDescriptionEnhancer.SHARED_FLAVOR).build();
+  TargetNode<?> sharedLibraryNode=AppleLibraryBuilder.createBuilder(sharedLibraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(resourceTarget))).build();
+  BuildTarget bundleTarget=BuildTarget.builder(rootPath,"//foo","bundle").build();
+  TargetNode<?> bundleNode=AppleBundleBuilder.createBuilder(bundleTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.BUNDLE)).setInfoPlist(new FakeSourcePath("Info.plist")).setBinary(sharedLibraryTarget).setDeps(Optional.of(ImmutableSortedSet.of(scriptTarget))).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(scriptNode,resourceNode,sharedLibraryNode,bundleNode));
+  projectGenerator.createXcodeProjects();
+  PBXProject project=projectGenerator.getGeneratedProject();
+  PBXTarget target=assertTargetExistsAndReturnTarget(project,"//foo:bundle");
+  assertThat(target.getName(),equalTo("//foo:bundle"));
+  assertThat(target.isa(),equalTo("PBXNativeTarget"));
+  PBXShellScriptBuildPhase shellScriptBuildPhase=ProjectGeneratorTestUtils.getSingletonPhaseByType(target,PBXShellScriptBuildPhase.class);
+  assertThat(shellScriptBuildPhase.getShellScript(),equalTo("script.sh"));
+  assertThat(target.getBuildPhases().get(0),instanceOf(PBXResourcesBuildPhase.class));
+  assertThat(target.getBuildPhases().get(1),instanceOf(PBXShellScriptBuildPhase.class));
+}

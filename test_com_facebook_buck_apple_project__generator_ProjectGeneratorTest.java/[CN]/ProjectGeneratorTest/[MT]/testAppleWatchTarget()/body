@@ -1,0 +1,17 @@
+{
+  BuildTarget watchAppBinaryTarget=BuildTarget.builder(rootPath,"//foo","WatchAppBinary").build();
+  TargetNode<?> watchAppBinaryNode=AppleBinaryBuilder.createBuilder(watchAppBinaryTarget).build();
+  BuildTarget watchAppTarget=BuildTarget.builder(rootPath,"//foo","WatchApp").addFlavors(DEFAULT_FLAVOR).build();
+  TargetNode<?> watchAppNode=AppleBundleBuilder.createBuilder(watchAppTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.APP)).setXcodeProductType(Optional.<String>of("com.apple.product-type.application.watchapp2")).setInfoPlist(new FakeSourcePath("Info.plist")).setBinary(watchAppBinaryTarget).build();
+  BuildTarget hostAppBinaryTarget=BuildTarget.builder(rootPath,"//foo","HostAppBinary").build();
+  TargetNode<?> hostAppBinaryNode=AppleBinaryBuilder.createBuilder(hostAppBinaryTarget).build();
+  BuildTarget hostAppTarget=BuildTarget.builder(rootPath,"//foo","HostApp").build();
+  TargetNode<?> hostAppNode=AppleBundleBuilder.createBuilder(hostAppTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.APP)).setInfoPlist(new FakeSourcePath("Info.plist")).setBinary(hostAppBinaryTarget).setDeps(Optional.of(ImmutableSortedSet.of(watchAppTarget))).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.of(watchAppNode,watchAppBinaryNode,hostAppNode,hostAppBinaryNode));
+  projectGenerator.createXcodeProjects();
+  PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:HostApp");
+  assertEquals(target.getProductType(),ProductType.APPLICATION);
+  ProjectGeneratorTestUtils.assertHasSingletonCopyFilesPhaseWithFileEntries(target,ImmutableList.of("$BUILT_PRODUCTS_DIR/WatchApp.app"));
+  PBXCopyFilesBuildPhase copyBuildPhase=ProjectGeneratorTestUtils.getSingletonPhaseByType(target,PBXCopyFilesBuildPhase.class);
+  assertEquals(copyBuildPhase.getDstSubfolderSpec(),CopyFilePhaseDestinationSpec.builder().setDestination(PBXCopyFilesBuildPhase.Destination.PRODUCTS).setPath("$(CONTENTS_FOLDER_PATH)/Watch").build());
+}
