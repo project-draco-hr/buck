@@ -1,0 +1,15 @@
+{
+  ApplePackageDescription description=descriptionWithCommand("echo");
+  BuildTarget binaryBuildTarget=BuildTargetFactory.newInstance("//foo:binary");
+  BuildTarget bundleBuildTarget=BuildTargetFactory.newInstance("//foo:bundle");
+  TargetGraph graph=TargetGraphFactory.newInstance(AppleBinaryBuilder.createBuilder(binaryBuildTarget).build(),AppleBundleBuilder.createBuilder(bundleBuildTarget).setBinary(binaryBuildTarget).setExtension(Either.<AppleBundleExtension,String>ofLeft(AppleBundleExtension.APP)).build());
+  ApplePackageDescription.Arg arg=description.createUnpopulatedConstructorArg();
+  arg.bundle=bundleBuildTarget;
+  BuildTarget packageBuildTarget=BuildTargetFactory.newInstance("//foo:package#macosx-x86_64");
+  BuildRuleResolver resolver=new BuildRuleResolver(graph,new DefaultTargetNodeToBuildRuleTransformer());
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(packageBuildTarget).build();
+  resolver.requireAllRules(description.findDepsForTargetFromConstructorArgs(packageBuildTarget,params.getCellRoots(),arg));
+  BuildRule rule=description.createBuildRule(graph,new FakeBuildRuleParamsBuilder(packageBuildTarget).build(),resolver,arg);
+  assertThat(rule,instanceOf(ExternallyBuiltApplePackage.class));
+  assertThat(rule.getDeps(),hasItem(resolver.getRule(bundleBuildTarget.withFlavors(ImmutableFlavor.of("macosx-x86_64")))));
+}
