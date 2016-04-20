@@ -73,10 +73,16 @@
         context.getEventBus().post(ThrowableConsoleEvent.create(t,"Error when deleting metadata for %s.",rule));
       }
     }
-    private void uploadToCache(    BuildRuleSuccessType success){
+    private boolean shouldUploadToCache(    long outputSize){
       if (!rule.isCacheable()) {
-        return;
+        return false;
       }
+      if (artifactCacheSizeLimit.isPresent() && outputSize > artifactCacheSizeLimit.get()) {
+        return false;
+      }
+      return true;
+    }
+    private void uploadToCache(    BuildRuleSuccessType success){
       Set<RuleKey> ruleKeys=Sets.newHashSet();
       if (success.shouldUploadResultingArtifact()) {
         ruleKeys.add(keyFactories.defaultRuleKeyBuilderFactory.build(rule));
@@ -109,14 +115,14 @@
       if (input.getStatus() == BuildRuleStatus.SUCCESS) {
         BuildRuleSuccessType success=Preconditions.checkNotNull(input.getSuccess());
         successType=Optional.of(success);
-        uploadToCache(success);
-        if (success.outputsHaveChanged()) {
-          try {
-            outputSize=Optional.of(buildInfoRecorder.getOutputSize());
-          }
- catch (          IOException e) {
-            context.getEventBus().post(ThrowableConsoleEvent.create(e,"Error getting output size for %s.",rule));
-          }
+        try {
+          outputSize=Optional.of(buildInfoRecorder.getOutputSize());
+        }
+ catch (        IOException e) {
+          context.getEventBus().post(ThrowableConsoleEvent.create(e,"Error getting output size for %s.",rule));
+        }
+        if (outputSize.isPresent() && shouldUploadToCache(outputSize.get())) {
+          uploadToCache(success);
         }
         if (success == BuildRuleSuccessType.BUILT_LOCALLY && rule.isCacheable()) {
           try {
