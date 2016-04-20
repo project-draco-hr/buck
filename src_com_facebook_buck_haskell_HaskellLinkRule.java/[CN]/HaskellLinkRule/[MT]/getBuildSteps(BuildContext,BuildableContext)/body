@@ -1,0 +1,17 @@
+{
+  buildableContext.recordArtifact(getOutput());
+  final Path emptyInput=getScratchDir().resolve("empty");
+  final Path emptyArchive=getScratchDir().resolve("libempty.a");
+  return ImmutableList.of(new MakeCleanDirectoryStep(getProjectFilesystem(),getScratchDir()),new MakeCleanDirectoryStep(getProjectFilesystem(),getOutputDir(getBuildTarget())),new TouchStep(getProjectFilesystem(),emptyInput),new ArchiveStep(getProjectFilesystem(),archiver.getEnvironment(getResolver()),archiver.getCommandPrefix(getResolver()),Archive.Contents.NORMAL,emptyArchive,ImmutableList.of(emptyInput)),new RanlibStep(getProjectFilesystem(),ranlib.getEnvironment(getResolver()),ranlib.getCommandPrefix(getResolver()),emptyArchive),new ShellStep(getProjectFilesystem().getRootPath()){
+    @Override public ImmutableMap<String,String> getEnvironmentVariables(    ExecutionContext context){
+      return ImmutableMap.<String,String>builder().putAll(super.getEnvironmentVariables(context)).putAll(linker.getEnvironment(getResolver())).build();
+    }
+    @Override protected ImmutableList<String> getShellCommandInternal(    ExecutionContext context){
+      return ImmutableList.<String>builder().addAll(linker.getCommandPrefix(getResolver())).addAll(flags).add("-o",getProjectFilesystem().resolve(getOutput()).toString()).add(getProjectFilesystem().resolve(emptyArchive).toString()).addAll(MoreIterables.zipAndConcat(Iterables.cycle("-optl"),Arg.stringify(linkerArgs))).build();
+    }
+    @Override public String getShortName(){
+      return "haskell-link";
+    }
+  }
+);
+}
