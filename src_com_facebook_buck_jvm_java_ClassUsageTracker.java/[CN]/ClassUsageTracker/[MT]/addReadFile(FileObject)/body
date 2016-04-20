@@ -7,10 +7,18 @@
   if (javaFileObject.getKind() != JavaFileObject.Kind.CLASS) {
     return;
   }
-  Matcher classFileMatcher=CLASS_FILE_PATTERN.matcher(javaFileObject.toUri().toString());
-  boolean matches=classFileMatcher.matches();
-  if (!matches) {
+  URI classFileJarUri=javaFileObject.toUri();
+  if (!classFileJarUri.getScheme().equals(JAR_SCHEME)) {
     return;
   }
-  resultBuilder.put(Paths.get(classFileMatcher.group("jar")),Paths.get(classFileMatcher.group("file")));
+  String jarUriSchemeSpecificPart=classFileJarUri.getRawSchemeSpecificPart();
+  final String[] split=jarUriSchemeSpecificPart.split("!/");
+  Preconditions.checkState(split.length == 2);
+  URI jarFileUri=URI.create(split[0]);
+  Preconditions.checkState(jarFileUri.getScheme().equals(FILE_SCHEME));
+  Path jarFilePath=Paths.get(jarFileUri);
+  Path classPath=Paths.get(URI.create(split[1]).toString());
+  Preconditions.checkState(jarFilePath.isAbsolute());
+  Preconditions.checkState(!classPath.isAbsolute());
+  resultBuilder.put(jarFilePath,classPath);
 }
