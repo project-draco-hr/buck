@@ -4,6 +4,7 @@
   final OnDiskBuildInfo onDiskBuildInfo=context.createOnDiskBuildInfoFor(rule.getBuildTarget(),rule.getProjectFilesystem());
   final BuildInfoRecorder buildInfoRecorder=context.createBuildInfoRecorder(rule.getBuildTarget(),rule.getProjectFilesystem()).addBuildMetadata(BuildInfo.METADATA_KEY_FOR_RULE_KEY,keyFactories.defaultRuleKeyBuilderFactory.build(rule).toString());
   final BuildableContext buildableContext=new DefaultBuildableContext(buildInfoRecorder);
+  final AtomicReference<Long> outputSize=Atomics.newReference();
   ListenableFuture<BuildResult> buildResult=processBuildRule(rule,context,onDiskBuildInfo,buildInfoRecorder,buildableContext,asyncCallbacks);
   if (buildMode == BuildMode.DEEP || buildMode == BuildMode.POPULATE_FROM_REMOTE_CACHE) {
     buildResult=MoreFutures.chainExceptions(getDepResults(rule,context,asyncCallbacks),buildResult);
@@ -19,6 +20,7 @@
           buildInfoRecorder.recordArtifact(Paths.get(str));
         }
       }
+      outputSize.set(buildInfoRecorder.getOutputSize());
       if (success.outputsHaveChanged()) {
         if (rule instanceof HasPostBuildSteps) {
           executePostBuildSteps(rule,((HasPostBuildSteps)rule).getPostBuildSteps(context,buildableContext),context);
@@ -37,6 +39,23 @@
         buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY,depFileRuleKey.get().toString());
         if (useManifestCaching(rule)) {
           updateAndStoreManifest(rule,depFileRuleKey.get(),ImmutableSet.copyOf(inputs),context.getArtifactCache());
+        }
+      }
+      if (success == BuildRuleSuccessType.BUILT_LOCALLY && shouldUploadToCache(rule,outputSize.get())) {
+        ImmutableSortedMap.Builder<String,String> outputHashes=ImmutableSortedMap.naturalOrder();
+        for (        Path path : buildInfoRecorder.getOutputPaths()) {
+          outputHashes.put(path.toString(),fileHashCache.get(rule.getProjectFilesystem().resolve(path)).toString());
+        }
+        buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_RECORDED_PATH_HASHES,outputHashes.build());
+      }
+      if (success != BuildRuleSuccessType.BUILT_LOCALLY && success.outputsHaveChanged()) {
+        Optional<ImmutableMap<String,String>> hashes=onDiskBuildInfo.getMap(BuildInfo.METADATA_KEY_FOR_RECORDED_PATH_HASHES);
+        if (hashes.isPresent()) {
+          for (          Map.Entry<String,String> ent : hashes.get().entrySet()) {
+            Path path=rule.getProjectFilesystem().getRootPath().getFileSystem().getPath(ent.getKey());
+            HashCode hashCode=HashCode.fromString(ent.getValue());
+            fileHashCache.set(rule.getProjectFilesystem().resolve(path),hashCode);
+          }
         }
       }
       buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_TARGET,rule.getBuildTarget().toString());
@@ -72,15 +91,6 @@
  catch (      Throwable t) {
         context.getEventBus().post(ThrowableConsoleEvent.create(t,"Error when deleting metadata for %s.",rule));
       }
-    }
-    private boolean shouldUploadToCache(    long outputSize){
-      if (!rule.isCacheable()) {
-        return false;
-      }
-      if (artifactCacheSizeLimit.isPresent() && outputSize > artifactCacheSizeLimit.get()) {
-        return false;
-      }
-      return true;
     }
     private void uploadToCache(    BuildRuleSuccessType success){
       Set<RuleKey> ruleKeys=Sets.newHashSet();
@@ -121,10 +131,10 @@
  catch (        IOException e) {
           context.getEventBus().post(ThrowableConsoleEvent.create(e,"Error getting output size for %s.",rule));
         }
-        if (outputSize.isPresent() && shouldUploadToCache(outputSize.get())) {
+        if (outputSize.isPresent() && shouldUploadToCache(rule,outputSize.get())) {
           uploadToCache(success);
         }
-        if (success == BuildRuleSuccessType.BUILT_LOCALLY && rule.isCacheable()) {
+        if (success == BuildRuleSuccessType.BUILT_LOCALLY && shouldUploadToCache(rule,outputSize.get())) {
           try {
             outputHash=Optional.of(buildInfoRecorder.getOutputHash(fileHashCache));
           }
