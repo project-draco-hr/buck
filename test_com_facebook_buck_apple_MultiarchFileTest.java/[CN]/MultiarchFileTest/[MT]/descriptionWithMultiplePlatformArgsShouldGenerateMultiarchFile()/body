@@ -1,0 +1,13 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildRule multiarchRule=nodeBuilderFactory.getNodeBuilder(BuildTargetFactory.newInstance("//foo:thing#iphoneos-i386,iphoneos-x86_64")).build(resolver,filesystem);
+  assertThat(multiarchRule,instanceOf(MultiarchFile.class));
+  ImmutableList<Step> steps=multiarchRule.getBuildSteps(FakeBuildContext.NOOP_CONTEXT,new FakeBuildableContext());
+  assertThat(steps,hasSize(2));
+  Step step=Iterables.getLast(steps);
+  ExecutionContext executionContext=TestExecutionContext.newInstance();
+  assertThat(step,instanceOf(ShellStep.class));
+  ImmutableList<String> command=((ShellStep)step).getShellCommand(executionContext);
+  assertThat(command,Matchers.contains(endsWith("lipo"),equalTo("-create"),equalTo("-output"),containsString("foo/thing#"),containsString("/thing#"),containsString("/thing#")));
+}

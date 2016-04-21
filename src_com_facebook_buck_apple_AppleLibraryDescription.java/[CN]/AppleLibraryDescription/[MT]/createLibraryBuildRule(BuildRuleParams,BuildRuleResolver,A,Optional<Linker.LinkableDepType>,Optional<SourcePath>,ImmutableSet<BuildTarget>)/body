@@ -2,10 +2,11 @@
   Optional<StripStyle> flavoredStripStyle=StripStyle.FLAVOR_DOMAIN.getValue(params.getBuildTarget());
   params=CxxStrip.removeStripStyleFlavorInParams(params,flavoredStripStyle);
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
-  BuildRule unstrippedBinaryRule=createUnstrippedBuildRule(params,resolver,args,linkableDepType,bundleLoader,blacklist,pathResolver);
+  BuildRule unstrippedBinaryRule=requireUnstrippedBuildRule(params,resolver,args,linkableDepType,bundleLoader,blacklist,pathResolver);
   if (!shouldWrapIntoDebuggableBinary(params.getBuildTarget(),unstrippedBinaryRule)) {
     return unstrippedBinaryRule;
   }
-  BuildRule strippedBinaryRule=CxxDescriptionEnhancer.createCxxStripRule(CxxStrip.restoreStripStyleFlavorInParams(params,flavoredStripStyle),resolver,delegate.getCxxPlatforms().getValue(params.getBuildTarget()).or(defaultCxxPlatform),flavoredStripStyle.or(StripStyle.NON_GLOBAL_SYMBOLS),pathResolver,unstrippedBinaryRule);
+  CxxPlatform representativePlatform=delegate.getCxxPlatforms().getValue(Iterables.getFirst(Sets.intersection(delegate.getCxxPlatforms().getFlavors(),params.getBuildTarget().getFlavors()),defaultCxxPlatform.getFlavor()));
+  BuildRule strippedBinaryRule=CxxDescriptionEnhancer.createCxxStripRule(CxxStrip.restoreStripStyleFlavorInParams(params,flavoredStripStyle),resolver,representativePlatform.getStrip(),flavoredStripStyle.or(StripStyle.NON_GLOBAL_SYMBOLS),pathResolver,unstrippedBinaryRule);
   return AppleDescriptions.createAppleDebuggableBinary(CxxStrip.restoreStripStyleFlavorInParams(params,flavoredStripStyle),resolver,strippedBinaryRule,(ProvidesStaticLibraryDeps)unstrippedBinaryRule,AppleDebugFormat.FLAVOR_DOMAIN.getValue(params.getBuildTarget()).or(defaultDebugFormat),delegate.getCxxPlatforms(),delegate.getDefaultCxxPlatform(),appleCxxPlatformFlavorDomain);
 }
