@@ -1,0 +1,33 @@
+{
+  ImmutableList.Builder<Arg> linkerArgsBuilder=ImmutableList.builder();
+  linkerArgsBuilder.addAll(StringArg.from(Preconditions.checkNotNull(exportedLinkerFlags.apply(cxxPlatform))));
+  if (!headerOnly) {
+    if (type == Linker.LinkableDepType.SHARED) {
+      Preconditions.checkState(getPreferredLinkage(cxxPlatform) != Linkage.STATIC);
+      final SourcePath sharedLibrary=requireSharedLibrary(cxxPlatform);
+      if (linkWithoutSoname) {
+        if (!(sharedLibrary instanceof PathSourcePath)) {
+          throw new HumanReadableException("%s: can only link prebuilt DSOs without sonames",getBuildTarget());
+        }
+        linkerArgsBuilder.add(new RelativeLinkArg((PathSourcePath)sharedLibrary));
+      }
+ else {
+        linkerArgsBuilder.add(new SourcePathArg(getResolver(),requireSharedLibrary(cxxPlatform)));
+      }
+    }
+ else {
+      Preconditions.checkState(getPreferredLinkage(cxxPlatform) != Linkage.SHARED);
+      SourcePath staticLibraryPath=type == Linker.LinkableDepType.STATIC_PIC ? getStaticPicLibrary(cxxPlatform).get() : PrebuiltCxxLibraryDescription.getStaticLibraryPath(getBuildTarget(),params.getCellRoots(),params.getProjectFilesystem(),ruleResolver,cxxPlatform,libDir,libName);
+      SourcePathArg staticLibrary=new SourcePathArg(getResolver(),staticLibraryPath);
+      if (linkWhole) {
+        Linker linker=cxxPlatform.getLd().resolve(ruleResolver);
+        linkerArgsBuilder.addAll(linker.linkWhole(staticLibrary));
+      }
+ else {
+        linkerArgsBuilder.add(staticLibrary);
+      }
+    }
+  }
+  final ImmutableList<Arg> linkerArgs=linkerArgsBuilder.build();
+  return NativeLinkableInput.of(linkerArgs,ImmutableSet.<FrameworkPath>of(),ImmutableSet.<FrameworkPath>of());
+}
