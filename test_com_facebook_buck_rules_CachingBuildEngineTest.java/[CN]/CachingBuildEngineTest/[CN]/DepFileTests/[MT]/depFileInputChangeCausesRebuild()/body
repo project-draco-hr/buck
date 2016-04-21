@@ -7,7 +7,7 @@
   BuildRule rule=new DepFileBuildRule(params,pathResolver){
     @AddToRuleKey private final SourcePath path=new BuildTargetSourcePath(genrule.getBuildTarget());
     @Override public ImmutableList<Step> getBuildSteps(    BuildContext context,    BuildableContext buildableContext){
-      buildableContext.addMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE,ImmutableList.of(input.toString()));
+      buildableContext.addMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE,ImmutableList.of(fileToDepFileEntryString(input)));
       return ImmutableList.<Step>of(new WriteFileStep(filesystem,"",output,false));
     }
     @Override public ImmutableList<SourcePath> getInputsAfterBuildingLocally(){
@@ -19,9 +19,9 @@
   }
 ;
   filesystem.writeContentsToPath("something",input);
-  RuleKey depFileRuleKey=depFileFactory.build(rule,ImmutableList.of(input));
+  RuleKey depFileRuleKey=depFileFactory.build(rule,ImmutableList.of(DependencyFileEntry.of(input,Optional.<Path>absent())));
   filesystem.writeContentsToPath(depFileRuleKey.toString(),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY));
-  filesystem.writeContentsToPath(MAPPER.writeValueAsString(ImmutableList.of(input.toString())),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_DEP_FILE));
+  filesystem.writeContentsToPath(MAPPER.writeValueAsString(ImmutableList.of(fileToDepFileEntryString(input))),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_DEP_FILE));
   filesystem.writeContentsToPath(MAPPER.writeValueAsString(ImmutableList.of(output.toString())),BuildInfo.getPathToMetadataDirectory(target).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
   filesystem.writeContentsToPath("something else",input);
   fileHashCache.invalidate(filesystem.resolve(input));
