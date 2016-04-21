@@ -1,9 +1,20 @@
 {
   Optional<MultiarchFileInfo> fatBinaryInfo=MultiarchFileInfos.create(platformFlavorsToAppleCxxPlatforms,params.getBuildTarget());
   if (fatBinaryInfo.isPresent()) {
-    return createFatBinaryBuildRule(targetGraph,params,resolver,args,fatBinaryInfo.get());
+    ImmutableSortedSet.Builder<BuildRule> thinRules=ImmutableSortedSet.naturalOrder();
+    for (    BuildTarget thinTarget : fatBinaryInfo.get().getThinTargets()) {
+      Optional<BuildRule> existingThinRule=resolver.getRuleOptional(thinTarget);
+      if (existingThinRule.isPresent()) {
+        thinRules.add(existingThinRule.get());
+        continue;
+      }
+      BuildRule thinRule=requireThinBinary(targetGraph,params.copyWithBuildTarget(thinTarget),resolver,args);
+      resolver.addToIndex(thinRule);
+      thinRules.add(thinRule);
+    }
+    return MultiarchFileInfos.requireMultiarchRule(params,resolver,fatBinaryInfo.get(),thinRules.build());
   }
  else {
-    return createThinBinary(targetGraph,params,resolver,args);
+    return requireThinBinary(targetGraph,params,resolver,args);
   }
 }

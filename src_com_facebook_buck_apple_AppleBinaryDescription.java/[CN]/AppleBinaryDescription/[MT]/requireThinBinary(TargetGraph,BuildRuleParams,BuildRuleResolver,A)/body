@@ -1,0 +1,20 @@
+{
+  Optional<BuildRule> existingThinRule=resolver.getRuleOptional(params.getBuildTarget());
+  if (existingThinRule.isPresent()) {
+    return existingThinRule.get();
+  }
+  Optional<Path> stubBinaryPath=getStubBinaryPath(params,args);
+  if (shouldUseStubBinary(params) && stubBinaryPath.isPresent()) {
+    try {
+      return resolver.addToIndex(new WriteFile(params,new SourcePathResolver(resolver),Files.readAllBytes(stubBinaryPath.get()),BuildTargets.getGenPath(params.getBuildTarget(),"%s"),true));
+    }
+ catch (    IOException e) {
+      throw new HumanReadableException("Could not read stub binary " + stubBinaryPath.get());
+    }
+  }
+ else {
+    CxxBinaryDescription.Arg delegateArg=delegate.createUnpopulatedConstructorArg();
+    AppleDescriptions.populateCxxBinaryDescriptionArg(new SourcePathResolver(resolver),delegateArg,args,params.getBuildTarget());
+    return resolver.addToIndex(delegate.createBuildRule(targetGraph,params,resolver,delegateArg));
+  }
+}
