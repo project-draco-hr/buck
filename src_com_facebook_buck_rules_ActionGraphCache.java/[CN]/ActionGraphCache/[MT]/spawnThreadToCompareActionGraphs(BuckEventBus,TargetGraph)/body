@@ -1,0 +1,31 @@
+{
+  if (!checkAlreadyRunning.compareAndSet(false,true)) {
+    return;
+  }
+  checkExecutor.execute(new Runnable(){
+    @Override public void run(){
+      try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,PerfEventId.of("ActionGraphCacheCheck"))){
+        if (lastActionGraph == null) {
+          return;
+        }
+        Pair<TargetGraph,ActionGraphAndResolver> newActionGraph=new Pair<TargetGraph,ActionGraphAndResolver>(targetGraph,createActionGraph(eventBus,new DefaultTargetNodeToBuildRuleTransformer(),targetGraph));
+        Map<BuildRule,RuleKey> lastActionGraphRuleKeys=getRuleKeysFromBuildRules(lastActionGraph.getSecond().getActionGraph().getNodes(),lastActionGraph.getSecond().getResolver());
+        Map<BuildRule,RuleKey> newActionGraphRuleKeys=getRuleKeysFromBuildRules(newActionGraph.getSecond().getActionGraph().getNodes(),newActionGraph.getSecond().getResolver());
+        if (!lastActionGraphRuleKeys.equals(newActionGraphRuleKeys)) {
+          actionGraphsMismatch.inc();
+          invalidateCache();
+          Set<BuildRule> misMatchedBuildRules=Maps.difference(lastActionGraphRuleKeys,newActionGraphRuleKeys).entriesDiffering().keySet();
+          String mismatchInfo="RuleKeys of cached and new ActionGraph don't match. Rules " + "that did not match:\n";
+          for (          BuildRule rule : misMatchedBuildRules) {
+            mismatchInfo+=rule.toString() + "\n";
+          }
+          Logger.get(ActionGraphCache.class).error(mismatchInfo);
+        }
+      }
+  finally {
+        checkAlreadyRunning.set(false);
+      }
+    }
+  }
+);
+}

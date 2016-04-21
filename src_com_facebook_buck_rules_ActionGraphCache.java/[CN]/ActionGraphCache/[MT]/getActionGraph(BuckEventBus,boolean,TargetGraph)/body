@@ -1,0 +1,20 @@
+{
+  ActionGraphEvent.Started started=ActionGraphEvent.started();
+  eventBus.post(started);
+  try {
+    if (lastActionGraph != null && lastActionGraph.getFirst().equals(targetGraph)) {
+      cacheHitCounter.inc();
+      if (checkActionGraphs) {
+        spawnThreadToCompareActionGraphs(eventBus,targetGraph);
+      }
+    }
+ else {
+      cacheMissCounter.inc();
+      lastActionGraph=new Pair<TargetGraph,ActionGraphAndResolver>(targetGraph,createActionGraph(eventBus,new DefaultTargetNodeToBuildRuleTransformer(),targetGraph));
+    }
+  }
+  finally {
+    eventBus.post(ActionGraphEvent.finished(started));
+  }
+  return lastActionGraph.getSecond();
+}
