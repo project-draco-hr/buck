@@ -20,16 +20,18 @@
   }
   steps.add(new CopyResourcesStep(getProjectFilesystem(),getResolver(),target,resources,outputDirectory,finder));
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),getOutputJarDirPath(target)));
-  final Path usedClassesFileDirPath=getUsedClassesFileDirPath(target);
-  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),usedClassesFileDirPath));
-  buildableContext.recordArtifact(usedClassesFileDirPath);
   if (!getJavaSrcs().isEmpty()) {
+    Optional<Path> usedClassesFilePath=Optional.absent();
+    if (trackClassUsage) {
+      usedClassesFilePath=Optional.of(getUsedClassesFilePath(target));
+      buildableContext.recordArtifact(usedClassesFilePath.get());
+    }
     Path pathToSrcsList=BuildTargets.getGenPath(getBuildTarget(),"__%s__srcs");
     steps.add(new MkdirStep(getProjectFilesystem(),pathToSrcsList.getParent()));
     Path scratchDir=BuildTargets.getGenPath(target,"lib__%s____working_directory");
     steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),scratchDir));
     Optional<Path> workingDirectory=Optional.of(scratchDir);
-    compileStepFactory.createCompileToJarStep(context,getJavaSrcs(),target,getResolver(),getProjectFilesystem(),declared,outputDirectory,workingDirectory,pathToSrcsList,Optional.of(suggestBuildRule),postprocessClassesCommands,ImmutableSortedSet.of(outputDirectory),Optional.<String>absent(),Optional.<Path>absent(),outputJar.get(),usedClassesFile,steps,buildableContext);
+    compileStepFactory.createCompileToJarStep(context,getJavaSrcs(),target,getResolver(),getProjectFilesystem(),declared,outputDirectory,workingDirectory,pathToSrcsList,Optional.of(suggestBuildRule),postprocessClassesCommands,ImmutableSortedSet.of(outputDirectory),Optional.<String>absent(),Optional.<Path>absent(),outputJar.get(),usedClassesFilePath,steps,buildableContext);
   }
   Path abiJar=getOutputJarDirPath(target).resolve(String.format("%s-abi.jar",target.getShortNameAndFlavorPostfix()));
   if (outputJar.isPresent()) {

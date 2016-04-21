@@ -1,11 +1,12 @@
 {
-  Optional<Path> externalJavac=getJavacPath();
-  if (externalJavac.isPresent()) {
-    return ExternalJavac.createJavac(externalJavac.get());
-  }
-  Optional<SourcePath> javacJarPath=getJavacJarPath();
-  if (javacJarPath.isPresent()) {
-    return new JarBackedJavac("com.sun.tools.javac.api.JavacTool",ImmutableSet.of(javacJarPath.get()));
-  }
-  return new JdkProvidedInMemoryJavac();
+  final JavacSource javacSource=getJavacSource();
+switch (javacSource) {
+case EXTERNAL:
+    return ExternalJavac.createJavac(getJavacPath().get());
+case JAR:
+  return new JarBackedJavac("com.sun.tools.javac.api.JavacTool",ImmutableSet.of(getJavacJarPath().get()));
+case JDK:
+return new JdkProvidedInMemoryJavac();
+}
+throw new AssertionError("Unknown javac source: " + javacSource);
 }
