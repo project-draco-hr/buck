@@ -1,0 +1,17 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"xcode_workspace_with_tests",tmp);
+  workspace.setUp();
+  ProcessResult result=workspace.runBuckCommand("targets","--show-target-hash","--detect-test-changes");
+  result.assertSuccess();
+  List<String> hashes=parseAndVerifyTargetsAndHashes(result.getStdout(),"//bin:bin","//bin:genrule","//lib:lib","//test:test","//workspace:workspace");
+  String fileName="test/Test.m";
+  Files.write(workspace.getPath(fileName),"// This is not a test\n".getBytes(UTF_8));
+  ProcessResult result2=workspace.runBuckCommand("targets","--show-target-hash","--detect-test-changes");
+  result2.assertSuccess();
+  List<String> hashesAfterModification=parseAndVerifyTargetsAndHashes(result2.getStdout(),"//bin:bin","//bin:genrule","//lib:lib","//test:test","//workspace:workspace");
+  assertNotEquals(hashes.get(0),hashesAfterModification.get(0));
+  assertEquals(hashes.get(1),hashesAfterModification.get(1));
+  assertNotEquals(hashes.get(2),hashesAfterModification.get(2));
+  assertNotEquals(hashes.get(3),hashesAfterModification.get(3));
+  assertNotEquals(hashes.get(4),hashesAfterModification.get(4));
+}

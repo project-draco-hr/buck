@@ -1,11 +1,12 @@
 {
+  Optional<ImmutableSet<BuildRuleType>> buildRuleTypes=getBuildRuleTypesFromParams(params);
+  if (!buildRuleTypes.isPresent()) {
+    return 1;
+  }
   ImmutableMap<BuildTarget,ShowOptions> showRulesResult=ImmutableMap.of();
   if (isShowOutput() || isShowRuleKey() || isShowTargetHash()) {
     try {
-      if (getArguments().isEmpty()) {
-        throw new HumanReadableException("Must specify at least one build target.");
-      }
-      TargetGraphAndBuildTargets targetGraphAndBuildTargetsForShowRules=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),params.getCell(),getEnableProfiling(),executor,parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),getArguments()),false);
+      TargetGraphAndBuildTargets targetGraphAndBuildTargetsForShowRules=buildTargetGraphAndTargetsForShowRules(params,executor,buildRuleTypes);
       showRulesResult=computeShowRules(params,executor,TargetGraphAndTargetNodes.fromTargetGraphAndBuildTargets(targetGraphAndBuildTargetsForShowRules));
     }
  catch (    NoSuchBuildTargetException e) {
@@ -19,10 +20,6 @@ catch (    BuildTargetException|BuildFileParseException|CycleException e) {
       printShowRules(showRulesResult,params);
       return 0;
     }
-  }
-  Optional<ImmutableSet<BuildRuleType>> buildRuleTypes=getBuildRuleTypesFromParams(params);
-  if (!buildRuleTypes.isPresent()) {
-    return 1;
   }
   Optional<TargetGraphAndBuildTargets> graphAndTargets=buildTargetGraphAndTargets(params,executor);
   if (!graphAndTargets.isPresent()) {
