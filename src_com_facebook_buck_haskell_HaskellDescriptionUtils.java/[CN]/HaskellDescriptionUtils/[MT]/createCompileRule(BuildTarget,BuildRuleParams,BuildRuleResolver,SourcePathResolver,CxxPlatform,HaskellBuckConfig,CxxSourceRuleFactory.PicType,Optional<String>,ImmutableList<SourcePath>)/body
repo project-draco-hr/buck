@@ -1,0 +1,23 @@
+{
+  final Map<BuildTarget,ImmutableList<String>> depFlags=new TreeMap<>();
+  final Map<BuildTarget,ImmutableList<SourcePath>> depIncludes=new TreeMap<>();
+  new AbstractBreadthFirstThrowingTraversal<BuildRule,NoSuchBuildTargetException>(baseParams.getDeps()){
+    private final ImmutableSet<BuildRule> empty=ImmutableSet.of();
+    @Override public Iterable<BuildRule> visit(    BuildRule rule) throws NoSuchBuildTargetException {
+      ImmutableSet<BuildRule> deps=empty;
+      if (rule instanceof HaskellCompileDep) {
+        deps=rule.getDeps();
+        HaskellCompileInput compileInput=((HaskellCompileDep)rule).getCompileInput(cxxPlatform,picType);
+        depFlags.put(rule.getBuildTarget(),compileInput.getFlags());
+        depIncludes.put(rule.getBuildTarget(),compileInput.getIncludes());
+      }
+      return deps;
+    }
+  }
+.start();
+  Tool compiler=haskellBuckConfig.getCompiler().resolve(resolver);
+  ImmutableList<Arg> args=ImmutableList.<Arg>builder().addAll(SourcePathArg.from(pathResolver,sources)).build();
+  ImmutableList<String> compileFlags=ImmutableList.<String>builder().addAll(haskellBuckConfig.getCompilerFlags()).addAll(Iterables.concat(depFlags.values())).build();
+  ImmutableList<SourcePath> includes=ImmutableList.copyOf(Iterables.concat(depIncludes.values()));
+  return new HaskellCompileRule(baseParams.copyWithChanges(target,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(compiler.getDeps(pathResolver)).addAll(pathResolver.filterBuildRuleInputs(includes)).addAll(FluentIterable.from(args).transformAndConcat(Arg.getDepsFunction(pathResolver))).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,haskellBuckConfig.getCompiler().resolve(resolver),compileFlags,picType,main,includes,args);
+}
