@@ -1,0 +1,18 @@
+{
+  CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(new CxxBuckConfig(FakeBuckConfig.builder().build()));
+  assumeTrue(cxxPlatform.getAr().supportsThinArchives());
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"cxx_library",tmp);
+  workspace.setUp();
+  Path archive=workspace.buildAndReturnOutput("-c","cxx.archive_contents=thin","//:foo#default,static");
+  try (OutputStream outputStream=Files.newOutputStream(workspace.getPath(archive),StandardOpenOption.WRITE)){
+    outputStream.write(ObjectFileScrubbers.GLOBAL_HEADER);
+  }
+   try (ArArchiveInputStream stream=new ArArchiveInputStream(new FileInputStream(workspace.getPath(archive).toFile()))){
+    ArArchiveEntry entry;
+    while ((entry=stream.getNextArEntry()) != null) {
+      if (!entry.getName().isEmpty()) {
+        assertFalse("found absolute path: " + entry.getName(),workspace.getDestPath().getFileSystem().getPath(entry.getName()).isAbsolute());
+      }
+    }
+  }
+ }
