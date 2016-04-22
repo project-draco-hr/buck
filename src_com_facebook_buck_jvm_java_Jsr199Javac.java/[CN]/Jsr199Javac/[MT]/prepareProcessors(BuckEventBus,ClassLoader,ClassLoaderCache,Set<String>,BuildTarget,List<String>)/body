@@ -11,9 +11,8 @@
       processorNames=iterator.next();
     }
   }
-  ProcessorBundle processorBundle=new ProcessorBundle();
   if (processorClassPath == null || processorNames == null) {
-    return processorBundle;
+    return new ProcessorBundle();
   }
   Iterable<String> rawPaths=Splitter.on(File.pathSeparator).omitEmptyStrings().split(processorClassPath);
   URL[] urls=FluentIterable.from(rawPaths).transform(new Function<String,URL>(){
@@ -27,8 +26,9 @@
     }
   }
 ).toArray(URL.class);
-  processorBundle.classLoader=new URLClassLoader(urls,compilerClassLoader);
-  Iterable<String> names=Splitter.on(",").trimResults().omitEmptyStrings().split(processorNames);
+  List<String> names=Splitter.on(",").trimResults().omitEmptyStrings().splitToList(processorNames);
+  ProcessorBundle processorBundle=new ProcessorBundle();
+  setProcessorBundleClassLoader(names,urls,compilerClassLoader,classLoaderCache,safeAnnotationProcessors,target,processorBundle);
   for (  String name : names) {
     try {
       LOG.debug("Loading %s from own classloader",name);

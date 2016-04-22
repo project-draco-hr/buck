@@ -1,0 +1,19 @@
+{
+  if (safeAnnotationProcessors.containsAll(processorNames)) {
+    LOG.debug("Reusing class loaders for %s.",target);
+    processorBundle.classLoader=(URLClassLoader)classLoaderCache.getClassLoaderForClassPath(baseClassLoader,ImmutableList.copyOf(processorClasspath));
+    processorBundle.closeClassLoader=false;
+  }
+ else {
+    final List<String> unsafeProcessors=new ArrayList<>();
+    for (    String name : processorNames) {
+      if (safeAnnotationProcessors.contains(name)) {
+        continue;
+      }
+      unsafeProcessors.add(name);
+    }
+    LOG.debug("Creating new class loader for %s because the following processors are not marked safe " + "for multiple use in a single process: %s",target,Joiner.on(',').join(unsafeProcessors));
+    processorBundle.classLoader=new URLClassLoader(processorClasspath,baseClassLoader);
+    processorBundle.closeClassLoader=true;
+  }
+}
