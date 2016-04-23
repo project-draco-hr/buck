@@ -5,42 +5,36 @@
     }
   }
 ).toList();
-  boolean anyAbsent=FluentIterable.from(children).anyMatch(Predicates.equalTo(Optional.<IjFolder>absent()));
-  if (anyAbsent) {
-    return Optional.absent();
-  }
-  ImmutableSet<IjFolder> presentChildren=FluentIterable.from(children).transform(new Function<Optional<IjFolder>,IjFolder>(){
-    @Override public IjFolder apply(    Optional<IjFolder> input){
-      return input.get();
+  List<IjFolder> presentChildren=new ArrayList<>(children.size());
+  for (  Optional<IjFolder> folderOptional : children) {
+    if (!folderOptional.isPresent()) {
+      return Optional.absent();
     }
+    IjFolder folder=folderOptional.get();
+    if (folder instanceof ExcludeFolder) {
+      continue;
+    }
+    presentChildren.add(folderOptional.get());
   }
-).toSet();
   IjFolder currentFolder=mergePathsMap.get(currentPath);
   if (presentChildren.isEmpty()) {
-    return Optional.of(Preconditions.checkNotNull(currentFolder));
+    return Optional.fromNullable(currentFolder);
   }
-  final IjFolder myFolder;
+  final IjFolder mergeDistination;
   if (currentFolder != null) {
-    myFolder=currentFolder;
+    mergeDistination=currentFolder;
   }
  else {
-    IjFolder aChild=findBestChildToAggregateTo(presentChildren);
-    myFolder=aChild.createCopyWith(currentPath);
+    mergeDistination=findBestChildToAggregateTo(presentChildren).createCopyWith(currentPath);
   }
   boolean allChildrenCanBeMerged=FluentIterable.from(presentChildren).allMatch(new Predicate<IjFolder>(){
     @Override public boolean apply(    IjFolder input){
-      return canMerge(myFolder,input,packagePathCache);
+      return canMerge(mergeDistination,input,packagePathCache);
     }
   }
 );
   if (!allChildrenCanBeMerged) {
     return Optional.absent();
   }
-  IjFolder mergedFolder=myFolder;
-  for (  IjFolder presentChild : presentChildren) {
-    mergePathsMap.remove(presentChild.getPath());
-    mergedFolder=presentChild.merge(mergedFolder);
-  }
-  mergePathsMap.put(mergedFolder.getPath(),mergedFolder);
-  return Optional.of(mergedFolder);
+  return attemptMerge(mergeDistination,presentChildren);
 }
