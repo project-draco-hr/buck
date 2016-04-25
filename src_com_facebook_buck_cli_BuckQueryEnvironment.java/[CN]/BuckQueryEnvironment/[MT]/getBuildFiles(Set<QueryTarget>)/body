@@ -1,4 +1,5 @@
 {
+  final Cell rootCell=params.getCell();
   final ProjectFilesystem cellFilesystem=params.getCell().getFilesystem();
   final Path rootPath=cellFilesystem.getRootPath();
   Preconditions.checkState(rootPath.isAbsolute());
@@ -6,9 +7,15 @@
   for (  QueryTarget target : targets) {
     Preconditions.checkState(target instanceof QueryBuildTarget);
     BuildTarget buildTarget=((QueryBuildTarget)target).getBuildTarget();
+    Cell cell=rootCell.getCell(buildTarget);
+    if (!buildFileTrees.containsKey(cell)) {
+      LOG.info("Creating a new filesystem-backed build file tree for %s",cell.getRoot());
+      buildFileTrees.put(cell,new FilesystemBackedBuildFileTree(cell.getFilesystem(),cell.getBuildFileName()));
+    }
+    BuildFileTree buildFileTree=Preconditions.checkNotNull(buildFileTrees.get(cell));
     Optional<Path> path=buildFileTree.getBasePathOfAncestorTarget(buildTarget.getBasePath());
     Preconditions.checkState(path.isPresent());
-    Path buildFilePath=MorePaths.relativize(rootPath,cellFilesystem.resolve(path.get()).resolve(params.getCell().getBuildFileName()));
+    Path buildFilePath=MorePaths.relativize(rootPath,cell.getFilesystem().resolve(path.get()).resolve(cell.getBuildFileName()));
     Preconditions.checkState(cellFilesystem.exists(buildFilePath));
     builder.add(QueryFileTarget.of(buildFilePath));
   }
