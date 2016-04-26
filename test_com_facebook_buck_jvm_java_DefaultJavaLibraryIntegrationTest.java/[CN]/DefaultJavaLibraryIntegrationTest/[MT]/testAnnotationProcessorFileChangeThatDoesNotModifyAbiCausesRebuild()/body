@@ -1,0 +1,16 @@
+{
+  workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"annotation_processors",tmp);
+  workspace.setUp();
+  BuildTarget mainTarget=BuildTargetFactory.newInstance("//:main");
+  ProcessResult buildResult=workspace.runBuckCommand("build",mainTarget.getFullyQualifiedName());
+  buildResult.assertSuccess("Successful build should exit with 0.");
+  workspace.getBuildLog().assertTargetBuiltLocally("//:main");
+  workspace.getBuildLog().assertTargetBuiltLocally("//:annotation_processor");
+  workspace.getBuildLog().assertTargetBuiltLocally("//:util");
+  workspace.replaceFileContents("AnnotationProcessor.java","false","true");
+  ProcessResult buildResult2=workspace.runBuckCommand("build","//:main");
+  buildResult2.assertSuccess("Successful build should exit with 0.");
+  workspace.getBuildLog().assertTargetHadMatchingRuleKey("//:util");
+  workspace.getBuildLog().assertTargetBuiltLocally("//:main");
+  workspace.getBuildLog().assertTargetBuiltLocally("//:annotation_processor");
+}
