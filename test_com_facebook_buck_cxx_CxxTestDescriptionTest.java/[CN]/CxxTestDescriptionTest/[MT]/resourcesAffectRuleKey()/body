@@ -1,0 +1,14 @@
+{
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  Path resource=filesystem.getRootPath().getFileSystem().getPath("resource");
+  filesystem.touch(resource);
+  for (  CxxTestType framework : CxxTestType.values()) {
+    BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+    CxxTest cxxTestWithoutResources=(CxxTest)createTestBuilder(resolver,filesystem).setFramework(framework).build(resolver,filesystem);
+    RuleKey ruleKeyWithoutResource=getRuleKey(cxxTestWithoutResources);
+    resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+    CxxTest cxxTestWithResources=(CxxTest)createTestBuilder(resolver,filesystem).setFramework(framework).setResources(ImmutableSortedSet.of(resource)).build(resolver,filesystem);
+    RuleKey ruleKeyWithResource=getRuleKey(cxxTestWithResources);
+    assertThat(ruleKeyWithoutResource,Matchers.not(Matchers.equalTo(ruleKeyWithResource)));
+  }
+}
