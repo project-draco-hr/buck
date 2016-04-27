@@ -34,11 +34,12 @@
         ImmutableList<SourcePath> inputs=((SupportsDependencyFileRuleKey)rule).getInputsAfterBuildingLocally();
         ImmutableList<String> inputStrings=FluentIterable.from(inputs).transform(DependencyFileEntry.fromSourcePathFunction(pathResolver)).transform(MoreFunctions.toJsonFunction(objectMapper)).toList();
         buildInfoRecorder.addMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE,inputStrings);
-        Optional<RuleKey> depFileRuleKey=calculateDepFileRuleKey(rule,Optional.of(inputStrings),false);
-        Preconditions.checkState(depFileRuleKey.isPresent());
-        buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY,depFileRuleKey.get().toString());
+        Optional<Pair<RuleKey,ImmutableSet<SourcePath>>> depFileRuleKeyAndInputs=calculateDepFileRuleKey(rule,Optional.of(inputStrings),false);
+        Preconditions.checkState(depFileRuleKeyAndInputs.isPresent());
+        RuleKey depFileRuleKey=depFileRuleKeyAndInputs.get().getFirst();
+        buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY,depFileRuleKey.toString());
         if (useManifestCaching(rule)) {
-          updateAndStoreManifest(rule,depFileRuleKey.get(),ImmutableSet.copyOf(inputs),context.getArtifactCache());
+          updateAndStoreManifest(rule,depFileRuleKeyAndInputs.get().getFirst(),depFileRuleKeyAndInputs.get().getSecond(),context.getArtifactCache());
         }
       }
       if (success == BuildRuleSuccessType.BUILT_LOCALLY && shouldUploadToCache(rule,outputSize.get())) {

@@ -3,19 +3,22 @@
   final Genrule genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:dep")).setOut("input").build(resolver,filesystem);
   final Path input=Preconditions.checkNotNull(genrule.getPathToOutput());
   filesystem.writeContentsToPath("contents",input);
+  final Path input2=Paths.get("input2");
+  filesystem.writeContentsToPath("contents2",input2);
   BuildTarget target=BuildTargetFactory.newInstance("//:rule");
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setProjectFilesystem(filesystem).build();
   final Path output=Paths.get("output");
   BuildRule rule=new DepFileBuildRule(params,pathResolver){
     @AddToRuleKey private final SourcePath path=new BuildTargetSourcePath(genrule.getBuildTarget());
+    @AddToRuleKey private final SourcePath otherDep=new PathSourcePath(filesystem,input2);
     @Override public ImmutableList<Step> getBuildSteps(    BuildContext context,    BuildableContext buildableContext){
       return ImmutableList.<Step>of(new WriteFileStep(filesystem,"",output,false));
     }
     @Override public Optional<ImmutableSet<SourcePath>> getPossibleInputSourcePaths() throws IOException {
-      return Optional.absent();
+      return Optional.of(ImmutableSet.of(path));
     }
     @Override public ImmutableList<SourcePath> getInputsAfterBuildingLocally(){
-      return ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,input));
+      return ImmutableList.<SourcePath>of(path);
     }
     @Override public Path getPathToOutput(){
       return output;
@@ -31,7 +34,7 @@
   CacheResult cacheResult=cache.fetch(cachingBuildEngine.getManifestRuleKey(rule),LazyPath.ofInstance(fetchedManifest));
   assertThat(cacheResult.getType(),equalTo(CacheResultType.HIT));
   Manifest manifest=loadManifest(fetchedManifest);
-  assertThat(manifest.toMap(),equalTo(ImmutableMap.of(depFileRuleKey,ImmutableMap.of(input.toString(),fileHashCache.get(filesystem.resolve(input))))));
+  assertThat(manifest.toMap(),equalTo(ImmutableMap.of(depFileRuleKey,ImmutableMap.of(input.toString(),fileHashCache.get(filesystem.resolve(input)),input2.toString(),fileHashCache.get(filesystem.resolve(input2))))));
   Path fetchedArtifact=tmp.newFile("artifact").toPath();
   cacheResult=cache.fetch(depFileRuleKey,LazyPath.ofInstance(fetchedArtifact));
   assertThat(cacheResult.getType(),equalTo(CacheResultType.HIT));
