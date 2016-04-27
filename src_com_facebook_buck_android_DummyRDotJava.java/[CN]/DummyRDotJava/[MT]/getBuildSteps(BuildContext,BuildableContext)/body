@@ -19,11 +19,15 @@
   Path pathToAbiOutputDir=getPathToAbiOutputDir(getBuildTarget());
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),pathToAbiOutputDir));
   Path pathToAbiOutputFile=pathToAbiOutputDir.resolve("abi.jar");
+  Path pathToJarOutputDir=outputJar.getParent();
+  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),pathToJarOutputDir));
   Path pathToSrcsList=BuildTargets.getGenPath(getBuildTarget(),"__%s__srcs");
   steps.add(new MkdirStep(getProjectFilesystem(),pathToSrcsList.getParent()));
   final JavacStep javacStep=RDotJava.createJavacStepForDummyRDotJavaFiles(javaSourceFilePaths,pathToSrcsList,rDotJavaClassesFolder,javacOptions,getBuildTarget(),getResolver(),getProjectFilesystem());
   steps.add(javacStep);
   buildableContext.recordArtifact(rDotJavaClassesFolder);
+  steps.add(new JarDirectoryStep(getProjectFilesystem(),outputJar,ImmutableSortedSet.of(rDotJavaClassesFolder),null,null));
+  buildableContext.recordArtifact(outputJar);
   steps.add(new CalculateAbiStep(buildableContext,getProjectFilesystem(),rDotJavaClassesFolder,pathToAbiOutputFile));
   return steps.build();
 }
