@@ -1,0 +1,17 @@
+{
+  ImmutableMap.Builder<Path,SourcePath> jarAbsolutePathToAbiJarSourcePathBuilder=ImmutableMap.builder();
+  for (  BuildRule dep : deps) {
+    if (!(dep instanceof HasJavaAbi)) {
+      continue;
+    }
+    HasJavaAbi depWithJavaAbi=(HasJavaAbi)dep;
+    Optional<SourcePath> depAbiJar=depWithJavaAbi.getAbiJar();
+    if (!depAbiJar.isPresent()) {
+      continue;
+    }
+    Function<Path,Path> absolutifier=dep.getProjectFilesystem().getAbsolutifier();
+    Path jarAbsolutePath=absolutifier.apply(dep.getPathToOutput());
+    jarAbsolutePathToAbiJarSourcePathBuilder.put(jarAbsolutePath,depAbiJar.get());
+  }
+  return jarAbsolutePathToAbiJarSourcePathBuilder.build();
+}
