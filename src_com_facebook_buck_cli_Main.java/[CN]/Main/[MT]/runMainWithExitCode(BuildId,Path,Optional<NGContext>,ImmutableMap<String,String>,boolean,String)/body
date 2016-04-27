@@ -1,13 +1,4 @@
 {
-  Verbosity verbosity=VerbosityParser.parse(args);
-  Optional<String> color;
-  if (context.isPresent() && (context.get().getEnv() != null)) {
-    String colorString=context.get().getEnv().getProperty(BUCKD_COLOR_DEFAULT_ENV_VAR);
-    color=Optional.fromNullable(colorString);
-  }
- else {
-    color=Optional.absent();
-  }
   BuckCommand command=new BuckCommand();
   AdditionalOptionsCmdLineParser cmdLineParser=new AdditionalOptionsCmdLineParser(command);
   try {
@@ -21,6 +12,35 @@
   Config config=Configs.createDefaultConfig(canonicalRootPath,command.getConfigOverrides());
   ProjectFilesystem filesystem=new ProjectFilesystem(canonicalRootPath,config);
   BuckConfig buckConfig=new BuckConfig(config,filesystem,architecture,platform,clientEnvironment);
+  if (setupLogging) {
+    if (context.isPresent()) {
+      LOG.debug("Rotating log.");
+      LogConfig.flushLogs();
+      LogConfig.setupLogging();
+    }
+    if (LOG.isDebugEnabled()) {
+      Long gitCommitTimestamp=Long.getLong("buck.git_commit_timestamp");
+      String buildDateStr;
+      if (gitCommitTimestamp == null) {
+        buildDateStr="(unknown)";
+      }
+ else {
+        buildDateStr=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss Z",Locale.US).format(new Date(TimeUnit.SECONDS.toMillis(gitCommitTimestamp)));
+      }
+      String buildRev=System.getProperty("buck.git_commit","(unknown)");
+      LOG.debug("Starting up (build date %s, rev %s), args: %s",buildDateStr,buildRev,Arrays.toString(args));
+      LOG.debug("System properties: %s",System.getProperties());
+    }
+  }
+  Verbosity verbosity=VerbosityParser.parse(args);
+  Optional<String> color;
+  if (context.isPresent() && (context.get().getEnv() != null)) {
+    String colorString=context.get().getEnv().getProperty(BUCKD_COLOR_DEFAULT_ENV_VAR);
+    color=Optional.fromNullable(colorString);
+  }
+ else {
+    color=Optional.absent();
+  }
   final Console console=new Console(verbosity,stdOut,stdErr,buckConfig.createAnsi(color));
   boolean commandSemaphoreAcquired=false;
   boolean shouldCleanUpTrash=false;
