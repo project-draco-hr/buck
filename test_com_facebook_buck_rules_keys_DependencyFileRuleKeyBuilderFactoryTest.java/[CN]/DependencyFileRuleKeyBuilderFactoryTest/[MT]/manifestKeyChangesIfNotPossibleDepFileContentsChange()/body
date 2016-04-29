@@ -1,0 +1,19 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  final FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  final Path localInput=Paths.get("localInput");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder("//:rule").build();
+  final PathSourcePath inputSourcePath=new PathSourcePath(filesystem,localInput);
+  BuildRule rule=new FakeDepFileBuildRule(params,pathResolver){
+    @AddToRuleKey SourcePath input=inputSourcePath;
+  }
+;
+  FakeFileHashCache hashCache=new FakeFileHashCache(ImmutableMap.of(filesystem.resolve(localInput),HashCode.fromInt(0)));
+  DefaultRuleKeyBuilderFactory defaultRuleKeyBuilderFactory1=new DefaultRuleKeyBuilderFactory(hashCache,pathResolver);
+  RuleKey manifestKey1=new DefaultDependencyFileRuleKeyBuilderFactory(hashCache,pathResolver,defaultRuleKeyBuilderFactory1).buildManifestKey(rule).getFirst();
+  hashCache=new FakeFileHashCache(ImmutableMap.of(filesystem.resolve(localInput),HashCode.fromInt(1)));
+  DefaultRuleKeyBuilderFactory defaultRuleKeyBuilderFactory2=new DefaultRuleKeyBuilderFactory(hashCache,pathResolver);
+  RuleKey manifestKey2=new DefaultDependencyFileRuleKeyBuilderFactory(hashCache,pathResolver,defaultRuleKeyBuilderFactory2).buildManifestKey(rule).getFirst();
+  assertThat(manifestKey1,Matchers.not(Matchers.equalTo(manifestKey2)));
+}
