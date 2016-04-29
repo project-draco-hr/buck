@@ -1,0 +1,26 @@
+{
+  Tool linker=haskellConfig.getLinker().resolve(resolver);
+  String name=target.getShortName();
+  ImmutableList.Builder<Arg> linkerArgsBuilder=ImmutableList.builder();
+  ImmutableList.Builder<Arg> argsBuilder=ImmutableList.builder();
+  argsBuilder.addAll(StringArg.from(haskellConfig.getLinkerFlags()));
+  if (linkType.equals(Linker.LinkType.SHARED)) {
+    name=CxxDescriptionEnhancer.getSharedLibrarySoname(Optional.<String>absent(),target.withFlavors(),cxxPlatform);
+    argsBuilder.addAll(StringArg.from("-shared","-dynamic"));
+    argsBuilder.addAll(StringArg.from(MoreIterables.zipAndConcat(Iterables.cycle("-optl"),cxxPlatform.getLd().resolve(resolver).soname(name))));
+  }
+  argsBuilder.addAll(StringArg.from(extraFlags));
+  linkerArgsBuilder.addAll(linkerInputs);
+  for (  NativeLinkable nativeLinkable : NativeLinkables.getNativeLinkables(cxxPlatform,deps,depType).values()) {
+    linkerArgsBuilder.addAll(NativeLinkables.getNativeLinkableInput(cxxPlatform,depType,nativeLinkable).getArgs());
+  }
+  BuildTarget emptyModuleTarget=target.withAppendedFlavor(ImmutableFlavor.of("empty-module"));
+  WriteFile emptyModule=resolver.addToIndex(new WriteFile(baseParams.copyWithBuildTarget(emptyModuleTarget),pathResolver,"module Unused where",BuildTargets.getGenPath(emptyModuleTarget,"%s/Unused.hs"),false));
+  HaskellCompileRule emptyCompiledModule=resolver.addToIndex(createCompileRule(target.withAppendedFlavors(ImmutableFlavor.of("empty-compiled-module")),baseParams,resolver,pathResolver,cxxPlatform,haskellConfig,CxxSourceRuleFactory.PicType.PIC,Optional.<String>absent(),ImmutableList.<String>of(),ImmutableList.<SourcePath>of(new BuildTargetSourcePath(emptyModule.getBuildTarget()))));
+  BuildTarget emptyArchiveTarget=target.withAppendedFlavors(ImmutableFlavor.of("empty-archive"));
+  Archive emptyArchive=resolver.addToIndex(Archive.from(emptyArchiveTarget,baseParams,pathResolver,cxxPlatform.getAr(),cxxPlatform.getRanlib(),Archive.Contents.NORMAL,BuildTargets.getGenPath(emptyArchiveTarget,"%s/libempty.a"),ImmutableList.of(emptyCompiledModule.getObjectDirPath())));
+  argsBuilder.add(new SourcePathArg(pathResolver,new BuildTargetSourcePath(emptyArchive.getBuildTarget())));
+  ImmutableList<Arg> args=argsBuilder.build();
+  ImmutableList<Arg> linkerArgs=linkerArgsBuilder.build();
+  return resolver.addToIndex(new HaskellLinkRule(baseParams.copyWithChanges(target,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(linker.getDeps(pathResolver)).addAll(FluentIterable.from(args).transformAndConcat(Arg.getDepsFunction(pathResolver))).addAll(FluentIterable.from(linkerArgs).transformAndConcat(Arg.getDepsFunction(pathResolver))).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,linker,name,args,linkerArgs,haskellConfig.shouldCacheLinks()));
+}
