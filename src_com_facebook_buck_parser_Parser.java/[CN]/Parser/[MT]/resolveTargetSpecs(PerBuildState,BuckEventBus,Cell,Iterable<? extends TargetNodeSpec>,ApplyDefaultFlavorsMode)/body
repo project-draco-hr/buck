@@ -12,15 +12,16 @@
   }
   ImmutableList.Builder<ListenableFuture<ImmutableSet<BuildTarget>>> targetFutures=ImmutableList.builder();
   for (  final TargetNodeSpec spec : specs) {
+    Cell cell=rootCell.getCell(spec.getBuildFileSpec().getCellPath());
     ImmutableSet<Path> buildFiles;
     try (SimplePerfEvent.Scope perfEventScope=SimplePerfEvent.scope(eventBus,PerfEventId.of("FindBuildFiles"),"targetNodeSpec",spec)){
-      buildFiles=spec.getBuildFileSpec().findBuildFiles(rootCell,buildFileSearchMethod);
+      buildFiles=spec.getBuildFileSpec().findBuildFiles(cell,buildFileSearchMethod);
     }
      for (    Path buildFile : buildFiles) {
-      if (!rootCell.getFilesystem().isFile(buildFile)) {
-        throw new MissingBuildFileException(spec,rootCell.getFilesystem().getRootPath().relativize(buildFile));
+      if (!cell.getFilesystem().isFile(buildFile)) {
+        throw new MissingBuildFileException(spec,cell.getFilesystem().getRootPath().relativize(buildFile));
       }
-      targetFutures.add(Futures.transform(state.getAllTargetNodesJob(rootCell,buildFile),new Function<ImmutableSet<TargetNode<?>>,ImmutableSet<BuildTarget>>(){
+      targetFutures.add(Futures.transform(state.getAllTargetNodesJob(cell,buildFile),new Function<ImmutableSet<TargetNode<?>>,ImmutableSet<BuildTarget>>(){
         @Override public ImmutableSet<BuildTarget> apply(        ImmutableSet<TargetNode<?>> nodes){
           return applySpecFilter(spec,nodes,applyDefaultFlavorsMode);
         }
