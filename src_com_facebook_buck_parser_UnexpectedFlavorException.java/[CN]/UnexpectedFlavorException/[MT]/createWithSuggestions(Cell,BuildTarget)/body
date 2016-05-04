@@ -1,10 +1,22 @@
 {
   String exceptionMessage=createDefaultMessage(cell,target);
   String suggestions="";
+  Optional<ImmutableSet<PatternAndMessage>> configMessagesForFlavors=cell.getBuckConfig().getUnexpectedFlavorsMessages();
   for (  Flavor flavor : target.getFlavors()) {
-    for (    PatternAndMessage flavorPattern : suggestedMessagesForFlavors) {
-      if (flavorPattern.getPattern().matcher(flavor.getName()).find()) {
-        suggestions+=flavor.getName() + " : " + flavorPattern.getMessage()+ "\n";
+    boolean foundInConfig=false;
+    if (configMessagesForFlavors.isPresent()) {
+      for (      PatternAndMessage flavorPattern : configMessagesForFlavors.get()) {
+        if (flavorPattern.getPattern().matcher(flavor.getName()).find()) {
+          foundInConfig=true;
+          suggestions+=flavor.getName() + " : " + flavorPattern.getMessage()+ "\n";
+        }
+      }
+    }
+    if (!foundInConfig) {
+      for (      PatternAndMessage flavorPattern : suggestedMessagesForFlavors) {
+        if (flavorPattern.getPattern().matcher(flavor.getName()).find()) {
+          suggestions+=flavor.getName() + " : " + flavorPattern.getMessage()+ "\n";
+        }
       }
     }
   }
