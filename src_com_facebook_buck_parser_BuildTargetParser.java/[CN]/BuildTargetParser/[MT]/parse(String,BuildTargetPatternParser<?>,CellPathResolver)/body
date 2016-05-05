@@ -1,0 +1,36 @@
+{
+  if (buildTargetName.endsWith(BUILD_RULE_SEPARATOR) && !buildTargetPatternParser.isWildCardAllowed()) {
+    throw new BuildTargetParseException(String.format("%s cannot end with a colon",buildTargetName));
+  }
+  Optional<String> givenCellName=Optional.absent();
+  String targetAfterCell=buildTargetName;
+  if (buildTargetName.contains(BUILD_RULE_PREFIX) && !buildTargetName.startsWith(BUILD_RULE_PREFIX)) {
+    int slashIndex=buildTargetName.indexOf(BUILD_RULE_PREFIX);
+    givenCellName=Optional.of(buildTargetName.substring(0,slashIndex));
+    targetAfterCell=buildTargetName.substring(slashIndex);
+  }
+  if (givenCellName.isPresent() && givenCellName.get().isEmpty()) {
+    throw new BuildTargetParseException("Cell name must not be empty.");
+  }
+  List<String> parts=BUILD_RULE_SEPARATOR_SPLITTER.splitToList(targetAfterCell);
+  if (parts.size() != 2) {
+    throw new BuildTargetParseException(String.format("%s must contain exactly one colon (found %d)",buildTargetName,parts.size() - 1));
+  }
+  String baseName=parts.get(0).isEmpty() ? buildTargetPatternParser.getBaseName() : parts.get(0);
+  String shortName=parts.get(1);
+  Iterable<String> flavorNames=new HashSet<>();
+  int hashIndex=shortName.indexOf("#");
+  if (hashIndex != -1 && hashIndex < shortName.length()) {
+    flavorNames=flavorParser.parseFlavorString(shortName.substring(hashIndex + 1));
+    shortName=shortName.substring(0,hashIndex);
+  }
+  Preconditions.checkNotNull(baseName);
+  baseName=baseName.replace("\\","/");
+  checkBaseName(baseName,buildTargetName);
+  UnflavoredBuildTarget.Builder unflavoredBuilder=UnflavoredBuildTarget.builder(baseName,shortName).setCellPath(cellNames.getCellPath(givenCellName)).setCell(givenCellName);
+  BuildTarget.Builder builder=BuildTarget.builder(unflavoredBuilder.build());
+  for (  String flavor : flavorNames) {
+    builder.addFlavors(ImmutableFlavor.of(flavor));
+  }
+  return builder.build();
+}
