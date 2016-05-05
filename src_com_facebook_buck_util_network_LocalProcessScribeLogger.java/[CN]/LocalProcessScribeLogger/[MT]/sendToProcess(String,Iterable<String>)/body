@@ -1,0 +1,18 @@
+{
+  ProcessExecutorParams processExecutorParams=ProcessExecutorParams.builder().setCommand(ImmutableList.of(command,category)).build();
+  SimpleProcessListener listener=new SimpleProcessListener(new CharBufferIterator(lines.iterator()),Charsets.UTF_8);
+  ListeningProcessExecutor.LaunchedProcess process=processExecutor.launchProcess(processExecutorParams,listener);
+  process.wantWrite();
+  int exitCode;
+  try {
+    exitCode=processExecutor.waitForProcess(process,BlockingHttpEndpoint.DEFAULT_COMMON_TIMEOUT_MS,TimeUnit.MILLISECONDS);
+  }
+  finally {
+    processExecutor.destroyProcess(process,true);
+    processExecutor.waitForProcess(process,Long.MAX_VALUE,TimeUnit.DAYS);
+  }
+  if (exitCode != 0) {
+    LOG.warn("Submitting to local process failed. Exit code %s\nstderr:%s\nstdout:%s",exitCode,listener.getStderr(),listener.getStdout());
+    throw new Exception("non-zero exit code.");
+  }
+}

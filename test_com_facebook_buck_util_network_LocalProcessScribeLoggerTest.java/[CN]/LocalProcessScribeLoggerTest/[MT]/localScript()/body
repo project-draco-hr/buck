@@ -1,0 +1,25 @@
+{
+  String succeedCommand="ok_cat";
+  String failCommand="fail_cat";
+  String category="cat_category";
+  ProcessExecutorParams failParams=ProcessExecutorParams.ofCommand(failCommand);
+  FakeListeningProcessExecutor executor=new FakeListeningProcessExecutor(ImmutableMultimap.<ProcessExecutorParams,FakeListeningProcessState>builder().putAll(ProcessExecutorParams.ofCommand(succeedCommand,category),FakeListeningProcessState.ofStdout(""),FakeListeningProcessState.ofExpectedStdin("1\n2\n3"),FakeListeningProcessState.ofExit(0)).putAll(ProcessExecutorParams.ofCommand(failCommand,category),FakeListeningProcessState.ofExpectedStdin("fallback"),FakeListeningProcessState.ofExit(-1)).build());
+  final AtomicReference<String> fallbackContent=new AtomicReference<>();
+  ScribeLogger fallback=new ScribeLogger(){
+    @Override public ListenableFuture<Void> log(    String category,    Iterable<String> lines){
+      fallbackContent.set(Joiner.on('\n').join(lines));
+      return Futures.immediateFuture(null);
+    }
+    @Override public void close() throws Exception {
+    }
+  }
+;
+  LocalProcessScribeLogger succeedLogger=new LocalProcessScribeLogger(fallback,succeedCommand,executor,MoreExecutors.newDirectExecutorService());
+  succeedLogger.log(category,ImmutableList.of("1","2","3")).get();
+  assertThat(fallbackContent.get(),Matchers.nullValue());
+  LocalProcessScribeLogger failLogger=new LocalProcessScribeLogger(fallback,Joiner.on(' ').join(failParams.getCommand()),executor,MoreExecutors.newDirectExecutorService());
+  failLogger.log(category,ImmutableList.of("fallback")).get();
+  assertThat(fallbackContent.get(),Matchers.equalTo("fallback"));
+  succeedLogger.close();
+  failLogger.close();
+}

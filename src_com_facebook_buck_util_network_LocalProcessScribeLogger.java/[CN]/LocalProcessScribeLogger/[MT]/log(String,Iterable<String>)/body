@@ -1,0 +1,16 @@
+{
+  ListenableFuture<Void> localCatSubmitResult=executorService.submit(new Callable<Void>(){
+    @Override public Void call() throws Exception {
+      sendToProcess(category,lines);
+      return null;
+    }
+  }
+);
+  return Futures.catchingAsync(localCatSubmitResult,Exception.class,new AsyncFunction<Throwable,Void>(){
+    @Override public ListenableFuture<Void> apply(    Throwable input) throws Exception {
+      LOG.info(input,"Submitting to local process failed, falling back to http.");
+      return fallback.log(category,lines);
+    }
+  }
+,executorService);
+}
