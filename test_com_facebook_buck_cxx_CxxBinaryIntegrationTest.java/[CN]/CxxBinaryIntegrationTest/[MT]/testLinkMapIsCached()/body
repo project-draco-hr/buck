@@ -1,0 +1,14 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple",tmp);
+  workspace.setUp();
+  workspace.enableDirCache();
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:simple");
+  workspace.runBuckCommand("build",target.getFullyQualifiedName()).assertSuccess();
+  Path outputPath=workspace.getPath(BuildTargets.getGenPath(target,"%s"));
+  workspace.runBuckCommand("clean").assertSuccess();
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  buildLog.assertTargetWasFetchedFromCache(target.toString());
+  assertThat(Files.exists(Paths.get(outputPath.toString() + "-LinkMap.txt")),is(true));
+}
