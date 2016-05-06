@@ -26,14 +26,19 @@
     actualWatchFlavor=ImmutableFlavor.of(platformName);
   }
   FluentIterable<BuildTarget> depsExcludingBinary=FluentIterable.from(constructorArg.deps.get()).filter(Predicates.not(Predicates.equalTo(constructorArg.binary)));
-  FluentIterable<BuildTarget> targetsWithPlatformFlavors=depsExcludingBinary.filter(BuildTargets.containsFlavors(cxxPlatformFlavorDomain));
-  FluentIterable<BuildTarget> targetsWithoutPlatformFlavors=depsExcludingBinary.filter(Predicates.not(BuildTargets.containsFlavors(cxxPlatformFlavorDomain)));
-  FluentIterable<BuildTarget> watchTargets=targetsWithoutPlatformFlavors.filter(BuildTargets.containsFlavor(WATCH)).transform(new Function<BuildTarget,BuildTarget>(){
-    @Override public BuildTarget apply(    BuildTarget input){
-      return BuildTarget.builder(input.withoutFlavors(ImmutableSet.of(WATCH))).addFlavors(actualWatchFlavor).build();
+{
+    FluentIterable<BuildTarget> targetsWithPlatformFlavors=depsExcludingBinary.filter(BuildTargets.containsFlavors(cxxPlatformFlavorDomain));
+    FluentIterable<BuildTarget> targetsWithoutPlatformFlavors=depsExcludingBinary.filter(Predicates.not(BuildTargets.containsFlavors(cxxPlatformFlavorDomain)));
+    FluentIterable<BuildTarget> watchTargets=targetsWithoutPlatformFlavors.filter(BuildTargets.containsFlavor(WATCH)).transform(new Function<BuildTarget,BuildTarget>(){
+      @Override public BuildTarget apply(      BuildTarget input){
+        return BuildTarget.builder(input.withoutFlavors(ImmutableSet.of(WATCH))).addFlavors(actualWatchFlavor).build();
+      }
     }
-  }
 );
-  targetsWithoutPlatformFlavors=targetsWithoutPlatformFlavors.filter(Predicates.not(BuildTargets.containsFlavor(WATCH)));
-  return ImmutableSet.<BuildTarget>builder().addAll(targetsWithPlatformFlavors).addAll(watchTargets).addAll(BuildTargets.propagateFlavorDomains(buildTarget,ImmutableSet.<FlavorDomain<?>>of(cxxPlatformFlavorDomain),targetsWithoutPlatformFlavors)).build();
+    targetsWithoutPlatformFlavors=targetsWithoutPlatformFlavors.filter(Predicates.not(BuildTargets.containsFlavor(WATCH)));
+    depsExcludingBinary=targetsWithPlatformFlavors.append(watchTargets).append(BuildTargets.propagateFlavorDomains(buildTarget,ImmutableSet.<FlavorDomain<?>>of(cxxPlatformFlavorDomain),targetsWithoutPlatformFlavors));
+  }
+  depsExcludingBinary=BuildTargets.propagateFlavorsInDomainIfNotPresent(StripStyle.FLAVOR_DOMAIN,buildTarget,depsExcludingBinary);
+  depsExcludingBinary=BuildTargets.propagateFlavorsInDomainIfNotPresent(AppleDebugFormat.FLAVOR_DOMAIN,buildTarget,depsExcludingBinary);
+  return ImmutableSet.copyOf(depsExcludingBinary);
 }
