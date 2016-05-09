@@ -4,16 +4,15 @@
   RageConfig rageConfig=RageBuckConfig.create(buckConfig);
   DirtyPrintStreamDecorator stdOut=params.getConsole().getStdOut();
   VersionControlCmdLineInterfaceFactory vcsFactory=new DefaultVersionControlCmdLineInterfaceFactory(params.getCell().getFilesystem().getRootPath(),new PrintStreamProcessExecutorFactory(),new VersionControlBuckConfig(buckConfig),buckConfig.getEnvironment());
-  DefectSubmitResult defectSubmitResult;
-  Optional<VcsInfoCollector> vcsInfoHelper=VcsInfoCollector.create(vcsFactory.createCmdLineInterface());
+  AbstractReport report;
+  Optional<VcsInfoCollector> vcsInfoCollector=VcsInfoCollector.create(vcsFactory.createCmdLineInterface());
   if (params.getConsole().getAnsi().isAnsiTerminal() && !nonInteractive) {
-    InteractiveReport interactiveReport=new InteractiveReport(new DefectReporter(filesystem,params.getObjectMapper(),rageConfig),filesystem,stdOut,params.getStdIn(),params.getBuildEnvironmentDescription(),vcsInfoHelper);
-    defectSubmitResult=interactiveReport.collectAndSubmitResult();
+    report=new InteractiveReport(new DefectReporter(filesystem,params.getObjectMapper(),rageConfig),filesystem,stdOut,params.getStdIn(),params.getBuildEnvironmentDescription(),vcsInfoCollector);
   }
  else {
-    AutomatedReport automatedReport=new AutomatedReport(new DefectReporter(filesystem,params.getObjectMapper(),rageConfig),filesystem,stdOut,params.getBuildEnvironmentDescription(),gatherVcsInfo ? vcsInfoHelper : Optional.<VcsInfoCollector>absent());
-    defectSubmitResult=automatedReport.collectAndSubmitResult();
+    report=new AutomatedReport(new DefectReporter(filesystem,params.getObjectMapper(),rageConfig),filesystem,stdOut,params.getBuildEnvironmentDescription(),gatherVcsInfo ? vcsInfoCollector : Optional.<VcsInfoCollector>absent());
   }
+  DefectSubmitResult defectSubmitResult=report.collectAndSubmitResult();
   stdOut.printf("Report saved to %s\n",defectSubmitResult.getReportSubmitLocation());
   if (defectSubmitResult.getReportSubmitMessage().isPresent()) {
     stdOut.println(defectSubmitResult.getReportSubmitMessage().get());
