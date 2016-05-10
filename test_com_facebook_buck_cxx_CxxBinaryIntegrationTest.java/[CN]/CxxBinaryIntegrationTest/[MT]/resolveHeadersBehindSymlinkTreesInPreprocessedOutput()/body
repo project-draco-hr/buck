@@ -3,6 +3,7 @@
   CxxPlatform cxxPlatform=DefaultCxxPlatforms.build(new CxxBuckConfig(buckConfig));
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"resolved",tmp);
   workspace.setUp();
+  ProjectFilesystem filesystem=new ProjectFilesystem(workspace.getDestPath());
   workspace.writeContentsToPath("","lib2.h");
   BuildTarget target=BuildTargetFactory.newInstance("//:bin");
   CxxSourceRuleFactory cxxSourceRuleFactory=CxxSourceRuleFactoryHelper.of(workspace.getDestPath(),target,cxxPlatform);
@@ -10,8 +11,8 @@
   BuildTarget ppTarget=cxxSourceRuleFactory.createPreprocessBuildTarget("bin.cpp",CxxSource.Type.CXX);
   Path output=cxxSourceRuleFactory.getPreprocessOutputPath(ppTarget,CxxSource.Type.CXX,"bin.cpp");
   String contents=workspace.getFileContents(output.toString());
-  assertThat(contents,Matchers.not(Matchers.containsString(BuckConstant.getScratchDir())));
-  assertThat(contents,Matchers.not(Matchers.containsString(BuckConstant.getGenDir())));
+  assertThat(contents,Matchers.not(Matchers.containsString(filesystem.getBuckPaths().getScratchDir().toString())));
+  assertThat(contents,Matchers.not(Matchers.containsString(filesystem.getBuckPaths().getGenDir().toString())));
   assertThat(contents,Matchers.containsString("# 1 \"bin.h"));
   assertThat(contents,Matchers.containsString("# 1 \"lib1.h"));
   assertThat(contents,Matchers.containsString("# 1 \"lib2.h"));
