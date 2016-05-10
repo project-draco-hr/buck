@@ -6,18 +6,17 @@
   Files.write(storagePath,contents.getBytes(StandardCharsets.UTF_8));
   Clock fakeClock=new IncrementingFakeClock(TimeUnit.SECONDS.toNanos(1));
   BuckEventBus eventBus=BuckEventBusFactory.newInstance(fakeClock);
-  EventBus rawEventBus=BuckEventBusFactory.getEventBusFor(eventBus);
   TestConsole console=new TestConsole();
   SuperConsoleEventBusListener listener=new SuperConsoleEventBusListener(emptySuperConsoleConfig,console,fakeClock,silentSummaryVerbosity,new DefaultExecutionEnvironment(ImmutableMap.copyOf(System.getenv()),System.getProperties()),Optional.<WebServer>absent(),Locale.US,logPath,timeZone);
   ProgressEstimator e=new ProgressEstimator(getStorageForTest().getParent().getParent(),eventBus,ObjectMappers.newDefaultInstance());
   listener.setProgressEstimator(e);
   eventBus.register(listener);
-  rawEventBus.post(CommandEvent.started("project",ImmutableList.of("arg1","arg2"),false));
-  rawEventBus.post(configureTestEventAtTime(ProjectGenerationEvent.started(),0L,TimeUnit.MILLISECONDS,0L));
+  eventBus.post(CommandEvent.started("project",ImmutableList.of("arg1","arg2"),false));
+  eventBus.postWithoutConfiguring(configureTestEventAtTime(ProjectGenerationEvent.started(),0L,TimeUnit.MILLISECONDS,0L));
   validateConsole(console,listener,0L,ImmutableList.of("[+] GENERATING PROJECT...0.0s"));
-  rawEventBus.post(configureTestEventAtTime(ProjectGenerationEvent.processed(),0L,TimeUnit.MILLISECONDS,0L));
-  rawEventBus.post(configureTestEventAtTime(ProjectGenerationEvent.processed(),100L,TimeUnit.MILLISECONDS,0L));
+  eventBus.postWithoutConfiguring(configureTestEventAtTime(ProjectGenerationEvent.processed(),0L,TimeUnit.MILLISECONDS,0L));
+  eventBus.postWithoutConfiguring(configureTestEventAtTime(ProjectGenerationEvent.processed(),100L,TimeUnit.MILLISECONDS,0L));
   validateConsole(console,listener,100L,ImmutableList.of("[+] GENERATING PROJECT...0.1s [20%]"));
-  rawEventBus.post(configureTestEventAtTime(new ProjectGenerationEvent.Finished(),200L,TimeUnit.MILLISECONDS,0L));
+  eventBus.postWithoutConfiguring(configureTestEventAtTime(new ProjectGenerationEvent.Finished(),200L,TimeUnit.MILLISECONDS,0L));
   validateConsole(console,listener,0L,ImmutableList.of("[-] GENERATING PROJECT...FINISHED 0.2s [100%]"));
 }
