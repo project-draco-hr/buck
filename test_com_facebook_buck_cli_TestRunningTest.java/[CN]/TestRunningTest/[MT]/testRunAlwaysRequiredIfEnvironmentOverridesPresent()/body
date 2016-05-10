@@ -1,6 +1,5 @@
 {
-  ExecutionContext executionContext=TestExecutionContext.newInstance();
-  assertFalse(executionContext.isDebugEnabled());
+  ExecutionContext executionContext=TestExecutionContext.newBuilder().setDebugEnabled(false).build();
   FakeTestRule testRule=new FakeTestRule(ImmutableSet.of(Label.of("windows")),BuildTargetFactory.newInstance("//:lulz"),new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer())),ImmutableSortedSet.<BuildRule>of()){
     @Override public boolean hasTestResultFiles(){
       return true;
@@ -8,11 +7,12 @@
   }
 ;
   TestRuleKeyFileHelper testRuleKeyFileHelper=createNiceMock(TestRuleKeyFileHelper.class);
-  expect(testRuleKeyFileHelper.isRuleKeyInDir(testRule)).andReturn(false);
+  expect(testRuleKeyFileHelper.isRuleKeyInDir(testRule)).andReturn(true).times(1);
   CachingBuildEngine cachingBuildEngine=createMock(CachingBuildEngine.class);
   BuildResult result=BuildResult.success(testRule,MATCHING_RULE_KEY,CacheResult.miss());
-  expect(cachingBuildEngine.getBuildRuleResult(BuildTargetFactory.newInstance("//:lulz"))).andReturn(result);
+  expect(cachingBuildEngine.getBuildRuleResult(BuildTargetFactory.newInstance("//:lulz"))).andReturn(result).times(1);
   replay(cachingBuildEngine,testRuleKeyFileHelper);
-  assertTrue("A cached build should run the tests if the test output directory\'s rule key is not " + "present or does not matche the rule key for the test.",TestRunning.isTestRunRequiredForTest(testRule,cachingBuildEngine,executionContext,testRuleKeyFileHelper,true,false,false));
+  assertFalse("Test will normally not be rerun",TestRunning.isTestRunRequiredForTest(testRule,cachingBuildEngine,executionContext,testRuleKeyFileHelper,true,false,false));
+  assertTrue("Test will be rerun when environment overrides are present",TestRunning.isTestRunRequiredForTest(testRule,cachingBuildEngine,executionContext,testRuleKeyFileHelper,true,false,true));
   verify(cachingBuildEngine,testRuleKeyFileHelper);
 }
