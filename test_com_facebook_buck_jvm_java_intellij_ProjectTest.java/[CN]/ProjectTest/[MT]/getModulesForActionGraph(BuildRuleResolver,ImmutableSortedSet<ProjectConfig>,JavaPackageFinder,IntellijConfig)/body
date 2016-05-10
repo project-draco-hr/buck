@@ -6,23 +6,16 @@
     intellijConfig=new IntellijConfig(FakeBuckConfig.builder().build());
   }
   ExecutionContext executionContext=TestExecutionContext.newInstance();
-  ProjectFilesystem projectFilesystem=EasyMock.createMock(ProjectFilesystem.class);
-  EasyMock.expect(projectFilesystem.getRelativizer()).andStubReturn(new Function<Path,Path>(){
-    @Override public Path apply(    @Nullable Path input){
-      return Paths.get("").toAbsolutePath().relativize(input);
-    }
-  }
-);
-  EasyMock.expect(projectFilesystem.getRootPath()).andStubReturn(Paths.get("").toAbsolutePath());
+  ProjectFilesystem projectFilesystem=new FakeProjectFilesystem();
   Properties keystoreProperties=new Properties();
   keystoreProperties.put("key.alias","androiddebugkey");
   keystoreProperties.put("key.store.password","android");
   keystoreProperties.put("key.alias.password","android");
-  EasyMock.expect(projectFilesystem.readPropertiesFile(Paths.get("keystore/debug.keystore.properties").toAbsolutePath())).andReturn(keystoreProperties).anyTimes();
-  ImmutableMap<Path,String> basePathToAliasMap=ImmutableMap.of();
+  try (OutputStream output=projectFilesystem.newFileOutputStream(Paths.get("keystore/debug.keystore.properties"))){
+    keystoreProperties.store(output,"");
+  }
+   ImmutableMap<Path,String> basePathToAliasMap=ImmutableMap.of();
   Project project=new Project(new SourcePathResolver(ruleResolver),projectConfigs,basePathToAliasMap,javaPackageFinder,executionContext,new InMemoryBuildFileTree(Iterables.transform(ruleResolver.getBuildRules(),BuildTarget.TO_TARGET)),projectFilesystem,Optional.<String>absent(),intellijConfig,Optional.<String>absent(),BuckTestConstant.PYTHON_INTERPRETER,ObjectMappers.newDefaultInstance(),true);
-  EasyMock.replay(projectFilesystem);
   List<SerializableModule> modules=new ArrayList<>(project.createModulesForProjectConfigs());
-  EasyMock.verify(projectFilesystem);
   return new ProjectWithModules(project,ImmutableList.copyOf(modules));
 }
