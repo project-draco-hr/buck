@@ -1,21 +1,20 @@
 {
+  ProjectFilesystem filesystem=FakeProjectFilesystem.createJavaOnlyFilesystem("/home/user");
   SourcePathResolver pathResolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer()));
-  FakeJavaLibrary javaLibraryRule=new FakeJavaLibrary(BuildTargetFactory.newInstance("//foo:bar"),pathResolver){
+  FakeJavaLibrary javaLibraryRule=new FakeJavaLibrary(BuildTargetFactory.newInstance(filesystem.getRootPath(),"//foo:bar"),pathResolver,filesystem,ImmutableSortedSet.<BuildRule>of()){
     @Override public ImmutableSortedMap<String,HashCode> getClassNamesToHashes(){
       return ImmutableSortedMap.of("com/example/Foo",HashCode.fromString("cafebabe"));
     }
   }
 ;
-  Path jarOutput=BuildTargets.getGenPath(javaLibraryRule.getBuildTarget(),"%s.jar");
+  Path jarOutput=BuildTargets.getGenPath(filesystem,javaLibraryRule.getBuildTarget(),"%s.jar");
   javaLibraryRule.setOutputFile(jarOutput.toString());
   BuildContext context=createMock(BuildContext.class);
   FakeBuildableContext buildableContext=new FakeBuildableContext();
   replayAll();
-  String rootPath="/home/user";
-  ProjectFilesystem filesystem=FakeProjectFilesystem.createJavaOnlyFilesystem(rootPath);
-  Path dexOutput=BuildTargets.getGenPath(javaLibraryRule.getBuildTarget().withFlavors(AndroidBinaryGraphEnhancer.DEX_FLAVOR),"%s.dex.jar");
+  Path dexOutput=BuildTargets.getGenPath(filesystem,javaLibraryRule.getBuildTarget().withFlavors(AndroidBinaryGraphEnhancer.DEX_FLAVOR),"%s.dex.jar");
   createFiles(filesystem,dexOutput.toString(),jarOutput.toString());
-  BuildTarget buildTarget=BuildTargetFactory.newInstance("//foo:bar#dex");
+  BuildTarget buildTarget=BuildTargetFactory.newInstance(filesystem.getRootPath(),"//foo:bar#dex");
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(buildTarget).setProjectFilesystem(filesystem).build();
   DexProducedFromJavaLibrary preDex=new DexProducedFromJavaLibrary(params,pathResolver,javaLibraryRule);
   List<Step> steps=preDex.getBuildSteps(context,buildableContext);
@@ -25,8 +24,8 @@
   expect(androidPlatformTarget.getDxExecutable()).andReturn(Paths.get("/usr/bin/dx"));
   replayAll();
   ExecutionContext executionContext=TestExecutionContext.newBuilder().setAndroidPlatformTargetSupplier(Suppliers.ofInstance(androidPlatformTarget)).build();
-  String expectedDxCommand=String.format("%s --dex --no-optimize --force-jumbo --output %s %s",Paths.get("/usr/bin/dx"),Paths.get(rootPath).resolve(dexOutput),Paths.get(rootPath).resolve(jarOutput));
-  MoreAsserts.assertSteps("Generate bar.dex.jar.",ImmutableList.of(String.format("rm -f %s",Paths.get(rootPath).resolve(dexOutput)),String.format("mkdir -p %s",Paths.get(rootPath).resolve(dexOutput).getParent()),"estimate_linear_alloc","(cd /home/user && " + expectedDxCommand + ")",String.format("zip-scrub %s",dexOutput),"record_dx_success"),steps,executionContext);
+  String expectedDxCommand=String.format("%s --dex --no-optimize --force-jumbo --output %s %s",Paths.get("/usr/bin/dx"),filesystem.resolve(dexOutput),filesystem.resolve(jarOutput));
+  MoreAsserts.assertSteps("Generate bar.dex.jar.",ImmutableList.of(String.format("rm -f %s",filesystem.resolve(dexOutput)),String.format("mkdir -p %s",filesystem.resolve(dexOutput).getParent()),"estimate_linear_alloc","(cd " + filesystem.getRootPath() + " && "+ expectedDxCommand+ ")",String.format("zip-scrub %s",dexOutput),"record_dx_success"),steps,executionContext);
   verifyAll();
   resetAll();
   replayAll();
@@ -34,7 +33,7 @@
   Step recordArtifactAndMetadataStep=steps.get(5);
   int exitCode=recordArtifactAndMetadataStep.execute(executionContext);
   assertEquals(0,exitCode);
-  assertEquals("The generated .dex.jar file should be in the set of recorded artifacts.",ImmutableSet.of(BuildTargets.getGenPath(buildTarget,"%s.dex.jar")),buildableContext.getRecordedArtifacts());
+  assertEquals("The generated .dex.jar file should be in the set of recorded artifacts.",ImmutableSet.of(BuildTargets.getGenPath(filesystem,buildTarget,"%s.dex.jar")),buildableContext.getRecordedArtifacts());
   buildableContext.assertContainsMetadataMapping(DexProducedFromJavaLibrary.LINEAR_ALLOC_KEY_ON_DISK_METADATA,"250");
   verifyAll();
 }

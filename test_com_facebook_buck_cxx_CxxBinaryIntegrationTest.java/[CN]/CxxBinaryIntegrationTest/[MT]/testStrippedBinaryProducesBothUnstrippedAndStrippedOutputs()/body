@@ -4,9 +4,10 @@
   BuildTarget strippedTarget=unstrippedTarget.withFlavors(StripStyle.DEBUGGING_SYMBOLS.getFlavor());
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"header_namespace",tmp);
   workspace.setUp();
+  ProjectFilesystem filesystem=new ProjectFilesystem(workspace.getDestPath());
   workspace.runBuckCommand("build","--config","cxx.cxxflags=-g",strippedTarget.getFullyQualifiedName()).assertSuccess();
-  Path strippedPath=workspace.getPath(BuildTargets.getGenPath(BuildTarget.builder(strippedTarget).addFlavors(CxxStrip.RULE_FLAVOR).build(),"%s"));
-  Path unstrippedPath=workspace.getPath(BuildTargets.getGenPath(unstrippedTarget,"%s"));
+  Path strippedPath=workspace.getPath(BuildTargets.getGenPath(filesystem,BuildTarget.builder(strippedTarget).addFlavors(CxxStrip.RULE_FLAVOR).build(),"%s"));
+  Path unstrippedPath=workspace.getPath(BuildTargets.getGenPath(filesystem,unstrippedTarget,"%s"));
   String strippedOut=workspace.runCommand("dsymutil","-s",strippedPath.toString()).getStdout().or("");
   String unstrippedOut=workspace.runCommand("dsymutil","-s",unstrippedPath.toString()).getStdout().or("");
   assertThat(strippedOut,Matchers.containsStringIgnoringCase("dyld_stub_binder"));

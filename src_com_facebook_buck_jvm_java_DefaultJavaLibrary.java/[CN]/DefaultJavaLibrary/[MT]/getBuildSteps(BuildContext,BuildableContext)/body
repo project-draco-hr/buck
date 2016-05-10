@@ -2,7 +2,7 @@
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   ImmutableSetMultimap<JavaLibrary,Path> declaredClasspathEntries=ImmutableSetMultimap.<JavaLibrary,Path>builder().putAll(getDeclaredClasspathEntries()).putAll(this,additionalClasspathEntries).build();
   BuildTarget target=getBuildTarget();
-  Path outputDirectory=getClassesDir(target);
+  Path outputDirectory=getClassesDir(target,getProjectFilesystem());
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),outputDirectory));
   SuggestBuildRules suggestBuildRule=DefaultSuggestBuildRules.createSuggestBuildFunction(JAR_RESOLVER,declaredClasspathEntries,ImmutableSetMultimap.<JavaLibrary,Path>builder().putAll(getTransitiveClasspathEntries()).putAll(this,additionalClasspathEntries).build(),context.getActionGraph().getNodes());
   Collection<Path> provided=JavaLibraryClasspathProvider.getJavaLibraryDeps(providedDeps).transformAndConcat(new Function<JavaLibrary,Collection<Path>>(){
@@ -19,11 +19,11 @@
     finder=new ResourcesRootPackageFinder(resourcesRoot.get(),finder);
   }
   steps.add(new CopyResourcesStep(getProjectFilesystem(),getResolver(),target,resources,outputDirectory,finder));
-  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),getOutputJarDirPath(target)));
+  steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),getOutputJarDirPath(target,getProjectFilesystem())));
   if (!getJavaSrcs().isEmpty()) {
     ClassUsageFileWriter usedClassesFileWriter;
     if (trackClassUsage) {
-      final Path usedClassesFilePath=getUsedClassesFilePath(getBuildTarget());
+      final Path usedClassesFilePath=getUsedClassesFilePath(getBuildTarget(),getProjectFilesystem());
       ClassUsageTracker classUsageTracker=new ClassUsageTracker();
       depFileListBuilder=new DependencyFileInputListBuilder(deps,classUsageTracker);
       usedClassesFileWriter=new DefaultClassUsageFileWriter(usedClassesFilePath,classUsageTracker);
@@ -32,14 +32,14 @@
  else {
       usedClassesFileWriter=NoOpClassUsageFileWriter.instance();
     }
-    Path pathToSrcsList=BuildTargets.getGenPath(getBuildTarget(),"__%s__srcs");
+    Path pathToSrcsList=BuildTargets.getGenPath(getProjectFilesystem(),getBuildTarget(),"__%s__srcs");
     steps.add(new MkdirStep(getProjectFilesystem(),pathToSrcsList.getParent()));
-    Path scratchDir=BuildTargets.getGenPath(target,"lib__%s____working_directory");
+    Path scratchDir=BuildTargets.getGenPath(getProjectFilesystem(),target,"lib__%s____working_directory");
     steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),scratchDir));
     Optional<Path> workingDirectory=Optional.of(scratchDir);
     compileStepFactory.createCompileToJarStep(context,getJavaSrcs(),target,getResolver(),getProjectFilesystem(),declared,outputDirectory,workingDirectory,pathToSrcsList,Optional.of(suggestBuildRule),postprocessClassesCommands,ImmutableSortedSet.of(outputDirectory),Optional.<String>absent(),Optional.<Path>absent(),outputJar.get(),usedClassesFileWriter,steps,buildableContext);
   }
-  Path abiJar=getOutputJarDirPath(target).resolve(String.format("%s-abi.jar",target.getShortNameAndFlavorPostfix()));
+  Path abiJar=getOutputJarDirPath(target,getProjectFilesystem()).resolve(String.format("%s-abi.jar",target.getShortNameAndFlavorPostfix()));
   if (outputJar.isPresent()) {
     Path output=outputJar.get();
     if (getJavaSrcs().isEmpty()) {
@@ -49,7 +49,7 @@
     steps.add(new CalculateAbiStep(buildableContext,getProjectFilesystem(),output,abiJar));
   }
  else {
-    Path scratch=BuildTargets.getScratchPath(target,String.format("%%s/%s-temp-abi.jar",target.getShortNameAndFlavorPostfix()));
+    Path scratch=BuildTargets.getScratchPath(getProjectFilesystem(),target,String.format("%%s/%s-temp-abi.jar",target.getShortNameAndFlavorPostfix()));
     steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),scratch.getParent()));
     steps.add(new TouchStep(getProjectFilesystem(),scratch));
     steps.add(new CalculateAbiStep(buildableContext,getProjectFilesystem(),scratch,abiJar));

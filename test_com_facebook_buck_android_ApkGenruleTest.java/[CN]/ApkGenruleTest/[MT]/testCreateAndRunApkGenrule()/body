@@ -1,12 +1,13 @@
 {
   ProjectFilesystem projectFilesystem=FakeProjectFilesystem.createJavaOnlyFilesystem();
+  FileSystem fileSystem=projectFilesystem.getRootPath().getFileSystem();
   BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
   createSampleAndroidBinaryRule(ruleResolver,projectFilesystem);
   BuildTargetParser parser=EasyMock.createNiceMock(BuildTargetParser.class);
-  final BuildTarget apkTarget=BuildTargetFactory.newInstance("//:fb4a");
+  final BuildTarget apkTarget=BuildTargetFactory.newInstance(projectFilesystem.getRootPath(),"//:fb4a");
   EasyMock.expect(parser.parse(EasyMock.eq(":fb4a"),EasyMock.anyObject(BuildTargetPatternParser.class),EasyMock.<CellPathResolver>anyObject())).andStubReturn(apkTarget);
   EasyMock.replay(parser);
-  BuildTarget buildTarget=BuildTargetFactory.newInstance("//src/com/facebook:sign_fb4a");
+  BuildTarget buildTarget=BuildTargetFactory.newInstance(projectFilesystem.getRootPath(),"//src/com/facebook:sign_fb4a");
   ApkGenruleDescription description=new ApkGenruleDescription();
   ApkGenruleDescription.Arg arg=description.createUnpopulatedConstructorArg();
   arg.apk=new FakeInstallable(apkTarget,new SourcePathResolver(ruleResolver)).getBuildTarget();
@@ -14,7 +15,7 @@
   arg.cmd=Optional.of("python signer.py $APK key.properties > $OUT");
   arg.cmdExe=Optional.of("");
   arg.out="signed_fb4a.apk";
-  arg.srcs=Optional.of(ImmutableList.<SourcePath>of(new PathSourcePath(projectFilesystem,Paths.get("src/com/facebook/signer.py")),new PathSourcePath(projectFilesystem,Paths.get("src/com/facebook/key.properties"))));
+  arg.srcs=Optional.of(ImmutableList.<SourcePath>of(new PathSourcePath(projectFilesystem,fileSystem.getPath("src/com/facebook/signer.py")),new PathSourcePath(projectFilesystem,fileSystem.getPath("src/com/facebook/key.properties"))));
   arg.tests=Optional.of(ImmutableSortedSet.<BuildTarget>of());
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(buildTarget).setProjectFilesystem(projectFilesystem).build();
   ApkGenrule apkGenrule=(ApkGenrule)description.createBuildRule(TargetGraph.EMPTY,params,ruleResolver,arg);
@@ -23,7 +24,7 @@
   assertEquals(expectedApkOutput,apkGenrule.getAbsoluteOutputFilePath());
   assertEquals("The apk that this rule is modifying must have the apk in its deps.",ImmutableSet.of(apkTarget.toString()),FluentIterable.from(apkGenrule.getDeps()).transform(Functions.toStringFunction()).toSet());
   BuildContext buildContext=ImmutableBuildContext.builder().setActionGraph(EasyMock.createMock(ActionGraph.class)).setStepRunner(EasyMock.createNiceMock(StepRunner.class)).setClock(EasyMock.createMock(Clock.class)).setBuildId(EasyMock.createMock(BuildId.class)).setObjectMapper(ObjectMappers.newDefaultInstance()).setArtifactCache(EasyMock.createMock(ArtifactCache.class)).setJavaPackageFinder(EasyMock.createNiceMock(JavaPackageFinder.class)).setEventBus(BuckEventBusFactory.newInstance()).build();
-  Iterable<Path> expectedInputsToCompareToOutputs=ImmutableList.of(Paths.get("src/com/facebook/signer.py"),Paths.get("src/com/facebook/key.properties"));
+  Iterable<Path> expectedInputsToCompareToOutputs=ImmutableList.of(fileSystem.getPath("src/com/facebook/signer.py"),fileSystem.getPath("src/com/facebook/key.properties"));
   MoreAsserts.assertIterablesEquals(expectedInputsToCompareToOutputs,apkGenrule.getSrcs());
   List<Step> steps=apkGenrule.getBuildSteps(buildContext,new FakeBuildableContext());
   assertEquals(7,steps.size());
@@ -48,17 +49,17 @@
   Path relativePathToSrcDir=BuckConstant.getGenPath().resolve("src/com/facebook/sign_fb4a__srcs");
   assertEquals("Fourth command should make sure the temp directory exists.",relativePathToSrcDir,thirdMkdirCommand.getPath());
   MkdirAndSymlinkFileStep linkSource1=(MkdirAndSymlinkFileStep)steps.get(4);
-  assertEquals(Paths.get("src/com/facebook/signer.py"),linkSource1.getSource());
+  assertEquals(fileSystem.getPath("src/com/facebook/signer.py"),linkSource1.getSource());
   assertEquals(Paths.get(relativePathToSrcDir + "/signer.py"),linkSource1.getTarget());
   MkdirAndSymlinkFileStep linkSource2=(MkdirAndSymlinkFileStep)steps.get(5);
-  assertEquals(Paths.get("src/com/facebook/key.properties"),linkSource2.getSource());
+  assertEquals(fileSystem.getPath("src/com/facebook/key.properties"),linkSource2.getSource());
   assertEquals(Paths.get(relativePathToSrcDir + "/key.properties"),linkSource2.getTarget());
   Step seventhStep=steps.get(6);
   assertTrue(seventhStep instanceof ShellStep);
   ShellStep genruleCommand=(ShellStep)seventhStep;
   assertEquals("genrule",genruleCommand.getShortName());
   ImmutableMap<String,String> environmentVariables=genruleCommand.getEnvironmentVariables(executionContext);
-  assertEquals(new ImmutableMap.Builder<String,String>().put("APK","/opt/src/buck/" + BuildTargets.getGenPath(apkTarget,"%s.apk").toString()).put("OUT",expectedApkOutput).build(),environmentVariables);
+  assertEquals(new ImmutableMap.Builder<String,String>().put("APK","/opt/src/buck/" + BuildTargets.getGenPath(projectFilesystem,apkTarget,"%s.apk").toString()).put("OUT",expectedApkOutput).build(),environmentVariables);
   assertEquals(ImmutableList.of("/bin/bash","-e","-c","python signer.py $APK key.properties > $OUT"),genruleCommand.getShellCommand(executionContext));
   EasyMock.verify(parser);
 }

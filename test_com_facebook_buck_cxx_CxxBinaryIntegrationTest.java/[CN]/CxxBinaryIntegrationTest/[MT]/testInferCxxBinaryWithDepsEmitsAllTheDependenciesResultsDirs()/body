@@ -1,10 +1,11 @@
 {
   assumeTrue(Platform.detect() != Platform.WINDOWS);
   ProjectWorkspace workspace=InferHelper.setupCxxInferWorkspace(this,tmp,Optional.<String>absent());
+  ProjectFilesystem filesystem=new ProjectFilesystem(workspace.getDestPath());
   BuildTarget inputBuildTarget=BuildTargetFactory.newInstance("//foo:binary_with_chain_deps").withFlavors(CxxInferEnhancer.InferFlavors.INFER.get());
   workspace.runBuckCommand("build",inputBuildTarget.getFullyQualifiedName()).assertSuccess();
-  assertTrue(Files.exists(workspace.getPath(BuildTargets.getGenPath(inputBuildTarget,"infer-%s/infer-deps.txt"))));
-  String loggedDeps=workspace.getFileContents(BuildTargets.getGenPath(inputBuildTarget,"infer-%s/infer-deps.txt"));
+  assertTrue(Files.exists(workspace.getPath(BuildTargets.getGenPath(filesystem,inputBuildTarget,"infer-%s/infer-deps.txt"))));
+  String loggedDeps=workspace.getFileContents(BuildTargets.getGenPath(filesystem,inputBuildTarget,"infer-%s/infer-deps.txt"));
   String sanitizedChainDepOne=sanitize("chain_dep_one.c.o");
   String sanitizedTopChain=sanitize("top_chain.c.o");
   String sanitizedChainDepTwo=sanitize("chain_dep_two.c.o");
@@ -14,6 +15,6 @@
   BuildTarget captureChainDepOneTarget=BuildTargetFactory.newInstance("//foo:chain_dep_one#default,infer-capture-" + sanitizedChainDepOne);
   BuildTarget analyzeChainDepTwoTarget=BuildTargetFactory.newInstance("//foo:chain_dep_two#default,infer-analyze");
   BuildTarget captureChainDepTwoTarget=BuildTargetFactory.newInstance("//foo:chain_dep_two#default,infer-capture-" + sanitizedChainDepTwo);
-  String expectedOutput=Joiner.on('\n').join(ImmutableList.of(analyzeTopChainTarget.getFullyQualifiedName() + "\t" + "[infer-analyze]\t"+ BuildTargets.getGenPath(analyzeTopChainTarget,"infer-analysis-%s"),captureTopChainTarget.getFullyQualifiedName() + "\t" + "[default, infer-capture-"+ sanitizedTopChain+ "]\t"+ BuildTargets.getGenPath(captureTopChainTarget,"infer-out-%s"),analyzeChainDepOneTarget.getFullyQualifiedName() + "\t" + "[default, infer-analyze]\t"+ BuildTargets.getGenPath(analyzeChainDepOneTarget,"infer-analysis-%s"),captureChainDepOneTarget.getFullyQualifiedName() + "\t" + "[default, infer-capture-"+ sanitizedChainDepOne+ "]\t"+ BuildTargets.getGenPath(captureChainDepOneTarget,"infer-out-%s"),analyzeChainDepTwoTarget.getFullyQualifiedName() + "\t" + "[default, infer-analyze]\t"+ BuildTargets.getGenPath(analyzeChainDepTwoTarget,"infer-analysis-%s"),captureChainDepTwoTarget.getFullyQualifiedName() + "\t" + "[default, infer-capture-"+ sanitizedChainDepTwo+ "]\t"+ BuildTargets.getGenPath(captureChainDepTwoTarget,"infer-out-%s")));
+  String expectedOutput=Joiner.on('\n').join(ImmutableList.of(analyzeTopChainTarget.getFullyQualifiedName() + "\t" + "[infer-analyze]\t"+ BuildTargets.getGenPath(filesystem,analyzeTopChainTarget,"infer-analysis-%s"),captureTopChainTarget.getFullyQualifiedName() + "\t" + "[default, infer-capture-"+ sanitizedTopChain+ "]\t"+ BuildTargets.getGenPath(filesystem,captureTopChainTarget,"infer-out-%s"),analyzeChainDepOneTarget.getFullyQualifiedName() + "\t" + "[default, infer-analyze]\t"+ BuildTargets.getGenPath(filesystem,analyzeChainDepOneTarget,"infer-analysis-%s"),captureChainDepOneTarget.getFullyQualifiedName() + "\t" + "[default, infer-capture-"+ sanitizedChainDepOne+ "]\t"+ BuildTargets.getGenPath(filesystem,captureChainDepOneTarget,"infer-out-%s"),analyzeChainDepTwoTarget.getFullyQualifiedName() + "\t" + "[default, infer-analyze]\t"+ BuildTargets.getGenPath(filesystem,analyzeChainDepTwoTarget,"infer-analysis-%s"),captureChainDepTwoTarget.getFullyQualifiedName() + "\t" + "[default, infer-capture-"+ sanitizedChainDepTwo+ "]\t"+ BuildTargets.getGenPath(filesystem,captureChainDepTwoTarget,"infer-out-%s")));
   assertEquals(expectedOutput + "\n",loggedDeps);
 }

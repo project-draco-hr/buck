@@ -2,6 +2,7 @@
   assumeTrue(Platform.detect() != Platform.WINDOWS);
   ProjectWorkspace workspace=InferHelper.setupCxxInferWorkspace(this,tmp,Optional.<String>absent());
   workspace.enableDirCache();
+  ProjectFilesystem filesystem=new ProjectFilesystem(workspace.getDestPath());
   BuildTarget inputBuildTarget=BuildTargetFactory.newInstance("//foo:binary_with_chain_deps").withFlavors(CxxInferEnhancer.InferFlavors.INFER.get());
   workspace.runBuckCommand("build",inputBuildTarget.getFullyQualifiedName()).assertSuccess();
   workspace.runBuckCommand("clean").assertSuccess();
@@ -14,5 +15,5 @@
   workspace.replaceFileContents("foo/" + sourceName,"*p += 1","*p += 10");
   workspace.runBuckCommand("clean").assertSuccess();
   workspace.runBuckCommand("build",inputBuildTarget.getFullyQualifiedName()).assertSuccess();
-  assertTrue("Expected specs file for func_ret_null() in chain_dep_two.c not found",Files.exists(workspace.getPath(BuildTargets.getGenPath(BuildTargetFactory.newInstance("//foo:chain_dep_two#default,infer-analyze"),"infer-analysis-%s/specs/mockedSpec.specs"))));
+  assertTrue("Expected specs file for func_ret_null() in chain_dep_two.c not found",Files.exists(workspace.getPath(BuildTargets.getGenPath(filesystem,BuildTargetFactory.newInstance("//foo:chain_dep_two#default,infer-analyze"),"infer-analysis-%s/specs/mockedSpec.specs"))));
 }
