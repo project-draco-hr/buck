@@ -1,19 +1,12 @@
 {
-  ExecutionContext context=EasyMock.createMock(ExecutionContext.class);
-  expect(context.getProcessExecutor()).andReturn(new FakeProcessExecutor(processes,console)).anyTimes();
-  expect(context.getConsole()).andReturn(console).anyTimes();
-  expect(context.getVerbosity()).andReturn(console.getVerbosity()).anyTimes();
-  context.postEvent(anyObject(BuckEvent.class));
-  expectLastCall().andStubAnswer(new IAnswer<Void>(){
-    @Override public Void answer() throws Throwable {
-      ConsoleEvent event=(ConsoleEvent)getCurrentArguments()[0];
+  ExecutionContext context=TestExecutionContext.newBuilder().setConsole(console).setProcessExecutor(new FakeProcessExecutor(processes,console)).build();
+  context.getBuckEventBus().register(new Object(){
+    @Subscribe public void logEvent(    ConsoleEvent event) throws IOException {
       if (event.getLevel().equals(Level.WARNING)) {
         console.getStdErr().write(event.getMessage().getBytes(Charsets.US_ASCII));
       }
-      return null;
     }
   }
 );
-  replay(context);
   return context;
 }
