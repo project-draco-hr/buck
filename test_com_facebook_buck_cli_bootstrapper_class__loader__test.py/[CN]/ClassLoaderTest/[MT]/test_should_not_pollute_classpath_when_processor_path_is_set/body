@@ -1,13 +1,6 @@
 def test_should_not_pollute_classpath_when_processor_path_is_set(self):
     "\n        Tests that annotation processors get their own class path, isolated from Buck's.\n\n        There was a bug caused by adding annotation processors and setting the processorpath\n        for javac. In that case, Buck's version of guava would leak into the classpath of the\n        annotation processor causing it to fail to run and all heck breaking loose."
-    root_directory = os.getcwd()
-    buck_path = os.path.join(root_directory, 'bin', 'buck')
-    child_environment = dict(os.environ)
-    child_environment['NO_BUCKD'] = '1'
-    proc = subprocess.Popen([buck_path, 'build', '//:example'], cwd=self.test_data_directory, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=child_environment)
-    (stdout, stderr) = proc.communicate()
-    sys.stdout.write(stdout)
-    sys.stdout.flush()
-    sys.stderr.write(stderr)
-    sys.stderr.flush()
-    self.assertEquals(0, proc.returncode)
+    test_data = os.path.join('test', 'com', 'facebook', 'buck', 'cli', 'bootstrapper', 'testdata', 'old_guava')
+    with ProjectWorkspace(test_data) as workspace:
+        returncode = workspace.run_buck('build', '//:example')
+        self.assertEquals(0, returncode)
