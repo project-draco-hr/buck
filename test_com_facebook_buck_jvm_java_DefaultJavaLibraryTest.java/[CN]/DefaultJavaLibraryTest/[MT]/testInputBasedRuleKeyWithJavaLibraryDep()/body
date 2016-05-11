@@ -7,16 +7,14 @@
   writeAbiJar(filesystem,pathResolver.deprecatedGetPath(dep.getAbiJar().get()),"Source.class","ABI JAR contents");
   JavaLibrary library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addDep(dep.getBuildTarget()).build(resolver,filesystem);
   DefaultFileHashCache originalHashCache=new DefaultFileHashCache(filesystem);
-  RuleKeyBuilderFactory originalRuleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(originalHashCache,pathResolver);
-  InputBasedRuleKeyBuilderFactory factory=new InputBasedRuleKeyBuilderFactory(originalHashCache,pathResolver,originalRuleKeyBuilderFactory);
+  InputBasedRuleKeyBuilderFactory factory=new InputBasedRuleKeyBuilderFactory(originalHashCache,pathResolver);
   RuleKey originalRuleKey=factory.build(library);
   resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
   dep=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:dep")).addSrc(Paths.get("Source.java")).setResourcesRoot(Paths.get("some root that changes the rule key")).build(resolver,filesystem);
   filesystem.writeContentsToPath("different JAR contents",dep.getPathToOutput());
   library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addDep(dep.getBuildTarget()).build(resolver,filesystem);
   DefaultFileHashCache unaffectedHashCache=new DefaultFileHashCache(filesystem);
-  RuleKeyBuilderFactory unaffectedRuleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(unaffectedHashCache,pathResolver);
-  factory=new InputBasedRuleKeyBuilderFactory(unaffectedHashCache,pathResolver,unaffectedRuleKeyBuilderFactory);
+  factory=new InputBasedRuleKeyBuilderFactory(unaffectedHashCache,pathResolver);
   RuleKey unaffectedRuleKey=factory.build(library);
   assertThat(originalRuleKey,equalTo(unaffectedRuleKey));
   resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
@@ -24,8 +22,7 @@
   writeAbiJar(filesystem,pathResolver.deprecatedGetPath(dep.getAbiJar().get()),"Source.class","changed ABI JAR contents");
   library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addDep(dep.getBuildTarget()).build(resolver,filesystem);
   DefaultFileHashCache affectedHashCache=new DefaultFileHashCache(filesystem);
-  RuleKeyBuilderFactory affectedRuleKeyBuilderFactory=new DefaultRuleKeyBuilderFactory(affectedHashCache,pathResolver);
-  factory=new InputBasedRuleKeyBuilderFactory(affectedHashCache,pathResolver,affectedRuleKeyBuilderFactory);
+  factory=new InputBasedRuleKeyBuilderFactory(affectedHashCache,pathResolver);
   RuleKey affectedRuleKey=factory.build(library);
   assertThat(originalRuleKey,Matchers.not(equalTo(affectedRuleKey)));
 }
