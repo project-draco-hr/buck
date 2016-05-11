@@ -1,17 +1,18 @@
 {
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"prebuilt",temp);
   workspace.setUp();
-  ProjectWorkspace.ProcessResult result=workspace.runBuckBuild("//:jar");
+  BuildTarget target=BuildTargetFactory.newInstance("//:jar");
+  ProjectWorkspace.ProcessResult result=workspace.runBuckBuild(target.getFullyQualifiedName());
   result.assertSuccess();
-  BuildRuleEvent.Finished finished=getRuleFinished(result.getCapturedEvents());
-  assertEquals(CacheResultType.MISS,finished.getCacheResult().getType());
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  buildLog.assertTargetBuiltLocally(target.getFullyQualifiedName());
   result=workspace.runBuckBuild("//:jar");
   result.assertSuccess();
-  finished=getRuleFinished(result.getCapturedEvents());
-  assertEquals(CacheResultType.LOCAL_KEY_UNCHANGED_HIT,finished.getCacheResult().getType());
+  buildLog=workspace.getBuildLog();
+  buildLog.assertTargetHadMatchingRuleKey(target.getFullyQualifiedName());
   Path binaryJar=workspace.getPath("junit.jar");
   HashCode originalHash=MorePaths.asByteSource(binaryJar).hash(Hashing.sha1());
-  Path expectedOut=BuildTargets.getGenPath(BuildTargetFactory.newInstance("//:jar"),"%s-abi.jar");
+  Path expectedOut=BuildTargets.getGenPath(target,"%s-abi.jar");
   Path abiJar=workspace.getPath(expectedOut.toString());
   HashCode abiHash=MorePaths.asByteSource(abiJar).hash(Hashing.sha1());
   assertTrue(Files.exists(abiJar));

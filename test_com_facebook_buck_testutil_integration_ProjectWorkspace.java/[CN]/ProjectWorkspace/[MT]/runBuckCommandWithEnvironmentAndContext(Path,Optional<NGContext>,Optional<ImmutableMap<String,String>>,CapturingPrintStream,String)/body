@@ -1,0 +1,25 @@
+{
+  assertTrue("setUp() must be run before this method is invoked",isSetUp);
+  CapturingPrintStream stdout=new CapturingPrintStream();
+  InputStream stdin=new ByteArrayInputStream("".getBytes());
+  ImmutableList<String> inheritedEnvVars=ImmutableList.of("ANDROID_HOME","ANDROID_NDK","ANDROID_NDK_REPOSITORY","ANDROID_SDK","GROOVY_HOME","JAVA_HOME","NDK_HOME","PATH","PATHEXT","OS","ProgramW6432","ProgramFiles(x86)","HOME","TMP");
+  ImmutableMap.Builder<String,String> envBuilder=ImmutableMap.builder();
+  for (  String variable : inheritedEnvVars) {
+    String value=System.getenv(variable);
+    if (value != null) {
+      envBuilder.put(variable,value);
+    }
+  }
+  ImmutableMap<String,String> sanizitedEnv=envBuilder.build();
+  Main main=new Main(stdout,stderr,stdin);
+  int exitCode;
+  try {
+    exitCode=main.runMainWithExitCode(new BuildId(),repoRoot,context,env.or(sanizitedEnv),false,args);
+  }
+ catch (  InterruptedException e) {
+    e.printStackTrace(stderr);
+    exitCode=Main.FAIL_EXIT_CODE;
+    Thread.currentThread().interrupt();
+  }
+  return new ProcessResult(exitCode,stdout.getContentsAsString(Charsets.UTF_8),stderr.getContentsAsString(Charsets.UTF_8));
+}

@@ -5,15 +5,15 @@
   workspace.setUp();
   final DelegatingInputStream inputStream=new DelegatingInputStream(TestContext.createHeartBeatStream(timeoutMillis / 10));
   try (TestContext context=new TestContext(ImmutableMap.copyOf(System.getenv()),inputStream,timeoutMillis)){
-    BuckEventListener listener=new BuckEventListener(){
-      @Subscribe @SuppressWarnings("unused") public void onEvent(      TestRunEvent.Started event){
-        inputStream.setDelegate(TestContext.createHeartBeatStream(2 * timeoutMillis));
-      }
-      @Override public void outputTrace(      BuildId buildId) throws InterruptedException {
+    ProcessResult result=workspace.runBuckdCommand(context,new CapturingPrintStream(){
+      @Override public void println(      String x){
+        if (x.contains("TESTING //:test")) {
+          inputStream.setDelegate(TestContext.createDisconnectionStream(2 * timeoutMillis));
+        }
+        super.println(x);
       }
     }
-;
-    ProcessResult result=workspace.runBuckdCommand(context,listener,"test","//:test");
+,"test","//:test");
     result.assertFailure();
     assertThat(result.getStderr(),containsString("InterruptedException"));
   }
