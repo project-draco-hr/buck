@@ -6,8 +6,13 @@
   SerializableModule module=new SerializableModule(buildRule,buildTarget);
   Project.addRootExcludes(module,buildRule,projectFilesystem);
   ImmutableSortedSet.Builder<SourceFolder> expectedExcludeFolders=ImmutableSortedSet.orderedBy(SerializableModule.ALPHABETIZER);
+  expectedExcludeFolders.add(new SourceFolder("file://$MODULE_DIR$/buck-out/bin",false));
+  expectedExcludeFolders.add(new SourceFolder("file://$MODULE_DIR$/buck-out/log",false));
+  expectedExcludeFolders.add(new SourceFolder("file://$MODULE_DIR$/buck-out/tmp",false));
   for (  Path ignorePath : projectFilesystem.getIgnorePaths()) {
-    expectedExcludeFolders.add(new SourceFolder("file://$MODULE_DIR$/" + ignorePath,false));
+    if (!ignorePath.equals(projectFilesystem.getBuckPaths().getBuckOut()) && !ignorePath.equals(projectFilesystem.getBuckPaths().getGenDir())) {
+      expectedExcludeFolders.add(new SourceFolder("file://$MODULE_DIR$/" + ignorePath,false));
+    }
   }
   assertEquals("Specific subfolders of buck-out should be excluded rather than all of buck-out.",expectedExcludeFolders.build(),module.excludeFolders);
 }
