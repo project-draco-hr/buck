@@ -1,9 +1,20 @@
 {
-  executorService.shutdown();
   try {
-    if (!executorService.awaitTermination(shutdownTimeoutMillis,TimeUnit.MILLISECONDS)) {
-      LOG.warn(Joiner.on(System.lineSeparator()).join("The BuckEventBus failed to shut down within the standard timeout.","Your build might have succeeded, but some messages were probably lost.","Here's some debugging information:",executorService.toString()));
-      executorService.shutdownNow();
+    ImmutableSet.Builder<ExecutorService> leftoverExecutorsBuilder=ImmutableSet.builder();
+    for (    Pair<ExecutorService,EventBus> executorAndBus : executorsAndBuses) {
+      ExecutorService executorService=executorAndBus.getFirst();
+      executorService.shutdown();
+      if (!executorService.awaitTermination(shutdownTimeoutMillis,TimeUnit.MILLISECONDS)) {
+        leftoverExecutorsBuilder.add(executorService);
+      }
+    }
+    ImmutableSet<ExecutorService> leftoverExecutors=leftoverExecutorsBuilder.build();
+    if (!leftoverExecutors.isEmpty()) {
+      ImmutableSet<String> message=ImmutableSet.of("The BuckEventBus failed to shut down within the standard timeout.","Your build might have succeeded, but some messages were probably lost.","Here's some debugging information:");
+      LOG.warn(Joiner.on(System.lineSeparator()).join(Iterables.concat(message,Iterables.transform(leftoverExecutors,Functions.toStringFunction()))));
+      for (      ExecutorService leftoverExecutor : leftoverExecutors) {
+        leftoverExecutor.shutdownNow();
+      }
     }
   }
  catch (  InterruptedException e) {
