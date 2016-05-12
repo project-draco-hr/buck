@@ -6,14 +6,15 @@
   }
 ;
   ImmutableSet<String> inputs=ImmutableSet.of("java/somefolder/badfolder/somefile.java","java/somefolder/perfect.java","com/test/subtest/random.java");
-  ImmutableSortedSet<Path> inputPaths=MorePaths.asPaths(inputs);
+  ImmutableSortedSet<Path> inputPaths=asPaths(inputs);
   BuildTarget target=BuildTargetFactory.newInstance("//base/name:name");
   TargetNode<?> targetNode=createTargetNode(target,inputPaths);
   AuditOwnerCommand command=new AuditOwnerCommand();
   CommandRunnerParams params=createAuditOwnerCommandRunnerParams(filesystem);
   AuditOwnerCommand.OwnersReport report=AuditOwnerCommand.generateOwnersReport(params,targetNode,inputs,false);
   command.printOwnersOnlyJsonReport(params,report);
-  String expectedJson=Joiner.on("").join("{","\"com/test/subtest/random.java\":[\"//base/name:name\"],","\"java/somefolder/badfolder/somefile.java\":[\"//base/name:name\"],","\"java/somefolder/perfect.java\":[\"//base/name:name\"]","}");
+  ObjectMapper mapper=ObjectMappers.newDefaultInstance();
+  String expectedJson=Joiner.on("").join("{",mapper.valueToTree(pathWithPlatformSeparators("com/test/subtest/random.java")),":[\"//base/name:name\"],",mapper.valueToTree(pathWithPlatformSeparators("java/somefolder/badfolder/somefile.java")),":[\"//base/name:name\"],",mapper.valueToTree(pathWithPlatformSeparators("java/somefolder/perfect.java")),":[\"//base/name:name\"]","}");
   assertEquals(expectedJson,console.getTextWrittenToStdOut());
   assertEquals("",console.getTextWrittenToStdErr());
 }
