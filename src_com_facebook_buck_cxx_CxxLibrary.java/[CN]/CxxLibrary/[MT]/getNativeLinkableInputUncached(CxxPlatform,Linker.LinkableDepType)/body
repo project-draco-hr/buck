@@ -5,21 +5,35 @@
   ImmutableList.Builder<Arg> linkerArgsBuilder=ImmutableList.builder();
   linkerArgsBuilder.addAll(Preconditions.checkNotNull(exportedLinkerFlags.apply(cxxPlatform)));
   if (!headerOnly.apply(cxxPlatform)) {
-    if (type != Linker.LinkableDepType.SHARED || linkage == Linkage.STATIC) {
-      Archive archive=(Archive)requireBuildRule(cxxPlatform.getFlavor(),type == Linker.LinkableDepType.STATIC ? CxxDescriptionEnhancer.STATIC_FLAVOR : CxxDescriptionEnhancer.STATIC_PIC_FLAVOR);
-      if (linkWhole) {
-        Linker linker=cxxPlatform.getLd().resolve(ruleResolver);
-        linkerArgsBuilder.addAll(linker.linkWhole(archive.toArg()));
-      }
+    boolean isStatic;
+switch (linkage) {
+case STATIC:
+      isStatic=true;
+    break;
+case SHARED:
+  isStatic=false;
+break;
+case ANY:
+isStatic=type != Linker.LinkableDepType.SHARED;
+break;
+default :
+throw new IllegalStateException("unhandled linkage type: " + linkage);
+}
+if (isStatic) {
+Archive archive=(Archive)requireBuildRule(cxxPlatform.getFlavor(),type == Linker.LinkableDepType.STATIC ? CxxDescriptionEnhancer.STATIC_FLAVOR : CxxDescriptionEnhancer.STATIC_PIC_FLAVOR);
+if (linkWhole) {
+Linker linker=cxxPlatform.getLd().resolve(ruleResolver);
+linkerArgsBuilder.addAll(linker.linkWhole(archive.toArg()));
+}
  else {
-        linkerArgsBuilder.add(archive.toArg());
-      }
-    }
+linkerArgsBuilder.add(archive.toArg());
+}
+}
  else {
-      BuildRule rule=requireBuildRule(cxxPlatform.getFlavor(),CxxDescriptionEnhancer.SHARED_FLAVOR);
-      linkerArgsBuilder.add(new SourcePathArg(getResolver(),new BuildTargetSourcePath(rule.getBuildTarget())));
-    }
-  }
-  final ImmutableList<Arg> linkerArgs=linkerArgsBuilder.build();
-  return NativeLinkableInput.of(linkerArgs,Preconditions.checkNotNull(frameworks),Preconditions.checkNotNull(libraries));
+BuildRule rule=requireBuildRule(cxxPlatform.getFlavor(),CxxDescriptionEnhancer.SHARED_FLAVOR);
+linkerArgsBuilder.add(new SourcePathArg(getResolver(),new BuildTargetSourcePath(rule.getBuildTarget())));
+}
+}
+final ImmutableList<Arg> linkerArgs=linkerArgsBuilder.build();
+return NativeLinkableInput.of(linkerArgs,Preconditions.checkNotNull(frameworks),Preconditions.checkNotNull(libraries));
 }
