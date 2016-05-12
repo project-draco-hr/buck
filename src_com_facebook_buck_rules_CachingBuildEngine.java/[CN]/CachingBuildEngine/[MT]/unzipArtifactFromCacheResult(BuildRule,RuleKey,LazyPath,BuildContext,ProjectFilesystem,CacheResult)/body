@@ -1,0 +1,30 @@
+{
+  if (!cacheResult.getType().isSuccess()) {
+    LOG.debug("Cache miss for '%s' with rulekey '%s'",rule,ruleKey);
+    return Futures.immediateFuture(cacheResult);
+  }
+  LOG.debug("Fetched '%s' from cache with rulekey '%s'",rule,ruleKey);
+  Path zipPath=lazyZipPath.getUnchecked();
+  ArtifactCompressionEvent.Started started=ArtifactCompressionEvent.started(ArtifactCompressionEvent.Operation.DECOMPRESS,ImmutableSet.of(ruleKey));
+  buildContext.getEventBus().post(started);
+  try {
+    Unzip.extractZipFile(zipPath.toAbsolutePath(),filesystem,Unzip.ExistingFileMode.OVERWRITE_AND_CLEAN_DIRECTORIES);
+    Files.delete(zipPath);
+    if (cacheResult.getType() == CacheResultType.HIT) {
+      Path metadataDir=BuildInfo.getPathToMetadataDirectory(rule.getBuildTarget(),rule.getProjectFilesystem());
+      for (      Map.Entry<String,String> ent : cacheResult.getMetadata().entrySet()) {
+        Path dest=metadataDir.resolve(ent.getKey());
+        filesystem.createParentDirs(dest);
+        filesystem.writeContentsToPath(ent.getValue(),dest);
+      }
+    }
+  }
+ catch (  IOException e) {
+    buildContext.getEventBus().post(ConsoleEvent.warning("Failed to unzip the artifact for %s at %s.\n" + "The rule will be built locally, " + "but here is the stacktrace of the failed unzip call:\n"+ rule.getBuildTarget(),zipPath.toAbsolutePath(),Throwables.getStackTraceAsString(e)));
+    return Futures.immediateCheckedFuture(CacheResult.miss());
+  }
+ finally {
+    buildContext.getEventBus().post(ArtifactCompressionEvent.finished(started));
+  }
+  return Futures.immediateFuture(cacheResult);
+}
