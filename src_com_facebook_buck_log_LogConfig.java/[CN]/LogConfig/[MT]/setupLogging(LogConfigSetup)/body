@@ -1,0 +1,25 @@
+{
+  Files.createDirectories(BuckConstant.getLogPath());
+  if (logConfigSetup.getRotateLog()) {
+    try {
+      deleteOldLogFiles(logConfigSetup);
+    }
+ catch (    IOException e) {
+      System.err.format("Error deleting old log files (ignored): %s\n",e.getMessage());
+    }
+  }
+  ImmutableList.Builder<InputStream> inputStreamsBuilder=ImmutableList.builder();
+  if (!LogConfigPaths.MAIN_PATH.isPresent()) {
+    System.err.format("Error: Couldn't read system property %s (it should be set by buck_common or buck.cmd)\n",LogConfigPaths.BUCK_CONFIG_STRING_TEMPLATE_FILE_PROPERTY);
+  }
+ else {
+    if (!addInputStreamForTemplate(LogConfigPaths.MAIN_PATH.get(),logConfigSetup,inputStreamsBuilder)) {
+      System.err.format("Error: Couldn't open logging properties file %s\n",LogConfigPaths.MAIN_PATH.get());
+    }
+  }
+  addInputStreamForPath(LogConfigPaths.PROJECT_PATH,inputStreamsBuilder);
+  addInputStreamForPath(LogConfigPaths.LOCAL_PATH,inputStreamsBuilder);
+  try (InputStream is=new SequenceInputStream(Iterators.asEnumeration(inputStreamsBuilder.build().iterator()))){
+    LogManager.getLogManager().readConfiguration(is);
+  }
+ }
