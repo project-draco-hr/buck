@@ -10,99 +10,96 @@
       return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_RULE_KEY,CacheResult.localKeyUnchangedHit())));
     }
     cacheResultFuture=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,ruleKeyFactory.defaultRuleKeyBuilderFactory.build(rule),buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
-    try {
-      CacheResult cacheResult=cacheResultFuture.get();
-      if (cacheResult.getType().isSuccess()) {
-        return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult)));
-      }
-    }
- catch (    ExecutionException e) {
-      if (e.getCause() instanceof InterruptedException) {
-        throw new InterruptedException(e.getCause().getMessage());
-      }
-    }
-  }
-   ListenableFuture<List<BuildResult>> getDepResults=Futures.transformAsync(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,List<BuildResult>>(){
-    @Override public ListenableFuture<List<BuildResult>> apply(    List<BuildResult> input){
-      return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(input));
-    }
-  }
+    return Futures.transformAsync(cacheResultFuture,new AsyncFunction<CacheResult,BuildResult>(){
+      @Override public ListenableFuture<BuildResult> apply(      CacheResult cacheResult){
+        if (cacheResult.getType().isSuccess()) {
+          return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult)));
+        }
+        ListenableFuture<List<BuildResult>> getDepResults=Futures.transformAsync(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,List<BuildResult>>(){
+          @Override public ListenableFuture<List<BuildResult>> apply(          List<BuildResult> input){
+            return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(input));
+          }
+        }
 );
-  AsyncFunction<List<BuildResult>,Optional<BuildResult>> checkCachesCallback=new AsyncFunction<List<BuildResult>,Optional<BuildResult>>(){
-    @Override public ListenableFuture<Optional<BuildResult>> apply(    List<BuildResult> depResults) throws Exception {
-      for (      BuildResult depResult : depResults) {
-        if (buildMode != BuildMode.POPULATE_FROM_REMOTE_CACHE && depResult.getStatus() != BuildRuleStatus.SUCCESS) {
-          return Futures.immediateFuture(Optional.of(BuildResult.canceled(rule,Preconditions.checkNotNull(depResult.getFailure()))));
-        }
-      }
-      if (buildMode != BuildMode.POPULATE_FROM_REMOTE_CACHE && !context.isKeepGoing() && firstFailure != null) {
-        return Futures.immediateFuture(Optional.of(BuildResult.canceled(rule,firstFailure)));
-      }
-      if (useDependencyFileRuleKey(rule)) {
-        Optional<Pair<RuleKey,ImmutableSet<SourcePath>>> depFileRuleKeyAndInputs=calculateDepFileRuleKey(rule,onDiskBuildInfo.getValues(BuildInfo.METADATA_KEY_FOR_DEP_FILE),true);
-        if (depFileRuleKeyAndInputs.isPresent()) {
-          RuleKey depFileRuleKey=depFileRuleKeyAndInputs.get().getFirst();
-          Optional<RuleKey> lastDepFileRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY);
-          if (lastDepFileRuleKey.isPresent() && depFileRuleKey.equals(lastDepFileRuleKey.get())) {
-            return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_DEP_FILE_RULE_KEY,CacheResult.localKeyUnchangedHit())));
+        AsyncFunction<List<BuildResult>,Optional<BuildResult>> checkCachesCallback=new AsyncFunction<List<BuildResult>,Optional<BuildResult>>(){
+          @Override public ListenableFuture<Optional<BuildResult>> apply(          List<BuildResult> depResults) throws Exception {
+            for (            BuildResult depResult : depResults) {
+              if (buildMode != BuildMode.POPULATE_FROM_REMOTE_CACHE && depResult.getStatus() != BuildRuleStatus.SUCCESS) {
+                return Futures.immediateFuture(Optional.of(BuildResult.canceled(rule,Preconditions.checkNotNull(depResult.getFailure()))));
+              }
+            }
+            if (buildMode != BuildMode.POPULATE_FROM_REMOTE_CACHE && !context.isKeepGoing() && firstFailure != null) {
+              return Futures.immediateFuture(Optional.of(BuildResult.canceled(rule,firstFailure)));
+            }
+            if (useDependencyFileRuleKey(rule)) {
+              Optional<Pair<RuleKey,ImmutableSet<SourcePath>>> depFileRuleKeyAndInputs=calculateDepFileRuleKey(rule,onDiskBuildInfo.getValues(BuildInfo.METADATA_KEY_FOR_DEP_FILE),true);
+              if (depFileRuleKeyAndInputs.isPresent()) {
+                RuleKey depFileRuleKey=depFileRuleKeyAndInputs.get().getFirst();
+                Optional<RuleKey> lastDepFileRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY);
+                if (lastDepFileRuleKey.isPresent() && depFileRuleKey.equals(lastDepFileRuleKey.get())) {
+                  return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_DEP_FILE_RULE_KEY,CacheResult.localKeyUnchangedHit())));
+                }
+              }
+            }
+            if (useManifestCaching(rule)) {
+              CacheResult cacheResult=performManifestBasedCacheFetch(rule,context,buildInfoRecorder).get();
+              if (cacheResult.getType().isSuccess()) {
+                return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_MANIFEST_BASED,cacheResult)));
+              }
+            }
+            if (rule instanceof SupportsInputBasedRuleKey) {
+              RuleKey inputRuleKey=ruleKeyFactory.inputBasedRuleKeyBuilderFactory.build(rule);
+              buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY,inputRuleKey.toString());
+              Optional<RuleKey> lastInputRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY);
+              if (inputRuleKey.equals(lastInputRuleKey.orNull())) {
+                return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY,CacheResult.localKeyUnchangedHit())));
+              }
+              CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,inputRuleKey,buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context).get();
+              if (cacheResult.getType().isSuccess()) {
+                return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,cacheResult)));
+              }
+            }
+            if (rule instanceof AbiRule) {
+              RuleKey abiRuleKey=ruleKeyFactory.abiRuleKeyBuilderFactory.build(rule);
+              buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_ABI_RULE_KEY,abiRuleKey.toString());
+              Optional<RuleKey> lastAbiRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_ABI_RULE_KEY);
+              if (abiRuleKey.equals(lastAbiRuleKey.orNull())) {
+                return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_ABI_RULE_KEY,CacheResult.localKeyUnchangedHit())));
+              }
+            }
+            if (buildMode == BuildMode.POPULATE_FROM_REMOTE_CACHE) {
+              LOG.info("Cannot populate cache for " + rule.getBuildTarget().getFullyQualifiedName());
+              return Futures.immediateFuture(Optional.of(BuildResult.canceled(rule,new HumanReadableException("Skipping %s: in cache population mode local builds are " + "disabled",rule))));
+            }
+            return Futures.immediateFuture(Optional.<BuildResult>absent());
           }
         }
-      }
-      if (useManifestCaching(rule)) {
-        CacheResult cacheResult=performManifestBasedCacheFetch(rule,context,buildInfoRecorder).get();
-        if (cacheResult.getType().isSuccess()) {
-          return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_MANIFEST_BASED,cacheResult)));
-        }
-      }
-      if (rule instanceof SupportsInputBasedRuleKey) {
-        RuleKey inputRuleKey=ruleKeyFactory.inputBasedRuleKeyBuilderFactory.build(rule);
-        buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY,inputRuleKey.toString());
-        Optional<RuleKey> lastInputRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY);
-        if (inputRuleKey.equals(lastInputRuleKey.orNull())) {
-          return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY,CacheResult.localKeyUnchangedHit())));
-        }
-        CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,inputRuleKey,buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context).get();
-        if (cacheResult.getType().isSuccess()) {
-          return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,cacheResult)));
-        }
-      }
-      if (rule instanceof AbiRule) {
-        RuleKey abiRuleKey=ruleKeyFactory.abiRuleKeyBuilderFactory.build(rule);
-        buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_ABI_RULE_KEY,abiRuleKey.toString());
-        Optional<RuleKey> lastAbiRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_ABI_RULE_KEY);
-        if (abiRuleKey.equals(lastAbiRuleKey.orNull())) {
-          return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_ABI_RULE_KEY,CacheResult.localKeyUnchangedHit())));
-        }
-      }
-      if (buildMode == BuildMode.POPULATE_FROM_REMOTE_CACHE) {
-        LOG.info("Cannot populate cache for " + rule.getBuildTarget().getFullyQualifiedName());
-        return Futures.immediateFuture(Optional.of(BuildResult.canceled(rule,new HumanReadableException("Skipping %s: in cache population mode local builds are disabled",rule))));
-      }
-      return Futures.immediateFuture(Optional.<BuildResult>absent());
-    }
-  }
 ;
-  ListenableFuture<Optional<BuildResult>> checkCachesResult=Futures.transformAsync(getDepResults,ruleAsyncFunction(rule,context,checkCachesCallback));
-  AsyncFunction<Optional<BuildResult>,BuildResult> buildLocallyCallback=new AsyncFunction<Optional<BuildResult>,BuildResult>(){
-    @Override public ListenableFuture<BuildResult> apply(    Optional<BuildResult> result){
-      if (result.isPresent()) {
-        return Futures.immediateFuture(result.get());
-      }
-      RuleScheduleInfo ruleScheduleInfo=getRuleScheduleInfo(rule);
-      return service.submit(new Callable<BuildResult>(){
-        @Override public BuildResult call() throws Exception {
-          if (!context.isKeepGoing() && firstFailure != null) {
-            return BuildResult.canceled(rule,firstFailure);
-          }
-          try (BuildRuleEvent.Scope scope=BuildRuleEvent.resumeSuspendScope(context.getEventBus(),rule,ruleKeyFactory.defaultRuleKeyBuilderFactory)){
-            executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
-            return BuildResult.success(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResultFuture.get());
-          }
-         }
-      }
+        ListenableFuture<Optional<BuildResult>> checkCachesResult=Futures.transformAsync(getDepResults,ruleAsyncFunction(rule,context,checkCachesCallback));
+        AsyncFunction<Optional<BuildResult>,BuildResult> buildLocallyCallback=new AsyncFunction<Optional<BuildResult>,BuildResult>(){
+          @Override public ListenableFuture<BuildResult> apply(          Optional<BuildResult> result){
+            if (result.isPresent()) {
+              return Futures.immediateFuture(result.get());
+            }
+            RuleScheduleInfo ruleScheduleInfo=getRuleScheduleInfo(rule);
+            return service.submit(new Callable<BuildResult>(){
+              @Override public BuildResult call() throws Exception {
+                if (!context.isKeepGoing() && firstFailure != null) {
+                  return BuildResult.canceled(rule,firstFailure);
+                }
+                try (BuildRuleEvent.Scope scope=BuildRuleEvent.resumeSuspendScope(context.getEventBus(),rule,ruleKeyFactory.defaultRuleKeyBuilderFactory)){
+                  executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
+                  return BuildResult.success(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResultFuture.get());
+                }
+               }
+            }
 ,DEFAULT_BUILD_WEIGHT * ruleScheduleInfo.getJobsMultiplier());
-    }
-  }
+          }
+        }
 ;
-  return Futures.transformAsync(checkCachesResult,buildLocallyCallback);
-}
+        return Futures.transformAsync(checkCachesResult,buildLocallyCallback);
+      }
+    }
+);
+  }
+ }
