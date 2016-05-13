@@ -47,7 +47,7 @@
       params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
       return 1;
     }
-    ActionGraphAndResolver actionGraphAndResolver=Preconditions.checkNotNull(params.getActionGraphCache().getActionGraph(params.getBuckEventBus(),BuildIdSampler.apply(params.getBuckConfig().getActionGraphCacheCheckSampleRate(),params.getBuckEventBus().getBuildId()),targetGraph));
+    ActionGraphAndResolver actionGraphAndResolver=Preconditions.checkNotNull(params.getActionGraphCache().getActionGraph(params.getBuckEventBus(),BuildIdSampler.apply(params.getBuckConfig().getActionGraphCacheCheckSampleRate(),params.getBuckEventBus().getBuildId()),targetGraph,params.getBuckConfig().getKeySeed()));
     Iterable<TestRule> testRules=Iterables.filter(actionGraphAndResolver.getActionGraph().getNodes(),TestRule.class);
     if (!isBuildFiltered(params.getBuckConfig())) {
       testRules=filterTestRules(params.getBuckConfig(),explicitBuildTargets,testRules);
@@ -55,7 +55,7 @@
     if (isDryRun()) {
       printMatchingTestRules(params.getConsole(),testRules);
     }
-    CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),params.getFileHashCache(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),params.getBuckConfig().getDependencySchedulingOrder(),params.getBuckConfig().getBuildDepFiles(),params.getBuckConfig().getBuildMaxDepFileCacheEntries(),params.getBuckConfig().getBuildArtifactCacheSizeLimit(),params.getObjectMapper(),actionGraphAndResolver.getResolver(),Preconditions.checkNotNull(params.getExecutors().get(ExecutionContext.ExecutorPool.NETWORK)));
+    CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(pool.getExecutor(),params.getFileHashCache(),getBuildEngineMode().or(params.getBuckConfig().getBuildEngineMode()),params.getBuckConfig().getDependencySchedulingOrder(),params.getBuckConfig().getBuildDepFiles(),params.getBuckConfig().getBuildMaxDepFileCacheEntries(),params.getBuckConfig().getBuildArtifactCacheSizeLimit(),params.getObjectMapper(),actionGraphAndResolver.getResolver(),Preconditions.checkNotNull(params.getExecutors().get(ExecutionContext.ExecutorPool.NETWORK)),params.getBuckConfig().getKeySeed());
     try (Build build=createBuild(params.getBuckConfig(),actionGraphAndResolver.getActionGraph(),actionGraphAndResolver.getResolver(),params.getAndroidPlatformTargetSupplier(),cachingBuildEngine,params.getArtifactCache(),params.getConsole(),params.getBuckEventBus(),getTargetDeviceOptional(),params.getPlatform(),params.getEnvironment(),params.getObjectMapper(),params.getClock(),Optional.of(getAdbOptions(params.getBuckConfig())),Optional.of(getTargetDeviceOptions()),params.getExecutors())){
       int exitCode=build.executeAndPrintFailuresToEventBus(testRules,isKeepGoing(),params.getBuckEventBus(),params.getConsole(),getPathToBuildReport(params.getBuckConfig()));
       params.getBuckEventBus().post(BuildEvent.finished(started,exitCode));
