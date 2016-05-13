@@ -1,50 +1,50 @@
 {
   if (hasGeneratedSources) {
-    int genExitCode=generateSources(context,filesystem.getRootPath());
-    if (genExitCode != 0) {
-      return genExitCode;
+    StepExecutionResult genExecutionResult=generateSources(context,filesystem.getRootPath());
+    if (!genExecutionResult.isSuccess()) {
+      return genExecutionResult;
     }
   }
-  int depToolExitCode=depToolStep.execute(context);
-  if (depToolExitCode != 0) {
-    return depToolExitCode;
+  StepExecutionResult depToolExecutionResult=depToolStep.execute(context);
+  if (!depToolExecutionResult.isSuccess()) {
+    return depToolExecutionResult;
   }
   ImmutableList<Path> sortedInput=sortDependency(depToolStep.getStdout());
   ImmutableList.Builder<Path> nativeLinkerInputs=ImmutableList.builder();
   if (!bytecodeOnly) {
-    int mlCompileNativeExitCode=executeMLNativeCompilation(context,filesystem.getRootPath(),sortedInput,nativeLinkerInputs);
-    if (mlCompileNativeExitCode != 0) {
-      return mlCompileNativeExitCode;
+    StepExecutionResult mlCompileNativeExecutionResult=executeMLNativeCompilation(context,filesystem.getRootPath(),sortedInput,nativeLinkerInputs);
+    if (!mlCompileNativeExecutionResult.isSuccess()) {
+      return mlCompileNativeExecutionResult;
     }
   }
   ImmutableList.Builder<Path> bytecodeLinkerInputs=ImmutableList.builder();
-  int mlCompileBytecodeExitCode=executeMLBytecodeCompilation(context,filesystem.getRootPath(),sortedInput,bytecodeLinkerInputs);
-  if (mlCompileBytecodeExitCode != 0) {
-    return mlCompileBytecodeExitCode;
+  StepExecutionResult mlCompileBytecodeExecutionResult=executeMLBytecodeCompilation(context,filesystem.getRootPath(),sortedInput,bytecodeLinkerInputs);
+  if (!mlCompileBytecodeExecutionResult.isSuccess()) {
+    return mlCompileBytecodeExecutionResult;
   }
   ImmutableList.Builder<Path> cLinkerInputs=ImmutableList.builder();
-  int cCompileExitCode=executeCCompilation(context,cLinkerInputs);
-  if (cCompileExitCode != 0) {
-    return cCompileExitCode;
+  StepExecutionResult cCompileExecutionResult=executeCCompilation(context,cLinkerInputs);
+  if (!cCompileExecutionResult.isSuccess()) {
+    return cCompileExecutionResult;
   }
   ImmutableList<Path> cObjects=cLinkerInputs.build();
   if (!bytecodeOnly) {
     nativeLinkerInputs.addAll(cObjects);
-    int nativeLinkExitCode=executeNativeLinking(context,nativeLinkerInputs.build());
-    if (nativeLinkExitCode != 0) {
-      return nativeLinkExitCode;
+    StepExecutionResult nativeLinkExecutionResult=executeNativeLinking(context,nativeLinkerInputs.build());
+    if (!nativeLinkExecutionResult.isSuccess()) {
+      return nativeLinkExecutionResult;
     }
   }
   bytecodeLinkerInputs.addAll(cObjects);
-  int bytecodeLinkExitCode=executeBytecodeLinking(context,bytecodeLinkerInputs.build());
-  if (bytecodeLinkExitCode != 0) {
-    return bytecodeLinkExitCode;
+  StepExecutionResult bytecodeLinkExecutionResult=executeBytecodeLinking(context,bytecodeLinkerInputs.build());
+  if (!bytecodeLinkExecutionResult.isSuccess()) {
+    return bytecodeLinkExecutionResult;
   }
   if (!ocamlContext.isLibrary()) {
     Step debugLauncher=new OCamlDebugLauncherStep(filesystem,resolver,new OCamlDebugLauncherStep.Args(ocamlContext.getOcamlDebug().get(),ocamlContext.getBytecodeOutput(),ocamlContext.getOCamlInput(),ocamlContext.getBytecodeIncludeFlags()));
     return debugLauncher.execute(context);
   }
  else {
-    return 0;
+    return StepExecutionResult.SUCCESS;
   }
 }

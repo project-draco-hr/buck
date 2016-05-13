@@ -11,14 +11,14 @@
       final MkdirStep mkDirStep=new MkdirStep(filesystem,libDestinationDir);
       final CopyStep copyStep=CopyStep.forDirectory(filesystem,libSourceDir,libDestinationDir,CopyStep.DirectoryMode.CONTENTS_ONLY);
       steps.add(new Step(){
-        @Override public int execute(        ExecutionContext context){
+        @Override public StepExecutionResult execute(        ExecutionContext context){
           if (!filesystem.exists(libSourceDir)) {
-            return 0;
+            return StepExecutionResult.SUCCESS;
           }
-          if (mkDirStep.execute(context) == 0 && copyStep.execute(context) == 0) {
-            return 0;
+          if (mkDirStep.execute(context).isSuccess() && copyStep.execute(context).isSuccess()) {
+            return StepExecutionResult.SUCCESS;
           }
-          return 1;
+          return StepExecutionResult.ERROR;
         }
         @Override public String getShortName(){
           return "copy_native_libraries";
@@ -35,7 +35,7 @@
     }
   }
   steps.add(new AbstractExecutionStep("rename_native_executables"){
-    @Override public int execute(    ExecutionContext context){
+    @Override public StepExecutionResult execute(    ExecutionContext context){
       final ImmutableSet.Builder<Path> executablesBuilder=ImmutableSet.builder();
       try {
         filesystem.walkRelativeFileTree(destinationDir,new SimpleFileVisitor<Path>(){
@@ -54,9 +54,9 @@
       }
  catch (      IOException e) {
         context.logError(e,"Renaming native executables failed.");
-        return 1;
+        return StepExecutionResult.ERROR;
       }
-      return 0;
+      return StepExecutionResult.SUCCESS;
     }
   }
 );

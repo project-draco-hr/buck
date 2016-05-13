@@ -7,19 +7,19 @@
       int returnCode=listAndFilterTestsThenFormatXctoolParams(context.getProcessExecutor(),context.getConsole(),testSelectorList,ProcessExecutorParams.builder().from(processExecutorParamsBuilder.build()).addCommand("-listTestsOnly").build(),xctoolFilterParamsBuilder);
       if (returnCode != 0) {
         context.getConsole().printErrorText("Failed to query tests with xctool");
-        return returnCode;
+        return StepExecutionResult.of(returnCode);
       }
       ImmutableList<String> xctoolFilterParams=xctoolFilterParamsBuilder.build();
       if (xctoolFilterParams.isEmpty()) {
         context.getConsole().printBuildFailure(String.format(Locale.US,"No tests found matching specified filter (%s)",testSelectorList.getExplanation()));
-        return 0;
+        return StepExecutionResult.SUCCESS;
       }
       processExecutorParamsBuilder.addAllCommand(xctoolFilterParams);
     }
  catch (    IOException e) {
       context.getConsole().printErrorText("Failed to get list of tests from test bundle");
       context.getConsole().printBuildFailureWithStacktrace(e);
-      return 1;
+      return StepExecutionResult.ERROR;
     }
   }
   ProcessExecutorParams processExecutorParams=processExecutorParamsBuilder.build();
@@ -55,13 +55,13 @@
           context.getConsole().printErrorText(String.format(Locale.US,"xctool failed with exit code %d",exitCode));
         }
       }
-      return exitCode;
+      return StepExecutionResult.of(exitCode);
     }
  catch (    Exception e) {
       LOG.error(e,"Exception while running %s",processExecutorParams.getCommand());
       MoreThrowables.propagateIfInterrupt(e);
       context.getConsole().printBuildFailureWithStacktrace(e);
-      return 1;
+      return StepExecutionResult.ERROR;
     }
   }
   finally {
