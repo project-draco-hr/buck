@@ -1,0 +1,35 @@
+{
+  final Map<BuildTarget,ImmutableList<String>> depFlags=new TreeMap<>();
+  final Map<BuildTarget,ImmutableList<SourcePath>> depIncludes=new TreeMap<>();
+  final ImmutableSortedMap.Builder<String,HaskellPackage> exposedPackagesBuilder=ImmutableSortedMap.naturalOrder();
+  final ImmutableSortedMap.Builder<String,HaskellPackage> packagesBuilder=ImmutableSortedMap.naturalOrder();
+  new AbstractBreadthFirstThrowingTraversal<BuildRule,NoSuchBuildTargetException>(baseParams.getDeps()){
+    private final ImmutableSet<BuildRule> empty=ImmutableSet.of();
+    @Override public Iterable<BuildRule> visit(    BuildRule rule) throws NoSuchBuildTargetException {
+      ImmutableSet<BuildRule> deps=empty;
+      if (rule instanceof HaskellCompileDep) {
+        deps=rule.getDeps();
+        HaskellCompileInput compileInput=((HaskellCompileDep)rule).getCompileInput(cxxPlatform,picType);
+        depFlags.put(rule.getBuildTarget(),compileInput.getFlags());
+        depIncludes.put(rule.getBuildTarget(),compileInput.getIncludes());
+        boolean firstOrderDep=baseParams.getDeps().contains(rule);
+        for (        HaskellPackage pkg : compileInput.getPackages()) {
+          if (firstOrderDep) {
+            exposedPackagesBuilder.put(pkg.getInfo().getIdentifier(),pkg);
+          }
+ else {
+            packagesBuilder.put(pkg.getInfo().getIdentifier(),pkg);
+          }
+        }
+      }
+      return deps;
+    }
+  }
+.start();
+  Tool compiler=haskellConfig.getCompiler().resolve(resolver);
+  ImmutableList<String> compileFlags=ImmutableList.<String>builder().addAll(haskellConfig.getCompilerFlags()).addAll(flags).addAll(Iterables.concat(depFlags.values())).build();
+  ImmutableList<SourcePath> includes=ImmutableList.copyOf(Iterables.concat(depIncludes.values()));
+  ImmutableSortedMap<String,HaskellPackage> exposedPackages=exposedPackagesBuilder.build();
+  ImmutableSortedMap<String,HaskellPackage> packages=packagesBuilder.build();
+  return new HaskellCompileRule(baseParams.copyWithChanges(target,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(compiler.getDeps(pathResolver)).addAll(pathResolver.filterBuildRuleInputs(includes)).addAll(sources.getDeps(pathResolver)).addAll(FluentIterable.from(exposedPackages.values()).transformAndConcat(HaskellPackage.getDepsFunction(pathResolver))).addAll(FluentIterable.from(packages.values()).transformAndConcat(HaskellPackage.getDepsFunction(pathResolver))).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,haskellConfig.getCompiler().resolve(resolver),compileFlags,picType,main,packageInfo,includes,exposedPackages,packages,sources);
+}

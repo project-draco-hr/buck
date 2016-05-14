@@ -1,0 +1,33 @@
+{
+  Map<String,String> entries=new LinkedHashMap<>();
+  entries.put("name",packageInfo.getName());
+  entries.put("version",packageInfo.getVersion());
+  entries.put("id",packageInfo.getIdentifier());
+  entries.put("exposed","True");
+  entries.put("exposed-modules",Joiner.on(' ').join(modules));
+  Path pkgRoot=getProjectFilesystem().getRootPath().getFileSystem().getPath("${pkgroot}");
+  if (!modules.isEmpty()) {
+    List<String> importDirs=new ArrayList<>();
+    for (    SourcePath interfaceDir : interfaces) {
+      Path relInterfaceDir=pkgRoot.resolve(packageDb.getParent().relativize(getResolver().getRelativePath(interfaceDir)));
+      importDirs.add('"' + relInterfaceDir.toString() + '"');
+    }
+    entries.put("import-dirs",Joiner.on(", ").join(importDirs));
+  }
+  List<String> libDirs=new ArrayList<>();
+  List<String> libs=new ArrayList<>();
+  for (  SourcePath library : libraries) {
+    Path relLibPath=pkgRoot.resolve(packageDb.getParent().relativize(getResolver().getRelativePath(library)));
+    libDirs.add('"' + relLibPath.toString() + '"');
+    libs.add(MorePaths.stripPathPrefixAndExtension(relLibPath.getFileName(),"lib"));
+  }
+  entries.put("library-dirs",Joiner.on(", ").join(libDirs));
+  entries.put("hs-libraries",Joiner.on(", ").join(libs));
+  entries.put("depends",Joiner.on(", ").join(depPackages.keySet()));
+  return new WriteFileStep(getProjectFilesystem(),Joiner.on(System.lineSeparator()).join(FluentIterable.from(entries.entrySet()).transform(new Function<Map.Entry<String,String>,String>(){
+    @Override public String apply(    Map.Entry<String,String> input){
+      return input.getKey() + ": " + input.getValue();
+    }
+  }
+)),registrationFile,false);
+}
