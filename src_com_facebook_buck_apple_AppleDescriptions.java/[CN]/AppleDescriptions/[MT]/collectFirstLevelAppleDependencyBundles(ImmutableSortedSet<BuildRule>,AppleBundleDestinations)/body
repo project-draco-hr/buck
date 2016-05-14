@@ -3,9 +3,9 @@
   for (  BuildRule rule : deps) {
     if (rule instanceof BuildRuleWithAppleBundle) {
       AppleBundle appleBundle=((BuildRuleWithAppleBundle)rule).getAppleBundle();
+      Path outputPath=Preconditions.checkNotNull(appleBundle.getPathToOutput(),"Path cannot be null for AppleBundle [%s].",appleBundle);
+      SourcePath sourcePath=new BuildTargetSourcePath(appleBundle.getBuildTarget(),outputPath);
       if (AppleBundleExtension.APPEX.toFileExtension().equals(appleBundle.getExtension()) || AppleBundleExtension.APP.toFileExtension().equals(appleBundle.getExtension())) {
-        Path outputPath=Preconditions.checkNotNull(appleBundle.getPathToOutput(),"Path cannot be null for AppleBundle [%s].",appleBundle);
-        SourcePath sourcePath=new BuildTargetSourcePath(appleBundle.getBuildTarget(),outputPath);
         Path destinationPath;
         String platformName=appleBundle.getPlatformName();
         if ((platformName.equals(ApplePlatform.WATCHOS.getName()) || platformName.equals(ApplePlatform.WATCHSIMULATOR.getName())) && appleBundle.getExtension().equals(AppleBundleExtension.APP.toFileExtension())) {
@@ -18,6 +18,9 @@
           destinationPath=destinations.getPlugInsPath();
         }
         extensionBundlePaths.put(sourcePath,destinationPath.toString());
+      }
+ else       if (AppleBundleExtension.FRAMEWORK.toFileExtension().equals(appleBundle.getExtension())) {
+        extensionBundlePaths.put(sourcePath,destinations.getFrameworksPath().toString());
       }
     }
   }
