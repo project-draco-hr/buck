@@ -1,6 +1,8 @@
 {
   buildableContext.recordArtifact(output);
-  return ImmutableList.of(new MkdirStep(getProjectFilesystem(),output.getParent()),new StringTemplateStep(getResolver().getAbsolutePath(template),getProjectFilesystem(),output,new Function<ST,ST>(){
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  steps.add(new MkdirStep(getProjectFilesystem(),output.getParent()));
+  steps.add(new StringTemplateStep(getResolver().getAbsolutePath(template),getProjectFilesystem(),output,new Function<ST,ST>(){
     @Override public ST apply(    ST st){
       for (      Map.Entry<String,String> ent : values.entrySet()) {
         st=st.add(ent.getKey(),ent.getValue());
@@ -9,4 +11,14 @@
     }
   }
 ));
+  if (executable) {
+    steps.add(new AbstractExecutionStep("chmod +x"){
+      @Override public StepExecutionResult execute(      ExecutionContext context) throws IOException {
+        MoreFiles.makeExecutable(getProjectFilesystem().resolve(output));
+        return StepExecutionResult.of(0,Optional.<String>absent());
+      }
+    }
+);
+  }
+  return steps.build();
 }

@@ -1,7 +1,7 @@
 {
   Path output=getOutputPath(params.getBuildTarget(),params.getProjectFilesystem());
   final SymlinkTree modulesLinkTree=resolver.addToIndex(createSymlinkTree(params,resolver,pathResolver,ImmutableFlavor.of("modules-link-tree"),components.getModules()));
-  Path relativeModulesLinkTreeRoot=output.getParent().relativize(params.getProjectFilesystem().getRootPath().relativize(modulesLinkTree.getRoot()));
+  final Path relativeModulesLinkTreeRoot=output.getParent().relativize(params.getProjectFilesystem().getRootPath().relativize(modulesLinkTree.getRoot()));
   final List<SymlinkTree> nativeLibsLinktree=new ArrayList<>();
   Optional<Path> relativeNativeLibsLinkTreeRoot=Optional.absent();
   if (!components.getNativeLibraries().isEmpty()) {
@@ -9,16 +9,16 @@
     nativeLibsLinktree.add(symlinkTree);
     relativeNativeLibsLinkTreeRoot=Optional.of(output.getParent().relativize(params.getProjectFilesystem().getRootPath().relativize(symlinkTree.getRoot())));
   }
-  final Tool starter=getStarter(params,resolver,pathResolver,cxxPlatform,starterType,nativeStarterLibrary,mainModule,relativeModulesLinkTreeRoot,relativeNativeLibsLinkTreeRoot);
+  final SourcePath starter=getStarter(params,resolver,pathResolver,cxxPlatform,output,starterType,nativeStarterLibrary,mainModule,Optional.of(relativeModulesLinkTreeRoot),relativeNativeLibsLinkTreeRoot);
   return new Tool(){
     @Override public ImmutableCollection<BuildRule> getDeps(    SourcePathResolver resolver){
-      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(starter.getDeps(pathResolver)).addAll(components.getDeps(pathResolver)).add(modulesLinkTree).addAll(nativeLibsLinktree).build();
+      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(starter)).addAll(components.getDeps(resolver)).add(modulesLinkTree).addAll(nativeLibsLinktree).build();
     }
     @Override public ImmutableCollection<SourcePath> getInputs(){
-      return ImmutableSortedSet.<SourcePath>naturalOrder().addAll(starter.getInputs()).addAll(components.getInputs()).build();
+      return ImmutableSortedSet.<SourcePath>naturalOrder().add(starter).addAll(components.getInputs()).build();
     }
     @Override public ImmutableList<String> getCommandPrefix(    SourcePathResolver resolver){
-      return starter.getCommandPrefix(resolver);
+      return ImmutableList.of(resolver.getAbsolutePath(starter).toString());
     }
     @Override public ImmutableMap<String,String> getEnvironment(    SourcePathResolver resolver){
       return ImmutableMap.of();

@@ -1,0 +1,36 @@
+{
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  buildableContext.recordArtifact(output);
+  steps.add(new MkdirStep(getProjectFilesystem(),output.getParent()));
+  steps.add(new RmStep(getProjectFilesystem(),output,true,true));
+  steps.add(new ShellStep(getProjectFilesystem().getRootPath()){
+    @Override protected Optional<String> getStdin(    ExecutionContext context){
+      try {
+        return Optional.of(context.getObjectMapper().writeValueAsString(ImmutableMap.of("modules",Maps.transformValues(components.getModules(),Functions.compose(Functions.toStringFunction(),getResolver().getAbsolutePathFunction())),"nativeLibraries",Maps.transformValues(components.getNativeLibraries(),Functions.compose(Functions.toStringFunction(),getResolver().getAbsolutePathFunction())))));
+      }
+ catch (      IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+    @Override protected ImmutableList<String> getShellCommandInternal(    ExecutionContext context){
+      ImmutableList.Builder<String> command=ImmutableList.builder();
+      command.addAll(builder.getCommandPrefix(getResolver()));
+      command.addAll(builderArgs);
+      command.add("--entry-point",mainModule);
+      command.add("--interpreter");
+      if (nativeStarter.isPresent()) {
+        command.add(getResolver().getAbsolutePath(nativeStarter.get()).toString());
+      }
+ else {
+        command.add(lua.getCommandPrefix(getResolver()).get(0));
+      }
+      command.add(getProjectFilesystem().resolve(output).toString());
+      return command.build();
+    }
+    @Override public String getShortName(){
+      return "lua_package";
+    }
+  }
+);
+  return steps.build();
+}
