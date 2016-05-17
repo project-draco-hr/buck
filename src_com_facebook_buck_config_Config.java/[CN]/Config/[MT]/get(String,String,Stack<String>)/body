@@ -1,0 +1,14 @@
+{
+  String expandStackKey=String.format("%s.%s",section,field);
+  if (expandStack.search(expandStackKey) != -1) {
+    throw new HumanReadableException("cyclical dependency in config references: %s",Joiner.on(" -> ").join(FluentIterable.from(expandStack).append(expandStackKey)));
+  }
+  Optional<String> val=rawConfig.getValue(section,field);
+  if (!val.isPresent()) {
+    return Optional.absent();
+  }
+  expandStack.push(expandStackKey);
+  String expanded=expand(val.get(),expandStack);
+  expandStack.pop();
+  return Optional.of(expanded);
+}
