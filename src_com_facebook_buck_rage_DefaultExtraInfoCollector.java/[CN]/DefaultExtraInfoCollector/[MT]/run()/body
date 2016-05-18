@@ -1,0 +1,24 @@
+{
+  ImmutableList<String> extraInfoCommand=rageConfig.getExtraInfoCommand();
+  if (extraInfoCommand.isEmpty()) {
+    return Optional.absent();
+  }
+  Path rageExtraFilesDir=BuckConstant.getLogPath().resolve("rage-extra-info");
+  projectFilesystem.deleteRecursivelyIfExists(rageExtraFilesDir);
+  projectFilesystem.mkdirs(rageExtraFilesDir);
+  ProcessExecutor.Result extraInfoResult;
+  try {
+    extraInfoResult=processExecutor.launchAndExecute(ProcessExecutorParams.builder().addAllCommand(extraInfoCommand).addCommand("--output-dir",projectFilesystem.resolve(rageExtraFilesDir).toString()).setDirectory(projectFilesystem.getRootPath().toFile()).build(),ImmutableSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT,ProcessExecutor.Option.PRINT_STD_ERR),Optional.<String>absent(),Optional.of(PROCESS_TIMEOUT_MS),Optional.<Function<Process,Void>>absent());
+  }
+ catch (  IOException e) {
+    throw new ExtraInfoExecutionException("Could not invoke extra report command.",e);
+  }
+  if (extraInfoResult.isTimedOut()) {
+    throw new ExtraInfoExecutionException(String.format("Gathering extra information for rage report from %s timed out after %d ms",extraInfoCommand,PROCESS_TIMEOUT_MS));
+  }
+  if (extraInfoResult.getExitCode() != 0) {
+    throw new ExtraInfoExecutionException(String.format("Could not get extra info for report from %s, exit code %s",extraInfoCommand,extraInfoResult.getExitCode()));
+  }
+  ImmutableSet<Path> rageExtraFiles=projectFilesystem.getFilesUnderPath(rageExtraFilesDir);
+  return Optional.of(ExtraInfoResult.builder().setExtraFiles(rageExtraFiles).setOutput(extraInfoResult.getStdout().or("")).build());
+}
