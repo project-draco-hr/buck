@@ -3,8 +3,9 @@
   ImmutableMap<String,Object> params=ImmutableMap.<String,Object>of("input",inputPath,"output",outputPath);
   try (InputStream input=filesystem.newFileInputStream(sourceDepFile);BufferedReader reader=new BufferedReader(new InputStreamReader(input));OutputStream output=filesystem.newFileOutputStream(destDepFile);BufferedWriter writer=new BufferedWriter(new OutputStreamWriter(output));SimplePerfEvent.Scope perfEvent=SimplePerfEvent.scope(context.getBuckEventBus(),PerfEventId.of("depfile-parse"),params)){
     ImmutableList<String> prereqs=Depfiles.parseDepfile(reader).getPrereqs();
-    Preconditions.checkState(inputPath.toString().equals(prereqs.get(0)));
-    ImmutableList<String> headers=prereqs.subList(1,prereqs.size());
+    int inputIndex=prereqs.indexOf(inputPath.toString());
+    Preconditions.checkState(inputIndex != -1,"Could not find input source (%s) in dep file prereqs (%s)",inputPath,prereqs);
+    Iterable<String> headers=Iterables.skip(prereqs,inputIndex + 1);
     for (    String rawHeader : headers) {
       Path header=Paths.get(rawHeader).normalize();
       Optional<Path> absolutePath=headerPathNormalizer.getAbsolutePathForUnnormalizedPath(header);
