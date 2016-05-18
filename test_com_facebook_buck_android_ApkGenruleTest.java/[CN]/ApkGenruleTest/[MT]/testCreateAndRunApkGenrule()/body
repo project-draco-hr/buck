@@ -20,7 +20,7 @@
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(buildTarget).setProjectFilesystem(projectFilesystem).build();
   ApkGenrule apkGenrule=(ApkGenrule)description.createBuildRule(TargetGraph.EMPTY,params,ruleResolver,arg);
   ruleResolver.addToIndex(apkGenrule);
-  String expectedApkOutput=MorePathsForTests.rootRelativePath("/opt/src/buck/" + projectFilesystem.getBuckPaths().getGenDir().toString() + "/src/com/facebook/sign_fb4a/sign_fb4a.apk").toString();
+  String expectedApkOutput=projectFilesystem.resolve(projectFilesystem.getBuckPaths().getGenDir().toString() + "/src/com/facebook/sign_fb4a/sign_fb4a.apk").toString();
   assertEquals(expectedApkOutput,apkGenrule.getAbsoluteOutputFilePath());
   assertEquals("The apk that this rule is modifying must have the apk in its deps.",ImmutableSet.of(apkTarget.toString()),FluentIterable.from(apkGenrule.getDeps()).transform(Functions.toStringFunction()).toSet());
   BuildContext buildContext=ImmutableBuildContext.builder().setActionGraph(EasyMock.createMock(ActionGraph.class)).setStepRunner(EasyMock.createNiceMock(StepRunner.class)).setClock(EasyMock.createMock(Clock.class)).setBuildId(EasyMock.createMock(BuildId.class)).setObjectMapper(ObjectMappers.newDefaultInstance()).setArtifactCache(EasyMock.createMock(ArtifactCache.class)).setJavaPackageFinder(EasyMock.createNiceMock(JavaPackageFinder.class)).setEventBus(BuckEventBusFactory.newInstance()).build();
@@ -32,7 +32,7 @@
   assertTrue(firstStep instanceof RmStep);
   RmStep rmCommand=(RmStep)firstStep;
   ExecutionContext executionContext=newEmptyExecutionContext();
-  assertEquals("First command should delete the output file to be written by the genrule.",ImmutableList.of("rm","-r","-f","/opt/src/buck/" + apkGenrule.getPathToOutput()),rmCommand.getShellCommand());
+  assertEquals("First command should delete the output file to be written by the genrule.",ImmutableList.of("rm","-r","-f",expectedApkOutput),rmCommand.getShellCommand());
   Step secondStep=steps.get(1);
   assertTrue(secondStep instanceof MkdirStep);
   MkdirStep mkdirCommand=(MkdirStep)secondStep;
@@ -59,7 +59,7 @@
   ShellStep genruleCommand=(ShellStep)seventhStep;
   assertEquals("genrule",genruleCommand.getShortName());
   ImmutableMap<String,String> environmentVariables=genruleCommand.getEnvironmentVariables(executionContext);
-  assertEquals(new ImmutableMap.Builder<String,String>().put("APK","/opt/src/buck/" + BuildTargets.getGenPath(projectFilesystem,apkTarget,"%s.apk").toString()).put("OUT",expectedApkOutput).build(),environmentVariables);
+  assertEquals(new ImmutableMap.Builder<String,String>().put("APK",projectFilesystem.resolve(BuildTargets.getGenPath(projectFilesystem,apkTarget,"%s.apk")).toString()).put("OUT",expectedApkOutput).build(),environmentVariables);
   assertEquals(ImmutableList.of("/bin/bash","-e","-c","python signer.py $APK key.properties > $OUT"),genruleCommand.getShellCommand(executionContext));
   EasyMock.verify(parser);
 }
