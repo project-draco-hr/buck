@@ -3,11 +3,12 @@
   BuildTarget target=createCompileBuildTarget(name);
   Compiler compiler=CxxSourceTypes.getCompiler(getCxxPlatform(),CxxSourceTypes.getPreprocessorOutputType(source.getType())).resolve(getResolver());
   LOG.verbose("Creating preprocess and compile %s for %s",target,source);
-  PreprocessorDelegate preprocessorDelegate=preprocessorDelegates.getUnchecked(PreprocessAndCompilePreprocessorDelegateKey.of(source.getType(),source.getFlags()));
+  PreprocessorDelegateCacheValue preprocessorDelegateValue=preprocessorDelegates.getUnchecked(PreprocessorDelegateCacheKey.of(source.getType(),source.getFlags()));
+  PreprocessorDelegate preprocessorDelegate=preprocessorDelegateValue.getPreprocessorDelegate();
   DepsBuilder depsBuilder=new DepsBuilder().addPreprocessDeps().add(preprocessorDelegate.getPreprocessor()).add(compiler).add(source);
   Optional<PrecompiledHeaderReference> precompiledHeaderReference=Optional.absent();
   if (shouldUsePrecompiledHeaders(preprocessorDelegate,strategy)) {
-    CxxPrecompiledHeader precompiledHeader=requirePrecompiledHeaderBuildRule(preprocessorDelegate,source);
+    CxxPrecompiledHeader precompiledHeader=requirePrecompiledHeaderBuildRule(preprocessorDelegateValue,source);
     depsBuilder.add(precompiledHeader);
     precompiledHeaderReference=Optional.of(PrecompiledHeaderReference.from(precompiledHeader));
   }
