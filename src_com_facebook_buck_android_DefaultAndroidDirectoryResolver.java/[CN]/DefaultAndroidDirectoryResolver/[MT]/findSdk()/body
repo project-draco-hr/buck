@@ -1,7 +1,17 @@
 {
-  Optional<Path> sdkPath=propertyFinder.findDirectoryByPropertiesThenEnvironmentVariable("sdk.dir","ANDROID_SDK","ANDROID_HOME");
-  if (sdkPath.isPresent() && !sdkPath.get().toFile().isDirectory()) {
-    throw new HumanReadableException("Android SDK path (" + sdkPath.get() + ") "+ "is not a directory.");
+  Optional<Path> sdkPath=Optional.absent();
+  try {
+    sdkPath=propertyFinder.findDirectoryByPropertiesThenEnvironmentVariable("sdk.dir","ANDROID_SDK","ANDROID_HOME");
+  }
+ catch (  RuntimeException e) {
+    sdkErrorMessage=Optional.of(e.getMessage());
+    return sdkPath;
+  }
+  if (!sdkPath.isPresent()) {
+    sdkErrorMessage=Optional.of(SDK_NOT_FOUND_MESSAGE);
+  }
+ else   if (!sdkPath.isPresent() && !sdkPath.get().toFile().isDirectory()) {
+    sdkErrorMessage=Optional.of("Android SDK path [" + sdkPath.get() + "] is not a directory.");
   }
   return sdkPath;
 }
