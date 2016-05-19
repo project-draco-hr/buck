@@ -4,7 +4,8 @@
     repositoryContents=ImmutableSortedSet.copyOf(stream);
   }
  catch (  IOException e) {
-    throw new HumanReadableException("Unable to read contents of Android ndk.repository or " + "ANDROID_NDK_REPOSITORY at " + repository);
+    ndkErrorMessage=Optional.of("Unable to read contents of Android ndk.repository or " + "ANDROID_NDK_REPOSITORY at " + repository);
+    return Optional.absent();
   }
   Optional<Path> ndkPath=Optional.absent();
   if (!repositoryContents.isEmpty()) {
@@ -30,10 +31,12 @@
     }
   }
   if (!ndkPath.isPresent()) {
-    throw new HumanReadableException("Couldn't find a valid NDK under %s",repository);
+    ndkErrorMessage=Optional.of("Couldn't find a valid NDK under " + repository);
+    return Optional.absent();
   }
  else   if (targetNdkVersion.isPresent()) {
-    throw new HumanReadableException("Buck is configured to use Android NDK version " + targetNdkVersion.get() + " at ANDROID_NDK_REPOSITORY or ndk.repository but the "+ "repository does not contain that version.");
+    ndkErrorMessage=Optional.of("Buck is configured to use Android NDK version " + targetNdkVersion.get() + " at ANDROID_NDK_REPOSITORY or ndk.repository but the "+ "repository does not contain that version.");
+    return Optional.absent();
   }
   return ndkPath;
 }

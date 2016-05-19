@@ -1,11 +1,26 @@
 {
-  Optional<Path> repository=propertyFinder.findDirectoryByPropertiesThenEnvironmentVariable("ndk.repository","ANDROID_NDK_REPOSITORY");
+  Optional<Path> repository=Optional.absent();
+  try {
+    repository=propertyFinder.findDirectoryByPropertiesThenEnvironmentVariable("ndk.repository","ANDROID_NDK_REPOSITORY");
+  }
+ catch (  RuntimeException e) {
+    ndkErrorMessage=Optional.of(e.getMessage());
+  }
   if (repository.isPresent()) {
     return findNdkFromRepository(repository.get());
   }
-  Optional<Path> directory=propertyFinder.findDirectoryByPropertiesThenEnvironmentVariable("ndk.dir","ANDROID_NDK","NDK_HOME");
+  Optional<Path> directory=Optional.absent();
+  try {
+    directory=propertyFinder.findDirectoryByPropertiesThenEnvironmentVariable("ndk.dir","ANDROID_NDK","NDK_HOME");
+  }
+ catch (  RuntimeException e) {
+    ndkErrorMessage=Optional.of(e.getMessage());
+  }
   if (directory.isPresent()) {
     return findNdkFromDirectory(directory.get());
+  }
+  if (!ndkErrorMessage.isPresent()) {
+    ndkErrorMessage=Optional.of(NDK_NOT_FOUND_MESSAGE);
   }
   return Optional.absent();
 }

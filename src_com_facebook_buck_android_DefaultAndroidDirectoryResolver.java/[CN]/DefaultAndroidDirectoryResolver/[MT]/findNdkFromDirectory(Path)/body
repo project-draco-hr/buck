@@ -1,12 +1,17 @@
 {
   Optional<String> version=findNdkVersion(directory);
-  if (version.isPresent()) {
+  if (!version.isPresent() && ndkErrorMessage.isPresent()) {
+    return Optional.absent();
+  }
+ else   if (version.isPresent()) {
     if (targetNdkVersion.isPresent() && !versionsMatch(targetNdkVersion.get(),version.get())) {
-      throw new HumanReadableException("Buck is configured to use Android NDK version " + targetNdkVersion.get() + " at ndk.dir or ANDROID_NDK or NDK_HOME. The found version "+ "is "+ version.get()+ " located at "+ directory);
+      ndkErrorMessage=Optional.of("Buck is configured to use Android NDK version " + targetNdkVersion.get() + " at ndk.dir or ANDROID_NDK or NDK_HOME. The found version "+ "is "+ version.get()+ " located at "+ directory);
+      return Optional.absent();
     }
   }
  else {
-    throw new HumanReadableException("Failed to read NDK version from " + directory + ".");
+    ndkErrorMessage=Optional.of("Failed to read NDK version from " + directory + ".");
+    return Optional.absent();
   }
   return Optional.of(directory);
 }
