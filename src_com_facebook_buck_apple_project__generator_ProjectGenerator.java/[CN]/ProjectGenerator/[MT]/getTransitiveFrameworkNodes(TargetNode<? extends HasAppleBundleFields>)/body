@@ -1,12 +1,29 @@
 {
-  return FluentIterable.from(targetGraph.getSubgraph(ImmutableSet.of(targetNode)).getNodes()).filter(new Predicate<TargetNode<?>>(){
-    @Override public boolean apply(    TargetNode<?> input){
-      Optional<TargetNode<AppleBundleDescription.Arg>> appleBundleNode=input.castArg(AppleBundleDescription.Arg.class);
-      if (!appleBundleNode.isPresent()) {
-        return false;
+  GraphTraversable<TargetNode<?>> graphTraversable=new GraphTraversable<TargetNode<?>>(){
+    @Override public Iterator<TargetNode<?>> findChildren(    TargetNode<?> node){
+      if (node.getType() != AppleResourceDescription.TYPE) {
+        return targetGraph.getAll(node.getDeps()).iterator();
       }
-      return isFrameworkBundle(appleBundleNode.get().getConstructorArg());
+ else {
+        return Collections.emptyIterator();
+      }
     }
   }
-).toSet();
+;
+  final ImmutableSet.Builder<TargetNode<?>> filteredRules=ImmutableSet.builder();
+  AcyclicDepthFirstPostOrderTraversal<TargetNode<?>> traversal=new AcyclicDepthFirstPostOrderTraversal<>(graphTraversable);
+  try {
+    for (    TargetNode<?> node : traversal.traverse(ImmutableList.of(targetNode))) {
+      if (node != targetNode) {
+        Optional<TargetNode<AppleBundleDescription.Arg>> appleBundleNode=node.castArg(AppleBundleDescription.Arg.class);
+        if (appleBundleNode.isPresent() && isFrameworkBundle(appleBundleNode.get().getConstructorArg())) {
+          filteredRules.add(node);
+        }
+      }
+    }
+  }
+ catch (  AcyclicDepthFirstPostOrderTraversal.CycleException e) {
+    throw new RuntimeException(e);
+  }
+  return filteredRules.build();
 }
