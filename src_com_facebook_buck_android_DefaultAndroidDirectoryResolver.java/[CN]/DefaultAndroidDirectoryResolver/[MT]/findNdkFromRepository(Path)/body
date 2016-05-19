@@ -1,0 +1,39 @@
+{
+  ImmutableSortedSet<Path> repositoryContents=ImmutableSortedSet.of();
+  try (DirectoryStream<Path> stream=Files.newDirectoryStream(repository)){
+    repositoryContents=ImmutableSortedSet.copyOf(stream);
+  }
+ catch (  IOException e) {
+    throw new HumanReadableException("Unable to read contents of Android ndk.repository or " + "ANDROID_NDK_REPOSITORY at " + repository);
+  }
+  Optional<Path> ndkPath=Optional.absent();
+  if (!repositoryContents.isEmpty()) {
+    Optional<String> newestVersion=Optional.absent();
+    VersionStringComparator versionComparator=new VersionStringComparator();
+    for (    Path potentialNdkPath : repositoryContents) {
+      if (potentialNdkPath.toFile().isDirectory()) {
+        Optional<String> ndkVersion=findNdkVersion(potentialNdkPath);
+        if (ndkVersion.isPresent()) {
+          if (targetNdkVersion.isPresent()) {
+            if (versionsMatch(targetNdkVersion.get(),ndkVersion.get())) {
+              return Optional.of(potentialNdkPath);
+            }
+          }
+ else {
+            if (!newestVersion.isPresent() || versionComparator.compare(ndkVersion.get(),newestVersion.get()) > 0) {
+              ndkPath=Optional.of(potentialNdkPath);
+              newestVersion=Optional.of(ndkVersion.get());
+            }
+          }
+        }
+      }
+    }
+  }
+  if (!ndkPath.isPresent()) {
+    throw new HumanReadableException("Couldn't find a valid NDK under %s",repository);
+  }
+ else   if (targetNdkVersion.isPresent()) {
+    throw new HumanReadableException("Buck is configured to use Android NDK version " + targetNdkVersion.get() + " at ANDROID_NDK_REPOSITORY or ndk.repository but the "+ "repository does not contain that version.");
+  }
+  return ndkPath;
+}
