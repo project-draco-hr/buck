@@ -42,21 +42,26 @@
               }
             }
             if (useManifestCaching(rule)) {
-              CacheResult cacheResult=performManifestBasedCacheFetch(rule,context,buildInfoRecorder).get();
-              if (cacheResult.getType().isSuccess()) {
-                return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_MANIFEST_BASED,cacheResult)));
+              Optional<Pair<RuleKey,ImmutableSet<SourcePath>>> manifestKey=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem()).depFileRuleKeyBuilderFactory.buildManifestKey(rule);
+              if (manifestKey.isPresent()) {
+                CacheResult cacheResult=performManifestBasedCacheFetch(rule,context,manifestKey.get(),buildInfoRecorder).get();
+                if (cacheResult.getType().isSuccess()) {
+                  return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_MANIFEST_BASED,cacheResult)));
+                }
               }
             }
             if (rule instanceof SupportsInputBasedRuleKey) {
-              RuleKey inputRuleKey=ruleKeyFactory.inputBasedRuleKeyBuilderFactory.build(rule);
-              buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY,inputRuleKey.toString());
-              Optional<RuleKey> lastInputRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY);
-              if (inputRuleKey.equals(lastInputRuleKey.orNull())) {
-                return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY,CacheResult.localKeyUnchangedHit())));
-              }
-              CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,inputRuleKey,buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context).get();
-              if (cacheResult.getType().isSuccess()) {
-                return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,cacheResult)));
+              Optional<RuleKey> inputRuleKey=ruleKeyFactory.inputBasedRuleKeyBuilderFactory.build(rule);
+              if (inputRuleKey.isPresent()) {
+                buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY,inputRuleKey.get().toString());
+                Optional<RuleKey> lastInputRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY);
+                if (inputRuleKey.get().equals(lastInputRuleKey.orNull())) {
+                  return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY,CacheResult.localKeyUnchangedHit())));
+                }
+                CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,inputRuleKey.get(),buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context).get();
+                if (cacheResult.getType().isSuccess()) {
+                  return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,cacheResult)));
+                }
               }
             }
             if (rule instanceof AbiRule) {

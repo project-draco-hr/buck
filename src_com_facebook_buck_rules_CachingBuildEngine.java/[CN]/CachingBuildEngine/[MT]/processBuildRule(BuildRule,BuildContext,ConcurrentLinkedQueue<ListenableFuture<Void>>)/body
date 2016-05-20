@@ -35,11 +35,15 @@
         ImmutableList<String> inputStrings=FluentIterable.from(inputs).transform(DependencyFileEntry.fromSourcePathFunction(pathResolver)).transform(MoreFunctions.toJsonFunction(objectMapper)).toList();
         buildInfoRecorder.addMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE,inputStrings);
         Optional<Pair<RuleKey,ImmutableSet<SourcePath>>> depFileRuleKeyAndInputs=calculateDepFileRuleKey(rule,Optional.of(inputStrings),false);
-        Preconditions.checkState(depFileRuleKeyAndInputs.isPresent());
-        RuleKey depFileRuleKey=depFileRuleKeyAndInputs.get().getFirst();
-        buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY,depFileRuleKey.toString());
-        if (useManifestCaching(rule)) {
-          updateAndStoreManifest(rule,depFileRuleKeyAndInputs.get().getFirst(),depFileRuleKeyAndInputs.get().getSecond(),context.getArtifactCache());
+        if (depFileRuleKeyAndInputs.isPresent()) {
+          RuleKey depFileRuleKey=depFileRuleKeyAndInputs.get().getFirst();
+          buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY,depFileRuleKey.toString());
+          if (useManifestCaching(rule)) {
+            Optional<Pair<RuleKey,ImmutableSet<SourcePath>>> manifestKey=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem()).depFileRuleKeyBuilderFactory.buildManifestKey(rule);
+            if (manifestKey.isPresent()) {
+              updateAndStoreManifest(rule,depFileRuleKeyAndInputs.get().getFirst(),depFileRuleKeyAndInputs.get().getSecond(),manifestKey.get(),context.getArtifactCache());
+            }
+          }
         }
       }
       if (success == BuildRuleSuccessType.BUILT_LOCALLY && shouldUploadToCache(rule,Preconditions.checkNotNull(outputSize.get()))) {
@@ -99,10 +103,10 @@
         ruleKeys.add(keyFactories.defaultRuleKeyBuilderFactory.build(rule));
       }
       if (rule instanceof SupportsInputBasedRuleKey && success.shouldUploadResultingArtifactInputBased()) {
-        ruleKeys.add(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY).get());
+        ruleKeys.addAll(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY).asSet());
       }
       if (useManifestCaching(rule) && success.shouldUploadResultingArtifactManifestBased()) {
-        ruleKeys.add(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY).get());
+        ruleKeys.addAll(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_DEP_FILE_RULE_KEY).asSet());
       }
       if (!ruleKeys.isEmpty()) {
         try {

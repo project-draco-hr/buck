@@ -22,7 +22,7 @@
     }
   }
 ;
-  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(toWeighted(MoreExecutors.newDirectExecutorService()),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DependencySchedulingOrder.RANDOM,CachingBuildEngine.DepFiles.CACHE,256L,Optional.<Long>absent(),pathResolver,Functions.constant(new CachingBuildEngine.RuleKeyFactories(ruleKeyBuilderFactory,ruleKeyBuilderFactory,ruleKeyBuilderFactory,depFilefactory)));
+  CachingBuildEngine cachingBuildEngine=new CachingBuildEngine(toWeighted(MoreExecutors.newDirectExecutorService()),fileHashCache,CachingBuildEngine.BuildMode.SHALLOW,CachingBuildEngine.DependencySchedulingOrder.RANDOM,CachingBuildEngine.DepFiles.CACHE,256L,Optional.<Long>absent(),pathResolver,Functions.constant(new CachingBuildEngine.RuleKeyFactories(ruleKeyBuilderFactory,inputBasedRuleKeyBuilderFactory,ruleKeyBuilderFactory,depFilefactory)));
   RuleKey artifactKey=new RuleKey("bbbb");
   Manifest manifest=new Manifest();
   manifest.addEntry(fileHashCache,artifactKey,pathResolver,ImmutableSet.<SourcePath>of(new PathSourcePath(filesystem,input)),ImmutableSet.<SourcePath>of(new PathSourcePath(filesystem,input)));
@@ -30,7 +30,7 @@
   try (GZIPOutputStream outputStream=new GZIPOutputStream(byteArrayOutputStream)){
     manifest.serialize(outputStream);
   }
-   cache.store(ImmutableSet.of(cachingBuildEngine.getManifestRuleKey(rule)),ImmutableMap.<String,String>of(),byteArrayOutputStream.toByteArray());
+   cache.store(ImmutableSet.of(cachingBuildEngine.getManifestRuleKey(rule).get()),ImmutableMap.<String,String>of(),byteArrayOutputStream.toByteArray());
   Path artifact=tmp.newFile("artifact.zip").toPath();
   writeEntriesToZip(artifact,ImmutableMap.of(BuildInfo.getPathToMetadataDirectory(target,filesystem).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS),MAPPER.writeValueAsString(ImmutableList.of(output.toString())),output,"stuff"));
   cache.store(ImmutableSet.of(artifactKey),ImmutableMap.<String,String>of(),BorrowablePath.notBorrowablePath(artifact));
