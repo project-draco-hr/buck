@@ -1,0 +1,21 @@
+{
+  int nulOffset=findNulOffset(in);
+  if (nulOffset == in.limit()) {
+    throw new BufferUnderflowException();
+  }
+  CharBuffer out=CharBuffer.allocate((int)(nulOffset * decoder.averageCharsPerByte()));
+  StringBuilder sb=new StringBuilder();
+  while (true) {
+    Result result=decodeChunk(in,nulOffset,out,true);
+    if (result.coderResult.isError()) {
+      result.coderResult.throwException();
+    }
+    out.flip();
+    sb.append(out);
+    out.compact();
+    if (result.nulTerminatorReached || !in.hasRemaining()) {
+      break;
+    }
+  }
+  return sb.toString();
+}
