@@ -1,29 +1,9 @@
 {
-  Path newNdkPath=ndkDirectory.resolve(NDK_POST_R11_VERSION_FILENAME);
-  Path oldNdkPath=ndkDirectory.resolve(NDK_PRE_R11_VERSION_FILENAME);
-  boolean newNdkPathFound=Files.exists(newNdkPath);
-  boolean oldNdkPathFound=Files.exists(oldNdkPath);
-  if (newNdkPathFound && oldNdkPathFound) {
-    ndkErrorMessage=Optional.of("Android NDK directory " + ndkDirectory + " can not "+ "contain both properties files. Remove source.properties or RELEASE.TXT.");
-    return Optional.absent();
+  try {
+    return findNdkVersionFromDirectory(ndkDirectory);
   }
- else   if (newNdkPathFound) {
-    Properties sourceProperties=new Properties();
-    try (FileInputStream fileStream=new FileInputStream(newNdkPath.toFile())){
-      sourceProperties.load(fileStream);
-      return Optional.fromNullable(sourceProperties.getProperty("Pkg.Revision"));
-    }
- catch (    IOException e) {
-      ndkErrorMessage=Optional.of("Failed to read NDK version from " + newNdkPath + ".");
-      return Optional.absent();
-    }
-  }
- else   if (oldNdkPathFound) {
-    Optional<String> propertiesContents=projectFilesystem.readFirstLineFromFile(oldNdkPath);
-    return Optional.of(propertiesContents.get().split("\\s+")[0]);
-  }
- else {
-    ndkErrorMessage=Optional.of(ndkDirectory + " does not contain a valid properties file " + "for Android NDK.");
+ catch (  HumanReadableException e) {
+    ndkErrorMessage=Optional.of(e.getHumanReadableErrorMessage());
     return Optional.absent();
   }
 }
