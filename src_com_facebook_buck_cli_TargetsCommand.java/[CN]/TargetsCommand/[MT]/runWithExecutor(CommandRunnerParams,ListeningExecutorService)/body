@@ -3,10 +3,11 @@
   if (!buildRuleTypes.isPresent()) {
     return 1;
   }
-  ImmutableMap<BuildTarget,ShowOptions> showRulesResult=ImmutableMap.of();
   if (isShowOutput() || isShowRuleKey() || isShowTargetHash()) {
+    ImmutableMap<BuildTarget,ShowOptions> showRulesResult;
+    TargetGraphAndBuildTargets targetGraphAndBuildTargetsForShowRules;
     try {
-      TargetGraphAndBuildTargets targetGraphAndBuildTargetsForShowRules=buildTargetGraphAndTargetsForShowRules(params,executor,buildRuleTypes);
+      targetGraphAndBuildTargetsForShowRules=buildTargetGraphAndTargetsForShowRules(params,executor,buildRuleTypes);
       showRulesResult=computeShowRules(params,executor,TargetGraphAndTargetNodes.fromTargetGraphAndBuildTargets(targetGraphAndBuildTargetsForShowRules));
     }
  catch (    NoSuchBuildTargetException e) {
@@ -16,15 +17,19 @@ catch (    BuildTargetException|BuildFileParseException|CycleException e) {
       params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
       return 1;
     }
-    if (!getPrintJson()) {
-      printShowRules(showRulesResult,params);
-      return 0;
+    if (getPrintJson()) {
+      Iterable<TargetNode<?>> matchingNodes=targetGraphAndBuildTargetsForShowRules.getTargetGraph().getAll(targetGraphAndBuildTargetsForShowRules.getBuildTargets());
+      return tryPrintJsonForTargets(params,executor,matchingNodes,showRulesResult);
     }
+ else {
+      printShowRules(showRulesResult,params);
+    }
+    return 0;
   }
   Optional<TargetGraphAndBuildTargets> graphAndTargets=buildTargetGraphAndTargets(params,executor);
   if (!graphAndTargets.isPresent()) {
     return 1;
   }
   SortedMap<String,TargetNode<?>> matchingNodes=getMatchingNodes(params,graphAndTargets.get(),buildRuleTypes);
-  return printResults(params,executor,matchingNodes,showRulesResult);
+  return printResults(params,executor,matchingNodes);
 }
