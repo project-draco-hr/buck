@@ -1,0 +1,23 @@
+{
+  return new AsyncFunction<Optional<BuildResult>,BuildResult>(){
+    @Override public ListenableFuture<BuildResult> apply(    Optional<BuildResult> result){
+      if (result.isPresent()) {
+        return Futures.immediateFuture(result.get());
+      }
+      RuleScheduleInfo ruleScheduleInfo=getRuleScheduleInfo(rule);
+      return service.submit(new Callable<BuildResult>(){
+        @Override public BuildResult call() throws Exception {
+          if (!context.isKeepGoing() && firstFailure != null) {
+            return BuildResult.canceled(rule,firstFailure);
+          }
+          try (BuildRuleEvent.Scope scope=BuildRuleEvent.resumeSuspendScope(context.getEventBus(),rule,ruleKeyFactory.defaultRuleKeyBuilderFactory)){
+            executeCommandsNowThatDepsAreBuilt(rule,context,buildableContext);
+            return BuildResult.success(rule,BuildRuleSuccessType.BUILT_LOCALLY,cacheResultFuture.get());
+          }
+         }
+      }
+,DEFAULT_BUILD_WEIGHT * ruleScheduleInfo.getJobsMultiplier());
+    }
+  }
+;
+}
