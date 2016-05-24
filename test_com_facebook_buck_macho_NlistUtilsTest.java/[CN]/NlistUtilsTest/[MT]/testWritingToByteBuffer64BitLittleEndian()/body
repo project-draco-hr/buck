@@ -1,0 +1,18 @@
+{
+  ByteBuffer byteBuffer=ByteBuffer.wrap(NlistTestData.getLittleEndian64Bit()).order(ByteOrder.LITTLE_ENDIAN);
+  Nlist nlist=NlistUtils.createFromBuffer(ByteBuffer.wrap(NlistTestData.getLittleEndian64Bit()).order(ByteOrder.BIG_ENDIAN),false);
+  Nlist updatedNlist=nlist.withN_strx(UnsignedInteger.valueOf(321));
+  updatedNlist=updatedNlist.withN_value(UnsignedLong.valueOf(432L));
+  assertThat(updatedNlist,instanceOf(nlist.getClass()));
+  NlistUtils.updateNlistEntry(byteBuffer,nlist,updatedNlist,true);
+  byteBuffer.position(0);
+  byte[] newBytes=new byte[NlistTestData.getLittleEndian64Bit().length];
+  byteBuffer.get(newBytes,0,NlistTestData.getLittleEndian64Bit().length);
+  Nlist newNlist=NlistUtils.createFromBuffer(ByteBuffer.wrap(newBytes).order(ByteOrder.LITTLE_ENDIAN),true);
+  assertThat(nlist.getOffsetInBinary(),equalTo(newNlist.getOffsetInBinary()));
+  assertThat(newNlist.getN_strx(),equalToObject(UnsignedInteger.valueOf(321)));
+  assertThat(nlist.getN_type(),equalToObject(newNlist.getN_type()));
+  assertThat(nlist.getN_sect(),equalToObject(newNlist.getN_sect()));
+  assertThat(nlist.getN_desc(),equalToObject(newNlist.getN_desc()));
+  assertThat(newNlist.getN_value(),equalToObject(UnsignedLong.valueOf(432L)));
+}
