@@ -1,0 +1,22 @@
+{
+  MachoMagicInfo info=new MachoMagicInfo(UnsignedInteger.fromIntBits(0xFEEDFACF));
+  byte[] header=MachoHeaderTestData.getBigEndian64Bit();
+  header[19]=2;
+  header[23]=16;
+  byte[] commandBytes=BaseEncoding.base16().decode("000000AA00000008" + "000000BB00000008");
+  ByteBuffer buffer=ByteBuffer.allocate(MachoHeaderTestData.getBigEndian64Bit().length + commandBytes.length).put(header).put(commandBytes).order(ByteOrder.BIG_ENDIAN);
+  final List<LoadCommand> result=new ArrayList<>();
+  buffer.position(0);
+  LoadCommandUtils.enumerateLoadCommandsInFile(buffer,info,new Function<LoadCommand,Boolean>(){
+    @Override public Boolean apply(    LoadCommand input){
+      result.add(input);
+      return Boolean.TRUE;
+    }
+  }
+);
+  assertThat(result.size(),equalTo(2));
+  assertThat(result.get(0).getCmd(),equalTo(UnsignedInteger.fromIntBits(0xAA)));
+  assertThat(result.get(0).getCmdsize(),equalTo(UnsignedInteger.fromIntBits(0x08)));
+  assertThat(result.get(1).getCmd(),equalTo(UnsignedInteger.fromIntBits(0xBB)));
+  assertThat(result.get(1).getCmdsize(),equalTo(UnsignedInteger.fromIntBits(0x08)));
+}
