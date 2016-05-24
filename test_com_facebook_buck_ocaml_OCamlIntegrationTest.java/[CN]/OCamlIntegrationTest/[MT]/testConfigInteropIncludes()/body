@@ -1,0 +1,28 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"config_interop_includes",tmp);
+  workspace.setUp();
+  Path ocamlc=new ExecutableFinder(Platform.detect()).getExecutable(Paths.get("ocamlc"),ImmutableMap.copyOf(System.getenv()));
+  ProcessExecutor.Result result=workspace.runCommand(ocamlc.toString(),"-where");
+  assertEquals(0,result.getExitCode());
+  String stdlibPath=result.getStdout().get();
+  BuildTarget target=BuildTargetFactory.newInstance(workspace.getDestPath(),"//:test");
+  BuildTarget binary=createOCamlLinkTarget(target);
+  ImmutableSet<BuildTarget> targets=ImmutableSet.of(target,binary);
+  workspace.runBuckCommand("build",target.toString()).assertFailure();
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  assertTrue(buildLog.getAllTargets().containsAll(targets));
+  buildLog.assertTargetCanceled(target.toString());
+  buildLog.assertTargetCanceled(binary.toString());
+  workspace.resetBuildLogFile();
+  workspace.replaceFileContents(".buckconfig","interop.includes=lib","interop.includes=" + stdlibPath);
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  buildLog.assertTargetBuiltLocally(target.toString());
+  buildLog.assertTargetBuiltLocally(binary.toString());
+  workspace.resetBuildLogFile();
+  workspace.replaceFileContents(".buckconfig","interop.includes=" + stdlibPath,"");
+  workspace.runBuckCommand("build",target.toString()).assertSuccess();
+  buildLog=workspace.getBuildLog();
+  buildLog.assertTargetBuiltLocally(target.toString());
+  buildLog.assertTargetBuiltLocally(binary.toString());
+}
