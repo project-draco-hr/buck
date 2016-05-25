@@ -7,7 +7,9 @@
   Path rDotJavaPath=aaptPackageResources.getPathToGeneratedRDotJavaSrcFiles().resolve("com/test/R.java");
   filesystem.createParentDirs(rDotJavaPath);
   filesystem.writeContentsToPath(rDotJavaContents,rDotJavaPath);
-  TrimUberRDotJava trimUberRDotJava=new TrimUberRDotJava(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:trim")).setProjectFilesystem(filesystem).build(),pathResolver,aaptPackageResources);
+  DexProducedFromJavaLibrary dexProducedFromJavaLibrary=new DexProducedFromJavaLibrary(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:dex")).setProjectFilesystem(filesystem).build(),null,null);
+  dexProducedFromJavaLibrary.getBuildOutputInitializer().setBuildOutput(dexProducedFromJavaLibrary.initializeFromDisk(new FakeOnDiskBuildInfo().putMetadata(DexProducedFromJavaLibrary.LINEAR_ALLOC_KEY_ON_DISK_METADATA,"1").putMetadata(DexProducedFromJavaLibrary.CLASSNAMES_TO_HASHES,"{}").putMetadata(DexProducedFromJavaLibrary.REFERENCED_RESOURCES,ImmutableList.of("my_first_resource"))));
+  TrimUberRDotJava trimUberRDotJava=new TrimUberRDotJava(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:trim")).setProjectFilesystem(filesystem).build(),pathResolver,aaptPackageResources,ImmutableList.of(dexProducedFromJavaLibrary));
   BuildContext buildContext=FakeBuildContext.newBuilder().setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).setJavaPackageFinder(new FakeJavaPackageFinder()).build();
   BuildableContext buildableContext=new FakeBuildableContext();
   ExecutionContext executionContext=TestExecutionContext.newInstance();
@@ -15,6 +17,7 @@
   for (  Step step : steps) {
     step.execute(executionContext);
   }
+  String rDotJavaContentsAfterFiltering="package com.test;\n" + "\n" + "public class R {\n"+ "  public static class string {\n"+ "    public static final int my_first_resource=0x7f08005c;\n"+ "  }\n"+ "}\n";
   ZipInspector inspector=new ZipInspector(filesystem.resolve(trimUberRDotJava.getPathToOutput()));
-  inspector.assertFileContents("com/test/R.java",rDotJavaContents);
+  inspector.assertFileContents("com/test/R.java",rDotJavaContentsAfterFiltering);
 }

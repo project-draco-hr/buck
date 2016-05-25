@@ -1,4 +1,12 @@
 {
+  ImmutableSet.Builder<String> allReferencedResourcesBuilder=ImmutableSet.builder();
+  for (  DexProducedFromJavaLibrary preDexRule : allPreDexRules) {
+    Optional<ImmutableList<String>> referencedResources=preDexRule.getReferencedResources();
+    if (referencedResources.isPresent()) {
+      allReferencedResourcesBuilder.addAll(referencedResources.get());
+    }
+  }
+  final ImmutableSet<String> allReferencedResources=allReferencedResourcesBuilder.build();
   final ProjectFilesystem projectFilesystem=getProjectFilesystem();
   final Path sourceDir=aaptPackageResources.getPathToGeneratedRDotJavaSrcFiles();
   try (final CustomZipOutputStream output=ZipOutputStreams.newOutputStream(projectFilesystem.resolve(getPathToOutput()))){
@@ -19,7 +27,12 @@
             throw new RuntimeException(String.format("Found unknown file while looking for R.java: %s",file));
           }
           output.putNextEntry(new ZipEntry(MorePaths.pathWithUnixSeparators(sourceDir.relativize(file))));
-          projectFilesystem.copyToOutputStream(file,output);
+          if (allPreDexRules.isEmpty()) {
+            projectFilesystem.copyToOutputStream(file,output);
+          }
+ else {
+            filterRDotJava(projectFilesystem.readLines(file),output,allReferencedResources);
+          }
           return FileVisitResult.CONTINUE;
         }
       }

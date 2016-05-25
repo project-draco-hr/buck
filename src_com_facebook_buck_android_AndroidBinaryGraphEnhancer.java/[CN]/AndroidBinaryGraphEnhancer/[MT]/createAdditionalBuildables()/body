@@ -46,8 +46,12 @@
     preDexBuildConfigs=preDexBuildConfigsBuilder.build();
     buildConfigJarFiles=buildConfigJarFilesBuilder.build();
   }
-  BuildRuleParams paramsForTrimUberRDotJava=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(TRIM_UBER_R_DOT_JAVA_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(aaptPackageResources)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
-  TrimUberRDotJava trimUberRDotJava=new TrimUberRDotJava(paramsForTrimUberRDotJava,pathResolver,aaptPackageResources);
+  ImmutableSet<DexProducedFromJavaLibrary> preDexedLibraries=ImmutableSet.of();
+  if (shouldPreDex) {
+    preDexedLibraries=createPreDexRulesForLibraries(preDexBuildConfigs,packageableCollection);
+  }
+  BuildRuleParams paramsForTrimUberRDotJava=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(TRIM_UBER_R_DOT_JAVA_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(aaptPackageResources).addAll(preDexedLibraries).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  TrimUberRDotJava trimUberRDotJava=new TrimUberRDotJava(paramsForTrimUberRDotJava,pathResolver,aaptPackageResources,preDexedLibraries);
   ruleResolver.addToIndex(trimUberRDotJava);
   BuildTarget compileUberRDotJavaTarget=createBuildTargetWithFlavor(COMPILE_UBER_R_DOT_JAVA_FLAVOR);
   BuildRuleParams paramsForCompileUberRDotJava=buildRuleParams.copyWithChanges(compileUberRDotJavaTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(trimUberRDotJava)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
@@ -58,7 +62,6 @@
   ruleResolver.addToIndex(dexUberRDotJava);
   Optional<PreDexMerge> preDexMerge=Optional.absent();
   if (shouldPreDex) {
-    ImmutableSet<DexProducedFromJavaLibrary> preDexedLibraries=createPreDexRulesForLibraries(preDexBuildConfigs,packageableCollection);
     preDexMerge=Optional.of(createPreDexMergeRule(preDexedLibraries,dexUberRDotJava));
     enhancedDeps.add(preDexMerge.get());
   }
