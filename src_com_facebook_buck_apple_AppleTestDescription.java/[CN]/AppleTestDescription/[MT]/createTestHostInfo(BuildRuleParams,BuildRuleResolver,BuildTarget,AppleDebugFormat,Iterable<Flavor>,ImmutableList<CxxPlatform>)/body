@@ -6,7 +6,9 @@
   AppleBundle testHostApp=(AppleBundle)rule;
   SourcePath testHostAppBinarySourcePath=new BuildTargetSourcePath(testHostApp.getBinaryBuildRule().getBuildTarget());
   ImmutableMap<BuildTarget,NativeLinkable> roots=NativeLinkables.getNativeLinkableRoots(testHostApp.getBinary().get().getDeps(),Predicates.alwaysTrue());
-  ImmutableMap<BuildTarget,NativeLinkable> nativeLinkables=NativeLinkables.getTransitiveNativeLinkables(cxxPlatform,roots.values());
-  ImmutableSet<BuildTarget> blacklist=nativeLinkables.keySet();
-  return TestHostInfo.of(testHostApp,testHostAppBinarySourcePath,blacklist);
+  ImmutableSet.Builder<BuildTarget> blacklistBuilder=ImmutableSet.builder();
+  for (  CxxPlatform platform : cxxPlatforms) {
+    blacklistBuilder.addAll(NativeLinkables.getTransitiveNativeLinkables(platform,roots.values()).keySet());
+  }
+  return TestHostInfo.of(testHostApp,testHostAppBinarySourcePath,blacklistBuilder.build());
 }

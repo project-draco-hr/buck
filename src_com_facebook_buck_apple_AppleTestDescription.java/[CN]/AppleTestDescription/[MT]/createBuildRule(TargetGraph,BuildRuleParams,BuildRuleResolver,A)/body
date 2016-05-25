@@ -17,10 +17,30 @@
   if (addDefaultPlatform) {
     extraFlavorsBuilder.add(defaultCxxPlatform.getFlavor());
   }
-  CxxPlatform cxxPlatform=cxxPlatformFlavorDomain.getValue(params.getBuildTarget()).or(defaultCxxPlatform);
+  Optional<MultiarchFileInfo> multiarchFileInfo=MultiarchFileInfos.create(appleCxxPlatformFlavorDomain,params.getBuildTarget());
+  AppleCxxPlatform appleCxxPlatform;
+  ImmutableList<CxxPlatform> cxxPlatforms;
+  if (multiarchFileInfo.isPresent()) {
+    ImmutableList.Builder<CxxPlatform> cxxPlatformBuilder=ImmutableList.builder();
+    for (    BuildTarget thinTarget : multiarchFileInfo.get().getThinTargets()) {
+      cxxPlatformBuilder.add(cxxPlatformFlavorDomain.getValue(thinTarget).get());
+    }
+    cxxPlatforms=cxxPlatformBuilder.build();
+    appleCxxPlatform=multiarchFileInfo.get().getRepresentativePlatform();
+  }
+ else {
+    CxxPlatform cxxPlatform=cxxPlatformFlavorDomain.getValue(params.getBuildTarget()).or(defaultCxxPlatform);
+    cxxPlatforms=ImmutableList.of(cxxPlatform);
+    try {
+      appleCxxPlatform=appleCxxPlatformFlavorDomain.getValue(cxxPlatform.getFlavor());
+    }
+ catch (    FlavorDomainException e) {
+      throw new HumanReadableException(e,"%s: Apple test requires an Apple platform, found '%s'",params.getBuildTarget(),cxxPlatform.getFlavor().getName());
+    }
+  }
   Optional<TestHostInfo> testHostInfo;
   if (args.testHostApp.isPresent()) {
-    testHostInfo=Optional.of(createTestHostInfo(params,resolver,args.testHostApp.get(),debugFormat,libraryFlavors,cxxPlatform));
+    testHostInfo=Optional.of(createTestHostInfo(params,resolver,args.testHostApp.get(),debugFormat,libraryFlavors,cxxPlatforms));
   }
  else {
     testHostInfo=Optional.absent();
@@ -29,13 +49,6 @@
   BuildRule library=createTestLibraryRule(params,resolver,args,testHostInfo.transform(TestHostInfo.GET_TEST_HOST_APP_BINARY_SOURCE_PATH_FUNCTION),testHostInfo.transform(TestHostInfo.GET_BLACKLIST_FUNCTION).or(ImmutableSet.<BuildTarget>of()),libraryTarget);
   if (!createBundle) {
     return library;
-  }
-  AppleCxxPlatform appleCxxPlatform;
-  try {
-    appleCxxPlatform=appleCxxPlatformFlavorDomain.getValue(cxxPlatform.getFlavor());
-  }
- catch (  FlavorDomainException e) {
-    throw new HumanReadableException(e,"%s: Apple test requires an Apple platform, found '%s'",params.getBuildTarget(),cxxPlatform.getFlavor().getName());
   }
   SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
   String platformName=appleCxxPlatform.getAppleSdk().getApplePlatform().getName();
