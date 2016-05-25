@@ -14,23 +14,7 @@
   steps.add(new AaptStep(getProjectFilesystem().getRootPath(),getAndroidManifestXml(),filteredResourcesProvider.getResDirectories(),FluentIterable.from(getResolver().getAllAbsolutePaths(assetsDirectories)).toSortedSet(Ordering.<Path>natural()),getResourceApkPath(),rDotTxtDir,pathToGeneratedProguardConfig,!skipCrunchPngs,manifestEntries));
   steps.add(new TouchStep(getProjectFilesystem(),getPathToRDotTxtFile()));
   if (hasRDotJava()) {
-    generateAndCompileRDotJavaFiles(steps,buildableContext);
-    if (rDotJavaNeedsDexing) {
-      Path rDotJavaDexDir=getPathToRDotJavaDexFiles();
-      steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),rDotJavaDexDir));
-      steps.add(new DxStep(getProjectFilesystem(),getPathToRDotJavaDex(),Collections.singleton(getPathToCompiledRDotJavaFiles()),DX_OPTIONS));
-      steps.add(new ZipScrubberStep(getProjectFilesystem(),getPathToRDotJavaDex()));
-      final EstimateLinearAllocStep estimateLinearAllocStep=new EstimateLinearAllocStep(getProjectFilesystem(),getPathToCompiledRDotJavaFiles());
-      steps.add(estimateLinearAllocStep);
-      buildableContext.recordArtifact(getPathToRDotJavaDex());
-      steps.add(new AbstractExecutionStep("record_build_output"){
-        @Override public StepExecutionResult execute(        ExecutionContext context){
-          buildableContext.addMetadata(R_DOT_JAVA_LINEAR_ALLOC_SIZE,estimateLinearAllocStep.get().toString());
-          return StepExecutionResult.SUCCESS;
-        }
-      }
-);
-    }
+    generateRDotJavaFiles(steps,buildableContext);
   }
   buildableContext.addMetadata(FILTERED_RESOURCE_DIRS_KEY,FluentIterable.from(filteredResourcesProvider.getResDirectories()).transform(Functions.toStringFunction()).toSortedList(Ordering.natural()));
   buildableContext.recordArtifact(getAndroidManifestXml());
