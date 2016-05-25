@@ -39,9 +39,17 @@
   }
 .start();
   if (nativeLinkStrategy == NativeLinkStrategy.MERGED) {
+    final Set<BuildTarget> transitivelyExcludedNativeLinkables=new HashSet<>();
+    new AbstractBreadthFirstTraversal<NativeLinkable>(Iterables.transform(excludedNativeLinkableRoots,Functions.forMap(nativeLinkableRoots))){
+      @Override public Iterable<NativeLinkable> visit(      NativeLinkable linkable){
+        transitivelyExcludedNativeLinkables.add(linkable.getBuildTarget());
+        return Iterables.concat(linkable.getNativeLinkableDeps(cxxPlatform),linkable.getNativeLinkableExportedDeps(cxxPlatform));
+      }
+    }
+.start();
     Map<BuildTarget,SharedNativeLinkTarget> includedNativeLinkTargetRoots=new LinkedHashMap<>();
     for (    Map.Entry<BuildTarget,SharedNativeLinkTarget> ent : nativeLinkTargetRoots.entrySet()) {
-      if (!excludedNativeLinkableRoots.contains(ent.getKey())) {
+      if (!transitivelyExcludedNativeLinkables.contains(ent.getKey())) {
         includedNativeLinkTargetRoots.put(ent.getKey(),ent.getValue());
       }
     }
