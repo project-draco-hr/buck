@@ -1,27 +1,5 @@
 {
-  ImmutableSet.Builder<DexProducedFromJavaLibrary> preDexDeps=ImmutableSet.builder();
-  preDexDeps.addAll(preDexRulesNotInThePackageableCollection);
-  for (  BuildTarget buildTarget : packageableCollection.getJavaLibrariesToDex()) {
-    Preconditions.checkState(!buildTargetsToExcludeFromDex.contains(buildTarget),"JavaLibrary should have been excluded from target to dex: %s",buildTarget);
-    BuildRule libraryRule=ruleResolver.getRule(buildTarget);
-    Preconditions.checkState(libraryRule instanceof JavaLibrary);
-    JavaLibrary javaLibrary=(JavaLibrary)libraryRule;
-    if (javaLibrary.getPathToOutput() == null) {
-      continue;
-    }
-    BuildTarget originalTarget=javaLibrary.getBuildTarget();
-    BuildTarget preDexTarget=BuildTarget.builder(originalTarget).addFlavors(DEX_FLAVOR).build();
-    Optional<BuildRule> preDexRule=ruleResolver.getRuleOptional(preDexTarget);
-    if (preDexRule.isPresent()) {
-      preDexDeps.add((DexProducedFromJavaLibrary)preDexRule.get());
-      continue;
-    }
-    BuildRuleParams paramsForPreDex=buildRuleParams.copyWithChanges(preDexTarget,Suppliers.ofInstance(ImmutableSortedSet.of(ruleResolver.getRule(javaLibrary.getBuildTarget()))),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
-    DexProducedFromJavaLibrary preDex=new DexProducedFromJavaLibrary(paramsForPreDex,pathResolver,javaLibrary);
-    ruleResolver.addToIndex(preDex);
-    preDexDeps.add(preDex);
-  }
-  ImmutableSet<DexProducedFromJavaLibrary> allPreDexDeps=preDexDeps.build();
+  ImmutableSet<DexProducedFromJavaLibrary> allPreDexDeps=createPreDexRulesForLibraries(preDexRulesNotInThePackageableCollection,packageableCollection);
   BuildRuleParams paramsForPreDexMerge=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(DEX_MERGE_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(getDexMergeDeps(aaptPackageResources,allPreDexDeps)).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   PreDexMerge preDexMerge=new PreDexMerge(paramsForPreDexMerge,pathResolver,primaryDexPath,dexSplitMode,allPreDexDeps,aaptPackageResources,dxExecutorService,xzCompressionLevel);
   ruleResolver.addToIndex(preDexMerge);
