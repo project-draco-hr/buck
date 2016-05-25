@@ -1,5 +1,4 @@
 {
-  ImmutableSortedSet.Builder<JavaLibrary> javaLibraryDepsBuilder=ImmutableSortedSet.naturalOrder();
   ImmutableSet.Builder<DexProducedFromJavaLibrary> preDexDeps=ImmutableSet.builder();
   preDexDeps.addAll(preDexRulesNotInThePackageableCollection);
   for (  BuildTarget buildTarget : packageableCollection.getJavaLibrariesToDex()) {
@@ -13,7 +12,6 @@
     if (javaLibrary.getPathToOutput() == null) {
       continue;
     }
-    javaLibraryDepsBuilder.add(javaLibrary);
     BuildTarget originalTarget=javaLibrary.getBuildTarget();
     BuildTarget preDexTarget=BuildTarget.builder(originalTarget).addFlavors(DEX_FLAVOR).build();
     Optional<BuildRule> preDexRule=ruleResolver.getRuleOptional(preDexTarget);
@@ -27,7 +25,7 @@
     preDexDeps.add(preDex);
   }
   ImmutableSet<DexProducedFromJavaLibrary> allPreDexDeps=preDexDeps.build();
-  BuildRuleParams paramsForPreDexMerge=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(DEX_MERGE_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(getDexMergeDeps(aaptPackageResources,allPreDexDeps)).addAll(javaLibraryDepsBuilder.build()).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  BuildRuleParams paramsForPreDexMerge=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(DEX_MERGE_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(getDexMergeDeps(aaptPackageResources,allPreDexDeps)).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
   PreDexMerge preDexMerge=new PreDexMerge(paramsForPreDexMerge,pathResolver,primaryDexPath,dexSplitMode,allPreDexDeps,aaptPackageResources,dxExecutorService,xzCompressionLevel);
   ruleResolver.addToIndex(preDexMerge);
   return preDexMerge;
