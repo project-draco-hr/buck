@@ -1,0 +1,37 @@
+{
+  if (!isStoreSupported()) {
+    return Futures.immediateFuture(null);
+  }
+  final HttpArtifactCacheEvent.Scheduled scheduled=HttpArtifactCacheEvent.newStoreScheduledEvent(ArtifactCacheEvent.getTarget(info.getMetadata()),info.getRuleKeys());
+  buckEventBus.post(scheduled);
+  final Path tmp;
+  try {
+    tmp=getPathForArtifact(output);
+  }
+ catch (  IOException e) {
+    LOGGER.error(e,"Failed to store artifact in temp file: " + output.getPath().toString());
+    return Futures.immediateFuture(null);
+  }
+  return httpWriteExecutorService.submit(new Runnable(){
+    @Override public void run(){
+      Started startedEvent=HttpArtifactCacheEvent.newStoreStartedEvent(scheduled);
+      buckEventBus.post(startedEvent);
+      Finished.Builder finishedEventBuilder=HttpArtifactCacheEvent.newFinishedEventBuilder(startedEvent).setRuleKeys(info.getRuleKeys());
+      try {
+        storeImpl(info,tmp,finishedEventBuilder);
+        buckEventBus.post(finishedEventBuilder.build());
+      }
+ catch (      IOException e) {
+        reportFailure(e,"store(%s): %s: %s",info.getRuleKeys(),e.getClass().getName(),e.getMessage());
+        buckEventBus.post(finishedEventBuilder.setWasUploadSuccessful(false).setErrorMessage(e.toString()).build());
+      }
+      try {
+        projectFilesystem.deleteFileAtPathIfExists(tmp);
+      }
+ catch (      IOException e) {
+        LOGGER.warn(e,"Failed to delete file %s",tmp);
+      }
+    }
+  }
+,null);
+}

@@ -1,0 +1,34 @@
+{
+  if (maxStoreSize.isPresent() && projectFilesystem.getFileSize(file) > maxStoreSize.get()) {
+    return;
+  }
+  Request.Builder builder=new Request.Builder();
+  final HttpArtifactCacheBinaryProtocol.StoreRequest storeRequest=new HttpArtifactCacheBinaryProtocol.StoreRequest(info,new ByteSource(){
+    @Override public InputStream openStream() throws IOException {
+      return projectFilesystem.newFileInputStream(file);
+    }
+  }
+);
+  eventBuilder.setRequestSizeBytes(storeRequest.getContentLength());
+  builder.put(new RequestBody(){
+    @Override public MediaType contentType(){
+      return OCTET_STREAM_CONTENT_TYPE;
+    }
+    @Override public long contentLength() throws IOException {
+      return storeRequest.getContentLength();
+    }
+    @Override public void writeTo(    BufferedSink bufferedSink) throws IOException {
+      StoreWriteResult writeResult=storeRequest.write(bufferedSink.outputStream());
+      eventBuilder.setArtifactSizeBytes(writeResult.getArtifactSizeBytes());
+      eventBuilder.setArtifactContentHash(writeResult.getArtifactContentHashCode().toString());
+    }
+  }
+);
+  try (HttpResponse response=storeCall(builder)){
+    final boolean requestFailed=response.code() != HttpURLConnection.HTTP_ACCEPTED;
+    if (requestFailed) {
+      reportFailure("store(%s, %s): unexpected response: %d",response.requestUrl(),info.getRuleKeys(),response.code());
+    }
+    eventBuilder.setWasUploadSuccessful(!requestFailed);
+  }
+ }

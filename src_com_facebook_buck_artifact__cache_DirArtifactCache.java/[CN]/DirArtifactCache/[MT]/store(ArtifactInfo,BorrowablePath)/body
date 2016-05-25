@@ -1,0 +1,54 @@
+{
+  if (!doStore) {
+    return Futures.immediateFuture(null);
+  }
+  try {
+    Optional<Path> borrowedAndStoredArtifactPath=Optional.absent();
+    for (    RuleKey ruleKey : info.getRuleKeys()) {
+      Path artifactPath=getPathForRuleKey(ruleKey,Optional.<String>absent());
+      Path metadataPath=getPathForRuleKey(ruleKey,Optional.of(".metadata"));
+      if (filesystem.exists(artifactPath) && filesystem.exists(metadataPath)) {
+        continue;
+      }
+      filesystem.mkdirs(getParentDirForRuleKey(ruleKey));
+      if (!output.canBorrow()) {
+        storeArtifactOutput(output.getPath(),artifactPath);
+      }
+ else {
+        if (!borrowedAndStoredArtifactPath.isPresent()) {
+          borrowedAndStoredArtifactPath=Optional.of(artifactPath);
+          filesystem.move(output.getPath(),artifactPath,StandardCopyOption.REPLACE_EXISTING);
+        }
+ else {
+          storeArtifactOutput(borrowedAndStoredArtifactPath.get(),artifactPath);
+        }
+      }
+      bytesSinceLastDeleteOldFiles+=filesystem.getFileSize(artifactPath);
+      Path tmp=filesystem.createTempFile(getPreparedTempFolder(),"metadata",TMP_EXTENSION);
+      try {
+        try (DataOutputStream out=new DataOutputStream(filesystem.newFileOutputStream(tmp))){
+          out.writeInt(info.getMetadata().size());
+          for (          Map.Entry<String,String> ent : info.getMetadata().entrySet()) {
+            out.writeUTF(ent.getKey());
+            byte[] val=ent.getValue().getBytes(Charsets.UTF_8);
+            out.writeInt(val.length);
+            out.write(val);
+          }
+        }
+         filesystem.move(tmp,metadataPath,StandardCopyOption.REPLACE_EXISTING);
+        bytesSinceLastDeleteOldFiles+=filesystem.getFileSize(metadataPath);
+      }
+  finally {
+        filesystem.deleteFileAtPathIfExists(tmp);
+      }
+    }
+  }
+ catch (  IOException e) {
+    LOG.warn(e,"Artifact store(%s, %s) error",info.getRuleKeys(),output);
+  }
+  if (maxCacheSizeBytes.isPresent() && bytesSinceLastDeleteOldFiles > (maxCacheSizeBytes.get() * STORED_TO_MAX_BYTES_RATIO_TRIM_TRIGGER)) {
+    bytesSinceLastDeleteOldFiles=0L;
+    deleteOldFiles();
+  }
+  return Futures.immediateFuture(null);
+}
