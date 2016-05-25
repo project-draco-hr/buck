@@ -7,8 +7,8 @@
     throw new HumanReadableException("Invalid bundle extension for apple_test rule: %s (must be one of %s)",args.extension,AppleBundleExtensions.VALID_XCTOOL_BUNDLE_EXTENSIONS);
   }
   boolean createBundle=Sets.intersection(params.getBuildTarget().getFlavors(),NON_LIBRARY_FLAVORS).isEmpty();
-  Sets.SetView<Flavor> nonLibraryFlavors=Sets.difference(params.getBuildTarget().getFlavors(),NON_LIBRARY_FLAVORS);
-  boolean addDefaultPlatform=nonLibraryFlavors.isEmpty();
+  Sets.SetView<Flavor> libraryFlavors=Sets.difference(params.getBuildTarget().getFlavors(),NON_LIBRARY_FLAVORS);
+  boolean addDefaultPlatform=libraryFlavors.isEmpty();
   ImmutableSet.Builder<Flavor> extraFlavorsBuilder=ImmutableSet.builder();
   if (createBundle) {
     extraFlavorsBuilder.add(LIBRARY_FLAVOR,CxxDescriptionEnhancer.MACH_O_BUNDLE_FLAVOR);
@@ -18,27 +18,15 @@
     extraFlavorsBuilder.add(defaultCxxPlatform.getFlavor());
   }
   CxxPlatform cxxPlatform=cxxPlatformFlavorDomain.getValue(params.getBuildTarget()).or(defaultCxxPlatform);
-  Optional<AppleBundle> testHostApp;
-  Optional<SourcePath> testHostAppBinarySourcePath;
-  ImmutableSet<BuildTarget> blacklist;
+  Optional<TestHostInfo> testHostInfo;
   if (args.testHostApp.isPresent()) {
-    BuildRule rule=resolver.requireRule(BuildTarget.builder(args.testHostApp.get()).addAllFlavors(nonLibraryFlavors).addFlavors(debugFormat.getFlavor()).addFlavors(StripStyle.NON_GLOBAL_SYMBOLS.getFlavor()).build());
-    if (!(rule instanceof AppleBundle)) {
-      throw new HumanReadableException("Apple test rule '%s' has test_host_app '%s' not of type '%s'.",params.getBuildTarget(),args.testHostApp.get(),AppleBundleDescription.TYPE);
-    }
-    testHostApp=Optional.of((AppleBundle)rule);
-    testHostAppBinarySourcePath=Optional.<SourcePath>of(new BuildTargetSourcePath(testHostApp.get().getBinaryBuildRule().getBuildTarget()));
-    ImmutableMap<BuildTarget,NativeLinkable> roots=NativeLinkables.getNativeLinkableRoots(testHostApp.get().getBinary().get().getDeps(),Predicates.alwaysTrue());
-    ImmutableMap<BuildTarget,NativeLinkable> nativeLinkables=NativeLinkables.getTransitiveNativeLinkables(cxxPlatform,roots.values());
-    blacklist=ImmutableSet.copyOf(nativeLinkables.keySet());
+    testHostInfo=Optional.of(createTestHostInfo(params,resolver,args.testHostApp.get(),debugFormat,libraryFlavors,cxxPlatform));
   }
  else {
-    testHostApp=Optional.absent();
-    testHostAppBinarySourcePath=Optional.absent();
-    blacklist=ImmutableSet.of();
+    testHostInfo=Optional.absent();
   }
   BuildTarget libraryTarget=params.getBuildTarget().withAppendedFlavors(extraFlavorsBuilder.build()).withAppendedFlavors(debugFormat.getFlavor());
-  BuildRule library=createTestLibraryRule(params,resolver,args,testHostAppBinarySourcePath,blacklist,libraryTarget);
+  BuildRule library=createTestLibraryRule(params,resolver,args,testHostInfo.transform(TestHostInfo.GET_TEST_HOST_APP_BINARY_SOURCE_PATH_FUNCTION),testHostInfo.transform(TestHostInfo.GET_BLACKLIST_FUNCTION).or(ImmutableSet.<BuildTarget>of()),libraryTarget);
   if (!createBundle) {
     return library;
   }
@@ -53,5 +41,5 @@
   String platformName=appleCxxPlatform.getAppleSdk().getApplePlatform().getName();
   BuildRule bundle=AppleDescriptions.createAppleBundle(cxxPlatformFlavorDomain,defaultCxxPlatform,appleCxxPlatformFlavorDomain,targetGraph,params.copyWithChanges(params.getBuildTarget().withAppendedFlavors(BUNDLE_FLAVOR,debugFormat.getFlavor(),AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(library).addAll(params.getDeclaredDeps().get()).build()),params.getExtraDeps()),resolver,codeSignIdentityStore,provisioningProfileStore,library.getBuildTarget(),args.getExtension(),Optional.<String>absent(),args.infoPlist,args.infoPlistSubstitutions,args.deps.get(),args.getTests(),debugFormat);
   Optional<SourcePath> xctool=getXctool(params,resolver,sourcePathResolver);
-  return new AppleTest(xctool,appleConfig.getXctoolStutterTimeoutMs(),appleCxxPlatform.getXctest(),appleCxxPlatform.getOtest(),appleConfig.getXctestPlatformNames().contains(platformName),platformName,appleConfig.getXctoolDefaultDestinationSpecifier(),args.destinationSpecifier,params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(bundle)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),sourcePathResolver,bundle,testHostApp,args.extension,args.contacts.get(),args.labels.get(),args.getRunTestSeparately(),xcodeDeveloperDirectorySupplier,appleConfig.getTestLogDirectoryEnvironmentVariable(),appleConfig.getTestLogLevelEnvironmentVariable(),appleConfig.getTestLogLevel());
+  return new AppleTest(xctool,appleConfig.getXctoolStutterTimeoutMs(),appleCxxPlatform.getXctest(),appleCxxPlatform.getOtest(),appleConfig.getXctestPlatformNames().contains(platformName),platformName,appleConfig.getXctoolDefaultDestinationSpecifier(),args.destinationSpecifier,params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(bundle)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),sourcePathResolver,bundle,testHostInfo.transform(TestHostInfo.GET_TEST_HOST_APP_FUNCTION),args.extension,args.contacts.get(),args.labels.get(),args.getRunTestSeparately(),xcodeDeveloperDirectorySupplier,appleConfig.getTestLogDirectoryEnvironmentVariable(),appleConfig.getTestLogLevelEnvironmentVariable(),appleConfig.getTestLogLevel());
 }
