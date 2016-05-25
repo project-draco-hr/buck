@@ -1,0 +1,30 @@
+{
+  final ProjectFilesystem projectFilesystem=getProjectFilesystem();
+  final Path sourceDir=aaptPackageResources.getPathToGeneratedRDotJavaSrcFiles();
+  try (final CustomZipOutputStream output=ZipOutputStreams.newOutputStream(projectFilesystem.resolve(getPathToOutput()))){
+    if (!projectFilesystem.exists(sourceDir)) {
+      output.putNextEntry(new ZipEntry("com/facebook/buck/AppWithoutResourcesStub.java"));
+      output.write(("package com.facebook.buck_generated;\n" + "final class AppWithoutResourcesStub {}").getBytes());
+    }
+ else {
+      projectFilesystem.walkRelativeFileTree(sourceDir,new SimpleFileVisitor<Path>(){
+        @Override public FileVisitResult visitFile(        Path file,        BasicFileAttributes attrs) throws IOException {
+          if (attrs.isDirectory()) {
+            return FileVisitResult.CONTINUE;
+          }
+          if (!attrs.isRegularFile()) {
+            throw new RuntimeException(String.format("Found unknown file type while looking for R.java: %s (%s)",file,attrs));
+          }
+          if (!file.getFileName().toString().endsWith(".java")) {
+            throw new RuntimeException(String.format("Found unknown file while looking for R.java: %s",file));
+          }
+          output.putNextEntry(new ZipEntry(MorePaths.pathWithUnixSeparators(sourceDir.relativize(file))));
+          projectFilesystem.copyToOutputStream(file,output);
+          return FileVisitResult.CONTINUE;
+        }
+      }
+);
+    }
+  }
+   return StepExecutionResult.SUCCESS;
+}

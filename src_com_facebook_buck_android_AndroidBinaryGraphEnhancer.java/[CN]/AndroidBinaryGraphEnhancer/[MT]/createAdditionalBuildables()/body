@@ -49,6 +49,16 @@
     preDexBuildConfigs=preDexBuildConfigsBuilder.build();
     buildConfigJarFiles=buildConfigJarFilesBuilder.build();
   }
+  BuildRuleParams paramsForTrimUberRDotJava=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(TRIM_UBER_R_DOT_JAVA_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(aaptPackageResources)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  TrimUberRDotJava trimUberRDotJava=new TrimUberRDotJava(paramsForTrimUberRDotJava,pathResolver,aaptPackageResources);
+  ruleResolver.addToIndex(trimUberRDotJava);
+  BuildTarget compileUberRDotJavaTarget=createBuildTargetWithFlavor(COMPILE_UBER_R_DOT_JAVA_FLAVOR);
+  BuildRuleParams paramsForCompileUberRDotJava=buildRuleParams.copyWithChanges(compileUberRDotJavaTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(trimUberRDotJava)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  JavaLibrary compileUberRDotJava=new DefaultJavaLibrary(paramsForCompileUberRDotJava,pathResolver,ImmutableSet.of(new BuildTargetSourcePath(trimUberRDotJava.getBuildTarget(),trimUberRDotJava.getPathToOutput())),ImmutableSet.<SourcePath>of(),javacOptions.getGeneratedSourceFolderName(),Optional.<SourcePath>absent(),ImmutableList.<String>of(),ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of(),new BuildTargetSourcePath(compileUberRDotJavaTarget),false,ImmutableSet.<Path>of(),new JavacToJarStepFactory(javacOptions,JavacOptionsAmender.IDENTITY),Optional.<Path>absent(),Optional.<String>absent(),ImmutableSortedSet.<BuildTarget>of());
+  ruleResolver.addToIndex(compileUberRDotJava);
+  BuildRuleParams paramsForDexUberRDotJava=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(DEX_UBER_R_DOT_JAVA_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(compileUberRDotJava)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+  DexProducedFromJavaLibrary dexUberRDotJava=new DexProducedFromJavaLibrary(paramsForDexUberRDotJava,pathResolver,compileUberRDotJava);
+  ruleResolver.addToIndex(dexUberRDotJava);
   packageableCollection=collector.build();
   Optional<PreDexMerge> preDexMerge=Optional.absent();
   if (shouldPreDex) {
@@ -71,5 +81,5 @@
     ruleResolver.addToIndex(computeExopackageDepsAbi.get());
     enhancedDeps.add(computeExopackageDepsAbi.get());
   }
-  return AndroidGraphEnhancementResult.builder().setPackageableCollection(packageableCollection).setAaptPackageResources(aaptPackageResources).setCopyNativeLibraries(copyNativeLibraries).setPackageStringAssets(packageStringAssets).setPreDexMerge(preDexMerge).setComputeExopackageDepsAbi(computeExopackageDepsAbi).setClasspathEntriesToDex(ImmutableSet.<SourcePath>builder().addAll(packageableCollection.getClasspathEntriesToDex()).addAll(buildConfigJarFiles).build()).setFinalDeps(enhancedDeps.build()).build();
+  return AndroidGraphEnhancementResult.builder().setPackageableCollection(packageableCollection).setAaptPackageResources(aaptPackageResources).setCompiledUberRDotJava(compileUberRDotJava).setCopyNativeLibraries(copyNativeLibraries).setPackageStringAssets(packageStringAssets).setPreDexMerge(preDexMerge).setComputeExopackageDepsAbi(computeExopackageDepsAbi).setClasspathEntriesToDex(ImmutableSet.<SourcePath>builder().addAll(packageableCollection.getClasspathEntriesToDex()).addAll(buildConfigJarFiles).build()).setFinalDeps(enhancedDeps.build()).build();
 }
