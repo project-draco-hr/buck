@@ -1,0 +1,41 @@
+{
+  int offset=EXPECTED_GLOBAL_HEADER.length;
+  int headerOffset=offset;
+  ImmutableList.Builder<UnixArchiveEntry> builder=ImmutableList.builder();
+  CharsetDecoder decoder=StandardCharsets.US_ASCII.newDecoder();
+  while (true) {
+    buffer.position(offset);
+    byte[] markerBytes=new byte[ENTRY_MARKER.length];
+    buffer.get(markerBytes,0,markerBytes.length);
+    if (!Arrays.equals(markerBytes,ENTRY_MARKER)) {
+      throw new HumanReadableException("Unknown entry marker");
+    }
+    int filenameLength=getIntFromStringAtRange(LENGTH_OF_FILENAME_SIZE,decoder);
+    long fileModification=getLongFromStringAtRange(MODIFICATION_TIME_SIZE,decoder);
+    int ownerId=getIntFromStringAtRange(OWNER_ID_SIZE,decoder);
+    int groupId=getIntFromStringAtRange(GROUP_ID_SIZE,decoder);
+    int fileMode=getIntFromStringAtRange(FILE_MODE_SIZE,decoder);
+    int fileAndFilenameSize=getIntFromStringAtRange(FILE_AND_FILENAME_SIZE,decoder);
+    byte[] magic=new byte[END_OF_HEADER_MAGIC_SIZE];
+    buffer.get(magic,0,magic.length);
+    if (!Arrays.equals(magic,END_OF_HEADER_MAGIC)) {
+      throw new HumanReadableException("Unknown file magic");
+    }
+    long fileSizeWithoutFilename=fileAndFilenameSize - filenameLength;
+    offset=buffer.position();
+    String filename=null;
+    try {
+      filename=NulTerminatedCharsetDecoder.decodeUTF8String(buffer);
+    }
+ catch (    CharacterCodingException e) {
+      throw new HumanReadableException(e,"Unable to read filename from buffer starting at %d",offset);
+    }
+    offset+=filenameLength;
+    builder.add(UnixArchiveEntry.of(filenameLength,fileModification,ownerId,groupId,fileMode,fileSizeWithoutFilename,filename,headerOffset,offset - headerOffset,offset));
+    offset+=fileSizeWithoutFilename;
+    if (offset == buffer.capacity()) {
+      break;
+    }
+  }
+  return builder.build();
+}
