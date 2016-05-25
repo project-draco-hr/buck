@@ -1,0 +1,32 @@
+{
+  FrontendRequest request=new FrontendRequest();
+  request.setType(FrontendRequestType.BUILD_STATUS);
+  FrontendResponse expectedResponse=new FrontendResponse();
+  expectedResponse.setType(FrontendRequestType.START_BUILD);
+  Capture<Request.Builder> requestBuilder=EasyMock.newCapture();
+  TSerializer serializer=new TSerializer(config.getThriftProtocol().getFactory());
+  final byte[] responseBuffer=serializer.serialize(expectedResponse);
+  HttpResponse httpResponse=new HttpResponse(){
+    @Override public int code(){
+      return 200;
+    }
+    @Override public long contentLength() throws IOException {
+      return responseBuffer.length;
+    }
+    @Override public InputStream getBody() throws IOException {
+      return new ByteArrayInputStream(responseBuffer);
+    }
+    @Override public String requestUrl(){
+      return "super url";
+    }
+    @Override public void close() throws IOException {
+    }
+  }
+;
+  EasyMock.expect(httpService.makeRequest(EasyMock.eq("/thrift"),EasyMock.capture(requestBuilder))).andReturn(httpResponse).times(1);
+  EasyMock.replay(httpService);
+  FrontendResponse actualResponse=new FrontendResponse();
+  service.makeRequest(request,actualResponse);
+  Assert.assertEquals(expectedResponse,actualResponse);
+  EasyMock.verify(httpService);
+}

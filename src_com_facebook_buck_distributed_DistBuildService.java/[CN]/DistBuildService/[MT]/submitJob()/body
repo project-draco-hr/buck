@@ -1,51 +1,44 @@
 {
-  LOG.verbose(String.format("DistBuildConfig: [%s]",distBuildConfig.toString()));
-  StartBuildRequest startTime=new StartBuildRequest();
-  BuildStatusRequest status=new BuildStatusRequest();
+  StartBuildRequest startTimeRequest=new StartBuildRequest();
+  startTimeRequest.setStartTimestampMillis(System.currentTimeMillis());
   FrontendRequest request=new FrontendRequest();
+  request.setType(FrontendRequestType.START_BUILD);
+  request.setStartBuild(startTimeRequest);
   FrontendResponse response=new FrontendResponse();
-  BuildJob job;
-  BuildId id;
-  startTime.setStartTimestampMillis(System.currentTimeMillis());
-  try {
-    ThriftOverHttp thriftClient=new ThriftOverHttp(frontendUrl,ThriftOverHttp.Encoding.json);
-    request.setType(FrontendRequestType.START_BUILD);
-    request.setStartBuild(startTime);
-    thriftClient.writeAndSend(request);
-    thriftClient.read(response);
-    Preconditions.checkState(response.getType().equals(FrontendRequestType.START_BUILD));
-    job=response.getStartBuild().getBuildJob();
-    id=job.getBuildId();
-    LOG.info("Submitted job. Build id = " + id.getId());
-    logDebugInfo(job);
-    status.setBuildId(id);
-    request.clear();
-    request.setType(FrontendRequestType.BUILD_STATUS);
-    request.setBuildStatus(status);
-    Stopwatch stopwatch=Stopwatch.createStarted();
-    do {
-      thriftClient.writeAndSend(request);
-      response.clear();
-      thriftClient.read(response);
-      Preconditions.checkState(response.getType().equals(FrontendRequestType.BUILD_STATUS));
-      job=response.getBuildStatus().getBuildJob();
-      Preconditions.checkState(job.getBuildId().equals(id));
-      LOG.info("Got build status: " + job.getStatus().toString());
-      DistBuildStatus distBuildStatus=prepareStatusFromJob(job).setETAMillis(BUILD_DURATION_MS - stopwatch.elapsed(TimeUnit.MILLISECONDS)).build();
-      eventBus.post(new DistBuildStatusEvent(distBuildStatus));
+  service.makeRequest(request,response);
+  Preconditions.checkState(response.getType().equals(FrontendRequestType.START_BUILD));
+  BuildJob job=response.getStartBuild().getBuildJob();
+  final BuildId id=job.getBuildId();
+  LOG.info("Submitted job. Build id = " + id.getId());
+  logDebugInfo(job);
+  BuildStatusRequest statusRequest=new BuildStatusRequest();
+  statusRequest.setBuildId(id);
+  request.clear();
+  request.setType(FrontendRequestType.BUILD_STATUS);
+  request.setBuildStatus(statusRequest);
+  Stopwatch stopwatch=Stopwatch.createStarted();
+  do {
+    response.clear();
+    service.makeRequest(request,response);
+    Preconditions.checkState(response.getType().equals(FrontendRequestType.BUILD_STATUS));
+    job=response.getBuildStatus().getBuildJob();
+    Preconditions.checkState(job.getBuildId().equals(id));
+    LOG.info("Got build status: " + job.getStatus().toString());
+    DistBuildStatus distBuildStatus=prepareStatusFromJob(job).setETAMillis(MAX_BUILD_DURATION_MILLIS - stopwatch.elapsed(TimeUnit.MILLISECONDS)).build();
+    eventBus.post(new DistBuildStatusEvent(distBuildStatus));
+    try {
       Thread.sleep(1000);
     }
- while (!(job.getStatus().equals(BuildStatus.FINISHED_SUCCESSFULLY) || job.getStatus().equals(BuildStatus.FAILED)));
-    LOG.info("Build was " + (response.isWasSuccessful() ? "" : "not ") + "successful!");
-    if (response.isSetErrorMessage()) {
-      LOG.error("Error msg: " + response.getErrorMessage());
+ catch (    InterruptedException e) {
+      LOG.error(e,"BuildStatus polling sleep call has been interrupted unexpectedly.");
     }
-    logDebugInfo(job);
-    DistBuildStatus distBuildStatus=prepareStatusFromJob(job).setETAMillis(0).build();
-    eventBus.post(new DistBuildStatusEvent(distBuildStatus));
-    thriftClient.close();
   }
- catch (  Exception e) {
-    LOG.error(e);
+ while (!(job.getStatus().equals(BuildStatus.FINISHED_SUCCESSFULLY) || job.getStatus().equals(BuildStatus.FAILED)));
+  LOG.info("Build was " + (response.isWasSuccessful() ? "" : "not ") + "successful!");
+  if (response.isSetErrorMessage()) {
+    LOG.error("Error msg: " + response.getErrorMessage());
   }
+  logDebugInfo(job);
+  DistBuildStatus distBuildStatus=prepareStatusFromJob(job).setETAMillis(0).build();
+  eventBus.post(new DistBuildStatusEvent(distBuildStatus));
 }

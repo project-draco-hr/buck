@@ -1,0 +1,22 @@
+{
+  FrontendRequest request=new FrontendRequest();
+  request.setType(FrontendRequestType.BUILD_STATUS);
+  FrontendResponse response=new FrontendResponse();
+  response.setType(FrontendRequestType.START_BUILD);
+  Capture<Request.Builder> requestBuilder=EasyMock.newCapture();
+  HttpResponse httpResponse=EasyMock.createMock(HttpResponse.class);
+  EasyMock.expect(httpResponse.code()).andReturn(404).atLeastOnce();
+  EasyMock.expect(httpResponse.requestUrl()).andReturn("super url").atLeastOnce();
+  EasyMock.expect(httpService.makeRequest(EasyMock.eq("/thrift"),EasyMock.capture(requestBuilder))).andReturn(httpResponse).times(1);
+  EasyMock.replay(httpResponse,httpService);
+  try {
+    service.makeRequest(request,response);
+    Assert.fail("This should've thrown an IOException.");
+  }
+ catch (  IOException e) {
+    Assert.assertNotNull(e);
+  }
+  Request actualHttpRequest=requestBuilder.getValue().url("http://localhost").build();
+  Assert.assertEquals(ThriftOverHttpService.THRIFT_CONTENT_TYPE,actualHttpRequest.body().contentType());
+  EasyMock.verify(httpResponse,httpService);
+}

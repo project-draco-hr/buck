@@ -1,0 +1,30 @@
+{
+  if (LOG.isVerboseEnabled()) {
+    LOG.verbose("Making Thrift Request: [%s].",thriftToDebugJson(thriftRequest));
+  }
+  TSerializer serializer=new TSerializer(config.getThriftProtocol().getFactory());
+  byte[] serializedBytes=null;
+  try {
+    serializedBytes=serializer.serialize(thriftRequest);
+  }
+ catch (  TException e) {
+    throw new ThriftServiceException("Problems serializing the thrift struct.",e);
+  }
+  RequestBody body=RequestBody.create(THRIFT_CONTENT_TYPE,serializedBytes,0,serializedBytes.length);
+  Request.Builder requestBuilder=new Request.Builder().addHeader(THRIFT_PROTOCOL_HEADER,config.getThriftProtocol().toString().toLowerCase()).post(body);
+  try (HttpResponse response=config.getService().makeRequest(config.getThriftPath(),requestBuilder)){
+    if (response.code() != 200) {
+      throw new ThriftServiceException(String.format("HTTP response returned unexpected status code [%d] from URL [%s].",response.code(),response.requestUrl()));
+    }
+    try (TIOStreamTransport responseTransport=new TIOStreamTransport(response.getBody())){
+      TProtocol responseProtocol=newProtocolInstance(config.getThriftProtocol(),responseTransport);
+      thriftResponse.read(responseProtocol);
+      if (LOG.isVerboseEnabled()) {
+        LOG.debug("Received Thrift Response: [%s].",thriftToDebugJson(thriftResponse));
+      }
+    }
+ catch (    TException e) {
+      throw new ThriftServiceException("Failed to deserialize the thrift body payload.",e);
+    }
+  }
+ }
