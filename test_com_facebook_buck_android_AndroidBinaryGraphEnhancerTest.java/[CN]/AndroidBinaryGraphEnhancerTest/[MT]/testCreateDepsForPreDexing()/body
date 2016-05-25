@@ -18,12 +18,17 @@
   ruleResolver.addToIndex(aaptPackageResources);
   AndroidPackageableCollection collection=new AndroidPackageableCollector(apkTarget,ImmutableSet.of(javaDep2BuildTarget),ImmutableSet.<BuildTarget>of()).addClasspathEntry(((HasJavaClassHashes)javaDep1),new FakeSourcePath("ignored")).addClasspathEntry(((HasJavaClassHashes)javaDep2),new FakeSourcePath("ignored")).addClasspathEntry(((HasJavaClassHashes)javaLib),new FakeSourcePath("ignored")).build();
   ImmutableSet<DexProducedFromJavaLibrary> preDexedLibraries=graphEnhancer.createPreDexRulesForLibraries(ImmutableList.<DexProducedFromJavaLibrary>of(),collection);
-  BuildRule preDexMergeRule=graphEnhancer.createPreDexMergeRule(preDexedLibraries,aaptPackageResources);
+  BuildTarget fakeUberRDotJavaCompileTarget=BuildTargetFactory.newInstance("//fake:uber_r_dot_java#compile");
+  JavaLibrary fakeUberRDotJavaCompile=(JavaLibrary)JavaLibraryBuilder.createBuilder(fakeUberRDotJavaCompileTarget).build(ruleResolver);
+  BuildTarget fakeUberRDotJavaDexTarget=BuildTargetFactory.newInstance("//fake:uber_r_dot_java#dex");
+  DexProducedFromJavaLibrary fakeUberRDotJavaDex=new DexProducedFromJavaLibrary(new FakeBuildRuleParamsBuilder(fakeUberRDotJavaDexTarget).build(),new SourcePathResolver(ruleResolver),fakeUberRDotJavaCompile);
+  ruleResolver.addToIndex(fakeUberRDotJavaDex);
+  BuildRule preDexMergeRule=graphEnhancer.createPreDexMergeRule(preDexedLibraries,fakeUberRDotJavaDex);
   BuildTarget dexMergeTarget=BuildTargetFactory.newInstance("//java/com/example:apk#dex_merge");
   BuildRule dexMergeRule=ruleResolver.getRule(dexMergeTarget);
   assertEquals(dexMergeRule,preDexMergeRule);
   BuildTarget javaDep1DexBuildTarget=BuildTarget.builder(javaDep1BuildTarget).addFlavors(AndroidBinaryGraphEnhancer.DEX_FLAVOR).build();
   BuildTarget javaDep2DexBuildTarget=BuildTarget.builder(javaDep2BuildTarget).addFlavors(AndroidBinaryGraphEnhancer.DEX_FLAVOR).build();
   BuildTarget javaLibDexBuildTarget=BuildTarget.builder(javaLibBuildTarget).addFlavors(AndroidBinaryGraphEnhancer.DEX_FLAVOR).build();
-  assertThat("There should be a #dex rule for dep1 and lib, but not dep2 because it is in the no_dx " + "list.  And we should depend on uber_r_dot_java",Iterables.transform(dexMergeRule.getDeps(),HasBuildTarget.TO_TARGET),Matchers.allOf(Matchers.not(Matchers.hasItem(javaDep1BuildTarget)),Matchers.hasItem(javaDep1DexBuildTarget),Matchers.not(Matchers.hasItem(javaDep2BuildTarget)),Matchers.not(Matchers.hasItem(javaDep2DexBuildTarget)),Matchers.hasItem(javaLibDexBuildTarget),Matchers.hasItem(aaptPackageResources.getBuildTarget())));
+  assertThat("There should be a #dex rule for dep1 and lib, but not dep2 because it is in the no_dx " + "list.  And we should depend on uber_r_dot_java",Iterables.transform(dexMergeRule.getDeps(),HasBuildTarget.TO_TARGET),Matchers.allOf(Matchers.not(Matchers.hasItem(javaDep1BuildTarget)),Matchers.hasItem(javaDep1DexBuildTarget),Matchers.not(Matchers.hasItem(javaDep2BuildTarget)),Matchers.not(Matchers.hasItem(javaDep2DexBuildTarget)),Matchers.hasItem(javaLibDexBuildTarget),Matchers.hasItem(fakeUberRDotJavaDex.getBuildTarget())));
 }
