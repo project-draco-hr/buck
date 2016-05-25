@@ -1,0 +1,27 @@
+{
+  if (appleConfig.getXctoolZipTarget().isPresent()) {
+    final BuildRule xctoolZipBuildRule=resolver.getRule(appleConfig.getXctoolZipTarget().get());
+    BuildTarget unzipXctoolTarget=BuildTarget.builder(xctoolZipBuildRule.getBuildTarget()).addFlavors(UNZIP_XCTOOL_FLAVOR).build();
+    final Path outputDirectory=BuildTargets.getGenPath(params.getProjectFilesystem(),unzipXctoolTarget,"%s/unzipped");
+    if (!resolver.getRuleOptional(unzipXctoolTarget).isPresent()) {
+      BuildRuleParams unzipXctoolParams=params.copyWithChanges(unzipXctoolTarget,Suppliers.ofInstance(ImmutableSortedSet.of(xctoolZipBuildRule)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+      resolver.addToIndex(new AbstractBuildRule(unzipXctoolParams,sourcePathResolver){
+        @Override public ImmutableList<Step> getBuildSteps(        BuildContext context,        BuildableContext buildableContext){
+          buildableContext.recordArtifact(outputDirectory);
+          return ImmutableList.of(new MakeCleanDirectoryStep(getProjectFilesystem(),outputDirectory),new UnzipStep(getProjectFilesystem(),Preconditions.checkNotNull(xctoolZipBuildRule.getPathToOutput()),outputDirectory));
+        }
+        @Override public Path getPathToOutput(){
+          return outputDirectory;
+        }
+      }
+);
+    }
+    return Optional.<SourcePath>of(new BuildTargetSourcePath(unzipXctoolTarget,outputDirectory.resolve("bin/xctool")));
+  }
+ else   if (appleConfig.getXctoolPath().isPresent()) {
+    return Optional.<SourcePath>of(new PathSourcePath(params.getProjectFilesystem(),appleConfig.getXctoolPath().get()));
+  }
+ else {
+    return Optional.absent();
+  }
+}
