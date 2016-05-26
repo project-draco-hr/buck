@@ -2,42 +2,47 @@
   if (!useManifestCaching(rule)) {
     return Futures.immediateFuture(Optional.<BuildResult>absent());
   }
-  Optional<Pair<RuleKey,ImmutableSet<SourcePath>>> manifestKey=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem()).depFileRuleKeyBuilderFactory.buildManifestKey(rule);
+  final Optional<Pair<RuleKey,ImmutableSet<SourcePath>>> manifestKey=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem()).depFileRuleKeyBuilderFactory.buildManifestKey(rule);
   if (!manifestKey.isPresent()) {
     return Futures.immediateFuture(Optional.<BuildResult>absent());
   }
-  LazyPath tempFile=new LazyPath(){
+  final LazyPath tempFile=new LazyPath(){
     @Override protected Path create() throws IOException {
       return Files.createTempFile("buck.",".manifest");
     }
   }
 ;
-  CacheResult manifestResult=context.getArtifactCache().fetch(manifestKey.get().getFirst(),tempFile);
-  if (!manifestResult.getType().isSuccess()) {
-    return Futures.immediateFuture(Optional.<BuildResult>absent());
-  }
-  Path manifestPath=getManifestPath(rule);
-  rule.getProjectFilesystem().deleteFileAtPathIfExists(manifestPath);
-  rule.getProjectFilesystem().createParentDirs(manifestPath);
-  try (OutputStream outputStream=rule.getProjectFilesystem().newFileOutputStream(manifestPath);InputStream inputStream=new GZIPInputStream(new BufferedInputStream(Files.newInputStream(tempFile.get())))){
-    ByteStreams.copy(inputStream,outputStream);
-  }
-   Files.delete(tempFile.get());
-  Manifest manifest;
-  try (InputStream input=rule.getProjectFilesystem().newFileInputStream(manifestPath)){
-    manifest=new Manifest(input);
-  }
-   Optional<RuleKey> ruleKey=manifest.lookup(fileHashCaches.getUnchecked(rule.getProjectFilesystem()),pathResolver,manifestKey.get().getSecond());
-  if (!ruleKey.isPresent()) {
-    return Futures.immediateFuture(Optional.<BuildResult>absent());
-  }
-  ListenableFuture<CacheResult> cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,ruleKey.get(),buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
-  return Futures.transform(cacheResult,new Function<CacheResult,Optional<BuildResult>>(){
-    @Override public Optional<BuildResult> apply(    CacheResult cacheResult){
-      if (cacheResult.getType().isSuccess()) {
-        return Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_MANIFEST_BASED,cacheResult));
+  final ListenableFuture<CacheResult> manifestResult=asyncFetchArtifactForBuildable(manifestKey.get().getFirst(),tempFile,context.getArtifactCache(),buildInfoRecorder);
+  return Futures.transformAsync(manifestResult,new AsyncFunction<CacheResult,Optional<BuildResult>>(){
+    @Override public ListenableFuture<Optional<BuildResult>> apply(    CacheResult manifestResult) throws IOException, InterruptedException {
+      if (!manifestResult.getType().isSuccess()) {
+        return Futures.immediateFuture(Optional.<BuildResult>absent());
       }
-      return Optional.absent();
+      Path manifestPath=getManifestPath(rule);
+      rule.getProjectFilesystem().deleteFileAtPathIfExists(manifestPath);
+      rule.getProjectFilesystem().createParentDirs(manifestPath);
+      try (OutputStream outputStream=rule.getProjectFilesystem().newFileOutputStream(manifestPath);InputStream inputStream=new GZIPInputStream(new BufferedInputStream(Files.newInputStream(tempFile.get())))){
+        ByteStreams.copy(inputStream,outputStream);
+      }
+       Files.delete(tempFile.get());
+      Manifest manifest;
+      try (InputStream input=rule.getProjectFilesystem().newFileInputStream(manifestPath)){
+        manifest=new Manifest(input);
+      }
+       Optional<RuleKey> ruleKey=manifest.lookup(fileHashCaches.getUnchecked(rule.getProjectFilesystem()),pathResolver,manifestKey.get().getSecond());
+      if (!ruleKey.isPresent()) {
+        return Futures.immediateFuture(Optional.<BuildResult>absent());
+      }
+      ListenableFuture<CacheResult> cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,ruleKey.get(),buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
+      return Futures.transform(cacheResult,new Function<CacheResult,Optional<BuildResult>>(){
+        @Override public Optional<BuildResult> apply(        CacheResult cacheResult){
+          if (cacheResult.getType().isSuccess()) {
+            return Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_MANIFEST_BASED,cacheResult));
+          }
+          return Optional.absent();
+        }
+      }
+,service);
     }
   }
 ,service);
