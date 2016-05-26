@@ -1,0 +1,42 @@
+{
+  if (!isStoreSupported()) {
+    return Futures.immediateFuture(null);
+  }
+  final HttpArtifactCacheEvent.Scheduled scheduled=HttpArtifactCacheEvent.newStoreScheduledEvent(ArtifactCacheEvent.getTarget(info.getMetadata()),info.getRuleKeys());
+  buckEventBus.post(scheduled);
+  final Path tmp;
+  try {
+    tmp=getPathForArtifact(output);
+  }
+ catch (  IOException e) {
+    LOG.error(e,"Failed to store artifact in temp file: " + output.getPath().toString());
+    return Futures.immediateFuture(null);
+  }
+  return httpWriteExecutorService.submit(new Runnable(){
+    @Override public void run(){
+      HttpArtifactCacheEvent.Started startedEvent=HttpArtifactCacheEvent.newStoreStartedEvent(scheduled);
+      buckEventBus.post(startedEvent);
+      HttpArtifactCacheEvent.Finished.Builder finishedEventBuilder=HttpArtifactCacheEvent.newFinishedEventBuilder(startedEvent).setRuleKeys(info.getRuleKeys());
+      try {
+        if (!isArtefactTooBigToBeStored(tmp,maxStoreSize,projectFilesystem)) {
+          storeImpl(info,tmp,finishedEventBuilder);
+        }
+ else {
+          LOG.info("Artifact too big so not storing it in the distributed cache. " + "file=[%s] buildTarget=[%s]",tmp,info.getBuildTarget());
+        }
+        buckEventBus.post(finishedEventBuilder.build());
+      }
+ catch (      IOException e) {
+        reportFailure(e,"store(%s): %s: %s",info.getRuleKeys(),e.getClass().getName(),e.getMessage());
+        buckEventBus.post(finishedEventBuilder.setWasUploadSuccessful(false).setErrorMessage(e.toString()).build());
+      }
+      try {
+        projectFilesystem.deleteFileAtPathIfExists(tmp);
+      }
+ catch (      IOException e) {
+        LOG.warn(e,"Failed to delete file %s",tmp);
+      }
+    }
+  }
+,null);
+}

@@ -1,0 +1,17 @@
+{
+  HttpArtifactCacheEvent.Started startedEvent=HttpArtifactCacheEvent.newFetchStartedEvent(ImmutableSet.<RuleKey>of());
+  buckEventBus.post(startedEvent);
+  HttpArtifactCacheEvent.Finished.Builder eventBuilder=HttpArtifactCacheEvent.newFinishedEventBuilder(startedEvent).setRuleKeys(Lists.newArrayList(ruleKey));
+  try {
+    CacheResult result=fetchImpl(ruleKey,output,eventBuilder);
+    buckEventBus.post(eventBuilder.setFetchResult(result).build());
+    return result;
+  }
+ catch (  IOException e) {
+    String msg=String.format("%s: %s",e.getClass().getName(),e.getMessage());
+    reportFailure(e,"fetch(%s): %s",ruleKey,msg);
+    CacheResult cacheResult=CacheResult.error(name,msg);
+    buckEventBus.post(eventBuilder.setFetchResult(cacheResult).setErrorMessage(msg).build());
+    return cacheResult;
+  }
+}

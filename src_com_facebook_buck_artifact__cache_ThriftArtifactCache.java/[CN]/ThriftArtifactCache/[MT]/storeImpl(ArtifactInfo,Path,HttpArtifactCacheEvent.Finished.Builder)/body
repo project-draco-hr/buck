@@ -1,0 +1,28 @@
+{
+  final ByteSource artifact=new ByteSource(){
+    @Override public InputStream openStream() throws IOException {
+      return projectFilesystem.newFileInputStream(file);
+    }
+  }
+;
+  BuckCacheStoreRequest storeRequest=new BuckCacheStoreRequest();
+  storeRequest.setMetadata(infoToMetadata(info,artifact));
+  PayloadInfo payloadInfo=new PayloadInfo();
+  payloadInfo.setSizeBytes(artifact.size());
+  BuckCacheRequest cacheRequest=new BuckCacheRequest();
+  cacheRequest.addToPayloads(payloadInfo);
+  cacheRequest.setType(BuckCacheRequestType.STORE);
+  cacheRequest.setStoreRequest(storeRequest);
+  final ThriftArtifactCacheProtocol.Request request=ThriftArtifactCacheProtocol.createRequest(PROTOCOL,cacheRequest,artifact);
+  Request.Builder builder=toOkHttpRequest(request);
+  try (HttpResponse httpResponse=storeClient.makeRequest(thriftEndpointPath,builder)){
+    if (httpResponse.code() != 200) {
+      throw new IOException(String.format("Failed to store cache artifact with HTTP status code [%d] " + " to url [%s] for build target [%s] that has size [%d] bytes.",httpResponse.code(),httpResponse.requestUrl(),info.getBuildTarget().orNull(),artifact.size()));
+    }
+    try (ThriftArtifactCacheProtocol.Response response=ThriftArtifactCacheProtocol.parseResponse(PROTOCOL,httpResponse.getBody())){
+      if (!response.getThriftData().isWasSuccessful()) {
+        throw new IOException(String.format("Failed to store artifact with thriftErrorMessage=[%s] " + "url=[%s] artifactSizeBytes=[%d]",response.getThriftData().getErrorMessage(),httpResponse.requestUrl(),artifact.size()));
+      }
+    }
+   }
+ }

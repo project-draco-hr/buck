@@ -1,0 +1,43 @@
+{
+  BuckCacheFetchRequest fetchRequest=new BuckCacheFetchRequest();
+  BuckCacheRequest cacheRequest=new BuckCacheRequest();
+  cacheRequest.setType(BuckCacheRequestType.FETCH);
+  cacheRequest.setFetchRequest(fetchRequest);
+  final ThriftArtifactCacheProtocol.Request request=ThriftArtifactCacheProtocol.createRequest(PROTOCOL,cacheRequest);
+  Request.Builder builder=toOkHttpRequest(request);
+  try (HttpResponse httpResponse=fetchClient.makeRequest(thriftEndpointPath,builder)){
+    if (httpResponse.code() != 200) {
+      String message=String.format("Failed to fetch cache artifact with HTTP status code [%d] " + " to url [%s] for rule key [%s].",httpResponse.code(),httpResponse.requestUrl(),ruleKey.toString());
+      LOG.error(message);
+      return CacheResult.error(name,message);
+    }
+    try (ThriftArtifactCacheProtocol.Response response=ThriftArtifactCacheProtocol.parseResponse(PROTOCOL,httpResponse.getBody())){
+      BuckCacheResponse cacheResponse=response.getThriftData();
+      if (!cacheResponse.isWasSuccessful()) {
+        return CacheResult.error(name,cacheResponse.getErrorMessage());
+      }
+      BuckCacheFetchResponse fetchResponse=cacheResponse.getFetchResponse();
+      if (!fetchResponse.isArtifactExists()) {
+        return CacheResult.miss();
+      }
+      Path tmp=createTempFileForDownload();
+      ThriftArtifactCacheProtocol.Response.ReadPayloadInfo readResult=null;
+      try (OutputStream tmpFile=projectFilesystem.newFileOutputStream(tmp)){
+        readResult=response.readPayload(tmpFile);
+      }
+       ArtifactMetadata metadata=fetchResponse.getMetadata();
+      if (!metadata.isSetArtifactPayloadCrc32()) {
+        String msg="Fetched artifact is missing the CRC32 hash.";
+        LOG.error(msg);
+        return CacheResult.error(name,msg);
+      }
+      if (readResult.getCrc32Hash() != fetchResponse.getMetadata().getArtifactPayloadCrc32()) {
+        String msg=String.format("The artifact fetched from cache is corrupted. ExpectedCRC32=[%s] ActualCRC32=[%s]",fetchResponse.getMetadata().getArtifactPayloadCrc32(),readResult.getCrc32Hash());
+        LOG.error(msg);
+        return CacheResult.error(name,msg);
+      }
+      projectFilesystem.move(tmp,output.get(),StandardCopyOption.REPLACE_EXISTING);
+      return CacheResult.hit(name,ImmutableMap.copyOf(fetchResponse.getMetadata().getMetadata()),readResult.getBytesRead());
+    }
+   }
+ }

@@ -1,0 +1,21 @@
+{
+  byte[] expectedPayload=createBuffer(21);
+  String expectedErrorMessage="My Super cool error message";
+  BuckCacheResponse expectedResponse=null;
+  byte[] responseRawData=null;
+  try (ByteArrayOutputStream stream=new ByteArrayOutputStream()){
+    expectedResponse=serializeData(expectedErrorMessage,stream,expectedPayload);
+    responseRawData=stream.toByteArray();
+  }
+   try (ByteArrayInputStream stream=new ByteArrayInputStream(responseRawData);ByteArrayOutputStream payloadStream=new ByteArrayOutputStream()){
+    ThriftArtifactCacheProtocol.Response response=ThriftArtifactCacheProtocol.parseResponse(PROTOCOL,stream);
+    BuckCacheResponse actualResponse=response.getThriftData();
+    Assert.assertEquals(expectedResponse.getErrorMessage(),actualResponse.getErrorMessage());
+    response.readPayload(payloadStream);
+    byte[] actualPayload=payloadStream.toByteArray();
+    Assert.assertEquals(expectedPayload.length,actualPayload.length);
+    for (int i=0; i < expectedPayload.length; ++i) {
+      Assert.assertEquals(expectedPayload[i],actualPayload[i]);
+    }
+  }
+ }

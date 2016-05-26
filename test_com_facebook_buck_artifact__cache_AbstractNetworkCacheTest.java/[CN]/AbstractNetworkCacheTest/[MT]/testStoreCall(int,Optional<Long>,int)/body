@@ -1,0 +1,26 @@
+{
+  final AtomicInteger storeCallCount=new AtomicInteger(0);
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  ListeningExecutorService service=new FakeListeningExecutorService(){
+    @Override public void execute(    Runnable command){
+      command.run();
+    }
+  }
+;
+  AbstractNetworkCache cache=new AbstractNetworkCache("AbstractNetworkCacheTest",EasyMock.createMock(HttpService.class),EasyMock.createMock(HttpService.class),true,filesystem,EasyMock.createMock(BuckEventBus.class),service,"super error message",maxArtifactSizeBytes){
+    @Override protected CacheResult fetchImpl(    RuleKey ruleKey,    LazyPath output,    HttpArtifactCacheEvent.Finished.Builder eventBuilder) throws IOException {
+      return null;
+    }
+    @Override protected void storeImpl(    ArtifactInfo info,    Path file,    HttpArtifactCacheEvent.Finished.Builder eventBuilder) throws IOException {
+      storeCallCount.incrementAndGet();
+    }
+  }
+;
+  for (  int bytes : artifactBytes) {
+    Path path=filesystem.getPathForRelativePath("topspin_" + this.getClass().getName());
+    filesystem.writeBytesToPath(new byte[bytes],path);
+    ListenableFuture<Void> future=cache.store(ArtifactInfo.builder().build(),BorrowablePath.notBorrowablePath(path));
+    future.get();
+  }
+  Assert.assertEquals(expectStoreCallCount,storeCallCount.get());
+}
