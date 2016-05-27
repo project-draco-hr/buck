@@ -1,6 +1,7 @@
 {
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   return new PrebuiltHaskellLibrary(params,pathResolver){
+    private final LoadingCache<CxxPreprocessables.CxxPreprocessorInputCacheKey,ImmutableMap<BuildTarget,CxxPreprocessorInput>> transitiveCxxPreprocessorInputCache=CxxPreprocessables.getTransitiveCxxPreprocessorInputCache(this);
     @Override public HaskellCompileInput getCompileInput(    CxxPlatform cxxPlatform,    CxxSourceRuleFactory.PicType picType) throws NoSuchBuildTargetException {
       return HaskellCompileInput.builder().addAllFlags(args.exportedCompilerFlags.or(ImmutableList.<String>of())).addAllIncludes(picType == CxxSourceRuleFactory.PicType.PDC ? args.staticInterfaces.asSet() : args.sharedInterfaces.asSet()).build();
     }
@@ -26,6 +27,22 @@
     }
     @Override public ImmutableMap<String,SourcePath> getSharedLibraries(    CxxPlatform cxxPlatform){
       return args.sharedLibs.or(ImmutableMap.<String,SourcePath>of());
+    }
+    @Override public Iterable<? extends CxxPreprocessorDep> getCxxPreprocessorDeps(    CxxPlatform cxxPlatform){
+      return FluentIterable.from(getDeps()).filter(CxxPreprocessorDep.class);
+    }
+    @Override public Optional<HeaderSymlinkTree> getExportedHeaderSymlinkTree(    CxxPlatform cxxPlatform){
+      return Optional.absent();
+    }
+    @Override public CxxPreprocessorInput getCxxPreprocessorInput(    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility) throws NoSuchBuildTargetException {
+      CxxPreprocessorInput.Builder builder=CxxPreprocessorInput.builder();
+      for (      SourcePath headerDir : args.cxxHeaderDirs.or(ImmutableSortedSet.<SourcePath>of())) {
+        builder.addIncludes(CxxHeadersDir.of(CxxPreprocessables.IncludeType.SYSTEM,headerDir));
+      }
+      return builder.build();
+    }
+    @Override public ImmutableMap<BuildTarget,CxxPreprocessorInput> getTransitiveCxxPreprocessorInput(    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility) throws NoSuchBuildTargetException {
+      return transitiveCxxPreprocessorInputCache.getUnchecked(ImmutableCxxPreprocessorInputCacheKey.of(cxxPlatform,headerVisibility));
     }
   }
 ;
