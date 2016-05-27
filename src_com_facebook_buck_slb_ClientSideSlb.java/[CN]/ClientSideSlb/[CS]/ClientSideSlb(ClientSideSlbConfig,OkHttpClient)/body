@@ -1,0 +1,16 @@
+{
+  this.clock=config.getClock();
+  this.pingEndpoint=Preconditions.checkNotNull(config.getPingEndpoint());
+  this.serverPool=Preconditions.checkNotNull(config.getServerPool());
+  this.eventBus=Preconditions.checkNotNull(config.getEventBus());
+  Preconditions.checkArgument(serverPool.size() > 0,"No server URLs passed.");
+  this.healthManager=new ServerHealthManager(this.serverPool,config.getErrorCheckTimeRangeMillis(),config.getMaxErrorPercentage(),config.getLatencyCheckTimeRangeMillis(),config.getMaxAcceptableLatencyMillis(),config.getEventBus());
+  this.pingClient=pingClient;
+  this.schedulerService=config.getSchedulerService();
+  backgroundHealthChecker=this.schedulerService.scheduleWithFixedDelay(new Runnable(){
+    @Override public void run(){
+      backgroundThreadCallForHealthCheck();
+    }
+  }
+,0,config.getHealthCheckIntervalMillis(),TimeUnit.MILLISECONDS);
+}

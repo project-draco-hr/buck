@@ -34,10 +34,7 @@
   }
   DistBuildConfig config=new DistBuildConfig(params.getBuckConfig());
   ClientSideSlb slb=config.getFrontendConfig().createHttpClientSideSlb(params.getClock(),params.getBuckEventBus());
-  OkHttpClient client=new OkHttpClient();
-  client.setConnectTimeout(config.getFrontendRequestTimeoutMillis(),TimeUnit.MILLISECONDS);
-  client.setReadTimeout(config.getFrontendRequestTimeoutMillis(),TimeUnit.MILLISECONDS);
-  client.setWriteTimeout(config.getFrontendRequestTimeoutMillis(),TimeUnit.MILLISECONDS);
+  OkHttpClient client=config.createOkHttpClient();
   try (HttpService httpService=new LoadBalancedService(slb,client,params.getBuckEventBus());ThriftService<FrontendRequest,FrontendResponse> service=new ThriftOverHttpService<>(ThriftOverHttpServiceConfig.of(httpService))){
     DistributedBuild build=new DistributedBuild(new DistBuildService(service,params.getBuckEventBus()));
     return build.executeAndPrintFailuresToEventBus();
