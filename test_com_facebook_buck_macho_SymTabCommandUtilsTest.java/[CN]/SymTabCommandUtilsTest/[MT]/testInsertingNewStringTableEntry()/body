@@ -1,0 +1,18 @@
+{
+  byte[] commandBytes=SymTabCommandTestData.getBigEndian();
+  final int cmdSize=commandBytes.length;
+  commandBytes[11]=(byte)cmdSize;
+  commandBytes[15]=(byte)0;
+  commandBytes[19]=(byte)cmdSize;
+  commandBytes[23]=(byte)20;
+  final String content="new_entry";
+  ByteBuffer byteBuffer=ByteBuffer.allocate(cmdSize + 20 + SymTabCommandUtils.sizeOfStringTableEntryWithContents(content)).order(ByteOrder.BIG_ENDIAN).put(commandBytes).put(new byte[20]);
+  byteBuffer.position(0);
+  SymTabCommand symTabCommand=SymTabCommandUtils.createFromBuffer(byteBuffer);
+  UnsignedInteger offset=SymTabCommandUtils.insertNewStringTableEntry(byteBuffer,symTabCommand,content);
+  assertThat(offset,equalToObject(UnsignedInteger.fromIntBits(20)));
+  byteBuffer.position(symTabCommand.getStroff().plus(offset).intValue());
+  byte[] entryBytes=new byte[content.length()];
+  byteBuffer.get(entryBytes,0,content.length());
+  assertThat(entryBytes,equalTo(content.getBytes(Charsets.UTF_8)));
+}

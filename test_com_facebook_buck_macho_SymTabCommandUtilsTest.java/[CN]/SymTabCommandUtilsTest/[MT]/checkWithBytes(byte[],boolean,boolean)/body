@@ -1,0 +1,45 @@
+{
+  byte[] nlistBytes1=Arrays.copyOf(nlistTemplateBytes,nlistTemplateBytes.length);
+  if (isSwapped) {
+    nlistBytes1[0]=(byte)0x01;
+  }
+ else {
+    nlistBytes1[3]=(byte)0x01;
+  }
+  nlistBytes1[4]=(byte)0x11;
+  byte[] nlistBytes2=Arrays.copyOf(nlistTemplateBytes,nlistTemplateBytes.length);
+  if (isSwapped) {
+    nlistBytes2[0]=(byte)0x02;
+  }
+ else {
+    nlistBytes2[3]=(byte)0x02;
+  }
+  nlistBytes2[4]=(byte)0x22;
+  byte[] commandBytes;
+  if (isSwapped) {
+    commandBytes=SymTabCommandTestData.getLittleEndian();
+  }
+ else {
+    commandBytes=SymTabCommandTestData.getBigEndian();
+  }
+  final int cmdSize=commandBytes.length;
+  if (isSwapped) {
+    commandBytes[8]=(byte)cmdSize;
+    commandBytes[12]=(byte)2;
+  }
+ else {
+    commandBytes[11]=(byte)cmdSize;
+    commandBytes[15]=(byte)2;
+  }
+  ByteBuffer commandBuffer=ByteBuffer.wrap(commandBytes).order(isSwapped ? ByteOrder.LITTLE_ENDIAN : ByteOrder.BIG_ENDIAN);
+  SymTabCommand symTabCommand=SymTabCommandUtils.createFromBuffer(commandBuffer);
+  assertThat(symTabCommand.getSymoff(),equalToObject(UnsignedInteger.fromIntBits(cmdSize)));
+  assertThat(symTabCommand.getNsyms(),equalToObject(UnsignedInteger.fromIntBits(2)));
+  ByteBuffer byteBuffer=ByteBuffer.allocate(cmdSize + nlistTemplateBytes.length * 2).order(commandBuffer.order()).put(commandBytes).put(nlistBytes1).put(nlistBytes2);
+  Nlist entry1=SymTabCommandUtils.getNlistAtIndex(byteBuffer,symTabCommand,0,is64Bit);
+  assertThat(entry1.getN_strx(),equalToObject(UnsignedInteger.fromIntBits(0x01)));
+  assertThat(entry1.getN_type(),equalToObject(UnsignedInteger.fromIntBits(0x11)));
+  Nlist entry2=SymTabCommandUtils.getNlistAtIndex(byteBuffer,symTabCommand,1,is64Bit);
+  assertThat(entry2.getN_strx(),equalToObject(UnsignedInteger.fromIntBits(0x02)));
+  assertThat(entry2.getN_type(),equalToObject(UnsignedInteger.fromIntBits(0x22)));
+}

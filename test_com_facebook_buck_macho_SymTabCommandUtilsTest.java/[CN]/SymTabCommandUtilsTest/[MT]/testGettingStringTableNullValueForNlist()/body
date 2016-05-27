@@ -1,0 +1,19 @@
+{
+  byte[] nlistBytes=NlistTestData.getBigEndian64Bit();
+  nlistBytes[3]=(byte)0x00;
+  byte[] commandBytes=SymTabCommandTestData.getBigEndian();
+  final int cmdSize=commandBytes.length;
+  commandBytes[11]=(byte)cmdSize;
+  commandBytes[15]=(byte)1;
+  commandBytes[19]=(byte)(cmdSize + nlistBytes.length);
+  commandBytes[23]=(byte)0x00;
+  ByteBuffer byteBuffer=ByteBuffer.allocate(cmdSize + nlistBytes.length).order(ByteOrder.BIG_ENDIAN).put(commandBytes).put(nlistBytes);
+  byteBuffer.position(cmdSize);
+  Nlist nlist=NlistUtils.createFromBuffer(byteBuffer,false);
+  assertThat(nlist.getN_strx(),equalToObject(UnsignedInteger.ZERO));
+  SymTabCommand symTabCommand=SymTabCommandUtils.createFromBuffer(ByteBuffer.wrap(commandBytes).order(ByteOrder.BIG_ENDIAN));
+  assertThat(symTabCommand.getSymoff(),equalToObject(UnsignedInteger.fromIntBits(cmdSize)));
+  assertThat(symTabCommand.getNsyms(),equalToObject(UnsignedInteger.fromIntBits(1)));
+  Optional<String> result=SymTabCommandUtils.getStringTableEntryForNlist(byteBuffer,symTabCommand,nlist);
+  assertThat(result.isPresent(),equalTo(false));
+}
