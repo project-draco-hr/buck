@@ -1,0 +1,40 @@
+{
+  final int sectionSize=SectionTestData.getBigEndian32Bit().length;
+  byte[] sectionData1=SectionTestData.getBigEndian32Bit();
+  sectionData1[43]=(byte)0x01;
+  byte[] sectionData2=SectionTestData.getBigEndian32Bit();
+  sectionData2[0]=(byte)0x44;
+  sectionData2[16]=(byte)0x44;
+  sectionData2[43]=(byte)0x02;
+  byte[] sectionData3=SectionTestData.getBigEndian32Bit();
+  sectionData3[0]=(byte)0x4C;
+  sectionData3[16]=(byte)0x4C;
+  sectionData3[43]=(byte)0x03;
+  byte[] segmentBytes=SegmentCommandTestData.getBigEndian32Bits();
+  segmentBytes[51]=(byte)0x03;
+  SegmentCommand command=SegmentCommandUtils.createFromBuffer(ByteBuffer.wrap(segmentBytes).order(ByteOrder.BIG_ENDIAN),false);
+  ByteBuffer buffer=ByteBuffer.allocate(command.getLoadCommand().getCmdsize().intValue() + 3 * sectionSize);
+  buffer.order(ByteOrder.BIG_ENDIAN);
+  SegmentCommandUtils.writeCommandToBuffer(command,buffer,false);
+  buffer.put(sectionData1);
+  buffer.put(sectionData2);
+  buffer.put(sectionData3);
+  final List<Section> enumeratedSections=new ArrayList<>();
+  SegmentCommandUtils.enumerateSectionsInSegmentLoadCommand(buffer,new MachoMagicInfo(UnsignedInteger.fromIntBits(0xFEEDFACE)),command,new Function<Section,Boolean>(){
+    @Override public Boolean apply(    Section input){
+      enumeratedSections.add(input);
+      return Boolean.TRUE;
+    }
+  }
+);
+  assertThat(enumeratedSections.size(),equalTo(3));
+  assertThat(enumeratedSections.get(0).getSectname(),equalToObject("SECTNAME"));
+  assertThat(enumeratedSections.get(0).getSegname(),equalToObject("SEGNAME"));
+  assertThat(enumeratedSections.get(0).getOffset(),equalToObject(UnsignedInteger.fromIntBits(0x01)));
+  assertThat(enumeratedSections.get(1).getSectname(),equalToObject("DECTNAME"));
+  assertThat(enumeratedSections.get(1).getSegname(),equalToObject("DEGNAME"));
+  assertThat(enumeratedSections.get(1).getOffset(),equalToObject(UnsignedInteger.fromIntBits(0x02)));
+  assertThat(enumeratedSections.get(2).getSectname(),equalToObject("LECTNAME"));
+  assertThat(enumeratedSections.get(2).getSegname(),equalToObject("LEGNAME"));
+  assertThat(enumeratedSections.get(2).getOffset(),equalToObject(UnsignedInteger.fromIntBits(0x03)));
+}
