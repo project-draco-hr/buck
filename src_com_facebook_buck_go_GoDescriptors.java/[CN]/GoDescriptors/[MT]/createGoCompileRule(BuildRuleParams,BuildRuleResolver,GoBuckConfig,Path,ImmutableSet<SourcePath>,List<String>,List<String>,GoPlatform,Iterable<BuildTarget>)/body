@@ -2,11 +2,16 @@
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   Preconditions.checkState(params.getBuildTarget().getFlavors().contains(platform.getFlavor()));
   ImmutableSet<GoLinkable> linkables=requireGoLinkables(params.getBuildTarget(),resolver,platform,deps);
+  ImmutableList.Builder<BuildRule> linkableDepsBuilder=ImmutableList.builder();
+  for (  GoLinkable linkable : linkables) {
+    linkableDepsBuilder.addAll(linkable.getDeps(pathResolver));
+  }
+  ImmutableList<BuildRule> linkableDeps=linkableDepsBuilder.build();
   BuildTarget target=createSymlinkTreeTarget(params.getBuildTarget());
   SymlinkTree symlinkTree=makeSymlinkTree(params.copyWithBuildTarget(target),pathResolver,linkables);
   resolver.addToIndex(symlinkTree);
   LOG.verbose("Symlink tree for compiling %s: %s",params.getBuildTarget(),symlinkTree.getLinks());
-  return new GoCompile(params.appendExtraDeps(ImmutableList.of(symlinkTree)),pathResolver,symlinkTree,packageName,getPackageImportMap(goBuckConfig.getVendorPaths(),params.getBuildTarget().getBasePath(),FluentIterable.from(linkables).transformAndConcat(new Function<GoLinkable,ImmutableSet<Path>>(){
+  return new GoCompile(params.appendExtraDeps(linkableDeps).appendExtraDeps(ImmutableList.of(symlinkTree)),pathResolver,symlinkTree,packageName,getPackageImportMap(goBuckConfig.getVendorPaths(),params.getBuildTarget().getBasePath(),FluentIterable.from(linkables).transformAndConcat(new Function<GoLinkable,ImmutableSet<Path>>(){
     @Override public ImmutableSet<Path> apply(    GoLinkable input){
       return input.getGoLinkInput().keySet();
     }
