@@ -1,0 +1,28 @@
+{
+  if (ongoingQuery.contains(target)) {
+    return Collections.emptyList();
+  }
+  List<String> targetsInBuckFile=buckTargetCache.getIfPresent(target);
+  if (targetsInBuckFile != null) {
+    return targetsInBuckFile;
+  }
+  ApplicationManager.getApplication().executeOnPooledThread(new Runnable(){
+    public void run(){
+      ongoingQuery.add(target);
+      BuckBuildManager buildManager=BuckBuildManager.getInstance(project);
+      BuckCommandHandler handler=new BuckQueryCommandHandler(project,project.getBaseDir(),BuckCommand.QUERY,new Function<List<String>,Void>(){
+        @Nullable @Override public Void apply(        @Nullable List<String> strings){
+          ongoingQuery.remove(target);
+          buckTargetCache.put(target,strings);
+          fillTextResults.apply(strings);
+          return null;
+        }
+      }
+);
+      handler.command().addParameter(target);
+      buildManager.runBuckCommand(handler,ACTION_TITLE);
+    }
+  }
+);
+  return Collections.emptyList();
+}
