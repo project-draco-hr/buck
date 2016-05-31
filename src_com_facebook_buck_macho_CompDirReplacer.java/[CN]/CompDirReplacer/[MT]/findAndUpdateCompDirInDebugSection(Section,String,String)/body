@@ -1,0 +1,23 @@
+{
+  final long maximumValidOffset=section.getOffset().longValue() + section.getSize().longValue();
+  int offset=section.getOffset().intValue();
+  while (offset < maximumValidOffset) {
+    buffer.position(offset);
+    String string=null;
+    try {
+      string=NulTerminatedCharsetDecoder.decodeUTF8String(buffer);
+    }
+ catch (    CharacterCodingException e) {
+      LOG.error(e,"Unable to read read string from debug string table, offset %d",offset);
+      break;
+    }
+    if (string.equals(oldCompDir)) {
+      LOG.verbose("Found comp dir at %d, overwriting it with %s",offset,updatedCompDir);
+      buffer.position(offset);
+      buffer.put(updatedCompDir.getBytes(Charsets.UTF_8));
+      buffer.put((byte)0x00);
+      break;
+    }
+    offset+=SymTabCommandUtils.sizeOfStringTableEntryWithContents(string);
+  }
+}
