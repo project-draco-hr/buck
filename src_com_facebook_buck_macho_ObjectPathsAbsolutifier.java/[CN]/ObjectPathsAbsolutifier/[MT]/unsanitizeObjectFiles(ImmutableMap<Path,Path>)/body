@@ -1,0 +1,22 @@
+{
+  for (  Map.Entry<Path,Path> entry : originalToUpdatedPathMap.entrySet()) {
+    Path source=entry.getKey();
+    if (Files.isDirectory(source)) {
+      continue;
+    }
+    Path destination=entry.getValue();
+    if (Files.notExists(destination.getParent())) {
+      Files.createDirectories(destination.getParent());
+    }
+    Files.copy(source,destination,StandardCopyOption.REPLACE_EXISTING);
+    if (!destination.toFile().setLastModified(source.toFile().lastModified())) {
+      LOG.warn("Unable to set modification date for file %s",source);
+    }
+    if (destination.getFileName().toString().endsWith(".o")) {
+      CompDirReplacer.replaceCompDirInFile(destination,oldCompDir,newCompDir);
+    }
+ else     if (destination.getFileName().toString().endsWith(".a")) {
+      fixCompDirInStaticLibrary(destination);
+    }
+  }
+}

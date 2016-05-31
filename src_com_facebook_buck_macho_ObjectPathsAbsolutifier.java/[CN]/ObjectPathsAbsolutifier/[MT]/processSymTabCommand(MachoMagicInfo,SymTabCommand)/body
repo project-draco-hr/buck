@@ -1,0 +1,58 @@
+{
+  UnsignedInteger originalStringTableSize=symTabCommand.getStrsize();
+  HashMap<Path,Path> originalToUpdatedPathMap=new HashMap<>();
+  boolean lastEntryWasContinuation=false;
+  for (int idx=0; idx < symTabCommand.getNsyms().intValue(); idx++) {
+    Nlist nlist=SymTabCommandUtils.getNlistAtIndex(buffer,symTabCommand,idx,magicInfo.is64Bit());
+    final boolean stabIsSourceOrHeaderFile=nlist.getN_type().equals(Stab.N_SO) || nlist.getN_type().equals(Stab.N_SOL);
+    final boolean stabIsObjectFile=nlist.getN_type().equals(Stab.N_OSO);
+    if (!stabIsSourceOrHeaderFile && !stabIsObjectFile) {
+      continue;
+    }
+    Optional<String> optionalPath=SymTabCommandUtils.getStringTableEntryForNlist(buffer,symTabCommand,nlist);
+    Preconditions.checkArgument(optionalPath.isPresent(),"Path to object file is `null`, this is unexpected. Could be broken binary.");
+    String stringPath=optionalPath.get();
+    if (stringPath.equals("")) {
+      continue;
+    }
+    LOG.debug("Found path: %s",stringPath);
+    boolean entryIsContinuation=lastEntryWasContinuation;
+    lastEntryWasContinuation=stringPath.endsWith("/");
+    if (entryIsContinuation) {
+      LOG.debug("Path is continuation, skipping");
+      continue;
+    }
+    if (stringPath.startsWith("/") && !stabIsObjectFile) {
+      LOG.debug("Path for non-symbol file is absolute, skipping");
+      continue;
+    }
+    Path absolutePath=getAbsolutePath(stringPath);
+    String absolutePathString;
+    if (stabIsSourceOrHeaderFile) {
+      absolutePathString=absolutePath.toString();
+    }
+ else {
+      Path relativePath=getAbsolutePath(filesystem.getRootPath().toString()).relativize(absolutePath);
+      Path unsanitizedAbsolutePath=getUnsanitizedAbsolutePath(relativePath);
+      absolutePathString=unsanitizedAbsolutePath.toString();
+      if (absolutePath.toFile().exists() && relativePath.startsWith(filesystem.getBuckPaths().getGenDir().toString())) {
+        originalToUpdatedPathMap.put(absolutePath,unsanitizedAbsolutePath);
+      }
+ else {
+        Optional<String> archiveEntryName=getArchiveEntryNameFromPath(absolutePath);
+        if (archiveEntryName.isPresent()) {
+          Path sourceArchivePath=getArchivePathFromPath(absolutePath);
+          Path targetArchivePath=getArchivePathFromPath(unsanitizedAbsolutePath);
+          originalToUpdatedPathMap.put(sourceArchivePath,targetArchivePath);
+        }
+      }
+    }
+    if (lastEntryWasContinuation) {
+      absolutePathString+="/";
+    }
+    LOG.debug("Real path: %s",absolutePathString);
+    symTabCommand=updateSymTabCommandByUpdatingNlistEntry(magicInfo,symTabCommand,nlist,absolutePath,absolutePathString);
+  }
+  unsanitizeObjectFiles(ImmutableMap.copyOf(originalToUpdatedPathMap));
+  return symTabCommand.getStrsize().minus(originalStringTableSize).intValue();
+}

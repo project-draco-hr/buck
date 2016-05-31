@@ -1,0 +1,17 @@
+{
+  FileChannel channel=FileChannel.open(destination,StandardOpenOption.READ,StandardOpenOption.WRITE);
+  ByteBuffer buffer=channel.map(FileChannel.MapMode.READ_WRITE,0,channel.size());
+  if (!UnixArchive.checkHeader(buffer)) {
+    LOG.warn("Static library at %s has wrong header, skipping",destination);
+    return;
+  }
+  UnixArchive archive=new UnixArchive(channel);
+  for (  UnixArchiveEntry archiveEntry : archive.getEntries()) {
+    if (archiveEntry.getFileName().endsWith(".o")) {
+      MappedByteBuffer map=archive.getMapForEntry(archiveEntry);
+      CompDirReplacer replacer=new CompDirReplacer(map);
+      replacer.replaceCompDir(oldCompDir,newCompDir);
+    }
+  }
+  archive.close();
+}
