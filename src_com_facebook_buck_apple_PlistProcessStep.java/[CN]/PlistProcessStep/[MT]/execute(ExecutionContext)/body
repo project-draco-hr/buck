@@ -9,6 +9,18 @@
     }
     if (infoPlist instanceof NSDictionary) {
       NSDictionary dictionary=(NSDictionary)infoPlist;
+      if (additionalInputToMerge.isPresent()) {
+        try (InputStream mergeStream=filesystem.newFileInputStream(additionalInputToMerge.get());BufferedInputStream mergeBufferedStream=new BufferedInputStream(mergeStream)){
+          NSObject mergeInfoPlist;
+          try {
+            mergeInfoPlist=PropertyListParser.parse(mergeBufferedStream);
+          }
+ catch (          Exception e) {
+            throw new IOException(additionalInputToMerge.toString() + ": " + e);
+          }
+          dictionary.putAll(((NSDictionary)mergeInfoPlist).getHashMap());
+        }
+       }
       for (      ImmutableMap.Entry<String,NSObject> entry : additionalKeys.entrySet()) {
         if (!dictionary.containsKey(entry.getKey())) {
           dictionary.put(entry.getKey(),entry.getValue());

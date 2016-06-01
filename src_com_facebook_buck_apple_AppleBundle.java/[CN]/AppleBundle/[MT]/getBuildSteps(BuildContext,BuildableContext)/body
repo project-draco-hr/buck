@@ -1,10 +1,15 @@
 {
   ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
+  stepsBuilder.add(new MakeCleanDirectoryStep(getProjectFilesystem(),bundleRoot));
+  if (assetCatalog.isPresent()) {
+    Path bundleDir=assetCatalog.get().getOutputDir();
+    stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),bundleDir,bundleRoot,CopyStep.DirectoryMode.CONTENTS_ONLY));
+  }
   Path metadataPath=getMetadataPath();
   Path infoPlistInputPath=getResolver().getAbsolutePath(infoPlist);
   Path infoPlistSubstitutionTempPath=BuildTargets.getScratchPath(getProjectFilesystem(),getBuildTarget(),"%s.plist");
   Path infoPlistOutputPath=metadataPath.resolve("Info.plist");
-  stepsBuilder.add(new MakeCleanDirectoryStep(getProjectFilesystem(),bundleRoot),new MkdirStep(getProjectFilesystem(),metadataPath),new WriteFileStep(getProjectFilesystem(),"APPLWRUN",metadataPath.resolve("PkgInfo"),false),new MkdirStep(getProjectFilesystem(),infoPlistSubstitutionTempPath.getParent()),new FindAndReplaceStep(getProjectFilesystem(),infoPlistInputPath,infoPlistSubstitutionTempPath,InfoPlistSubstitution.createVariableExpansionFunction(withDefaults(infoPlistSubstitutions,ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName)))),new PlistProcessStep(getProjectFilesystem(),infoPlistSubstitutionTempPath,infoPlistOutputPath,getInfoPlistAdditionalKeys(),getInfoPlistOverrideKeys(),PlistProcessStep.OutputFormat.BINARY));
+  stepsBuilder.add(new MkdirStep(getProjectFilesystem(),metadataPath),new WriteFileStep(getProjectFilesystem(),"APPLWRUN",metadataPath.resolve("PkgInfo"),false),new MkdirStep(getProjectFilesystem(),infoPlistSubstitutionTempPath.getParent()),new FindAndReplaceStep(getProjectFilesystem(),infoPlistInputPath,infoPlistSubstitutionTempPath,InfoPlistSubstitution.createVariableExpansionFunction(withDefaults(infoPlistSubstitutions,ImmutableMap.of("EXECUTABLE_NAME",binaryName,"PRODUCT_NAME",binaryName)))),new PlistProcessStep(getProjectFilesystem(),infoPlistSubstitutionTempPath,assetCatalog.isPresent() ? Optional.of(assetCatalog.get().getOutputPlist()) : Optional.<Path>absent(),infoPlistOutputPath,getInfoPlistAdditionalKeys(),getInfoPlistOverrideKeys(),PlistProcessStep.OutputFormat.BINARY));
   if (hasBinary) {
     appendCopyBinarySteps(stepsBuilder);
     appendCopyDsymStep(stepsBuilder,buildableContext);
@@ -42,10 +47,6 @@
     for (    SourcePath framework : frameworks) {
       stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),getResolver().getAbsolutePath(framework),frameworksDestinationPath,CopyStep.DirectoryMode.DIRECTORY_AND_CONTENTS));
     }
-  }
-  if (assetCatalog.isPresent()) {
-    Path bundleDir=assetCatalog.get().getOutputDir();
-    stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),bundleDir,bundleRoot,CopyStep.DirectoryMode.CONTENTS_ONLY));
   }
   if (needCodeSign()) {
     Optional<Path> entitlementsPlist=Optional.absent();
