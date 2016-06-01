@@ -12,9 +12,10 @@
   BuildTarget headerSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(inputBuildTarget,cxxPlatform.getFlavor(),HeaderVisibility.PRIVATE);
   BuildTarget inferAnalysisTarget=inputBuildTarget.withFlavors(CxxInferEnhancer.InferFlavors.INFER_ANALYZE.get());
   BuildTarget inferReportTarget=inputBuildTarget.withFlavors(CxxInferEnhancer.InferFlavors.INFER.get());
-  ImmutableSet<BuildTarget> expectedTargets=ImmutableSet.<BuildTarget>builder().addAll(ImmutableSet.of(headerSymlinkTreeTarget,captureBuildTarget,inferAnalysisTarget,inferReportTarget)).build();
+  BuildTarget aggregatedDepsTarget=cxxSourceRuleFactory.createAggregatedPreprocessDepsBuildTarget();
   BuckBuildLog buildLog=workspace.getBuildLog();
-  assertEquals(expectedTargets,buildLog.getAllTargets());
+  assertThat(buildLog.getAllTargets(),containsInAnyOrder(aggregatedDepsTarget,headerSymlinkTreeTarget,captureBuildTarget,inferAnalysisTarget,inferReportTarget));
+  buildLog.assertTargetBuiltLocally(aggregatedDepsTarget.toString());
   buildLog.assertTargetBuiltLocally(headerSymlinkTreeTarget.toString());
   buildLog.assertTargetBuiltLocally(captureBuildTarget.toString());
   buildLog.assertTargetBuiltLocally(inferAnalysisTarget.toString());
@@ -28,8 +29,8 @@
   workspace.replaceFileContents(sourceFull,"*s = 42;","");
   workspace.runBuckCommand("build",inputBuildTargetName).assertSuccess();
   buildLog=workspace.getBuildLog();
-  assertEquals(expectedTargets,buildLog.getAllTargets());
+  assertThat(buildLog.getAllTargets(),containsInAnyOrder(aggregatedDepsTarget,captureBuildTarget,inferAnalysisTarget,inferReportTarget));
   buildLog.assertTargetBuiltLocally(captureBuildTarget.toString());
   buildLog.assertTargetBuiltLocally(inferAnalysisTarget.toString());
-  buildLog.assertTargetHadMatchingRuleKey(headerSymlinkTreeTarget.toString());
+  buildLog.assertTargetHadMatchingRuleKey(aggregatedDepsTarget.toString());
 }

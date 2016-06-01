@@ -1,9 +1,18 @@
 {
+  final Iterable<DependencyAggregation> aggregatedRules=Iterables.filter(rule.getDeps(),DependencyAggregation.class);
   return new Builder(){
+    private boolean hasEffectiveDirectDep(    BuildRule dep){
+      for (      BuildRule aggregationRule : aggregatedRules) {
+        if (aggregationRule.getDeps().contains(dep)) {
+          return true;
+        }
+      }
+      return false;
+    }
     @Override public Optional<RuleKey> build(){
       Result result=buildResult();
       for (      BuildRule usedDep : result.getDeps()) {
-        Preconditions.checkState(rule.getDeps().contains(usedDep),"%s: %s not in deps (%s)",rule.getBuildTarget(),usedDep.getBuildTarget(),rule.getDeps());
+        Preconditions.checkState(rule.getDeps().contains(usedDep) || hasEffectiveDirectDep(usedDep),"%s: %s not in deps (%s)",rule.getBuildTarget(),usedDep.getBuildTarget(),rule.getDeps());
       }
       return Optional.of(result.getRuleKey());
     }

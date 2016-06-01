@@ -11,9 +11,11 @@
   BuildTarget preprocessTarget=cxxSourceRuleFactory.createPreprocessBuildTarget(sourceName,CxxSource.Type.CXX);
   BuildTarget compileTarget=cxxSourceRuleFactory.createCompileBuildTarget(sourceName);
   BuildTarget headerSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(target,cxxPlatform.getFlavor(),HeaderVisibility.PRIVATE);
+  BuildTarget aggregatedDepsTarget=cxxSourceRuleFactory.createAggregatedPreprocessDepsBuildTarget();
   workspace.runBuckCommand("build",target.toString()).assertSuccess();
   BuckBuildLog buildLog=workspace.getBuildLog();
-  assertEquals(ImmutableSet.of(headerSymlinkTreeTarget,preprocessTarget,compileTarget,binaryTarget,target),buildLog.getAllTargets());
+  assertEquals(ImmutableSet.of(aggregatedDepsTarget,headerSymlinkTreeTarget,preprocessTarget,compileTarget,binaryTarget,target),buildLog.getAllTargets());
+  buildLog.assertTargetBuiltLocally(aggregatedDepsTarget.toString());
   buildLog.assertTargetBuiltLocally(headerSymlinkTreeTarget.toString());
   buildLog.assertTargetBuiltLocally(preprocessTarget.toString());
   buildLog.assertTargetBuiltLocally(compileTarget.toString());
@@ -23,8 +25,8 @@
   workspace.replaceFileContents(headerFull,"blah = 5","blah = 6");
   workspace.runBuckCommand("build",target.toString()).assertSuccess();
   buildLog=workspace.getBuildLog();
-  assertEquals(ImmutableSet.of(headerSymlinkTreeTarget,preprocessTarget,compileTarget,binaryTarget,target),buildLog.getAllTargets());
-  buildLog.assertTargetHadMatchingRuleKey(headerSymlinkTreeTarget.toString());
+  assertEquals(ImmutableSet.of(aggregatedDepsTarget,preprocessTarget,compileTarget,binaryTarget,target),buildLog.getAllTargets());
+  buildLog.assertTargetHadMatchingRuleKey(aggregatedDepsTarget.toString());
   buildLog.assertTargetBuiltLocally(preprocessTarget.toString());
   buildLog.assertTargetBuiltLocally(compileTarget.toString());
   assertThat(buildLog.getLogEntry(binaryTarget).getSuccessType().get(),Matchers.not(Matchers.equalTo(BuildRuleSuccessType.MATCHING_RULE_KEY)));

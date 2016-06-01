@@ -11,6 +11,7 @@
   BuildTarget topHeaderSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(inputBuildTarget,cxxPlatform.getFlavor(),HeaderVisibility.PRIVATE);
   BuildTarget topInferAnalysisTarget=inputBuildTarget.withFlavors(CxxInferEnhancer.InferFlavors.INFER_ANALYZE.get());
   BuildTarget topInferReportTarget=inputBuildTarget.withFlavors(CxxInferEnhancer.InferFlavors.INFER.get());
+  BuildTarget topAggregatedDepsTarget=cxxSourceRuleFactory.createAggregatedPreprocessDepsBuildTarget();
   BuildTarget depOneBuildTarget=BuildTargetFactory.newInstance(workspace.getDestPath(),"//foo:dep_one");
   String depOneSourceName="dep_one.c";
   String depOneSourceFull="foo/" + depOneSourceName;
@@ -19,13 +20,15 @@
   BuildTarget depOneHeaderSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(depOneBuildTarget,cxxPlatform.getFlavor(),HeaderVisibility.PRIVATE);
   BuildTarget depOneExportedHeaderSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(depOneBuildTarget,cxxPlatform.getFlavor(),HeaderVisibility.PUBLIC);
   BuildTarget depOneInferAnalysisTarget=depOneCaptureBuildTarget.withFlavors(cxxPlatform.getFlavor(),CxxInferEnhancer.InferFlavors.INFER_ANALYZE.get());
+  BuildTarget depOneAggregatedDepsTarget=depOneSourceRuleFactory.createAggregatedPreprocessDepsBuildTarget();
   BuildTarget depTwoBuildTarget=BuildTargetFactory.newInstance(workspace.getDestPath(),"//foo:dep_two");
   CxxSourceRuleFactory depTwoSourceRuleFactory=CxxSourceRuleFactoryHelper.of(workspace.getDestPath(),depTwoBuildTarget,cxxPlatform);
   BuildTarget depTwoCaptureBuildTarget=depTwoSourceRuleFactory.createInferCaptureBuildTarget("dep_two.c");
   BuildTarget depTwoHeaderSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(depTwoBuildTarget,cxxPlatform.getFlavor(),HeaderVisibility.PRIVATE);
   BuildTarget depTwoExportedHeaderSymlinkTreeTarget=CxxDescriptionEnhancer.createHeaderSymlinkTreeTarget(depTwoBuildTarget,cxxPlatform.getFlavor(),HeaderVisibility.PUBLIC);
   BuildTarget depTwoInferAnalysisTarget=depTwoCaptureBuildTarget.withFlavors(cxxPlatform.getFlavor(),CxxInferEnhancer.InferFlavors.INFER_ANALYZE.get());
-  assertEquals(ImmutableSet.of(topCaptureBuildTarget,topHeaderSymlinkTreeTarget,topInferAnalysisTarget,topInferReportTarget,depOneCaptureBuildTarget,depOneHeaderSymlinkTreeTarget,depOneExportedHeaderSymlinkTreeTarget,depOneInferAnalysisTarget,depTwoCaptureBuildTarget,depTwoHeaderSymlinkTreeTarget,depTwoExportedHeaderSymlinkTreeTarget,depTwoInferAnalysisTarget),workspace.getBuildLog().getAllTargets());
+  BuildTarget depTwoAggregatedDepsTarget=depTwoSourceRuleFactory.createAggregatedPreprocessDepsBuildTarget();
+  assertEquals(ImmutableSet.of(topAggregatedDepsTarget,topCaptureBuildTarget,topHeaderSymlinkTreeTarget,topInferAnalysisTarget,topInferReportTarget,depOneAggregatedDepsTarget,depOneCaptureBuildTarget,depOneHeaderSymlinkTreeTarget,depOneExportedHeaderSymlinkTreeTarget,depOneInferAnalysisTarget,depTwoAggregatedDepsTarget,depTwoCaptureBuildTarget,depTwoHeaderSymlinkTreeTarget,depTwoExportedHeaderSymlinkTreeTarget,depTwoInferAnalysisTarget),workspace.getBuildLog().getAllTargets());
   workspace.resetBuildLogFile();
   workspace.runBuckCommand("build",inputBuildTargetName).assertSuccess();
   BuckBuildLog buildLog=workspace.getBuildLog();
@@ -35,13 +38,12 @@
   workspace.replaceFileContents(depOneSourceFull,"flag > 0","flag < 0");
   workspace.runBuckCommand("build",inputBuildTargetName).assertSuccess();
   buildLog=workspace.getBuildLog();
-  assertEquals(ImmutableSet.of(topInferAnalysisTarget,topInferReportTarget,topCaptureBuildTarget,depTwoInferAnalysisTarget,depOneCaptureBuildTarget,depOneExportedHeaderSymlinkTreeTarget,depOneHeaderSymlinkTreeTarget,depOneInferAnalysisTarget),buildLog.getAllTargets());
+  assertEquals(ImmutableSet.of(topInferAnalysisTarget,topInferReportTarget,topCaptureBuildTarget,depTwoInferAnalysisTarget,depOneAggregatedDepsTarget,depOneCaptureBuildTarget,depOneInferAnalysisTarget),buildLog.getAllTargets());
   buildLog.assertTargetBuiltLocally(topInferAnalysisTarget.toString());
   buildLog.assertTargetBuiltLocally(topInferReportTarget.toString());
   buildLog.assertTargetHadMatchingRuleKey(topCaptureBuildTarget.toString());
   buildLog.assertTargetHadMatchingRuleKey(depTwoInferAnalysisTarget.toString());
   buildLog.assertTargetBuiltLocally(depOneCaptureBuildTarget.toString());
-  buildLog.assertTargetHadMatchingRuleKey(depOneExportedHeaderSymlinkTreeTarget.toString());
-  buildLog.assertTargetHadMatchingRuleKey(depOneHeaderSymlinkTreeTarget.toString());
+  buildLog.assertTargetHadMatchingRuleKey(depOneAggregatedDepsTarget.toString());
   buildLog.assertTargetBuiltLocally(depOneInferAnalysisTarget.toString());
 }
