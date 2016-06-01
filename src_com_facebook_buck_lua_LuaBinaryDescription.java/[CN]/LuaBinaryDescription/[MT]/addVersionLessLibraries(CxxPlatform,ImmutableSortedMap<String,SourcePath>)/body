@@ -1,0 +1,19 @@
+{
+  Pattern versionedExtension=Pattern.compile(Joiner.on("[.\\d]*").join(Iterables.transform(Splitter.on("%s").split(cxxPlatform.getSharedLibraryVersionedExtensionFormat()),new Function<String,String>(){
+    @Override public String apply(    String input){
+      return input.isEmpty() ? input : Pattern.quote(input);
+    }
+  }
+)));
+  ImmutableSortedMap.Builder<String,SourcePath> builder=ImmutableSortedMap.naturalOrder();
+  for (  Map.Entry<String,SourcePath> ent : libraries.entrySet()) {
+    String name=ent.getKey();
+    builder.put(name,ent.getValue());
+    Matcher matcher=versionedExtension.matcher(name);
+    String versionLessName=matcher.replaceAll(cxxPlatform.getSharedLibraryExtension());
+    if (!versionLessName.equals(ent.getKey()) && !libraries.containsKey(versionLessName)) {
+      builder.put(versionLessName,ent.getValue());
+    }
+  }
+  return builder.build();
+}
