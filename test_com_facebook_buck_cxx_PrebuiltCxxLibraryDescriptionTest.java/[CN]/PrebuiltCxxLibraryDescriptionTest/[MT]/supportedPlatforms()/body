@@ -1,0 +1,16 @@
+{
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  PrebuiltCxxLibraryBuilder prebuiltCxxLibraryBuilder=new PrebuiltCxxLibraryBuilder(target);
+  TargetGraph targetGraph1=TargetGraphFactory.newInstance(prebuiltCxxLibraryBuilder.build());
+  BuildRuleResolver resolver1=new BuildRuleResolver(targetGraph1,new DefaultTargetNodeToBuildRuleTransformer());
+  PrebuiltCxxLibrary prebuiltCxxLibrary=(PrebuiltCxxLibrary)prebuiltCxxLibraryBuilder.build(resolver1,filesystem,targetGraph1);
+  assertThat(prebuiltCxxLibrary.getSharedLibraries(CxxPlatformUtils.DEFAULT_PLATFORM).entrySet(),Matchers.not(empty()));
+  assertThat(prebuiltCxxLibrary.getNativeLinkableInput(CxxPlatformUtils.DEFAULT_PLATFORM,Linker.LinkableDepType.SHARED).getArgs(),Matchers.not(empty()));
+  prebuiltCxxLibraryBuilder.setSupportedPlatformsRegex(Pattern.compile("nothing"));
+  TargetGraph targetGraph2=TargetGraphFactory.newInstance(prebuiltCxxLibraryBuilder.build());
+  BuildRuleResolver resolver2=new BuildRuleResolver(targetGraph2,new DefaultTargetNodeToBuildRuleTransformer());
+  prebuiltCxxLibrary=(PrebuiltCxxLibrary)prebuiltCxxLibraryBuilder.build(resolver2,filesystem,targetGraph2);
+  assertThat(prebuiltCxxLibrary.getSharedLibraries(CxxPlatformUtils.DEFAULT_PLATFORM).entrySet(),empty());
+  assertThat(prebuiltCxxLibrary.getNativeLinkableInput(CxxPlatformUtils.DEFAULT_PLATFORM,Linker.LinkableDepType.SHARED).getArgs(),empty());
+}
