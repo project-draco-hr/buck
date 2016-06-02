@@ -104,6 +104,24 @@
   appendConfigsBuilder.put("HEADER_SEARCH_PATHS",Joiner.on(' ').join(Iterables.concat(recursiveHeaderSearchPaths,headerMapBases))).put("LIBRARY_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveLibrarySearchPaths(ImmutableSet.of(targetNode)))).put("FRAMEWORK_SEARCH_PATHS",Joiner.on(' ').join(collectRecursiveFrameworkSearchPaths(ImmutableList.of(targetNode))));
   if (isFocusedOnTarget) {
     appendConfigsBuilder.put("OTHER_CFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(cxxBuckConfig.getFlags("cflags").or(DEFAULT_CFLAGS),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode)),targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get()),Escaper.BASH_ESCAPER))).put("OTHER_CPLUSPLUSFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(cxxBuckConfig.getFlags("cxxflags").or(DEFAULT_CXXFLAGS),collectRecursiveExportedPreprocessorFlags(ImmutableList.of(targetNode)),targetNode.getConstructorArg().compilerFlags.get(),targetNode.getConstructorArg().preprocessorFlags.get()),Escaper.BASH_ESCAPER))).put("OTHER_LDFLAGS",Joiner.on(' ').join(Iterables.transform(Iterables.concat(targetNode.getConstructorArg().linkerFlags.get(),collectRecursiveExportedLinkerFlags(ImmutableList.of(targetNode))),Escaper.BASH_ESCAPER)));
+    ImmutableMultimap.Builder<String,ImmutableList<String>> platformFlagsBuilder=ImmutableMultimap.builder();
+    for (    Pair<Pattern,ImmutableList<String>> flags : Iterables.concat(targetNode.getConstructorArg().platformCompilerFlags.get().getPatternsAndValues(),targetNode.getConstructorArg().platformPreprocessorFlags.get().getPatternsAndValues(),collectRecursiveExportedPlatformPreprocessorFlags(ImmutableList.of(targetNode)))) {
+      String sdk=flags.getFirst().pattern().replaceAll("[*.]","");
+      platformFlagsBuilder.put(sdk,flags.getSecond());
+    }
+    ImmutableMultimap<String,ImmutableList<String>> platformFlags=platformFlagsBuilder.build();
+    for (    String sdk : platformFlags.keySet()) {
+      appendConfigsBuilder.put(String.format("OTHER_CFLAGS[sdk=*%s*]",sdk),Joiner.on(' ').join(Iterables.transform(Iterables.concat(platformFlags.get(sdk)),Escaper.BASH_ESCAPER))).put(String.format("OTHER_CPLUSPLUSFLAGS[sdk=*%s*]",sdk),Joiner.on(' ').join(Iterables.transform(Iterables.concat(platformFlags.get(sdk)),Escaper.BASH_ESCAPER)));
+    }
+    ImmutableMultimap.Builder<String,ImmutableList<String>> platformLinkerFlagsBuilder=ImmutableMultimap.builder();
+    for (    Pair<Pattern,ImmutableList<String>> flags : Iterables.concat(targetNode.getConstructorArg().platformLinkerFlags.get().getPatternsAndValues(),collectRecursiveExportedPlatformLinkerFlags(ImmutableList.of(targetNode)))) {
+      String sdk=flags.getFirst().pattern().replaceAll("[*.]","");
+      platformLinkerFlagsBuilder.put(sdk,flags.getSecond());
+    }
+    ImmutableMultimap<String,ImmutableList<String>> platformLinkerFlags=platformLinkerFlagsBuilder.build();
+    for (    String sdk : platformLinkerFlags.keySet()) {
+      appendConfigsBuilder.put(String.format("OTHER_LDFLAGS[sdk=*%s*]",sdk),Joiner.on(' ').join(Iterables.transform(Iterables.concat(platformLinkerFlags.get(sdk)),Escaper.BASH_ESCAPER)));
+    }
   }
   ImmutableMap<String,String> appendedConfig=appendConfigsBuilder.build();
   PBXNativeTarget target=targetBuilderResult.target;

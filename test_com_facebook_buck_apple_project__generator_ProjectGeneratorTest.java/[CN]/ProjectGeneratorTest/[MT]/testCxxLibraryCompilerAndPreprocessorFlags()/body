@@ -1,0 +1,12 @@
+{
+  BuildTarget buildTarget=BuildTarget.builder(rootPath,"//foo","lib").build();
+  TargetNode<?> node=new CxxLibraryBuilder(buildTarget).setCompilerFlags(ImmutableList.of("-ffoo")).setPreprocessorFlags(ImmutableList.of("-fbar")).setLinkerFlags(ImmutableList.of("-lbaz")).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node),ImmutableSet.<ProjectGenerator.Option>of());
+  projectGenerator.createXcodeProjects();
+  PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:lib");
+  assertHasConfigurations(target,"Debug","Release","Profile");
+  ImmutableMap<String,String> settings=ProjectGeneratorTestUtils.getBuildSettings(projectFilesystem,buildTarget,target,"Debug");
+  assertEquals("-Wno-deprecated -Wno-conversion -ffoo -fbar " + "-Wno-deprecated -Wno-conversion -ffoo -fbar",settings.get("OTHER_CFLAGS"));
+  assertEquals("-Wundeclared-selector -Wno-objc-designated-initializers -ffoo -fbar " + "-Wundeclared-selector -Wno-objc-designated-initializers -ffoo -fbar",settings.get("OTHER_CPLUSPLUSFLAGS"));
+  assertEquals("-lbaz -lbaz",settings.get("OTHER_LDFLAGS"));
+}

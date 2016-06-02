@@ -1,0 +1,15 @@
+{
+  BuildTarget buildTarget=BuildTarget.builder(rootPath,"//foo","lib").build();
+  TargetNode<?> node=new CxxLibraryBuilder(buildTarget).setPlatformCompilerFlags(PatternMatchedCollection.<ImmutableList<String>>builder().add(Pattern.compile("android.*"),ImmutableList.of("-ffoo-android")).add(Pattern.compile("iphone.*"),ImmutableList.of("-ffoo-iphone")).add(Pattern.compile("macosx.*"),ImmutableList.of("-ffoo-macosx")).build()).setPlatformPreprocessorFlags(PatternMatchedCollection.<ImmutableList<String>>builder().add(Pattern.compile("android.*"),ImmutableList.of("-fbar-android")).add(Pattern.compile("iphone.*"),ImmutableList.of("-fbar-iphone")).add(Pattern.compile("macosx.*"),ImmutableList.of("-fbar-macosx")).build()).setPlatformLinkerFlags(PatternMatchedCollection.<ImmutableList<String>>builder().add(Pattern.compile("android.*"),ImmutableList.of("-lbaz-android")).add(Pattern.compile("iphone.*"),ImmutableList.of("-lbaz-iphone")).add(Pattern.compile("macosx.*"),ImmutableList.of("-lbaz-macosx")).build()).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node),ImmutableSet.<ProjectGenerator.Option>of());
+  projectGenerator.createXcodeProjects();
+  PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:lib");
+  assertHasConfigurations(target,"Debug","Release","Profile");
+  ImmutableMap<String,String> settings=ProjectGeneratorTestUtils.getBuildSettings(projectFilesystem,buildTarget,target,"Debug");
+  assertEquals("-Wno-deprecated -Wno-conversion -Wno-deprecated -Wno-conversion",settings.get("OTHER_CFLAGS"));
+  assertEquals("-Wundeclared-selector -Wno-objc-designated-initializers " + "-Wundeclared-selector -Wno-objc-designated-initializers",settings.get("OTHER_CPLUSPLUSFLAGS"));
+  assertEquals("$(inherited) ",settings.get("OTHER_LDFLAGS"));
+  assertEquals("-ffoo-iphone -fbar-iphone -ffoo-iphone -fbar-iphone",settings.get("OTHER_CFLAGS[sdk=*iphone*]"));
+  assertEquals("-ffoo-iphone -fbar-iphone -ffoo-iphone -fbar-iphone",settings.get("OTHER_CPLUSPLUSFLAGS[sdk=*iphone*]"));
+  assertEquals("-lbaz-iphone -lbaz-iphone",settings.get("OTHER_LDFLAGS[sdk=*iphone*]"));
+}

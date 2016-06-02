@@ -1,0 +1,20 @@
+{
+  BuildTarget buildTarget=BuildTarget.builder(rootPath,"//foo","lib").build();
+  TargetNode<?> node=new CxxLibraryBuilder(buildTarget).setExportedPlatformPreprocessorFlags(PatternMatchedCollection.<ImmutableList<String>>builder().add(Pattern.compile("iphone.*"),ImmutableList.of("-fbar-iphone")).build()).setExportedPlatformLinkerFlags(PatternMatchedCollection.<ImmutableList<String>>builder().add(Pattern.compile("macosx.*"),ImmutableList.of("-lbaz-macosx")).build()).build();
+  BuildTarget dependentBuildTarget=BuildTarget.builder(rootPath,"//foo","bin").build();
+  TargetNode<?> dependentNode=AppleBinaryBuilder.createBuilder(dependentBuildTarget).setPlatformCompilerFlags(Optional.of(PatternMatchedCollection.<ImmutableList<String>>builder().add(Pattern.compile("iphone.*"),ImmutableList.of("-ffoo-iphone")).build())).setDeps(Optional.of(ImmutableSortedSet.of(buildTarget))).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node,dependentNode),ImmutableSet.<ProjectGenerator.Option>of());
+  projectGenerator.createXcodeProjects();
+  PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:lib");
+  assertHasConfigurations(target,"Debug","Release","Profile");
+  ImmutableMap<String,String> settings=ProjectGeneratorTestUtils.getBuildSettings(projectFilesystem,buildTarget,target,"Debug");
+  assertEquals(null,settings.get("OTHER_CFLAGS[sdk=*iphone*]"));
+  assertEquals(null,settings.get("OTHER_CPLUSPLUSFLAGS[sdk=*iphone*]"));
+  assertEquals(null,settings.get("OTHER_LDFLAGS[sdk=*iphone*]"));
+  PBXTarget dependentTarget=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:bin");
+  assertHasConfigurations(target,"Debug","Release","Profile");
+  ImmutableMap<String,String> dependentSettings=ProjectGeneratorTestUtils.getBuildSettings(projectFilesystem,dependentBuildTarget,dependentTarget,"Debug");
+  assertEquals("-ffoo-iphone -ffoo-iphone",dependentSettings.get("OTHER_CFLAGS[sdk=*iphone*]"));
+  assertEquals("-ffoo-iphone -ffoo-iphone",dependentSettings.get("OTHER_CPLUSPLUSFLAGS[sdk=*iphone*]"));
+  assertEquals(null,dependentSettings.get("OTHER_LDFLAGS[sdk=*iphone*]"));
+}
