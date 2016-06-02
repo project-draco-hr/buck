@@ -1,10 +1,17 @@
 {
   final BuildRule bundle=resolver.getRule(propagateFlavorsToTarget(params.getBuildTarget(),args.bundle));
+  BuildTarget targetWithPlatform;
+  if (!Sets.intersection(appleCxxPlatformFlavorDomain.getFlavors(),params.getBuildTarget().getFlavors()).isEmpty()) {
+    targetWithPlatform=params.getBuildTarget();
+  }
+ else {
+    targetWithPlatform=params.getBuildTarget().withAppendedFlavors(defaultCxxPlatform.getFlavor());
+  }
   if (!(bundle instanceof BuildRuleWithAppleBundle)) {
     throw new HumanReadableException("In %s, bundle='%s' must be an apple_bundle() but was %s().",params.getBuildTarget(),bundle.getFullyQualifiedName(),bundle.getType());
   }
   final SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
-  final Optional<ApplePackageConfigAndPlatformInfo> applePackageConfigAndPlatformInfo=getApplePackageConfig(params.getBuildTarget(),MacroArg.toMacroArgFunction(AbstractGenruleDescription.MACRO_HANDLER,params.getBuildTarget(),params.getCellRoots(),resolver));
+  final Optional<ApplePackageConfigAndPlatformInfo> applePackageConfigAndPlatformInfo=getApplePackageConfig(targetWithPlatform,MacroArg.toMacroArgFunction(AbstractGenruleDescription.MACRO_HANDLER,params.getBuildTarget(),params.getCellRoots(),resolver));
   if (applePackageConfigAndPlatformInfo.isPresent()) {
     return new ExternallyBuiltApplePackage(params.copyWithExtraDeps(new Supplier<ImmutableSortedSet<BuildRule>>(){
       @Override public ImmutableSortedSet<BuildRule> get(){
