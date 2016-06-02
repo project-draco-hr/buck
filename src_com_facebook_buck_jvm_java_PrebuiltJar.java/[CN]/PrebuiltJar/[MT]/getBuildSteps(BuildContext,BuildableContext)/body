@@ -1,8 +1,14 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   Path resolvedBinaryJar=getResolver().getAbsolutePath(binaryJar);
-  steps.add(new MkdirStep(getProjectFilesystem(),copiedBinaryJar.getParent()));
-  steps.add(CopyStep.forFile(getProjectFilesystem(),resolvedBinaryJar,copiedBinaryJar));
+  if (getResolver().getFilesystem(binaryJar).isDirectory(resolvedBinaryJar)) {
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),copiedBinaryJar));
+    steps.add(CopyStep.forDirectory(getProjectFilesystem(),resolvedBinaryJar,copiedBinaryJar,CopyStep.DirectoryMode.CONTENTS_ONLY));
+  }
+ else {
+    steps.add(new MkdirStep(getProjectFilesystem(),copiedBinaryJar.getParent()));
+    steps.add(CopyStep.forFile(getProjectFilesystem(),resolvedBinaryJar,copiedBinaryJar));
+  }
   buildableContext.recordArtifact(copiedBinaryJar);
   steps.add(new MkdirStep(getProjectFilesystem(),internalAbiJar.getParent()));
   steps.add(new RmStep(getProjectFilesystem(),internalAbiJar,true));
