@@ -1,0 +1,10 @@
+{
+  BuildTarget buildTarget=BuildTarget.builder(rootPath,"//foo","lib").build();
+  TargetNode<?> node=new CxxLibraryBuilder(buildTarget).setExportedPreprocessorFlags(ImmutableList.of("-DHELLO")).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node),ImmutableSet.<ProjectGenerator.Option>of());
+  projectGenerator.createXcodeProjects();
+  PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:lib");
+  assertHasConfigurations(target,"Debug","Release","Profile");
+  ImmutableMap<String,String> settings=ProjectGeneratorTestUtils.getBuildSettings(projectFilesystem,buildTarget,target,"Debug");
+  assertEquals("-Wno-deprecated -Wno-conversion -DHELLO -Wno-deprecated -Wno-conversion -DHELLO",settings.get("OTHER_CFLAGS"));
+}

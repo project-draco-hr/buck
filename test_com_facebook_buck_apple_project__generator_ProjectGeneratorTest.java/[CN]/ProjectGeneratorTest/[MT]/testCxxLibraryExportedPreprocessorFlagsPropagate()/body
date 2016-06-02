@@ -1,0 +1,11 @@
+{
+  BuildTarget buildTarget=BuildTarget.builder(rootPath,"//foo","lib").build();
+  TargetNode<?> node=new CxxLibraryBuilder(buildTarget).setExportedPreprocessorFlags(ImmutableList.of("-DHELLO")).build();
+  BuildTarget dependentBuildTarget=BuildTarget.builder(rootPath,"//foo","bin").build();
+  TargetNode<?> dependentNode=AppleBinaryBuilder.createBuilder(dependentBuildTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).setPreprocessorFlags(Optional.of(ImmutableList.of("-D__APPLE__"))).setDeps(Optional.of(ImmutableSortedSet.of(buildTarget))).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node,dependentNode),ImmutableSet.<ProjectGenerator.Option>of());
+  projectGenerator.createXcodeProjects();
+  PBXTarget target=assertTargetExistsAndReturnTarget(projectGenerator.getGeneratedProject(),"//foo:bin");
+  ImmutableMap<String,String> settings=getBuildSettings(buildTarget,target,"Debug");
+  assertEquals("$(inherited) -Wno-deprecated -Wno-conversion -DHELLO -D__APPLE__",settings.get("OTHER_CFLAGS"));
+}
