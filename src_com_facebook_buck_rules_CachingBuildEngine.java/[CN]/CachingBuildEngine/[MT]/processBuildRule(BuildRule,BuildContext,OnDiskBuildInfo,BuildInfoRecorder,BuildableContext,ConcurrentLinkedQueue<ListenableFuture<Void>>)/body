@@ -3,25 +3,25 @@
     return Futures.immediateFuture(BuildResult.canceled(rule,firstFailure));
   }
   final RuleKeyFactories ruleKeyFactory=ruleKeyFactories.getUnchecked(rule.getProjectFilesystem());
-  final ListenableFuture<CacheResult> cacheResultFuture;
+  final CacheResult cacheResult;
   try (BuildRuleEvent.Scope scope=BuildRuleEvent.resumeSuspendScope(context.getEventBus(),rule,ruleKeyFactory.defaultRuleKeyBuilderFactory)){
     Optional<RuleKey> cachedRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_RULE_KEY);
     final RuleKey defaultRuleKey=ruleKeyFactory.defaultRuleKeyBuilderFactory.build(rule);
     if (defaultRuleKey.equals(cachedRuleKey.orNull())) {
       return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_RULE_KEY,CacheResult.localKeyUnchangedHit())));
     }
-    cacheResultFuture=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,defaultRuleKey,buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
-    return Futures.transformAsync(cacheResultFuture,new AsyncFunction<CacheResult,BuildResult>(){
-      @Override public ListenableFuture<BuildResult> apply(      CacheResult cacheResult){
-        if (cacheResult.getType().isSuccess()) {
-          return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult)));
-        }
-        ListenableFuture<List<BuildResult>> getDepResults=Futures.transformAsync(getDepResults(rule,context,asyncCallbacks),markRuleAsUsed(rule,context),service);
-        AsyncFunction<List<BuildResult>,Optional<BuildResult>> checkCachesCallback=checkCaches(rule,context,onDiskBuildInfo,buildInfoRecorder,ruleKeyFactory);
-        ListenableFuture<Optional<BuildResult>> checkCachesResult=Futures.transformAsync(getDepResults,ruleAsyncFunction(rule,context,checkCachesCallback),service);
-        return Futures.transformAsync(checkCachesResult,buildLocally(rule,context,ruleKeyFactory,buildableContext,cacheResultFuture),service);
+    cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,defaultRuleKey,buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
+    if (cacheResult.getType().isSuccess()) {
+      return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE,cacheResult)));
+    }
+    ListenableFuture<List<BuildResult>> getDepResults=Futures.transformAsync(getDepResults(rule,context,asyncCallbacks),new AsyncFunction<List<BuildResult>,List<BuildResult>>(){
+      @Override public ListenableFuture<List<BuildResult>> apply(      List<BuildResult> input){
+        return Futures.transform(markRuleAsUsed(rule,context.getEventBus()),Functions.constant(input));
       }
     }
-,service);
+);
+    AsyncFunction<List<BuildResult>,Optional<BuildResult>> checkCachesCallback=checkCaches(rule,context,onDiskBuildInfo,buildInfoRecorder,ruleKeyFactory);
+    ListenableFuture<Optional<BuildResult>> checkCachesResult=Futures.transformAsync(getDepResults,ruleAsyncFunction(rule,context,checkCachesCallback));
+    return Futures.transformAsync(checkCachesResult,buildLocally(rule,context,ruleKeyFactory,buildableContext,cacheResult),service);
   }
  }

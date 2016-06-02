@@ -1,24 +1,19 @@
 {
   if (!(rule instanceof SupportsInputBasedRuleKey)) {
-    return Futures.immediateFuture(Optional.<BuildResult>absent());
+    return Optional.absent();
   }
   Optional<RuleKey> inputRuleKey=ruleKeyFactory.inputBasedRuleKeyBuilderFactory.build(rule);
   if (!inputRuleKey.isPresent()) {
-    return Futures.immediateFuture(Optional.<BuildResult>absent());
+    return Optional.absent();
   }
   buildInfoRecorder.addBuildMetadata(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY,inputRuleKey.get().toString());
   Optional<RuleKey> lastInputRuleKey=onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY);
   if (inputRuleKey.get().equals(lastInputRuleKey.orNull())) {
-    return Futures.immediateFuture(Optional.of(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY,CacheResult.localKeyUnchangedHit())));
+    return Optional.of(BuildResult.success(rule,BuildRuleSuccessType.MATCHING_INPUT_BASED_RULE_KEY,CacheResult.localKeyUnchangedHit()));
   }
-  ListenableFuture<CacheResult> cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,inputRuleKey.get(),buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
-  return Futures.transform(cacheResult,new Function<CacheResult,Optional<BuildResult>>(){
-    @Override public Optional<BuildResult> apply(    CacheResult cacheResult){
-      if (cacheResult.getType().isSuccess()) {
-        return Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,cacheResult));
-      }
-      return Optional.<BuildResult>absent();
-    }
+  CacheResult cacheResult=tryToFetchArtifactFromBuildCacheAndOverlayOnTopOfProjectFilesystem(rule,inputRuleKey.get(),buildInfoRecorder,context.getArtifactCache(),rule.getProjectFilesystem(),context);
+  if (cacheResult.getType().isSuccess()) {
+    return Optional.of(BuildResult.success(rule,BuildRuleSuccessType.FETCHED_FROM_CACHE_INPUT_BASED,cacheResult));
   }
-,service);
+  return Optional.absent();
 }
