@@ -1,0 +1,24 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  assumeTrue(FakeAppleDeveloperEnvironment.supportsCodeSigning());
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_application_bundle_with_codesigning",tmp);
+  workspace.setUp();
+  BuildTarget target=workspace.newBuildTarget("//:DemoApp#iphoneos-arm64,dwarf");
+  workspace.runBuckCommand("build","--config","cxx.cflags=-g",target.getFullyQualifiedName()).assertSuccess();
+  workspace.verify(Paths.get("DemoApp_output.expected"),BuildTargets.getGenPath(filesystem,BuildTarget.builder(target).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s"));
+  Path appPath=workspace.getPath(BuildTargets.getGenPath(filesystem,BuildTarget.builder(target).addFlavors(AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s").resolve(target.getShortName() + ".app"));
+  Path sanitizedBinaryPath=appPath.resolve(target.getShortName());
+  assertThat(Files.exists(sanitizedBinaryPath),equalTo(true));
+  assertThat(checkCodeSigning(sanitizedBinaryPath),equalTo(true));
+  assertThat(checkCodeSigning(appPath),equalTo(true));
+  Path unsanizitedBinaryPath=workspace.getPath(filesystem.getBuckPaths().getScratchDir().resolve(sanitizedBinaryPath.getParent()).resolve(sanitizedBinaryPath.getFileName()));
+  MoreFiles.copyRecursively(sanitizedBinaryPath.getParent(),unsanizitedBinaryPath.getParent());
+  DebugPathSanitizer sanitizer=getDebugPathSanitizer();
+  String oldCompDirValue=sanitizer.getCompilationDirectory();
+  String newCompDirValue=workspace.getDestPath().toString();
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("machoutils","absolutify_object_paths","--binary",sanitizedBinaryPath.toString(),"--output",unsanizitedBinaryPath.toString(),"--old_compdir",oldCompDirValue,"--new_compdir",newCompDirValue);
+  result.assertSuccess();
+  assertThat(Files.exists(unsanizitedBinaryPath),equalTo(true));
+  assertThat(checkCodeSigning(unsanizitedBinaryPath),equalTo(false));
+  assertThat(checkCodeSignatureMatchesBetweenFiles(unsanizitedBinaryPath,sanitizedBinaryPath),equalTo(true));
+}

@@ -1,22 +1,13 @@
 {
-  final AtomicInteger stringTableSizeIncrease=new AtomicInteger();
   buffer.position(0);
-  LoadCommandUtils.enumerateLoadCommandsInFile(buffer,new Function<LoadCommand,Boolean>(){
-    @Override public Boolean apply(    LoadCommand input){
-      boolean isUuidCommand=input instanceof UUIDCommand;
-      if (isUuidCommand) {
-        try {
-          UUIDCommand uuidCommand=(UUIDCommand)input;
-          UUIDCommand updatedCommand=uuidCommand.withUuid(UUID.randomUUID());
-          UUIDCommandUtils.updateUuidCommand(buffer,uuidCommand,updatedCommand);
-        }
- catch (        IOException e) {
-          LOG.error(e,"Unable to update UUID");
-        }
-      }
-      return !isUuidCommand;
-    }
+  ImmutableList<UUIDCommand> commands=LoadCommandUtils.findLoadCommandsWithClass(buffer,UUIDCommand.class);
+  Preconditions.checkArgument(commands.size() == 1,"Found %d UUIDCommands, expected 1",commands.size());
+  try {
+    UUIDCommand uuidCommand=commands.get(0);
+    UUIDCommand updatedCommand=uuidCommand.withUuid(UUID.randomUUID());
+    UUIDCommandUtils.updateUuidCommand(buffer,uuidCommand,updatedCommand);
   }
-);
-  return stringTableSizeIncrease.intValue();
+ catch (  IOException e) {
+    LOG.error(e,"Unable to update UUID");
+  }
 }

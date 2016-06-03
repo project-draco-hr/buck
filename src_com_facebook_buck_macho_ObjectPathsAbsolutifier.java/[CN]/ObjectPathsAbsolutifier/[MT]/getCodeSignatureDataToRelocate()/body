@@ -1,0 +1,34 @@
+{
+  buffer.position(0);
+  ImmutableList<SymTabCommand> symTabCommands=LoadCommandUtils.findLoadCommandsWithClass(buffer,SymTabCommand.class);
+  Preconditions.checkArgument(symTabCommands.size() <= 1,"Found more that one SymTabCommand");
+  if (symTabCommands.size() == 0) {
+    LOG.verbose("SymTabCommand was not found, so there is no need to work with " + "LinkEditDataCommand to fix code sign, as string table was not found");
+    return Optional.absent();
+  }
+  buffer.position(0);
+  ImmutableList<LinkEditDataCommand> linkEditDataCommands=LoadCommandUtils.findLoadCommandsWithClass(buffer,LinkEditDataCommand.class);
+  ImmutableList<LinkEditDataCommand> codeSignatureCommands=FluentIterable.from(linkEditDataCommands).filter(new Predicate<LinkEditDataCommand>(){
+    @Override public boolean apply(    LinkEditDataCommand input){
+      return input.getLoadCommandCommonFields().getCmd().equals(LinkEditDataCommand.LC_CODE_SIGNATURE);
+    }
+  }
+).toList();
+  if (codeSignatureCommands.size() == 0) {
+    LOG.verbose("LinkEditDataCommand for code signature was not found");
+    return Optional.absent();
+  }
+  Preconditions.checkArgument(codeSignatureCommands.size() == 1,"Found more than one LC_CODE_SIGNATURE");
+  SymTabCommand symTabCommand=symTabCommands.get(0);
+  LinkEditDataCommand codeSignatureCommand=codeSignatureCommands.get(0);
+  if (symTabCommand.getStroff().intValue() >= codeSignatureCommand.getDataoff().intValue()) {
+    LOG.verbose("String table location > Code signature data location. " + "Skipping code signature relocation.");
+    return Optional.absent();
+  }
+  Preconditions.checkArgument(symTabCommand.getStroff().plus(symTabCommand.getStrsize()).intValue() < codeSignatureCommand.getDataoff().intValue(),"String table offset+size overlaps with code signature, something is wrong!");
+  byte[] contents=new byte[codeSignatureCommand.getDatasize().intValue()];
+  Preconditions.checkArgument(contents.length > 0,"Contents of code signature is 0 bytes");
+  buffer.position(codeSignatureCommand.getDataoff().intValue());
+  buffer.get(contents);
+  return Optional.of(new Pair<>(codeSignatureCommand,ByteBuffer.wrap(contents).order(buffer.order())));
+}

@@ -1,0 +1,20 @@
+{
+  if (!codeSignatureData.isPresent()) {
+    LOG.info("Code had no code signature to relocate, skipping code signature update");
+    return;
+  }
+  if (stringTableSizeIncrease == 0) {
+    LOG.info("String table size did not change, skipping code signature update");
+    return;
+  }
+  LinkEditDataCommand command=codeSignatureData.get().getFirst();
+  ByteBuffer contents=codeSignatureData.get().getSecond();
+  contents.position(0);
+  Preconditions.checkArgument(contents.capacity() > 0,"Contents of code signature is 0 bytes");
+  LinkEditDataCommand updated=command.withDataoff(command.getDataoff().plus(UnsignedInteger.fromIntBits(stringTableSizeIncrease)));
+  LOG.verbose("Re-positioning code signature to " + updated.getDataoff().intValue());
+  buffer.position(updated.getDataoff().intValue());
+  buffer.put(contents);
+  LOG.verbose("Updating LC_CODE_SIGNATURE for new code signature position");
+  LinkEditDataCommandUtils.updateLinkEditDataCommand(buffer,command,updated);
+}
