@@ -1,18 +1,25 @@
 {
+  int startPosition=in.position();
   int nulOffset=findNulOffset(in);
   if (nulOffset == in.limit()) {
     throw new BufferUnderflowException();
   }
-  CharBuffer out=CharBuffer.allocate((int)(nulOffset * decoder.averageCharsPerByte()));
+  int charBufferNeeded=(int)((nulOffset - startPosition) * decoder.averageCharsPerByte());
+  if (charBuffer.capacity() < charBufferNeeded) {
+    charBuffer=CharBuffer.allocate(charBufferNeeded);
+  }
+ else {
+    charBuffer.clear();
+  }
   StringBuilder sb=new StringBuilder();
   while (true) {
-    Result result=decodeChunk(in,nulOffset,out,true);
+    Result result=decodeChunk(in,nulOffset,charBuffer,true);
     if (result.coderResult.isError()) {
       result.coderResult.throwException();
     }
-    out.flip();
-    sb.append(out);
-    out.compact();
+    charBuffer.flip();
+    sb.append(charBuffer);
+    charBuffer.compact();
     if (result.nulTerminatorReached || !in.hasRemaining()) {
       break;
     }
