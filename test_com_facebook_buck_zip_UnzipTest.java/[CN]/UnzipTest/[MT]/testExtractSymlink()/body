@@ -1,0 +1,18 @@
+{
+  assumeThat(Platform.detect(),Matchers.is(Matchers.not(Platform.WINDOWS)));
+  try (ZipArchiveOutputStream zip=new ZipArchiveOutputStream(zipFile.toFile())){
+    ZipArchiveEntry entry=new ZipArchiveEntry("link.txt");
+    entry.setUnixMode((int)MoreFiles.S_IFLNK);
+    String target="target.txt";
+    entry.setSize(target.getBytes(Charsets.UTF_8).length);
+    entry.setMethod(ZipEntry.STORED);
+    zip.putArchiveEntry(entry);
+    zip.write(target.getBytes(Charsets.UTF_8));
+    zip.closeArchiveEntry();
+  }
+   Path extractFolder=tmpFolder.newFolder();
+  Unzip.extractZipFile(zipFile.toAbsolutePath(),extractFolder.toAbsolutePath(),Unzip.ExistingFileMode.OVERWRITE);
+  Path link=extractFolder.toAbsolutePath().resolve("link.txt");
+  assertTrue(Files.isSymbolicLink(link));
+  assertThat(Files.readSymbolicLink(link).toString(),Matchers.equalTo("target.txt"));
+}
