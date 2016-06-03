@@ -1,0 +1,20 @@
+{
+  FlavorDomain<PythonPlatform> pythonPlatforms=FlavorDomain.of("Python Platform",PY2,PY3);
+  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(FakeBuckConfig.builder().build());
+  CxxLibraryBuilder py2LibBuilder=new CxxLibraryBuilder(PYTHON2_DEP_TARGET);
+  CxxLibraryBuilder py3LibBuilder=new CxxLibraryBuilder(PYTHON3_DEP_TARGET);
+  CxxLibraryBuilder py2CxxLibraryBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:py2_library")).setSoname("libpy2.so").setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("hello.c"))));
+  CxxLibraryBuilder py3CxxLibraryBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:py3_library")).setSoname("libpy3.so").setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("hello.c"))));
+  CxxPythonExtensionBuilder cxxPythonExtensionBuilder=new CxxPythonExtensionBuilder(BuildTargetFactory.newInstance("//:extension"),pythonPlatforms,cxxBuckConfig,CxxTestBuilder.createDefaultPlatforms()).setPlatformDeps(PatternMatchedCollection.<ImmutableSortedSet<BuildTarget>>builder().add(Pattern.compile(PY2.getFlavor().toString()),ImmutableSortedSet.of(py2CxxLibraryBuilder.getTarget())).add(Pattern.compile(PY3.getFlavor().toString()),ImmutableSortedSet.of(py3CxxLibraryBuilder.getTarget())).build());
+  LuaBinaryBuilder luaBinaryBuilder=new LuaBinaryBuilder(new LuaBinaryDescription(FakeLuaConfig.DEFAULT,cxxBuckConfig,CxxPlatformUtils.DEFAULT_PLATFORM,CxxPlatformUtils.DEFAULT_PLATFORMS,pythonPlatforms),BuildTargetFactory.newInstance("//:binary")).setMainModule("main").setDeps(ImmutableSortedSet.of(cxxPythonExtensionBuilder.getTarget()));
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(py2LibBuilder.build(),py3LibBuilder.build(),py2CxxLibraryBuilder.build(),py3CxxLibraryBuilder.build(),cxxPythonExtensionBuilder.build(),luaBinaryBuilder.build()),new DefaultTargetNodeToBuildRuleTransformer());
+  py2LibBuilder.build(resolver);
+  py3LibBuilder.build(resolver);
+  py2CxxLibraryBuilder.build(resolver);
+  py3CxxLibraryBuilder.build(resolver);
+  cxxPythonExtensionBuilder.build(resolver);
+  LuaBinary luaBinary=(LuaBinary)luaBinaryBuilder.build(resolver);
+  LuaPackageComponents components=luaBinary.getComponents();
+  assertThat(components.getNativeLibraries().keySet(),Matchers.hasItem("libpy2.so"));
+  assertThat(components.getNativeLibraries().keySet(),Matchers.not(Matchers.hasItem("libpy3.so")));
+}

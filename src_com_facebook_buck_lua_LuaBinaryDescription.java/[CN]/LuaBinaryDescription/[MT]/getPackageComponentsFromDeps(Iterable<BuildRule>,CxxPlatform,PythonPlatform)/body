@@ -1,6 +1,7 @@
 {
   final LuaPackageComponents.Builder builder=LuaPackageComponents.builder();
   final Map<BuildTarget,NativeLinkable> nativeLinkables=new LinkedHashMap<>();
+  final Map<BuildTarget,CxxPythonExtension> pythonExtensions=new LinkedHashMap<>();
   new AbstractBreadthFirstThrowingTraversal<BuildRule,NoSuchBuildTargetException>(deps){
     private final ImmutableSet<BuildRule> empty=ImmutableSet.of();
     @Override public ImmutableSet<BuildRule> visit(    BuildRule rule) throws NoSuchBuildTargetException {
@@ -9,6 +10,9 @@
         LuaPackageable packageable=(LuaPackageable)rule;
         LuaPackageComponents.addComponents(builder,packageable.getLuaPackageComponents());
         deps=rule.getDeps();
+      }
+ else       if (rule instanceof CxxPythonExtension) {
+        pythonExtensions.put(rule.getBuildTarget(),(CxxPythonExtension)rule);
       }
  else       if (rule instanceof PythonPackagable) {
         PythonPackagable packageable=(PythonPackagable)rule;
@@ -30,6 +34,12 @@
     }
   }
 .start();
+  for (  Map.Entry<BuildTarget,CxxPythonExtension> entry : pythonExtensions.entrySet()) {
+    PythonPackageComponents components=entry.getValue().getPythonPackageComponents(pythonPlatform,cxxPlatform);
+    builder.putAllPythonModules(MoreMaps.transformKeys(components.getModules(),Functions.toStringFunction()));
+    builder.putAllNativeLibraries(MoreMaps.transformKeys(components.getNativeLibraries(),Functions.toStringFunction()));
+    nativeLinkables.putAll(Maps.uniqueIndex(entry.getValue().getNativeLinkTarget(pythonPlatform).getSharedNativeLinkTargetDeps(cxxPlatform),HasBuildTarget.TO_TARGET));
+  }
   for (  NativeLinkable nativeLinkable : NativeLinkables.getTransitiveNativeLinkables(cxxPlatform,nativeLinkables.values()).values()) {
     NativeLinkable.Linkage linkage=nativeLinkable.getPreferredLinkage(cxxPlatform);
     if (linkage != NativeLinkable.Linkage.STATIC) {
