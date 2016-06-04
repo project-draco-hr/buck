@@ -8,12 +8,31 @@
   }
   String buildFlags=getBuildFlags();
   String escapedBuildTarget=Escaper.escapeAsBashString(targetNode.getBuildTarget().getFullyQualifiedName());
-  if (attemptToDetermineBestCxxPlatform) {
-    escapedBuildTarget+=XCODE_BUILD_SCRIPT_FLAVOR_VALUE;
-  }
+  Optional<String> productName=getProductNameForTargetNode(targetNode);
+  String binaryName=AppleBundle.getBinaryName(targetNode.getBuildTarget(),productName);
+  Path bundleDestination=getScratchPathForAppBundle(projectFilesystem,targetNode.getBuildTarget(),binaryName);
+  Path dsymDestination=getScratchPathForDsymBundle(projectFilesystem,targetNode.getBuildTarget(),binaryName);
+  Path resolvedBundleDestination=projectFilesystem.resolve(bundleDestination);
+  Path resolvedDsymDestination=projectFilesystem.resolve(dsymDestination);
+  ImmutableSet<Flavor> flavors=ImmutableSet.copyOf(targetNode.getBuildTarget().getFlavors());
+  CxxPlatform cxxPlatform=cxxPlatforms.getValue(flavors).or(defaultCxxPlatform);
+  String oldCompDir=cxxPlatform.getDebugPathSanitizer().getCompilationDirectory();
+  String dsymPaddedCompDirWithHost=Strings.padStart(":" + projectFilesystem.getRootPath().toString(),oldCompDir.length(),'f');
+  template.add("path_to_build_with_buck_py",getBuildWithBuckPythonScriptPath(projectFilesystem));
+  template.add("path_to_fix_uuid_script",getFixUUIDScriptPath(projectFilesystem));
   template.add("repo_root",projectFilesystem.getRootPath());
   template.add("path_to_buck",getPathToBuck(executableFinder,environment));
   template.add("build_flags",buildFlags);
   template.add("escaped_build_target",escapedBuildTarget);
+  template.add("buck_dwarf_flavor",(appleConfig.forceDsymModeInBuildWithBuck() ? AppleDebugFormat.DWARF_AND_DSYM : AppleDebugFormat.DWARF).getFlavor().getName());
+  template.add("buck_dsym_flavor",AppleDebugFormat.DWARF_AND_DSYM.getFlavor().getName());
+  template.add("binary_name",binaryName);
+  template.add("comp_dir",oldCompDir);
+  template.add("new_comp_dir",projectFilesystem.getRootPath().toString());
+  template.add("padded_source_dir",dsymPaddedCompDirWithHost);
+  template.add("resolved_bundle_destination",resolvedBundleDestination);
+  template.add("resolved_bundle_destination_parent",resolvedBundleDestination.getParent());
+  template.add("resolved_dsym_destination",resolvedDsymDestination);
+  template.add("force_dsym",appleConfig.forceDsymModeInBuildWithBuck() ? "true" : "false");
   return template.render();
 }

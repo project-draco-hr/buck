@@ -3,7 +3,7 @@
   TargetNode<?> binaryNode=AppleBinaryBuilder.createBuilder(binaryTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).setSrcs(Optional.of(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("foo.m"),ImmutableList.of("-foo"))))).build();
   ImmutableSet<TargetNode<?>> nodes=ImmutableSet.<TargetNode<?>>of(binaryNode);
   final TargetGraph targetGraph=TargetGraphFactory.newInstance(nodes);
-  ProjectGenerator projectGenerator=new ProjectGenerator(targetGraph,FluentIterable.from(nodes).transform(HasBuildTarget.TO_TARGET).toSet(),projectCell,OUTPUT_DIRECTORY,PROJECT_NAME,"BUCK",ImmutableSet.<ProjectGenerator.Option>of(),Optional.of(binaryTarget),ImmutableList.of("--flag","value with spaces"),ImmutableList.<BuildTarget>of(),new AlwaysFoundExecutableFinder(),ImmutableMap.<String,String>of(),PLATFORMS,DEFAULT_PLATFORM,getSourcePathResolverForNodeFunction(targetGraph),getFakeBuckEventBus(),false,halideBuckConfig,cxxBuckConfig);
+  ProjectGenerator projectGenerator=new ProjectGenerator(targetGraph,FluentIterable.from(nodes).transform(HasBuildTarget.TO_TARGET).toSet(),projectCell,OUTPUT_DIRECTORY,PROJECT_NAME,"BUCK",ImmutableSet.<ProjectGenerator.Option>of(),Optional.of(binaryTarget),ImmutableList.of("--flag","value with spaces"),ImmutableList.<BuildTarget>of(),new AlwaysFoundExecutableFinder(),ImmutableMap.<String,String>of(),PLATFORMS,DEFAULT_PLATFORM,getSourcePathResolverForNodeFunction(targetGraph),getFakeBuckEventBus(),halideBuckConfig,cxxBuckConfig,appleConfig);
   projectGenerator.createXcodeProjects();
   PBXTarget buildWithBuckTarget=null;
   for (  PBXTarget target : projectGenerator.getGeneratedProject().getTargets()) {
@@ -18,5 +18,8 @@
   PBXBuildPhase buildPhase=Iterables.getOnlyElement(buildWithBuckTarget.getBuildPhases());
   assertThat(buildPhase,instanceOf(PBXShellScriptBuildPhase.class));
   PBXShellScriptBuildPhase shellScriptBuildPhase=(PBXShellScriptBuildPhase)buildPhase;
-  assertThat(shellScriptBuildPhase.getShellScript(),containsString("buck build --report-absolute-paths --flag 'value with spaces' " + binaryTarget.getFullyQualifiedName()));
+  assertThat(shellScriptBuildPhase.getShellScript(),containsString("buck -- \"--show-output --report-absolute-paths --flag 'value with spaces'\" " + binaryTarget.getFullyQualifiedName() + " dwarf dwarf-and-dsym"));
+  ProjectFilesystem filesystem=new FakeProjectFilesystem();
+  Path fixUUIDScriptPath=ProjectGenerator.getFixUUIDScriptPath(filesystem);
+  assertThat(shellScriptBuildPhase.getShellScript(),containsString("python " + fixUUIDScriptPath + " --verbose "+ filesystem.resolve(filesystem.getBuckPaths().getBuckOut()).resolve("bin/foo/binary-unsanitised/binary.app")+ " "+ filesystem.resolve(filesystem.getBuckPaths().getBuckOut()).resolve("bin/foo/binary-unsanitised/binary.dSYM")+ " "+ binaryTarget.getShortName()));
 }
