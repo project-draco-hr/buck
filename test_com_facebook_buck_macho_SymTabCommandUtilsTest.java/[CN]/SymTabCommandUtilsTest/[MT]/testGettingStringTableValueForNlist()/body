@@ -8,7 +8,7 @@
   commandBytes[15]=(byte)1;
   commandBytes[19]=(byte)(cmdSize + nlistBytes.length);
   commandBytes[23]=(byte)(stringTableEntry.length() + 1);
-  ByteBuffer byteBuffer=ByteBuffer.allocate(commandBytes.length + nlistBytes.length + 1+ stringTableEntry.length()+ 1).order(ByteOrder.BIG_ENDIAN).put(commandBytes).put(nlistBytes).put((byte)0x00).put(stringTableEntry.getBytes(Charsets.UTF_8)).put((byte)0x00);
+  ByteBuffer byteBuffer=ByteBuffer.allocate(commandBytes.length + nlistBytes.length + 1+ stringTableEntry.length()+ 1).order(ByteOrder.BIG_ENDIAN).put(commandBytes).put(nlistBytes).put((byte)0x00).put(stringTableEntry.getBytes(StandardCharsets.UTF_8)).put((byte)0x00);
   byteBuffer.position(0);
   SymTabCommand symTabCommand=SymTabCommandUtils.createFromBuffer(byteBuffer);
   assertThat(symTabCommand.getSymoff(),equalToObject(UnsignedInteger.fromIntBits(cmdSize)));
@@ -16,7 +16,6 @@
   byteBuffer.position(cmdSize);
   Nlist nlist=NlistUtils.createFromBuffer(byteBuffer,true);
   assertThat(nlist.getN_strx(),equalToObject(UnsignedInteger.fromIntBits(1)));
-  Optional<String> result=SymTabCommandUtils.getStringTableEntryForNlist(byteBuffer,symTabCommand,nlist);
-  assertThat(result.isPresent(),equalTo(true));
-  assertThat(result.get(),equalToObject(stringTableEntry));
+  String result=SymTabCommandUtils.getStringTableEntryForNlist(byteBuffer,symTabCommand,nlist,new NulTerminatedCharsetDecoder(StandardCharsets.UTF_8.newDecoder()));
+  assertThat(result,equalToObject(stringTableEntry));
 }

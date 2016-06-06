@@ -1,0 +1,18 @@
+{
+  byte[] nlistBytes=NlistTestData.getBigEndian64Bit();
+  nlistBytes[3]=(byte)0x01;
+  String entryContents="/some/path/";
+  byte[] commandBytes=SymTabCommandTestData.getBigEndian();
+  final int cmdSize=commandBytes.length;
+  commandBytes[11]=(byte)cmdSize;
+  commandBytes[15]=(byte)1;
+  commandBytes[19]=(byte)(cmdSize + nlistBytes.length);
+  commandBytes[23]=(byte)(1 + entryContents.length() + 1);
+  ByteBuffer byteBuffer=ByteBuffer.allocate(cmdSize + nlistBytes.length + 1+ entryContents.length()+ 1).order(ByteOrder.BIG_ENDIAN).put(commandBytes).put(nlistBytes).put((byte)0x00).put(entryContents.getBytes(StandardCharsets.UTF_8)).put((byte)0x00);
+  byteBuffer.position(0);
+  SymTabCommand symTabCommand=SymTabCommandUtils.createFromBuffer(byteBuffer);
+  byteBuffer.position(cmdSize);
+  Nlist nlist=NlistUtils.createFromBuffer(byteBuffer,false);
+  assertThat(SymTabCommandUtils.stringTableEntryStartsWithSlash(byteBuffer,symTabCommand,nlist),equalTo(true));
+  assertThat(SymTabCommandUtils.stringTableEntryEndsWithSlash(byteBuffer,symTabCommand,nlist),equalTo(true));
+}
