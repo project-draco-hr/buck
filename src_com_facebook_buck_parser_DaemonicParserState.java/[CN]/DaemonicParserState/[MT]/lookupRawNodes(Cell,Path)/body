@@ -2,7 +2,11 @@
   Preconditions.checkState(buildFile.isAbsolute());
   invalidateIfProjectBuildFileParserStateChanged(cell);
   invalidateIfBuckConfigHasChanged(cell,buildFile);
-  try (AutoCloseableLock readLock=nodesAndTargetsLock.readLock()){
-    return Optional.fromNullable(allRawNodes.getIfPresent(buildFile));
+  try (AutoCloseableLock readLock=cellStateLock.readLock()){
+    DaemonicCellState state=cellPathToDaemonicState.get(cell.getRoot());
+    if (state == null) {
+      return Optional.<ImmutableList<Map<String,Object>>>absent();
+    }
+    return state.lookupRawNodes(buildFile);
   }
  }

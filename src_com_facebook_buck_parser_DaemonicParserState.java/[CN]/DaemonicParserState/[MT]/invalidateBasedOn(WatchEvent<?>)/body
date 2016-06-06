@@ -9,32 +9,34 @@
   }
   filesChangedCounter.inc();
   Path path=(Path)event.context();
-  Preconditions.checkState(allTargetNodes.isEmpty() || !knownCells.isEmpty(),"There are cached target nodes but no known cells. Cache invalidation will not work.");
-  for (  Cell cell : knownCells) {
-    try {
-      if (isPathCreateOrDeleteEvent(event)) {
-        BuildFileTree buildFiles=buildFileTrees.get(cell);
-        if (path.endsWith(cell.getBuildFileName())) {
-          LOG.debug("Build file %s changed, invalidating build file tree for cell %s",path,cell);
-          buildFileTrees.invalidate(cell);
-        }
-        if (!isTempFile(cell,path)) {
-          invalidateContainingBuildFile(cell,buildFiles,path);
-        }
- else {
-          LOG.debug("Not invalidating the owning build file of %s because it is a temporary file.",cell.getFilesystem().resolve(path).toAbsolutePath().toString());
-        }
-      }
-    }
- catch (    ExecutionException|UncheckedExecutionException e) {
+  try (AutoCloseableLock readLock=cellStateLock.readLock()){
+    for (    DaemonicCellState state : cellPathToDaemonicState.values()) {
       try {
-        Throwables.propagateIfInstanceOf(e,BuildFileParseException.class);
-        Throwables.propagate(e);
+        if (isPathCreateOrDeleteEvent(event)) {
+          Cell cell=state.getCell();
+          BuildFileTree buildFiles=buildFileTrees.get(cell);
+          if (path.endsWith(cell.getBuildFileName())) {
+            LOG.debug("Build file %s changed, invalidating build file tree for cell %s",path,cell);
+            buildFileTrees.invalidate(cell);
+          }
+          if (!isTempFile(cell,path)) {
+            invalidateContainingBuildFile(cell,buildFiles,path);
+          }
+ else {
+            LOG.debug("Not invalidating the owning build file of %s because it is a temporary file.",state.getCellRoot().resolve(path).toAbsolutePath().toString());
+          }
+        }
       }
- catch (      BuildFileParseException bfpe) {
-        LOG.warn("Unable to parse already parsed build file.",bfpe);
+ catch (      ExecutionException|UncheckedExecutionException e) {
+        try {
+          Throwables.propagateIfInstanceOf(e,BuildFileParseException.class);
+          Throwables.propagate(e);
+        }
+ catch (        BuildFileParseException bfpe) {
+          LOG.warn("Unable to parse already parsed build file.",bfpe);
+        }
       }
     }
   }
-  invalidatePath(path);
+   invalidatePath(path);
 }

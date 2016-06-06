@@ -1,10 +1,9 @@
 {
-  LOG.debug("Invalidating path %s for cell %s",path,cell);
-  path=cell.getFilesystem().resolve(path);
   try (AutoCloseableLock writeLock=nodesAndTargetsLock.writeLock()){
+    int invalidatedRawNodes=0;
     List<Map<String,Object>> rawNodes=allRawNodes.getIfPresent(path);
     if (rawNodes != null) {
-      rulesInvalidatedByWatchEventsCounter.inc(rawNodes.size());
+      invalidatedRawNodes=rawNodes.size();
       for (      Map<String,Object> rawNode : rawNodes) {
         UnflavoredBuildTarget target=ParsePipeline.parseBuildTargetFromRawRule(cell.getRoot(),rawNode,path);
         LOG.debug("Invalidating target for path %s: %s",path,target);
@@ -13,15 +12,16 @@
       }
       allRawNodes.invalidate(path);
     }
-  }
-   Iterable<Path> dependents=buildFileDependents.get(path);
-  LOG.debug("Invalidating dependents for path %s: %s",path,dependents);
-  for (  Path dependent : dependents) {
-    if (dependent.equals(path)) {
-      continue;
+    Iterable<Path> dependents=buildFileDependents.get(path);
+    LOG.debug("Invalidating dependents for path %s: %s",path,dependents);
+    for (    Path dependent : dependents) {
+      if (dependent.equals(path)) {
+        continue;
+      }
+      invalidatedRawNodes+=invalidatePath(dependent);
     }
-    invalidatePath(cell,dependent);
+    buildFileDependents.removeAll(path);
+    buildFileConfigs.remove(path);
+    return invalidatedRawNodes;
   }
-  buildFileDependents.removeAll(path);
-  buildFileConfigs.remove(path);
-}
+ }
