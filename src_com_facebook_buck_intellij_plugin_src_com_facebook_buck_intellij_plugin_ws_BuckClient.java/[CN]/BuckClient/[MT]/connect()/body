@@ -1,25 +1,32 @@
 {
-  if (mPort != -1) {
-    try {
-      mWSClient.start();
-      URI uri=new URI("ws://" + mHost + ":"+ mPort+ "/ws/build");
-      mWSClient.connect(mWSSocket,uri);
-synchronized (syncObject) {
-        mLastActionTime=(new Date()).getTime();
+  if (isConnected() || mConnecting.get()) {
+    return;
+  }
+  mConnecting.set(true);
+  ApplicationManager.getApplication().executeOnPooledThread(new Runnable(){
+    @Override public void run(){
+      BuckWSServerPortUtils wsPortUtils=new BuckWSServerPortUtils();
+      try {
+        int port=wsPortUtils.getPort(mProject.getBasePath());
+        connectToWebServer("localhost",port);
       }
-      mConnected.set(true);
-      if (scheduledFuture != null && !scheduledFuture.isCancelled()) {
-        scheduledFuture.cancel(true);
+ catch (      NumberFormatException e) {
+        LOG.error(e);
       }
-      scheduledFuture=scheduledThreadPoolExecutor.scheduleAtFixedRate(new Runnable(){
-        @Override public void run(){
-          BuckClient.this.ping();
+catch (      ExecutionException e) {
+        LOG.error(e);
+      }
+catch (      IOException e) {
+        LOG.error(e);
+      }
+catch (      HumanReadableException e) {
+        if (!mProject.isDisposed()) {
+          BuckModule buckModule=mProject.getComponent(BuckModule.class);
+          buckModule.attachIfDetached();
+          buckModule.getBuckEventsConsumer().consumeConsoleEvent(e.toString());
         }
       }
-,10,10,TimeUnit.SECONDS);
-    }
- catch (    Throwable t) {
-      mConnected.set(false);
     }
   }
+);
 }
