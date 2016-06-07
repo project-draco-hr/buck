@@ -3,25 +3,22 @@
   Document doc=XmlDomParser.parse(new InputSource(new StringReader(fileContents)),true);
   Element root=doc.getDocumentElement();
   Preconditions.checkState("testsuite".equals(root.getTagName()));
-  String testCaseName=root.getAttribute("name") + " (" + serialNumber+ ")";
   NodeList testElements=doc.getElementsByTagName("testcase");
-  List<TestResultSummary> testResults=Lists.newArrayListWithCapacity(testElements.getLength());
+  List<TestCaseSummary> results=new ArrayList<>();
+  Map<String,List<TestResultSummary>> testResultsMap=new LinkedHashMap<>();
   for (int i=0; i < testElements.getLength(); i++) {
     Element node=(Element)testElements.item(i);
-    String testName=node.getAttribute("name");
-    double time=Float.parseFloat(node.getAttribute("time"));
-    String message=null;
-    String stacktrace=null;
-    String stdOut=null;
-    String stdErr=null;
-    ResultType type=ResultType.SUCCESS;
-    NodeList failure=node.getElementsByTagName("failure");
-    if (failure.getLength() == 1) {
-      stdOut=failure.item(0).getTextContent();
-      type=ResultType.FAILURE;
+    String className=node.getAttribute("classname");
+    List<TestResultSummary> testResults=testResultsMap.get(className);
+    if (testResults == null) {
+      testResults=new ArrayList<>();
+      testResultsMap.put(className,testResults);
     }
-    TestResultSummary testResult=new TestResultSummary(testCaseName,testName,type,Math.round(time * 1000),message,stacktrace,stdOut,stdErr);
-    testResults.add(testResult);
+    testResults.add(getTestResultFromElement(node,getTestCaseName(className,serialNumber)));
   }
-  return new TestCaseSummary(testCaseName,testResults);
+  for (  Map.Entry<String,List<TestResultSummary>> entry : testResultsMap.entrySet()) {
+    TestCaseSummary testCaseSummary=new TestCaseSummary(getTestCaseName(entry.getKey(),serialNumber),entry.getValue());
+    results.add(testCaseSummary);
+  }
+  return results;
 }
