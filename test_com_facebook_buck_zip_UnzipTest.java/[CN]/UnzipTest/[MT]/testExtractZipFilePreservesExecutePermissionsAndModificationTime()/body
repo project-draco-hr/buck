@@ -1,9 +1,11 @@
 {
+  final long time=ZipConstants.getFakeTime() / 1000 * 1000;
   try (ZipArchiveOutputStream zip=new ZipArchiveOutputStream(zipFile.toFile())){
     ZipArchiveEntry entry=new ZipArchiveEntry("test.exe");
     entry.setUnixMode((int)MorePosixFilePermissions.toMode(PosixFilePermissions.fromString("r-x------")));
     entry.setSize(DUMMY_FILE_CONTENTS.length);
     entry.setMethod(ZipEntry.STORED);
+    entry.setTime(time);
     zip.putArchiveEntry(entry);
     zip.write(DUMMY_FILE_CONTENTS);
     zip.closeArchiveEntry();
@@ -12,6 +14,7 @@
   ImmutableList<Path> result=Unzip.extractZipFile(zipFile.toAbsolutePath(),extractFolder.toAbsolutePath(),Unzip.ExistingFileMode.OVERWRITE);
   Path exe=extractFolder.toAbsolutePath().resolve("test.exe");
   assertTrue(Files.exists(exe));
+  assertThat(Files.getLastModifiedTime(exe).toMillis(),Matchers.equalTo(time));
   assertTrue(Files.isExecutable(exe));
   assertEquals(ImmutableList.of(extractFolder.resolve("test.exe")),result);
 }

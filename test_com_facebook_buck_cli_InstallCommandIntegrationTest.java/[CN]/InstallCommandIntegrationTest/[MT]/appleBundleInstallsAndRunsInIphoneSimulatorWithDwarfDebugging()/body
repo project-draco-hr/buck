@@ -1,0 +1,30 @@
+{
+  assumeThat(Platform.detect(),is(Platform.MACOS));
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"apple_app_bundle",tmp);
+  workspace.setUp();
+  workspace.enableDirCache();
+  ProcessResult result=workspace.runBuckCommand("install","--config","apple.default_debug_info_format_for_binaries=DWARF","--config","apple.default_debug_info_format_for_libraries=DWARF","--config","apple.default_debug_info_format_for_tests=DWARF","-r","//:DemoApp");
+  assumeFalse(result.getStderr().contains("no appropriate simulator found"));
+  result.assertSuccess();
+  Pattern p=Pattern.compile("lldb -p \\d{1,6}");
+  Matcher matcher=p.matcher(result.getStderr());
+  assertThat(matcher.find(),equalTo(true));
+  String[] lldbCommand=matcher.group().split(" ");
+  ProcessExecutor executor=new ProcessExecutor(new TestConsole());
+  ProcessExecutor.Result lldbResult=executor.launchAndExecute(ProcessExecutorParams.builder().addCommand(lldbCommand).build(),ImmutableSet.<ProcessExecutor.Option>of(),Optional.of("b application:didFinishLaunchingWithOptions:\nb\nexit\nY\n"),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
+  assertThat(lldbResult.getExitCode(),equalTo(0));
+  String lldbOutput=lldbResult.getStdout().or("");
+  assertThat(lldbOutput,containsString("Current breakpoints:"));
+  assertThat(lldbOutput,containsString("name = 'application:didFinishLaunchingWithOptions:', " + "locations = 1, resolved = 1, hit count = 0"));
+  workspace.runBuckCommand("clean");
+  result=workspace.runBuckCommand("install","--config","apple.default_debug_info_format_for_binaries=DWARF","--config","apple.default_debug_info_format_for_libraries=DWARF","--config","apple.default_debug_info_format_for_tests=DWARF","-r","//:DemoApp");
+  result.assertSuccess();
+  matcher=p.matcher(result.getStderr());
+  assertThat(matcher.find(),equalTo(true));
+  String[] lldbCommand2=matcher.group().split(" ");
+  lldbResult=executor.launchAndExecute(ProcessExecutorParams.builder().addCommand(lldbCommand2).build(),ImmutableSet.<ProcessExecutor.Option>of(),Optional.of("b application:didFinishLaunchingWithOptions:\nb\nexit\nY\n"),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
+  assertThat(lldbResult.getExitCode(),equalTo(0));
+  lldbOutput=lldbResult.getStdout().or("");
+  assertThat(lldbOutput,containsString("Current breakpoints:"));
+  assertThat(lldbOutput,containsString("name = 'application:didFinishLaunchingWithOptions:', " + "locations = 1, resolved = 1, hit count = 0"));
+}
