@@ -5,7 +5,9 @@
   Optional<Path> relativePythonModulesLinkTreeRoot=Optional.absent();
   final List<SymlinkTree> pythonModulesLinktree=new ArrayList<>();
   if (!components.getPythonModules().isEmpty()) {
-    final SymlinkTree symlinkTree=resolver.addToIndex(createSymlinkTree(params.getBuildTarget().withAppendedFlavors(ImmutableFlavor.of("python-modules-link-tree")),params,resolver,pathResolver,components.getPythonModules()));
+    SourcePath emptyInit=PythonBinaryDescription.createEmptyInitModule(params,resolver,pathResolver);
+    ImmutableMap<String,SourcePath> pythonModules=MoreMaps.transformKeys(PythonBinaryDescription.addMissingInitModules(MoreMaps.transformKeys(components.getPythonModules(),MorePaths.toPathFn(params.getProjectFilesystem().getRootPath().getFileSystem())),emptyInit),Functions.toStringFunction());
+    final SymlinkTree symlinkTree=resolver.addToIndex(createSymlinkTree(params.getBuildTarget().withAppendedFlavors(ImmutableFlavor.of("python-modules-link-tree")),params,resolver,pathResolver,pythonModules));
     pythonModulesLinktree.add(symlinkTree);
     relativePythonModulesLinkTreeRoot=Optional.of(output.getParent().relativize(params.getProjectFilesystem().getRootPath().relativize(symlinkTree.getRoot())));
   }
