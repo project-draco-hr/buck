@@ -1,11 +1,13 @@
 {
   Path output=getOutputPath(params.getBuildTarget(),params.getProjectFilesystem());
+  final List<SourcePath> extraInputs=new ArrayList<>();
   final SymlinkTree modulesLinkTree=resolver.addToIndex(createSymlinkTree(params.getBuildTarget().withAppendedFlavors(ImmutableFlavor.of("modules-link-tree")),params,resolver,pathResolver,components.getModules()));
   final Path relativeModulesLinkTreeRoot=output.getParent().relativize(params.getProjectFilesystem().getRootPath().relativize(modulesLinkTree.getRoot()));
   Optional<Path> relativePythonModulesLinkTreeRoot=Optional.absent();
   final List<SymlinkTree> pythonModulesLinktree=new ArrayList<>();
   if (!components.getPythonModules().isEmpty()) {
     SourcePath emptyInit=PythonBinaryDescription.createEmptyInitModule(params,resolver,pathResolver);
+    extraInputs.add(emptyInit);
     ImmutableMap<String,SourcePath> pythonModules=MoreMaps.transformKeys(PythonBinaryDescription.addMissingInitModules(MoreMaps.transformKeys(components.getPythonModules(),MorePaths.toPathFn(params.getProjectFilesystem().getRootPath().getFileSystem())),emptyInit),Functions.toStringFunction());
     final SymlinkTree symlinkTree=resolver.addToIndex(createSymlinkTree(params.getBuildTarget().withAppendedFlavors(ImmutableFlavor.of("python-modules-link-tree")),params,resolver,pathResolver,pythonModules));
     pythonModulesLinktree.add(symlinkTree);
@@ -21,10 +23,10 @@
   final SourcePath starter=getStarter(params,resolver,pathResolver,cxxPlatform,output,starterType,nativeStarterLibrary,mainModule,Optional.of(relativeModulesLinkTreeRoot),relativePythonModulesLinkTreeRoot,relativeNativeLibsLinkTreeRoot);
   return new Tool(){
     @Override public ImmutableCollection<BuildRule> getDeps(    SourcePathResolver resolver){
-      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(starter)).addAll(components.getDeps(resolver)).add(modulesLinkTree).addAll(nativeLibsLinktree).addAll(pythonModulesLinktree).build();
+      return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(starter)).addAll(components.getDeps(resolver)).add(modulesLinkTree).addAll(nativeLibsLinktree).addAll(pythonModulesLinktree).addAll(pathResolver.filterBuildRuleInputs(extraInputs)).build();
     }
     @Override public ImmutableCollection<SourcePath> getInputs(){
-      return ImmutableSortedSet.<SourcePath>naturalOrder().add(starter).addAll(components.getInputs()).build();
+      return ImmutableSortedSet.<SourcePath>naturalOrder().add(starter).addAll(components.getInputs()).addAll(extraInputs).build();
     }
     @Override public ImmutableList<String> getCommandPrefix(    SourcePathResolver resolver){
       return ImmutableList.of(resolver.getAbsolutePath(starter).toString());
