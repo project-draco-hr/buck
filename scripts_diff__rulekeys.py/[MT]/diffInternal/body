@@ -1,7 +1,7 @@
 def diffInternal(label, left_s, left_info, right_s, right_info, verbose):
     keys = set(left_s.keys()).union(set(right_s.keys()))
     changed_key_pairs_with_labels = set()
-    changed_key_pairs_with_values = []
+    changed_key_pairs_with_values = collections.defaultdict(KeyValueDiff)
     changed_key_pairs_with_labels_for_key = set()
     report = []
     for key in keys:
@@ -25,9 +25,11 @@ def diffInternal(label, left_s, left_info, right_s, right_info, verbose):
                     q_label = ((label + u'->') + key)
                     changed_key_pairs_with_labels_for_key.add((q_label, (left_key, right_key)))
                     continue
-            changed_key_pairs_with_values.append([key, left_v, right_v])
-    for (key, left_v, right_v) in sorted(changed_key_pairs_with_values):
-        report.append(((((((((u'  (' + key) + u'):\n') + u'    -[') + left_v) + u']\n') + u'    +[') + right_v) + u']'))
+            changed_key_pairs_with_values[key].append(left_v, right_v)
+    for key in sorted(changed_key_pairs_with_values.keys()):
+        value_pairs = changed_key_pairs_with_values[key]
+        report.append(((u'  (' + key) + u'):'))
+        report.extend([(u'    ' + l) for l in value_pairs.diff()])
     changed_key_pairs_with_labels.update(changed_key_pairs_with_labels_for_key)
     if (len(changed_key_pairs_with_labels_for_key) > 0):
         changed_labels = [label for (label, _) in changed_key_pairs_with_labels_for_key]
