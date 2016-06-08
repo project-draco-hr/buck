@@ -1,10 +1,14 @@
 {
+  Optional<DefaultRuleKeyBuilderFactory> ruleKeyBuilderFactory=Optional.absent();
+  if (showRuleKey) {
+    ruleKeyBuilderFactory=Optional.of(new DefaultRuleKeyBuilderFactory(params.getBuckConfig().getKeySeed(),params.getFileHashCache(),new SourcePathResolver(actionGraphAndResolver.getResolver())));
+  }
   params.getConsole().getStdOut().println("The outputs are:");
   for (  BuildTarget buildTarget : buildTargets) {
     try {
       BuildRule rule=actionGraphAndResolver.getResolver().requireRule(buildTarget);
       Optional<Path> outputPath=TargetsCommand.getUserFacingOutputPath(rule);
-      params.getConsole().getStdOut().printf("%s %s\n",rule.getFullyQualifiedName(),outputPath.transform(Functions.toStringFunction()).or(""));
+      params.getConsole().getStdOut().printf("%s%s%s\n",rule.getFullyQualifiedName(),showRuleKey ? " " + ruleKeyBuilderFactory.get().build(rule).toString() : "",showOutput ? " " + outputPath.transform(Functions.toStringFunction()).or("") : "");
     }
  catch (    NoSuchBuildTargetException e) {
       throw new HumanReadableException(MoreExceptions.getHumanReadableOrLocalizedMessage(e));
