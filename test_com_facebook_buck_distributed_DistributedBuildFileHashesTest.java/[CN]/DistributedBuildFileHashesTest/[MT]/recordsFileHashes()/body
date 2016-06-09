@@ -1,0 +1,19 @@
+{
+  Fixture f=new Fixture(){
+    @Override protected void setUpRules(    BuildRuleResolver resolver,    SourcePathResolver sourcePathResolver) throws Exception {
+      Path javaSrcPath=getPath("src","A.java");
+      projectFilesystem.createParentDirs(javaSrcPath);
+      projectFilesystem.writeContentsToPath("public class A {}",javaSrcPath);
+      JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance(projectFilesystem,"//:java_lib"),projectFilesystem).addSrc(javaSrcPath).build(resolver,projectFilesystem);
+    }
+  }
+;
+  List<BuildJobStateFileHashes> recordedHashes=f.distributedBuildFileHashes.getFileHashes();
+  assertThat(recordedHashes,Matchers.hasSize(1));
+  BuildJobStateFileHashes hashes=recordedHashes.get(0);
+  assertThat(hashes.entries,Matchers.hasSize(1));
+  BuildJobStateFileHashEntry fileHashEntry=hashes.entries.get(0);
+  assertThat(fileHashEntry.getPath().getPath(),Matchers.equalTo("src/A.java"));
+  assertFalse(fileHashEntry.isPathIsAbsolute());
+  assertFalse(fileHashEntry.isIsDirectory());
+}

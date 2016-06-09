@@ -1,0 +1,31 @@
+{
+  Fixture f=new Fixture(){
+    @Override protected void setUpRules(    BuildRuleResolver resolver,    SourcePathResolver sourcePathResolver) throws Exception {
+      Path hashedFileToolPath=projectFilesystem.resolve("../tool").toAbsolutePath();
+      Path directoryPath=getPath("directory");
+      projectFilesystem.writeContentsToPath("it's a tool, I promise",hashedFileToolPath);
+      projectFilesystem.mkdirs(directoryPath);
+      resolver.addToIndex(new BuildRuleWithToolAndPath(new FakeBuildRuleParamsBuilder("//:with_tool").setProjectFilesystem(projectFilesystem).build(),sourcePathResolver,new HashedFileTool(hashedFileToolPath),new PathSourcePath(projectFilesystem,directoryPath)));
+    }
+  }
+;
+  List<BuildJobStateFileHashes> recordedHashes=f.distributedBuildFileHashes.getFileHashes();
+  assertThat(recordedHashes,Matchers.hasSize(1));
+  BuildJobStateFileHashes hashes=recordedHashes.get(0);
+  assertThat(hashes.entries,Matchers.hasSize(2));
+  for (  BuildJobStateFileHashEntry entry : hashes.entries) {
+    if (entry.getPath().getPath().toString().endsWith("tool")) {
+      assertThat(entry,Matchers.notNullValue());
+      assertTrue(entry.isPathIsAbsolute());
+      assertFalse(entry.isIsDirectory());
+    }
+ else     if (entry.getPath().equals(new PathWithUnixSeparators("directory"))) {
+      assertThat(entry,Matchers.notNullValue());
+      assertFalse(entry.isPathIsAbsolute());
+      assertTrue(entry.isIsDirectory());
+    }
+ else {
+      fail("Unknown path: " + entry.getPath().getPath());
+    }
+  }
+}

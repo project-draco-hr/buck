@@ -1,0 +1,18 @@
+{
+  List<ListenableFuture<Map.Entry<BuildRule,RuleKey>>> ruleKeyEntries=new ArrayList<>();
+  for (  final BuildRule rule : actionGraph.getNodes()) {
+    ruleKeyEntries.add(executorService.submit(new Callable<Map.Entry<BuildRule,RuleKey>>(){
+      @Override public Map.Entry<BuildRule,RuleKey> call() throws Exception {
+        return Maps.immutableEntry(rule,ruleKeyFactories.get(rule.getProjectFilesystem()).build(rule));
+      }
+    }
+));
+  }
+  ListenableFuture<List<Map.Entry<BuildRule,RuleKey>>> ruleKeyComputation=Futures.allAsList(ruleKeyEntries);
+  return Futures.transform(ruleKeyComputation,new Function<List<Map.Entry<BuildRule,RuleKey>>,ImmutableMap<BuildRule,RuleKey>>(){
+    @Override public ImmutableMap<BuildRule,RuleKey> apply(    List<Map.Entry<BuildRule,RuleKey>> input){
+      return ImmutableMap.copyOf(input);
+    }
+  }
+,executorService);
+}

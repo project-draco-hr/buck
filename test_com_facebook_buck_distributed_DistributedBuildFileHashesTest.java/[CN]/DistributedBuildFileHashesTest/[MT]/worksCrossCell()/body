@@ -1,0 +1,28 @@
+{
+  final Fixture f=new Fixture(){
+    @Override protected void setUpRules(    BuildRuleResolver resolver,    SourcePathResolver sourcePathResolver) throws Exception {
+      Path firstPath=javaFs.getPath("src","A.java");
+      projectFilesystem.createParentDirs(firstPath);
+      projectFilesystem.writeContentsToPath("public class A {}",firstPath);
+      Path secondPath=secondJavaFs.getPath("B.java");
+      secondProjectFilesystem.writeContentsToPath("public class B {}",secondPath);
+      JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance(projectFilesystem,"//:java_lib"),projectFilesystem).addSrc(firstPath).build(resolver,projectFilesystem);
+      JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance(secondProjectFilesystem,"//:other_cell"),secondProjectFilesystem).addSrc(secondPath).build(resolver,secondProjectFilesystem);
+    }
+  }
+;
+  List<BuildJobStateFileHashes> recordedHashes=f.distributedBuildFileHashes.getFileHashes();
+  assertThat(recordedHashes,Matchers.hasSize(2));
+  for (  BuildJobStateFileHashes hashes : recordedHashes) {
+    String name=hashes.getFileSystemRootName();
+    if (name.contains("first")) {
+      assertThat(toFileHashEntryIndex(hashes),Matchers.hasKey(new PathWithUnixSeparators("src/A.java")));
+    }
+ else     if (name.contains("second")) {
+      assertThat(toFileHashEntryIndex(hashes),Matchers.hasKey(new PathWithUnixSeparators("B.java")));
+    }
+ else {
+      fail("Unknown filesystem root:" + name);
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  this.remoteFileHashes=CacheBuilder.newBuilder().build(new CacheLoader<ProjectFilesystem,BuildJobStateFileHashes>(){
+    @Override public BuildJobStateFileHashes load(    ProjectFilesystem filesystem) throws Exception {
+      BuildJobStateFileHashes fileHashes=new BuildJobStateFileHashes();
+      fileHashes.setFileSystemRootName(filesystem.getRootPath().toString());
+      return fileHashes;
+    }
+  }
+);
+  this.fileHashLoaders=CacheBuilder.newBuilder().build(new CacheLoader<ProjectFilesystem,FileHashLoader>(){
+    @Override public FileHashLoader load(    ProjectFilesystem key) throws Exception {
+      return new RecordingFileHashLoader(new StackedFileHashCache(ImmutableList.of(rootCellFileHashCache,new DefaultFileHashCache(key))),key,remoteFileHashes.get(key));
+    }
+  }
+);
+  this.ruleKeyFactories=CacheBuilder.newBuilder().build(new CacheLoader<ProjectFilesystem,DefaultRuleKeyBuilderFactory>(){
+    @Override public DefaultRuleKeyBuilderFactory load(    ProjectFilesystem key) throws Exception {
+      return new DefaultRuleKeyBuilderFactory(keySeed,fileHashLoaders.get(key),sourcePathResolver);
+    }
+  }
+);
+  this.ruleKeys=ruleKeyComputation(actionGraph,this.ruleKeyFactories,executorService);
+  this.fileHashes=fileHashesComputation(Futures.transform(this.ruleKeys,Functions.<Void>constant(null)),this.remoteFileHashes,executorService);
+}
