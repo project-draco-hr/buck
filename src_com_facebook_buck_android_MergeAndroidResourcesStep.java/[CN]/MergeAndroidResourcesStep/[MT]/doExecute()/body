@@ -1,7 +1,10 @@
 {
   ImmutableMap.Builder<Path,String> rDotTxtToPackage=ImmutableMap.builder();
+  ImmutableMap.Builder<Path,HasAndroidResourceDeps> symbolsFileToResourceDeps=ImmutableMap.builder();
   for (  HasAndroidResourceDeps res : androidResourceDeps) {
-    rDotTxtToPackage.put(pathResolver.getRelativePath(res.getPathToTextSymbolsFile()),res.getRDotJavaPackage());
+    Path rDotTxtPath=pathResolver.getRelativePath(res.getPathToTextSymbolsFile());
+    rDotTxtToPackage.put(rDotTxtPath,res.getRDotJavaPackage());
+    symbolsFileToResourceDeps.put(rDotTxtPath,res);
   }
   Optional<ImmutableMap<RDotTxtEntry,String>> uberRDotTxtIds;
   if (uberRDotTxt.isPresent()) {
@@ -16,7 +19,7 @@
     uberRDotTxtIds=Optional.absent();
   }
   ImmutableMap<Path,String> symbolsFileToRDotJavaPackage=rDotTxtToPackage.build();
-  SortedSetMultimap<String,RDotTxtEntry> rDotJavaPackageToResources=sortSymbols(symbolsFileToRDotJavaPackage,uberRDotTxtIds,filesystem);
+  SortedSetMultimap<String,RDotTxtEntry> rDotJavaPackageToResources=sortSymbols(symbolsFileToRDotJavaPackage,uberRDotTxtIds,symbolsFileToResourceDeps.build(),bannedDuplicateResourceTypes,filesystem);
   if (unionPackage.isPresent()) {
     Collection<RDotTxtEntry> target=rDotJavaPackageToResources.asMap().get(unionPackage.get());
     if (target != null) {

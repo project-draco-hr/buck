@@ -8,6 +8,7 @@
     enumerator=new IntEnumerator(0x7f01001);
   }
   SortedSetMultimap<String,RDotTxtEntry> rDotJavaPackageToSymbolsFiles=TreeMultimap.create();
+  SortedSetMultimap<RDotTxtEntry,Path> bannedDuplicateResourceToSymbolsFiles=TreeMultimap.create();
   for (  Map.Entry<Path,String> entry : symbolsFileToRDotJavaPackage.entrySet()) {
     Path symbolsFile=entry.getKey();
     List<String> linesInSymbolsFile;
@@ -34,8 +35,28 @@
         Preconditions.checkNotNull(enumerator);
         resource=resource.copyWithNewIdValue(String.format("0x%08x",enumerator.next()));
       }
+      if (bannedDuplicateResourceTypes.contains(resource.type)) {
+        bannedDuplicateResourceToSymbolsFiles.put(resource,symbolsFile);
+      }
       rDotJavaPackageToSymbolsFiles.put(packageName,resource);
     }
+  }
+  StringBuilder duplicateResourcesMessage=new StringBuilder();
+  for (  Map.Entry<RDotTxtEntry,Collection<Path>> resourceAndSymbolsFiles : bannedDuplicateResourceToSymbolsFiles.asMap().entrySet()) {
+    Collection<Path> paths=resourceAndSymbolsFiles.getValue();
+    if (paths.size() > 1) {
+      RDotTxtEntry resource=resourceAndSymbolsFiles.getKey();
+      duplicateResourcesMessage.append(String.format("Resource '%s' (%s) is duplicated across: ",resource.name,resource.type));
+      List<SourcePath> resourceDirs=new ArrayList<>(paths.size());
+      for (      Path path : paths) {
+        resourceDirs.add(symbolsFileToResourceDeps.get(path).getRes());
+      }
+      duplicateResourcesMessage.append(Joiner.on(", ").join(resourceDirs));
+      duplicateResourcesMessage.append("\n");
+    }
+  }
+  if (duplicateResourcesMessage.length() > 0) {
+    throw new DuplicateResourceException(duplicateResourcesMessage.toString());
   }
   return rDotJavaPackageToSymbolsFiles;
 }

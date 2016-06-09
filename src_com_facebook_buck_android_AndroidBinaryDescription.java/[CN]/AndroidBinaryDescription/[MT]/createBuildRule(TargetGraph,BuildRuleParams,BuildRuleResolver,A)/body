@@ -28,7 +28,15 @@
   PackageType packageType=getPackageType(args);
   boolean shouldPreDex=!args.disablePreDex.or(false) && PackageType.DEBUG.equals(packageType) && !args.preprocessJavaClassesBash.isPresent();
   ResourceFilter resourceFilter=new ResourceFilter(args.resourceFilter.or(ImmutableList.<String>of()));
-  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(params,resolver,compressionMode,resourceFilter,args.resourceUnionPackage,addFallbackLocales(args.locales.or(ImmutableSet.<String>of())),args.manifest,packageType,ImmutableSet.copyOf(args.cpuFilters.get()),args.buildStringSourceMap.or(false),shouldPreDex,AndroidBinary.getPrimaryDexPath(params.getBuildTarget(),params.getProjectFilesystem()),dexSplitMode,ImmutableSet.copyOf(args.noDx.or(ImmutableSet.<BuildTarget>of())),ImmutableSet.<BuildTarget>of(),args.skipCrunchPngs.or(false),javacOptions,exopackageModes,(Keystore)keystore,args.buildConfigValues.get(),args.buildConfigValuesFile,Optional.<Integer>absent(),args.trimResourceIds.or(false),nativePlatforms,args.enableRelinker.or(false) ? RelinkerMode.ENABLED : RelinkerMode.DISABLED,dxExecutorService,args.manifestEntries.get(),cxxBuckConfig);
+  Optional<Set<RType>> bannedDuplicateTypesArgs=args.bannedDuplicateResourceTypes;
+  EnumSet<RType> bannedDuplicateResourceTypes;
+  if (bannedDuplicateTypesArgs.isPresent() && !bannedDuplicateTypesArgs.get().isEmpty()) {
+    bannedDuplicateResourceTypes=EnumSet.copyOf(bannedDuplicateTypesArgs.get());
+  }
+ else {
+    bannedDuplicateResourceTypes=EnumSet.noneOf(RType.class);
+  }
+  AndroidBinaryGraphEnhancer graphEnhancer=new AndroidBinaryGraphEnhancer(params,resolver,compressionMode,resourceFilter,bannedDuplicateResourceTypes,args.resourceUnionPackage,addFallbackLocales(args.locales.or(ImmutableSet.<String>of())),args.manifest,packageType,ImmutableSet.copyOf(args.cpuFilters.get()),args.buildStringSourceMap.or(false),shouldPreDex,AndroidBinary.getPrimaryDexPath(params.getBuildTarget(),params.getProjectFilesystem()),dexSplitMode,ImmutableSet.copyOf(args.noDx.or(ImmutableSet.<BuildTarget>of())),ImmutableSet.<BuildTarget>of(),args.skipCrunchPngs.or(false),javacOptions,exopackageModes,(Keystore)keystore,args.buildConfigValues.get(),args.buildConfigValuesFile,Optional.<Integer>absent(),args.trimResourceIds.or(false),nativePlatforms,args.enableRelinker.or(false) ? RelinkerMode.ENABLED : RelinkerMode.DISABLED,dxExecutorService,args.manifestEntries.get(),cxxBuckConfig);
   AndroidGraphEnhancementResult result=graphEnhancer.createAdditionalBuildables();
   if (target.getFlavors().contains(PACKAGE_STRING_ASSETS_FLAVOR)) {
     Optional<PackageStringAssets> packageStringAssets=result.getPackageStringAssets();
