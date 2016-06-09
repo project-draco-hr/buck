@@ -1,0 +1,31 @@
+def _get_values(self, action, arg_strings):
+    if (action.nargs not in [PARSER, REMAINDER]):
+        arg_strings = [s for s in arg_strings if (s != '--')]
+    if ((not arg_strings) and (action.nargs == OPTIONAL)):
+        if action.option_strings:
+            value = action.const
+        else:
+            value = action.default
+        if isinstance(value, basestring):
+            value = self._get_value(action, value)
+            self._check_value(action, value)
+    elif ((not arg_strings) and (action.nargs == ZERO_OR_MORE) and (not action.option_strings)):
+        if (action.default is not None):
+            value = action.default
+        else:
+            value = arg_strings
+        self._check_value(action, value)
+    elif ((len(arg_strings) == 1) and (action.nargs in [None, OPTIONAL])):
+        (arg_string,) = arg_strings
+        value = self._get_value(action, arg_string)
+        self._check_value(action, value)
+    elif (action.nargs == REMAINDER):
+        value = [self._get_value(action, v) for v in arg_strings]
+    elif (action.nargs == PARSER):
+        value = [self._get_value(action, v) for v in arg_strings]
+        self._check_value(action, value[0])
+    else:
+        value = [self._get_value(action, v) for v in arg_strings]
+        for v in value:
+            self._check_value(action, v)
+    return value

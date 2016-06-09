@@ -1,0 +1,23 @@
+def add_argument(self, *args, **kwargs):
+    '\n        add_argument(dest, ..., name=value, ...)\n        add_argument(option_string, option_string, ..., name=value, ...)\n        '
+    chars = self.prefix_chars
+    if ((not args) or ((len(args) == 1) and (args[0][0] not in chars))):
+        if (args and ('dest' in kwargs)):
+            raise ValueError('dest supplied twice for positional argument')
+        kwargs = self._get_positional_kwargs(*args, **kwargs)
+    else:
+        kwargs = self._get_optional_kwargs(*args, **kwargs)
+    if ('default' not in kwargs):
+        dest = kwargs['dest']
+        if (dest in self._defaults):
+            kwargs['default'] = self._defaults[dest]
+        elif (self.argument_default is not None):
+            kwargs['default'] = self.argument_default
+    action_class = self._pop_action_class(kwargs)
+    if (not _callable(action_class)):
+        raise ValueError(('unknown action "%s"' % action_class))
+    action = action_class(**kwargs)
+    type_func = self._registry_get('type', action.type, action.type)
+    if (not _callable(type_func)):
+        raise ValueError(('%r is not callable' % type_func))
+    return self._add_action(action)

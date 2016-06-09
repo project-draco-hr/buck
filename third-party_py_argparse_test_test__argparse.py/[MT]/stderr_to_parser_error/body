@@ -1,0 +1,24 @@
+def stderr_to_parser_error(parse_args, *args, **kwargs):
+    if (isinstance(sys.stderr, StdIOBuffer) or isinstance(sys.stdout, StdIOBuffer)):
+        return parse_args(*args, **kwargs)
+    old_stdout = sys.stdout
+    old_stderr = sys.stderr
+    sys.stdout = StdIOBuffer()
+    sys.stderr = StdIOBuffer()
+    try:
+        try:
+            result = parse_args(*args, **kwargs)
+            for key in list(vars(result)):
+                if (getattr(result, key) is sys.stdout):
+                    setattr(result, key, old_stdout)
+                if (getattr(result, key) is sys.stderr):
+                    setattr(result, key, old_stderr)
+            return result
+        except SystemExit:
+            code = sys.exc_info()[1].code
+            stdout = sys.stdout.getvalue()
+            stderr = sys.stderr.getvalue()
+            raise ArgumentParserError('SystemExit', stdout, stderr, code)
+    finally:
+        sys.stdout = old_stdout
+        sys.stderr = old_stderr

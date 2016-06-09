@@ -1,0 +1,2 @@
+def _get_formatter(self):
+    return self.formatter_class(prog=self.prog)

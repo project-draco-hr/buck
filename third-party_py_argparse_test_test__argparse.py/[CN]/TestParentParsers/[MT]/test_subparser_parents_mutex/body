@@ -1,0 +1,14 @@
+def test_subparser_parents_mutex(self):
+    parser = ErrorRaisingArgumentParser()
+    subparsers = parser.add_subparsers()
+    parents = [self.ab_mutex_parent]
+    abc_parser = subparsers.add_parser('foo', parents=parents)
+    c_group = abc_parser.add_argument_group('c_group')
+    c_group.add_argument('c')
+    parents = [self.wxyz_parent, self.ab_mutex_parent]
+    wxyzabe_parser = subparsers.add_parser('bar', parents=parents)
+    wxyzabe_parser.add_argument('e')
+    self.assertEqual(parser.parse_args('foo -a 4'.split()), NS(a=True, b=False, c='4'))
+    self.assertEqual(parser.parse_args('bar -b  --w 2 3 4'.split()), NS(a=False, b=True, w='2', y=None, z='3', e='4'))
+    self.assertArgumentParserError(parser.parse_args, 'foo -a -b 4'.split())
+    self.assertArgumentParserError(parser.parse_args, 'bar -b -a 4'.split())

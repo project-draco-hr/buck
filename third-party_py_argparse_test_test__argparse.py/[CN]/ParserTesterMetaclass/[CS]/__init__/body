@@ -1,0 +1,83 @@
+def __init__(cls, name, bases, bodydict):
+    if (name == 'ParserTestCase'):
+        return
+    if (not hasattr(cls, 'parser_signature')):
+        cls.parser_signature = Sig()
+    if (not hasattr(cls, 'parser_class')):
+        cls.parser_class = ErrorRaisingArgumentParser
+
+    def no_groups(parser, argument_signatures):
+        'Add all arguments directly to the parser'
+        for sig in argument_signatures:
+            parser.add_argument(*sig.args, **sig.kwargs)
+
+    def one_group(parser, argument_signatures):
+        'Add all arguments under a single group in the parser'
+        group = parser.add_argument_group('foo')
+        for sig in argument_signatures:
+            group.add_argument(*sig.args, **sig.kwargs)
+
+    def many_groups(parser, argument_signatures):
+        'Add each argument in its own group to the parser'
+        for (i, sig) in enumerate(argument_signatures):
+            group = parser.add_argument_group(('foo:%i' % i))
+            group.add_argument(*sig.args, **sig.kwargs)
+
+    def listargs(parser, args):
+        'Parse the args by passing in a list'
+        return parser.parse_args(args)
+
+    def sysargs(parser, args):
+        'Parse the args by defaulting to sys.argv'
+        old_sys_argv = sys.argv
+        sys.argv = ([old_sys_argv[0]] + args)
+        try:
+            return parser.parse_args()
+        finally:
+            sys.argv = old_sys_argv
+
+
+    class AddTests(object):
+
+        def __init__(self, tester_cls, add_arguments, parse_args):
+            self._add_arguments = add_arguments
+            self._parse_args = parse_args
+            add_arguments_name = self._add_arguments.__name__
+            parse_args_name = self._parse_args.__name__
+            for test_func in [self.test_failures, self.test_successes]:
+                func_name = test_func.__name__
+                names = (func_name, add_arguments_name, parse_args_name)
+                test_name = '_'.join(names)
+
+                def wrapper(self, test_func=test_func):
+                    test_func(self)
+                try:
+                    wrapper.__name__ = test_name
+                except TypeError:
+                    pass
+                setattr(tester_cls, test_name, wrapper)
+
+        def _get_parser(self, tester):
+            args = tester.parser_signature.args
+            kwargs = tester.parser_signature.kwargs
+            parser = tester.parser_class(*args, **kwargs)
+            self._add_arguments(parser, tester.argument_signatures)
+            return parser
+
+        def test_failures(self, tester):
+            parser = self._get_parser(tester)
+            for args_str in tester.failures:
+                args = args_str.split()
+                raises = tester.assertRaises
+                raises(ArgumentParserError, parser.parse_args, args)
+
+        def test_successes(self, tester):
+            parser = self._get_parser(tester)
+            for (args, expected_ns) in tester.successes:
+                if isinstance(args, str):
+                    args = args.split()
+                result_ns = self._parse_args(parser, args)
+                tester.assertEqual(expected_ns, result_ns)
+    for add_arguments in [no_groups, one_group, many_groups]:
+        for parse_args in [listargs, sysargs]:
+            AddTests(cls, add_arguments, parse_args)

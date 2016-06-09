@@ -1,0 +1,70 @@
+def __init__(cls, name, bases, bodydict):
+    if (name == 'HelpTestCase'):
+        return
+
+
+    class AddTests(object):
+
+        def __init__(self, test_class, func_suffix, std_name):
+            self.func_suffix = func_suffix
+            self.std_name = std_name
+            for test_func in [self.test_format, self.test_print, self.test_print_file]:
+                test_name = ('%s_%s' % (test_func.__name__, func_suffix))
+
+                def test_wrapper(self, test_func=test_func):
+                    test_func(self)
+                try:
+                    test_wrapper.__name__ = test_name
+                except TypeError:
+                    pass
+                setattr(test_class, test_name, test_wrapper)
+
+        def _get_parser(self, tester):
+            parser = argparse.ArgumentParser(*tester.parser_signature.args, **tester.parser_signature.kwargs)
+            for argument_sig in tester.argument_signatures:
+                parser.add_argument(*argument_sig.args, **argument_sig.kwargs)
+            group_signatures = tester.argument_group_signatures
+            for (group_sig, argument_sigs) in group_signatures:
+                group = parser.add_argument_group(*group_sig.args, **group_sig.kwargs)
+                for argument_sig in argument_sigs:
+                    group.add_argument(*argument_sig.args, **argument_sig.kwargs)
+            return parser
+
+        def _test(self, tester, parser_text):
+            expected_text = getattr(tester, self.func_suffix)
+            expected_text = textwrap.dedent(expected_text)
+            if (expected_text != parser_text):
+                print repr(expected_text)
+                print repr(parser_text)
+                for (char1, char2) in zip(expected_text, parser_text):
+                    if (char1 != char2):
+                        print ('first diff: %r %r' % (char1, char2))
+                        break
+            tester.assertEqual(expected_text, parser_text)
+
+        def test_format(self, tester):
+            parser = self._get_parser(tester)
+            format = getattr(parser, ('format_%s' % self.func_suffix))
+            self._test(tester, format())
+
+        def test_print(self, tester):
+            parser = self._get_parser(tester)
+            print_ = getattr(parser, ('print_%s' % self.func_suffix))
+            old_stream = getattr(sys, self.std_name)
+            setattr(sys, self.std_name, StdIOBuffer())
+            try:
+                print_()
+                parser_text = getattr(sys, self.std_name).getvalue()
+            finally:
+                setattr(sys, self.std_name, old_stream)
+            self._test(tester, parser_text)
+
+        def test_print_file(self, tester):
+            parser = self._get_parser(tester)
+            print_ = getattr(parser, ('print_%s' % self.func_suffix))
+            sfile = StdIOBuffer()
+            print_(sfile)
+            parser_text = sfile.getvalue()
+            self._test(tester, parser_text)
+    for (func_suffix, std_name) in [('usage', 'stdout'), ('help', 'stdout'), ('version', 'stderr')]:
+        AddTests(cls, func_suffix, std_name)
