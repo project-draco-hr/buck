@@ -1,0 +1,22 @@
+{
+  ImmutableSortedSet.Builder<BuildTarget> extraDepsBuilder=ImmutableSortedSet.naturalOrder();
+  ImmutableSet.Builder<Path> pathsBuilder=ImmutableSet.builder();
+  T arg=description.createUnpopulatedConstructorArg();
+  for (  Field field : arg.getClass().getFields()) {
+    ParamInfo info=new ParamInfo(typeCoercerFactory,field);
+    if (info.isDep() && info.isInput() && info.hasElementTypes(BuildTarget.class,SourcePath.class,Path.class)) {
+      detectBuildTargetsAndPathsForConstructorArg(extraDepsBuilder,pathsBuilder,info,constructorArg);
+    }
+  }
+  if (description instanceof ImplicitDepsInferringDescription) {
+    extraDepsBuilder.addAll(((ImplicitDepsInferringDescription<T>)description).findDepsForTargetFromConstructorArgs(params.target,cellRoots,constructorArg));
+  }
+  if (description instanceof ImplicitInputsInferringDescription) {
+    pathsBuilder.addAll(((ImplicitInputsInferringDescription<T>)description).inferInputsFromConstructorArgs(params.target.getUnflavoredBuildTarget(),constructorArg));
+  }
+  ImmutableSet<Path> paths=pathsBuilder.build();
+  if (params.enforceBuckPackageBoundary()) {
+    verifyPaths(params.target,params.getBuildFileTree(),paths);
+  }
+  return new TargetNode<>(this,rawInputsHashCode,description,constructorArg,params,declaredDeps,ImmutableSortedSet.copyOf(Sets.difference(extraDepsBuilder.build(),declaredDeps)),visibilityPatterns,paths,cellRoots);
+}
