@@ -1,0 +1,27 @@
+{
+  try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,PerfEventId.of("ShowTargetHashes"))){
+    AcyclicDepthFirstPostOrderTraversal<TargetNode<?>> traversal=new AcyclicDepthFirstPostOrderTraversal<>(new GraphTraversable<TargetNode<?>>(){
+      @Override public Iterator<TargetNode<?>> findChildren(      TargetNode<?> node){
+        return targetGraph.getAll(node.getDeps()).iterator();
+      }
+    }
+);
+    final Map<BuildTarget,ForkJoinTask<HashCode>> buildTargetHashes=new HashMap<>();
+    Queue<ForkJoinTask<HashCode>> tasksToSchedule=new ArrayDeque<>();
+    for (    final TargetNode<?> node : traversal.traverse(roots)) {
+      HashNodeTask task=new HashNodeTask(node,buildTargetHashes);
+      buildTargetHashes.put(node.getBuildTarget(),task);
+      tasksToSchedule.add(task);
+    }
+    ForkJoinPool pool=new ForkJoinPool(numThreads);
+    for (    ForkJoinTask<HashCode> task : tasksToSchedule) {
+      pool.execute(task);
+    }
+    return ImmutableMap.copyOf(Maps.transformEntries(buildTargetHashes,new Maps.EntryTransformer<BuildTarget,ForkJoinTask<HashCode>,HashCode>(){
+      @Override public HashCode transformEntry(      BuildTarget key,      ForkJoinTask<HashCode> value){
+        return value.join();
+      }
+    }
+));
+  }
+ }

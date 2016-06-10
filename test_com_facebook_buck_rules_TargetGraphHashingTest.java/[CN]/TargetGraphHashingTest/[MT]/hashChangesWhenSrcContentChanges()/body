@@ -1,12 +1,13 @@
 {
   FakeProjectFilesystem projectFilesystem=new FakeProjectFilesystem();
   TestCellBuilder cellBuilder=new TestCellBuilder().setFilesystem(projectFilesystem);
+  BuckEventBus eventBus=new BuckEventBus(new IncrementingFakeClock(),new BuildId());
   TargetNode<?> node=createJavaLibraryTargetNodeWithSrcs(BuildTargetFactory.newInstance("//foo:lib"),HashCode.fromLong(64738),ImmutableSet.of(Paths.get("foo/FooLib.java")));
   TargetGraph targetGraph=TargetGraphFactory.newInstance(node);
   FileHashCache baseCache=new FakeFileHashCache(ImmutableMap.of(projectFilesystem.resolve("foo/FooLib.java"),HashCode.fromString("abcdef")));
   FileHashCache modifiedCache=new FakeFileHashCache(ImmutableMap.of(projectFilesystem.resolve("foo/FooLib.java"),HashCode.fromString("abc1ef")));
-  Map<BuildTarget,HashCode> baseResult=TargetGraphHashing.hashTargetGraph(cellBuilder.build(),targetGraph,baseCache,ImmutableList.<TargetNode<?>>of(node));
-  Map<BuildTarget,HashCode> modifiedResult=TargetGraphHashing.hashTargetGraph(cellBuilder.build(),targetGraph,modifiedCache,ImmutableList.<TargetNode<?>>of(node));
+  Map<BuildTarget,HashCode> baseResult=new TargetGraphHashing(eventBus,cellBuilder.build(),targetGraph,baseCache,ImmutableList.<TargetNode<?>>of(node)).hashTargetGraph();
+  Map<BuildTarget,HashCode> modifiedResult=new TargetGraphHashing(eventBus,cellBuilder.build(),targetGraph,modifiedCache,ImmutableList.<TargetNode<?>>of(node)).hashTargetGraph();
   assertThat(baseResult,aMapWithSize(1));
   assertThat(baseResult,hasKey(node.getBuildTarget()));
   assertThat(modifiedResult,aMapWithSize(1));
