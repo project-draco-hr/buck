@@ -1,0 +1,43 @@
+{
+  List<Object> queryParams=new ArrayList<>();
+  queryParams.add("query");
+  queryParams.add(watchRoot);
+  Map<String,Object> sinceParams=new LinkedHashMap<>();
+  sinceParams.put("since",new StringBuilder("n:buckd").append(uuid).toString());
+  List<Object> excludeAnyOf=Lists.<Object>newArrayList("anyof");
+  excludeAnyOf.add(Lists.newArrayList("type","d"));
+  Path projectRoot=Paths.get(watchRoot);
+  if (watchPrefix.isPresent()) {
+    projectRoot=projectRoot.resolve(watchPrefix.get());
+  }
+  for (  PathOrGlobMatcher ignorePathOrGlob : ignorePaths) {
+switch (ignorePathOrGlob.getType()) {
+case PATH:
+      Path ignorePath=ignorePathOrGlob.getPath();
+    if (ignorePath.isAbsolute()) {
+      ignorePath=MorePaths.relativize(projectRoot,ignorePath);
+    }
+  if (watchmanCapabilities.contains(Capability.DIRNAME)) {
+    excludeAnyOf.add(Lists.newArrayList("dirname",ignorePath.toString()));
+  }
+ else {
+    excludeAnyOf.add(Lists.newArrayList("match",ignorePath.toString() + File.separator + "*","wholename"));
+  }
+break;
+case GLOB:
+String ignoreGlob=ignorePathOrGlob.getGlob();
+excludeAnyOf.add(Lists.newArrayList("match",ignoreGlob));
+break;
+default :
+throw new RuntimeException(String.format("Unsupported type: '%s'",ignorePathOrGlob.getType()));
+}
+}
+sinceParams.put("expression",Lists.newArrayList("not",excludeAnyOf));
+sinceParams.put("empty_on_fresh_instance",true);
+sinceParams.put("fields",Lists.newArrayList("name","exists","new"));
+if (watchPrefix.isPresent()) {
+sinceParams.put("relative_root",watchPrefix.get());
+}
+queryParams.add(sinceParams);
+return queryParams;
+}
