@@ -1,0 +1,13 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  FileHashCache hashCache=DefaultFileHashCache.createDefaultFileHashCache(filesystem);
+  Path input1=filesystem.getRootPath().getFileSystem().getPath("input1");
+  filesystem.writeBytesToPath(new byte[150],input1);
+  Path input2=filesystem.getRootPath().getFileSystem().getPath("input2");
+  filesystem.writeBytesToPath(new byte[150],input2);
+  BuildRule rule=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:rule")).setOut("out").setSrcs(ImmutableList.<SourcePath>of(new PathSourcePath(filesystem,input1),new PathSourcePath(filesystem,input2))).build(resolver,filesystem);
+  Optional<RuleKey> inputKey=new InputBasedRuleKeyBuilderFactory(0,hashCache,pathResolver,200).build(rule);
+  assertThat(inputKey,Matchers.equalTo(Optional.<RuleKey>absent()));
+}
