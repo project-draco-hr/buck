@@ -6,14 +6,14 @@
   filesystem.writeContentsToPath("JAR contents",dep.getPathToOutput());
   writeAbiJar(filesystem,pathResolver.deprecatedGetPath(dep.getAbiJar().get()),"Source.class","ABI JAR contents");
   JavaLibrary library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addDep(dep.getBuildTarget()).build(resolver,filesystem);
-  DefaultFileHashCache originalHashCache=new DefaultFileHashCache(filesystem);
+  FileHashCache originalHashCache=DefaultFileHashCache.createDefaultFileHashCache(filesystem);
   InputBasedRuleKeyBuilderFactory factory=new InputBasedRuleKeyBuilderFactory(0,originalHashCache,pathResolver);
   RuleKey originalRuleKey=factory.build(library).get();
   resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
   dep=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:dep")).addSrc(Paths.get("Source.java")).setResourcesRoot(Paths.get("some root that changes the rule key")).build(resolver,filesystem);
   filesystem.writeContentsToPath("different JAR contents",dep.getPathToOutput());
   library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addDep(dep.getBuildTarget()).build(resolver,filesystem);
-  DefaultFileHashCache unaffectedHashCache=new DefaultFileHashCache(filesystem);
+  FileHashCache unaffectedHashCache=DefaultFileHashCache.createDefaultFileHashCache(filesystem);
   factory=new InputBasedRuleKeyBuilderFactory(0,unaffectedHashCache,pathResolver);
   RuleKey unaffectedRuleKey=factory.build(library).get();
   assertThat(originalRuleKey,equalTo(unaffectedRuleKey));
@@ -21,7 +21,7 @@
   dep=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:dep")).addSrc(Paths.get("Source.java")).build(resolver,filesystem);
   writeAbiJar(filesystem,pathResolver.deprecatedGetPath(dep.getAbiJar().get()),"Source.class","changed ABI JAR contents");
   library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addDep(dep.getBuildTarget()).build(resolver,filesystem);
-  DefaultFileHashCache affectedHashCache=new DefaultFileHashCache(filesystem);
+  FileHashCache affectedHashCache=DefaultFileHashCache.createDefaultFileHashCache(filesystem);
   factory=new InputBasedRuleKeyBuilderFactory(0,affectedHashCache,pathResolver);
   RuleKey affectedRuleKey=factory.build(library).get();
   assertThat(originalRuleKey,Matchers.not(equalTo(affectedRuleKey)));

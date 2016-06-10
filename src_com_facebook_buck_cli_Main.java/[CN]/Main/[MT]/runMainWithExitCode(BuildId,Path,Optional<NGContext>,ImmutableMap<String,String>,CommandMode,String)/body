@@ -89,25 +89,25 @@
       int exitCode;
       ImmutableList<BuckEventListener> eventListeners=ImmutableList.of();
       ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(clientEnvironment,System.getProperties());
-      ProjectFileHashCache cellHashCache;
-      ProjectFileHashCache buckOutHashCache;
+      FileHashCache cellHashCache;
+      FileHashCache buckOutHashCache;
       if (isDaemon) {
         cellHashCache=getFileHashCacheFromDaemon(rootCell);
         buckOutHashCache=getBuckOutFileHashCacheFromDaemon(rootCell);
       }
  else {
-        cellHashCache=new DefaultFileHashCache(rootCell.getFilesystem());
-        buckOutHashCache=new DefaultFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath(),Optional.of(ImmutableSet.of(rootCell.getFilesystem().getBuckPaths().getBuckOut())),ImmutableSet.<PathOrGlobMatcher>of()));
+        cellHashCache=DefaultFileHashCache.createDefaultFileHashCache(rootCell.getFilesystem());
+        buckOutHashCache=DefaultFileHashCache.createBuckOutFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath(),ImmutableSet.<PathOrGlobMatcher>of()),rootCell.getFilesystem().getBuckPaths().getBuckOut());
       }
       ImmutableList.Builder<FileHashCache> allCaches=ImmutableList.builder();
       allCaches.add(cellHashCache);
       allCaches.add(buckOutHashCache);
-      allCaches.add(new DefaultFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath())));
+      allCaches.add(DefaultFileHashCache.createDefaultFileHashCache(new ProjectFilesystem(rootCell.getFilesystem().getRootPath())));
       for (      Path root : FileSystems.getDefault().getRootDirectories()) {
         if (!root.toFile().exists()) {
           continue;
         }
-        allCaches.add(new DefaultFileHashCache(new ProjectFilesystem(root)));
+        allCaches.add(DefaultFileHashCache.createDefaultFileHashCache(new ProjectFilesystem(root)));
       }
       FileHashCache fileHashCache=new StackedFileHashCache(allCaches.build());
       Optional<WebServer> webServer=getWebServerIfDaemon(context,rootCell);

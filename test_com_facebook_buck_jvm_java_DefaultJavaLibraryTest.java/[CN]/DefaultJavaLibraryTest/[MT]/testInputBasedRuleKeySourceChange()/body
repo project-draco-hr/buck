@@ -5,13 +5,13 @@
   BuildRule genSrc=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:gen_srcs")).setOut("Test.java").setCmd("something").build(resolver,filesystem);
   filesystem.writeContentsToPath("class Test {}",genSrc.getPathToOutput());
   JavaLibrary library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addSrc(new BuildTargetSourcePath(genSrc.getBuildTarget())).build(resolver,filesystem);
-  DefaultFileHashCache originalHashCache=new DefaultFileHashCache(filesystem);
+  FileHashCache originalHashCache=DefaultFileHashCache.createDefaultFileHashCache(filesystem);
   InputBasedRuleKeyBuilderFactory factory=new InputBasedRuleKeyBuilderFactory(0,originalHashCache,pathResolver);
   RuleKey originalRuleKey=factory.build(library).get();
   resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
   genSrc=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:gen_srcs")).setOut("Test.java").setCmd("something else").build(resolver,filesystem);
   library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addSrc(new BuildTargetSourcePath(genSrc.getBuildTarget())).build(resolver,filesystem);
-  DefaultFileHashCache unaffectedHashCache=new DefaultFileHashCache(filesystem);
+  FileHashCache unaffectedHashCache=DefaultFileHashCache.createDefaultFileHashCache(filesystem);
   factory=new InputBasedRuleKeyBuilderFactory(0,unaffectedHashCache,pathResolver);
   RuleKey unaffectedRuleKey=factory.build(library).get();
   assertThat(originalRuleKey,equalTo(unaffectedRuleKey));
@@ -19,7 +19,7 @@
   genSrc=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:gen_srcs")).setOut("Test.java").setCmd("something else").build(resolver,filesystem);
   filesystem.writeContentsToPath("class Test2 {}",genSrc.getPathToOutput());
   library=(JavaLibrary)JavaLibraryBuilder.createBuilder(BuildTargetFactory.newInstance("//:lib")).addSrc(new BuildTargetSourcePath(genSrc.getBuildTarget())).build(resolver,filesystem);
-  DefaultFileHashCache affectedHashCache=new DefaultFileHashCache(filesystem);
+  FileHashCache affectedHashCache=DefaultFileHashCache.createDefaultFileHashCache(filesystem);
   factory=new InputBasedRuleKeyBuilderFactory(0,affectedHashCache,pathResolver);
   RuleKey affectedRuleKey=factory.build(library).get();
   assertThat(originalRuleKey,Matchers.not(equalTo(affectedRuleKey)));
