@@ -3,11 +3,12 @@
   ObjectMapper objectMapper=ObjectMappers.newDefaultInstance();
   RageConfig config=RageConfig.builder().build();
   DefectReporter reporter=new DefaultDefectReporter(filesystem,objectMapper,config);
-  DefectSubmitResult defectSubmitResult=reporter.submitReport(DefectReport.builder().setBuildEnvironmentDescription(TEST_ENV_DESCRIPTION).build());
+  DefectSubmitResult defectSubmitResult=reporter.submitReport(DefectReport.builder().setBuildEnvironmentDescription(TEST_ENV_DESCRIPTION).setUserLocalConfiguration(TEST_USER_LOCAL_CONFIGURATION).build());
   Path reportPath=filesystem.resolve(defectSubmitResult.getReportLocalLocation().get());
   try (ZipFile zipFile=new ZipFile(reportPath.toFile())){
     ZipEntry entry=zipFile.getEntry("report.json");
     JsonNode reportNode=objectMapper.readTree(zipFile.getInputStream(entry));
     assertThat(reportNode.get("buildEnvironmentDescription").get("user").asText(),Matchers.equalTo("test_user"));
+    assertThat(reportNode.get("userLocalConfiguration").get("noBuckCheckPresent").asBoolean(),Matchers.equalTo(true));
   }
  }
