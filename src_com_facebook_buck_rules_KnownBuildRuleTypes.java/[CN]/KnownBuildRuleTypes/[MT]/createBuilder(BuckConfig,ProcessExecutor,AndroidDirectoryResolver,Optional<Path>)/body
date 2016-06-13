@@ -8,16 +8,16 @@
   AppleConfig appleConfig=new AppleConfig(config);
   ImmutableList<AppleCxxPlatform> appleCxxPlatforms=buildAppleCxxPlatforms(appleConfig.getAppleDeveloperDirectorySupplier(processExecutor),appleConfig.getExtraToolchainPaths(),appleConfig.getExtraPlatformPaths(),config,appleConfig,processExecutor);
   FlavorDomain<AppleCxxPlatform> platformFlavorsToAppleCxxPlatforms=FlavorDomain.from("Apple C++ Platform",appleCxxPlatforms);
+  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(config);
   Optional<Path> ndkRoot=androidDirectoryResolver.getNdkOrAbsent();
   ImmutableMap.Builder<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> ndkCxxPlatformsBuilder=ImmutableMap.builder();
   if (ndkRoot.isPresent()) {
     NdkCxxPlatformCompiler.Type compilerType=androidConfig.getNdkCompiler().or(NdkCxxPlatforms.DEFAULT_COMPILER_TYPE);
     String gccVersion=androidConfig.getNdkGccVersion().or(NdkCxxPlatforms.DEFAULT_GCC_VERSION);
     NdkCxxPlatformCompiler compiler=NdkCxxPlatformCompiler.builder().setType(compilerType).setVersion(compilerType == NdkCxxPlatformCompiler.Type.GCC ? gccVersion : androidConfig.getNdkClangVersion().or(NdkCxxPlatforms.DEFAULT_CLANG_VERSION)).setGccVersion(gccVersion).build();
-    ndkCxxPlatformsBuilder.putAll(NdkCxxPlatforms.getPlatforms(new ProjectFilesystem(ndkRoot.get()),compiler,androidConfig.getNdkCxxRuntime().or(NdkCxxPlatforms.DEFAULT_CXX_RUNTIME),androidConfig.getNdkAppPlatform().or(NdkCxxPlatforms.DEFAULT_TARGET_APP_PLATFORM),androidConfig.getNdkCpuAbis().or(NdkCxxPlatforms.DEFAULT_CPU_ABIS),platform));
+    ndkCxxPlatformsBuilder.putAll(NdkCxxPlatforms.getPlatforms(cxxBuckConfig,new ProjectFilesystem(ndkRoot.get()),compiler,androidConfig.getNdkCxxRuntime().or(NdkCxxPlatforms.DEFAULT_CXX_RUNTIME),androidConfig.getNdkAppPlatform().or(NdkCxxPlatforms.DEFAULT_TARGET_APP_PLATFORM),androidConfig.getNdkCpuAbis().or(NdkCxxPlatforms.DEFAULT_CPU_ABIS),platform));
   }
   ImmutableMap<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> ndkCxxPlatforms=ndkCxxPlatformsBuilder.build();
-  CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(config);
   ImmutableMap.Builder<Flavor,CxxPlatform> cxxPlatformsBuilder=ImmutableMap.builder();
   for (  NdkCxxPlatform ndkCxxPlatform : ndkCxxPlatforms.values()) {
     cxxPlatformsBuilder.put(ndkCxxPlatform.getCxxPlatform().getFlavor(),ndkCxxPlatform.getCxxPlatform());
