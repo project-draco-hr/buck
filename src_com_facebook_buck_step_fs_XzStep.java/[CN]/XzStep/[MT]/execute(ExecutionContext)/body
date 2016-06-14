@@ -1,5 +1,6 @@
 {
   try (InputStream in=filesystem.newFileInputStream(sourceFile);OutputStream out=filesystem.newFileOutputStream(destinationFile);XZOutputStream xzOut=new XZOutputStream(out,new LZMA2Options(compressionLevel),check)){
+    XzMemorySemaphore.acquireMemory(compressionLevel);
     ByteStreams.copy(in,xzOut);
     xzOut.finish();
     if (!keep) {
@@ -9,6 +10,9 @@
  catch (  IOException e) {
     LOG.error(e);
     return StepExecutionResult.ERROR;
+  }
+ finally {
+    XzMemorySemaphore.releaseMemory(compressionLevel);
   }
   return StepExecutionResult.SUCCESS;
 }
