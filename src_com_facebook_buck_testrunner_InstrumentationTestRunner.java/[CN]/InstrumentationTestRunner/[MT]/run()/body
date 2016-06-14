@@ -11,13 +11,37 @@
     }
   }
   try {
-    RemoteAndroidTestRunner runner=new RemoteAndroidTestRunner(this.packageName,this.testRunner,getDevice(deviceSerial));
+    final RemoteAndroidTestRunner runner=new RemoteAndroidTestRunner(this.packageName,this.testRunner,getDevice(deviceSerial));
     for (    Map.Entry<String,String> entry : this.extraInstrumentationArguments.entrySet()) {
       runner.addInstrumentationArg(entry.getKey(),entry.getValue());
     }
     BuckXmlTestRunListener listener=new BuckXmlTestRunListener();
+    ITestRunListener trimLineListener=new ITestRunListener(){
+      /** 
+ * Before the actual run starts (and after the
+ * InstrumentationResultsParser is created), we need to do
+ * some reflection magic to make RemoteAndroidTestRunner not
+ * trim indentation from lines.
+ */
+      @Override public void testRunStarted(      String runName,      int testCount){
+        setTrimLine(runner,false);
+      }
+      @Override public void testRunEnded(      long elapsedTime,      Map<String,String> runMetrics){
+      }
+      @Override public void testRunFailed(      String errorMessage){
+      }
+      @Override public void testStarted(      TestIdentifier test){
+      }
+      @Override public void testFailed(      TestFailure status,      TestIdentifier test,      String trace){
+      }
+      @Override public void testEnded(      TestIdentifier test,      Map<String,String> testMetrics){
+      }
+      @Override public void testRunStopped(      long elapsedTime){
+      }
+    }
+;
     listener.setReportDir(this.outputDirectory);
-    runner.run(listener);
+    runner.run(trimLineListener,listener);
   }
   finally {
     if (this.attemptUninstall) {
