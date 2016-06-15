@@ -1,0 +1,45 @@
+{
+  final DependencyInfo dependencyInfo=new DependencyInfo();
+  new AbstractBottomUpTraversal<TargetNode<?>,Void>(graph){
+    @Override public void visit(    TargetNode<?> node){
+      BuildRuleType buildRuleType=node.getDescription().getBuildRuleType();
+      if (!RULES_TO_VISIT.contains(buildRuleType)) {
+        return;
+      }
+      boolean autodeps;
+      ImmutableSortedSet<BuildTarget> providedDeps;
+      ImmutableSortedSet<BuildTarget> exportedDeps;
+      if (node.getConstructorArg() instanceof JavaLibraryDescription.Arg) {
+        JavaLibraryDescription.Arg arg=(JavaLibraryDescription.Arg)node.getConstructorArg();
+        autodeps=arg.autodeps.or(false);
+        providedDeps=arg.providedDeps.or(ImmutableSortedSet.<BuildTarget>of());
+        exportedDeps=arg.exportedDeps.or(ImmutableSortedSet.<BuildTarget>of());
+      }
+ else       if (node.getConstructorArg() instanceof PrebuiltJarDescription.Arg) {
+        autodeps=false;
+        providedDeps=ImmutableSortedSet.of();
+        exportedDeps=ImmutableSortedSet.of();
+      }
+ else {
+        throw new IllegalStateException("This rule is not supported by autodeps: " + node);
+      }
+      if (autodeps) {
+        dependencyInfo.rulesWithAutodeps.add(node);
+        dependencyInfo.rulesWithAutodepsToProvidedDeps.putAll(node,providedDeps);
+      }
+      for (      BuildTarget exportedDep : exportedDeps) {
+        dependencyInfo.ruleToRulesThatExportIt.put(graph.get(exportedDep),node);
+      }
+      Symbols symbols=getJavaFileFeatures(node,autodeps);
+      if (autodeps) {
+        dependencyInfo.ruleToRequiredSymbols.putAll(node,symbols.required);
+        dependencyInfo.ruleToExportedSymbols.putAll(node,symbols.exported);
+      }
+      for (      String providedEntity : symbols.provided) {
+        dependencyInfo.symbolToProviders.put(providedEntity,node);
+      }
+    }
+  }
+.traverse();
+  return dependencyInfo;
+}
