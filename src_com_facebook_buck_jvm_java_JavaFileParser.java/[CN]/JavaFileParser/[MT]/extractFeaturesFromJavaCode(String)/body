@@ -104,11 +104,18 @@
           return false;
         }
       }
-      String simpleName=getSimpleNameFromFullyQualifiedName(fullyQualifiedName);
-      int index=fullyQualifiedName.indexOf("." + simpleName);
-      String enclosingType=fullyQualifiedName.substring(0,index + simpleName.length() + 1);
-      requiredSymbolsFromExplicitImports.add(enclosingType);
-      simpleImportedTypes.put(simpleName,enclosingType);
+      Optional<String> simpleName=getSimpleNameFromFullyQualifiedName(fullyQualifiedName);
+      if (simpleName.isPresent()) {
+        String name=simpleName.get();
+        int index=fullyQualifiedName.indexOf("." + name);
+        String enclosingType=fullyQualifiedName.substring(0,index + name.length() + 1);
+        requiredSymbolsFromExplicitImports.add(enclosingType);
+        simpleImportedTypes.put(name,enclosingType);
+      }
+ else {
+        LOG.error("Suspicious import lacks obvious enclosing type: %s",fullyQualifiedName);
+        requiredSymbols.add(fullyQualifiedName);
+      }
       return false;
     }
     @Override public boolean visit(    MethodInvocation node){
