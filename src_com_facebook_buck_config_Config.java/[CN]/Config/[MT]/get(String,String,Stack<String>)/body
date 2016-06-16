@@ -1,14 +1,21 @@
 {
+  Map.Entry<String,String> cacheKey=new AbstractMap.SimpleEntry<>(section,field);
+  Optional<String> value=cache.get(cacheKey);
+  if (value != null) {
+    return value;
+  }
   String expandStackKey=String.format("%s.%s",section,field);
   if (expandStack.search(expandStackKey) != -1) {
     throw new HumanReadableException("cyclical dependency in config references: %s",Joiner.on(" -> ").join(FluentIterable.from(expandStack).append(expandStackKey)));
   }
   Optional<String> val=rawConfig.getValue(section,field);
   if (!val.isPresent()) {
+    cache.put(cacheKey,Optional.<String>absent());
     return Optional.absent();
   }
   expandStack.push(expandStackKey);
-  String expanded=expand(val.get(),expandStack);
+  value=Optional.of(expand(val.get(),expandStack));
   expandStack.pop();
-  return Optional.of(expanded);
+  cache.put(cacheKey,value);
+  return value;
 }
