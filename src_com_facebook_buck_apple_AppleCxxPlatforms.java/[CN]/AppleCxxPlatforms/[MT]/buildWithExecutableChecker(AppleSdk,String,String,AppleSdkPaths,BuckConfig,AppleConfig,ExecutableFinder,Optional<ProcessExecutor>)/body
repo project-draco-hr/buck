@@ -1,4 +1,5 @@
 {
+  AppleCxxPlatform.Builder platformBuilder=AppleCxxPlatform.builder();
   ImmutableList.Builder<Path> toolSearchPathsBuilder=ImmutableList.builder();
   toolSearchPathsBuilder.add(sdkPaths.getSdkPath().resolve(USR_BIN)).add(sdkPaths.getSdkPath().resolve("Developer").resolve(USR_BIN)).add(sdkPaths.getPlatformPath().resolve("Developer").resolve(USR_BIN));
   for (  Path toolchainPath : sdkPaths.getToolchainPaths()) {
@@ -26,7 +27,40 @@
   ImmutableList.Builder<String> versionsBuilder=ImmutableList.builder();
   versionsBuilder.add(targetSdk.getVersion());
   for (  AppleToolchain toolchain : targetSdk.getToolchains()) {
-    versionsBuilder.add(toolchain.getVersion());
+    versionsBuilder.add(toolchain.getVersion().toString());
+  }
+  Optional<Path> developerPath=sdkPaths.getDeveloperPath();
+  if (developerPath.isPresent()) {
+    Path xcodeBundlePath=developerPath.get().getParent();
+    if (xcodeBundlePath != null) {
+      File xcodeInfoPlistPath=xcodeBundlePath.resolve("Info.plist").toFile();
+      try {
+        NSDictionary parsedXcodeInfoPlist=(NSDictionary)PropertyListParser.parse(xcodeInfoPlistPath);
+        NSObject xcodeVersionObject=parsedXcodeInfoPlist.objectForKey("DTXcode");
+        if (xcodeVersionObject != null) {
+          String xcodeVersion=xcodeVersionObject.toString();
+          platformBuilder.setXcodeVersion(Optional.of(xcodeVersion));
+          versionsBuilder.add(xcodeVersion);
+        }
+      }
+ catch (      IOException e) {
+        LOG.debug("Error reading Xcode's info plist %s; ignoring Xcode versions",xcodeInfoPlistPath);
+      }
+catch (      PropertyListFormatException|ParseException|ParserConfigurationException|SAXException e) {
+        LOG.debug("Error in parsing %s; ignoring Xcode versions",xcodeInfoPlistPath);
+      }
+    }
+    if (processExecutor.isPresent()) {
+      try {
+        Optional<String> xcodeBuildVersion=appleConfig.getXcodeBuildVersionSupplier(developerPath.get(),processExecutor.get()).get();
+        platformBuilder.setXcodeBuildVersion(xcodeBuildVersion);
+        versionsBuilder.add(xcodeBuildVersion.toString());
+        LOG.debug("Xcode build version is: " + xcodeBuildVersion.or("<absent>"));
+      }
+ catch (      IOException e) {
+        LOG.debug("Error in getting Xcode build version");
+      }
+    }
   }
   String version=Joiner.on(':').join(versionsBuilder.build());
   Tool clangPath=new VersionedTool(getToolPath("clang",toolSearchPaths,executableFinder),ImmutableList.<String>of(),"apple-clang",version);
@@ -95,7 +129,7 @@ catch (  PropertyListFormatException|SAXException|ParserConfigurationException|P
   ApplePlatform platform=targetSdk.getApplePlatform();
   ImmutableList<String> swiftParams=ImmutableList.of("-frontend","-sdk",sdkPaths.getSdkPath().toString(),"-target",targetArchitecture + "-apple-" + platform.getSwiftName().or(platform.getName())+ targetSdk.getVersion());
   ImmutableList<String> swiftStdlibToolParams=ImmutableList.of("--copy","--verbose","--strip-bitcode","--platform",platform.getName());
-  AppleCxxPlatform.Builder platformBuilder=AppleCxxPlatform.builder().setCxxPlatform(cxxPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setMinVersion(minVersion).setBuildVersion(buildVersion).setActool(actool).setIbtool(ibtool).setXctest(xctest).setOtest(otest).setDsymutil(dsymutil).setLipo(lipo).setStubBinary(stubBinaryPath).setLldb(lldb).setCodesignAllocate(getOptionalTool("codesign_allocate",toolSearchPaths,executableFinder,version)).setSwift(getOptionalToolWithParams("swift",toolSearchPaths,executableFinder,version,swiftParams)).setSwiftStdlibTool(getOptionalToolWithParams("swift-stdlib-tool",toolSearchPaths,executableFinder,version,swiftStdlibToolParams));
+  platformBuilder.setCxxPlatform(cxxPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setMinVersion(minVersion).setBuildVersion(buildVersion).setActool(actool).setIbtool(ibtool).setXctest(xctest).setOtest(otest).setDsymutil(dsymutil).setLipo(lipo).setStubBinary(stubBinaryPath).setLldb(lldb).setCodesignAllocate(getOptionalTool("codesign_allocate",toolSearchPaths,executableFinder,version)).setSwift(getOptionalToolWithParams("swift",toolSearchPaths,executableFinder,version,swiftParams)).setSwiftStdlibTool(getOptionalToolWithParams("swift-stdlib-tool",toolSearchPaths,executableFinder,version,swiftStdlibToolParams));
   for (  Path toolchainPath : sdkPaths.getToolchainPaths()) {
     Path swiftRuntimePath=toolchainPath.resolve("usr/lib/swift").resolve(platform.getName());
     if (Files.isDirectory(swiftRuntimePath)) {
@@ -104,36 +138,6 @@ catch (  PropertyListFormatException|SAXException|ParserConfigurationException|P
     Path swiftStaticRuntimePath=toolchainPath.resolve("usr/lib/swift_static").resolve(platform.getName());
     if (Files.isDirectory(swiftStaticRuntimePath)) {
       platformBuilder.addSwiftStaticRuntimePaths(swiftStaticRuntimePath);
-    }
-  }
-  Optional<Path> developerPath=sdkPaths.getDeveloperPath();
-  if (developerPath.isPresent()) {
-    Path xcodeBundlePath=developerPath.get().getParent();
-    if (xcodeBundlePath != null) {
-      File xcodeInfoPlistPath=xcodeBundlePath.resolve("Info.plist").toFile();
-      try {
-        NSDictionary parsedXcodeInfoPlist=(NSDictionary)PropertyListParser.parse(xcodeInfoPlistPath);
-        NSObject xcodeVersionObject=parsedXcodeInfoPlist.objectForKey("DTXcode");
-        if (xcodeVersionObject != null) {
-          platformBuilder.setXcodeVersion(Optional.of(xcodeVersionObject.toString()));
-        }
-      }
- catch (      IOException e) {
-        LOG.debug("Error reading Xcode's info plist %s; ignoring Xcode versions",xcodeInfoPlistPath);
-      }
-catch (      PropertyListFormatException|ParseException|ParserConfigurationException|SAXException e) {
-        LOG.debug("Error in parsing %s; ignoring Xcode versions",xcodeInfoPlistPath);
-      }
-    }
-    if (processExecutor.isPresent()) {
-      try {
-        Optional<String> xcodeBuildVersion=appleConfig.getXcodeBuildVersionSupplier(developerPath.get(),processExecutor.get()).get();
-        platformBuilder.setXcodeBuildVersion(xcodeBuildVersion);
-        LOG.debug("Xcode build version is: " + xcodeBuildVersion.or("<absent>"));
-      }
- catch (      IOException e) {
-        LOG.debug("Error in getting Xcode build version");
-      }
     }
   }
   return platformBuilder.build();
