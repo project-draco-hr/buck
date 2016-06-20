@@ -8,7 +8,8 @@
   BuckCacheStoreRequest storeRequest=new BuckCacheStoreRequest();
   storeRequest.setMetadata(infoToMetadata(info,artifact,repository));
   PayloadInfo payloadInfo=new PayloadInfo();
-  payloadInfo.setSizeBytes(artifact.size());
+  long artifactSizeBytes=artifact.size();
+  payloadInfo.setSizeBytes(artifactSizeBytes);
   BuckCacheRequest cacheRequest=new BuckCacheRequest();
   cacheRequest.addToPayloads(payloadInfo);
   cacheRequest.setType(BuckCacheRequestType.STORE);
@@ -17,12 +18,14 @@
   Request.Builder builder=toOkHttpRequest(request);
   try (HttpResponse httpResponse=storeClient.makeRequest(hybridThriftEndpoint,builder)){
     if (httpResponse.code() != 200) {
-      throw new IOException(String.format("Failed to store cache artifact with HTTP status code [%d] " + " to url [%s] for build target [%s] that has size [%d] bytes.",httpResponse.code(),httpResponse.requestUrl(),info.getBuildTarget().orNull(),artifact.size()));
+      throw new IOException(String.format("Failed to store cache artifact with HTTP status code [%d] " + " to url [%s] for build target [%s] that has size [%d] bytes.",httpResponse.code(),httpResponse.requestUrl(),info.getBuildTarget().orNull(),artifactSizeBytes));
     }
     try (ThriftArtifactCacheProtocol.Response response=ThriftArtifactCacheProtocol.parseResponse(PROTOCOL,httpResponse.getBody())){
       if (!response.getThriftData().isWasSuccessful()) {
-        reportFailure("Failed to store artifact with thriftErrorMessage=[%s] " + "url=[%s] artifactSizeBytes=[%d]",response.getThriftData().getErrorMessage(),httpResponse.requestUrl(),artifact.size());
+        reportFailure("Failed to store artifact with thriftErrorMessage=[%s] " + "url=[%s] artifactSizeBytes=[%d]",response.getThriftData().getErrorMessage(),httpResponse.requestUrl(),artifactSizeBytes);
       }
+      eventBuilder.setArtifactContentHash(storeRequest.getMetadata().artifactPayloadCrc32);
+      eventBuilder.setArtifactSizeBytes(artifactSizeBytes);
       eventBuilder.setWasUploadSuccessful(response.getThriftData().isWasSuccessful());
     }
    }
