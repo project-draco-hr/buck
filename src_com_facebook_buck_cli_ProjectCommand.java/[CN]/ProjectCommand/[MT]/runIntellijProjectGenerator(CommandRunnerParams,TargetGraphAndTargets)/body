@@ -1,11 +1,10 @@
 {
-  ActionGraphAndResolver result=Preconditions.checkNotNull(ActionGraphCache.getFreshActionGraph(params.getBuckEventBus(),targetGraphAndTargets.getTargetGraph()));
-  BuildRuleResolver ruleResolver=result.getResolver();
-  SourcePathResolver sourcePathResolver=new SourcePathResolver(ruleResolver);
-  JavacOptions javacOptions=new JavaBuckConfig(params.getBuckConfig()).getDefaultJavacOptions();
-  IjProject project=new IjProject(targetGraphAndTargets,getJavaPackageFinder(params.getBuckConfig()),JavaFileParser.createJavaFileParser(javacOptions),ruleResolver,sourcePathResolver,params.getCell().getFilesystem(),getIntellijAggregationMode(params.getBuckConfig()),params.getBuckConfig());
-  ImmutableSet<BuildTarget> requiredBuildTargets=project.write(runIjCleaner,excludeArtifacts);
+  ImmutableSet<BuildTarget> requiredBuildTargets=writeProjectAndGetRequiredBuildTargets(params,targetGraphAndTargets);
   if (requiredBuildTargets.isEmpty()) {
+    return 0;
+  }
+  if (skipBuild) {
+    ConsoleEvent.severe("Please remember to buck build --deep the targets you intent to work with.");
     return 0;
   }
   return shouldProcessAnnotations() ? buildRequiredTargetsWithoutUsingCacheForAnnotatedTargets(params,targetGraphAndTargets,requiredBuildTargets) : runBuild(params,requiredBuildTargets);
