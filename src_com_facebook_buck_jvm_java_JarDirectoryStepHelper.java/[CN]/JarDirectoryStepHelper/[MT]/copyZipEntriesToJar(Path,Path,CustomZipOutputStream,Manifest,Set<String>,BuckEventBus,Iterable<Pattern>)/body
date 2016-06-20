@@ -3,6 +3,9 @@
     zipEntryLoop:     for (Enumeration<? extends ZipEntry> entries=zip.entries(); entries.hasMoreElements(); ) {
       ZipEntry entry=entries.nextElement();
       String entryName=entry.getName();
+      if (shouldEntryBeRemovedFromJar(eventBus,entryName,blacklist)) {
+        continue zipEntryLoop;
+      }
       if (entryName.equals(JarFile.MANIFEST_NAME)) {
         Manifest readManifest=readManifest(zip,entry);
         merge(manifest,readManifest);
@@ -11,12 +14,6 @@
       if (!isDuplicateAllowed(entryName) && !alreadyAddedEntries.add(entryName)) {
         eventBus.post(ConsoleEvent.create(determineSeverity(entry),"Duplicate found when adding '%s' to '%s' from '%s'",entryName,outputFile.toAbsolutePath(),inputFile.toAbsolutePath()));
         continue;
-      }
-      for (      Pattern p : blacklist) {
-        if (p.matcher(entryName).matches()) {
-          eventBus.post(ConsoleEvent.create(Level.FINE,"Skipping adding file to jar: %s",entryName));
-          continue zipEntryLoop;
-        }
       }
       ZipEntry newEntry=new ZipEntry(entry);
       if (entry.getMethod() == ZipEntry.DEFLATED) {
