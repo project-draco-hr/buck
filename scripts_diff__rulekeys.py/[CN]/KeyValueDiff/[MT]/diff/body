@@ -12,8 +12,21 @@ def diff(self):
                 differences.append((u'-[%s]' % left_lower_index[k]))
                 differences.append((u'+[%s]' % right_lower_index[k]))
         return ([KeyValueDiff.ORDER_AND_CASE_ONLY] + differences)
-    result = []
-    for (l, r) in map(None, self._left, self._right):
-        result.append((u'-[%s]' % l))
-        result.append((u'+[%s]' % r))
+    left_set = set(self._left)
+    right_set = set(self._right)
+    left_only = left_set.difference(right_set)
+    right_only = right_set.difference(left_set)
+    left_common = filter((lambda i: (i not in left_only)), self._left)
+    right_common = filter((lambda i: (i not in right_only)), self._right)
+    left_not_in_order = []
+    right_not_in_order = []
+    for (l, r) in map(None, left_common, right_common):
+        if (l == r):
+            continue
+        left_not_in_order.append(l)
+        right_not_in_order.append(r)
+    result = [(u'-[%s]' % v) for v in sorted(left_only)]
+    result.extend([(u'+[%s]' % v) for v in sorted(right_only)])
+    if (len(left_not_in_order) > 0):
+        result.append(KeyValueDiff.ORDER_ONLY_REMAINING.format(left=u', '.join(left_not_in_order), right=u', '.join(right_not_in_order)))
     return result
