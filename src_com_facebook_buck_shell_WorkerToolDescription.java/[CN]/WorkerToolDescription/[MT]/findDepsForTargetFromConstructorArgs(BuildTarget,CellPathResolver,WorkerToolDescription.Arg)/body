@@ -1,3 +1,15 @@
 {
-  return getTargetsFromStartupArgs(buildTarget,cellRoots,constructorArg.args);
+  ImmutableSortedSet.Builder<BuildTarget> targets=ImmutableSortedSet.naturalOrder();
+  try {
+    if (constructorArg.args.isPresent()) {
+      targets.addAll(MACRO_HANDLER.extractParseTimeDeps(buildTarget,cellRoots,constructorArg.args.get()));
+    }
+    for (    Map.Entry<String,String> env : constructorArg.env.get().entrySet()) {
+      targets.addAll(MACRO_HANDLER.extractParseTimeDeps(buildTarget,cellRoots,env.getValue()));
+    }
+  }
+ catch (  MacroException e) {
+    throw new HumanReadableException(e,"%s: %s",buildTarget,e.getMessage());
+  }
+  return targets.build();
 }

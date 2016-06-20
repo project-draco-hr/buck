@@ -1,10 +1,13 @@
 {
-  WorkerShellStep step=new WorkerShellStep(new FakeProjectFilesystem(),Paths.get("tmp").toAbsolutePath().normalize(),Paths.get(".").toAbsolutePath().normalize(),Optional.of(createJobParams()),Optional.of(createJobParams()),Optional.of(createJobParams())){
+  WorkerShellStep step=new WorkerShellStep(new FakeProjectFilesystem(),Optional.of(createJobParams(ImmutableList.<String>of(),"",ImmutableMap.<String,String>of("BAK","chicken"),"$FOO $BAR $BAZ $BAK")),Optional.<WorkerJobParams>absent(),Optional.<WorkerJobParams>absent()){
     @Override protected ImmutableMap<String,String> getEnvironmentVariables(    ExecutionContext context){
       return ImmutableMap.of("FOO","foo_expanded","BAR","bar_expanded");
     }
   }
 ;
-  ExecutionContext context=TestExecutionContext.newBuilder().setEnvironment(ImmutableMap.of("BAR","this should be ignored because the step overrides the same variable","BAZ","baz_expanded")).build();
-  assertThat(step.getEnvironmentForProcess(context),Matchers.equalTo(ImmutableMap.of("FOO","foo_expanded","BAR","bar_expanded","BAZ","baz_expanded")));
+  ExecutionContext context=TestExecutionContext.newBuilder().setEnvironment(ImmutableMap.of("BAR","this should be ignored for substitution","BAZ","baz_expanded")).build();
+  Map<String,String> processEnv=Maps.newHashMap(step.getEnvironmentForProcess(context));
+  processEnv.remove("TMP");
+  assertThat(processEnv,Matchers.<Map<String,String>>equalTo(ImmutableMap.of("BAR","this should be ignored for substitution","BAZ","baz_expanded","BAK","chicken")));
+  assertThat(step.getExpandedJobArgs(context),Matchers.equalTo("foo_expanded bar_expanded $BAZ $BAK"));
 }
