@@ -1,13 +1,10 @@
-def glob_internal(includes, excludes, include_dotfiles, search_base):
+def glob_internal(includes, excludes, project_root_relative_excludes, include_dotfiles, search_base, project_root):
 
     def includes_iterator():
         for pattern in includes:
             for path in search_base.glob(pattern):
                 if (path.is_file() and (include_dotfiles or (not path.name.startswith('.')))):
-                    yield path.relative_to(search_base)
-
-    def is_special(pat):
-        return (('*' in pat) or ('?' in pat) or ('[' in pat))
+                    yield path
     non_special_excludes = set()
     match_excludes = set()
     for pattern in excludes:
@@ -17,11 +14,17 @@ def glob_internal(includes, excludes, include_dotfiles, search_base):
             non_special_excludes.add(pattern)
 
     def exclusion(path):
-        if (path.as_posix() in non_special_excludes):
+        relative_to_search_base = path.relative_to(search_base)
+        if (relative_to_search_base.as_posix() in non_special_excludes):
             return True
         for pattern in match_excludes:
-            result = path.match(pattern, match_entire=True)
+            result = relative_to_search_base.match(pattern, match_entire=True)
+            if result:
+                return True
+        relative_to_project_root = path.relative_to(project_root)
+        for pattern in project_root_relative_excludes:
+            result = relative_to_project_root.match(pattern, match_entire=True)
             if result:
                 return True
         return False
-    return sorted(set([str(p) for p in includes_iterator() if (not exclusion(p))]))
+    return sorted(set([str(p.relative_to(search_base)) for p in includes_iterator() if (not exclusion(p))]))
