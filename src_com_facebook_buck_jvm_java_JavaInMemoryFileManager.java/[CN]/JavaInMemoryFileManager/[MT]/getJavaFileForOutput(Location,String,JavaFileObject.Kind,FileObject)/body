@@ -1,4 +1,11 @@
 {
+  if (kind.equals(JavaFileObject.Kind.SOURCE)) {
+    return delegate.getJavaFileForOutput(location,className,kind,sibling);
+  }
+  if (classesToRemoveFromJar.hasPatterns() && classesToRemoveFromJar.matches(className.toString())) {
+    LOG.info("%s was excluded from the Jar because it matched a remove_classes pattern.",className.toString());
+    return createJavaNoOpFileObject(getPath(className,kind),kind);
+  }
   for (int i=0; i < className.length(); ++i) {
     if (className.charAt(i) == '.') {
       String directoryPath=getPath(className.substring(0,i + 1));
@@ -8,13 +15,6 @@
       createDirectory(directoryPath);
       directoryPaths.add(directoryPath);
     }
-  }
-  if (kind.equals(JavaFileObject.Kind.SOURCE)) {
-    return delegate.getJavaFileForOutput(location,className,kind,sibling);
-  }
-  if (classesToRemoveFromJar.hasPatterns() && classesToRemoveFromJar.matches(className.toString())) {
-    LOG.info("%s was excluded from the Jar because it matched a remove_classes pattern.",className.toString());
-    return createJavaNoOpFileObject(getPath(className,kind),kind);
   }
   return createJavaMemoryFileObject(getPath(className,kind),kind);
 }
