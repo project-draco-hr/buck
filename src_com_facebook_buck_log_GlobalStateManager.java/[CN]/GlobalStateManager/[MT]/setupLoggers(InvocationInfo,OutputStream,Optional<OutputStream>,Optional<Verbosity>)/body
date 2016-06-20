@@ -1,0 +1,34 @@
+{
+  final long threadId=Thread.currentThread().getId();
+  final String commandId=info.getCommandId();
+  threadIdToCommandId.putIfAbsent(threadId,commandId);
+  commandIdToConsoleHandlerWriter.put(commandId,ConsoleHandler.utf8OutputStreamWriter(consoleHandlerStream));
+  if (consoleHandlerVerbosity.isPresent() && Verbosity.ALL.equals(consoleHandlerVerbosity.get())) {
+    commandIdToConsoleHandlerLevel.put(commandId,Level.ALL);
+  }
+  Path logDirectory=info.getLogDirectoryPath();
+  try {
+    Files.createDirectories(logDirectory);
+  }
+ catch (  IOException e) {
+    LOG.error(e,"Failed to created 'per command log directory': [%s]",logDirectory.toAbsolutePath());
+  }
+  return new Closeable(){
+    @Override public void close() throws IOException {
+      if (consoleHandlerOriginalStream.isPresent()) {
+        commandIdToConsoleHandlerWriter.put(commandId,ConsoleHandler.utf8OutputStreamWriter(consoleHandlerOriginalStream.get()));
+      }
+ else {
+        commandIdToConsoleHandlerWriter.remove(commandId);
+      }
+      commandIdToConsoleHandlerLevel.remove(commandId);
+      List<Long> allKeys=Lists.newArrayList(threadIdToCommandId.keySet());
+      for (      Long threadId : allKeys) {
+        if (commandId.equals(threadIdToCommandId.get(threadId))) {
+          threadIdToCommandId.remove(threadId);
+        }
+      }
+    }
+  }
+;
+}
