@@ -1,0 +1,18 @@
+{
+  if (event.getOperation() != ArtifactCacheEvent.Operation.FETCH || !event.getCacheResult().isPresent()) {
+    return;
+  }
+  CacheResultType cacheResultType=event.getCacheResult().get().getType();
+  if (cacheResultType != CacheResultType.MISS && cacheResultType != CacheResultType.ERROR) {
+    return;
+  }
+  List<String> newLogLines=Lists.newArrayList();
+  for (  RuleKey key : event.getRuleKeys()) {
+    newLogLines.add(toTsv(key,cacheResultType));
+  }
+synchronized (lock) {
+    logLines.addAll(newLogLines);
+    logLinesCount=logLines.size();
+  }
+  flushLogLinesIfNeeded();
+}
