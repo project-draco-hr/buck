@@ -21,18 +21,18 @@
       SourcePath output=new BuildTargetSourcePath(extension.getBuildTarget());
       return PythonPackageComponents.of(ImmutableMap.of(module,output),ImmutableMap.<Path,SourcePath>of(),ImmutableMap.<Path,SourcePath>of(),ImmutableSet.<SourcePath>of(),Optional.of(false));
     }
-    @Override public SharedNativeLinkTarget getNativeLinkTarget(    final PythonPlatform pythonPlatform){
-      return new SharedNativeLinkTarget(){
+    @Override public NativeLinkTarget getNativeLinkTarget(    final PythonPlatform pythonPlatform){
+      return new NativeLinkTarget(){
         @Override public BuildTarget getBuildTarget(){
           return params.getBuildTarget().withAppendedFlavors(pythonPlatform.getFlavor());
         }
-        @Override public Iterable<? extends NativeLinkable> getSharedNativeLinkTargetDeps(        CxxPlatform cxxPlatform){
+        @Override public NativeLinkTargetMode getNativeLinkTargetMode(        CxxPlatform cxxPlatform){
+          return NativeLinkTargetMode.library();
+        }
+        @Override public Iterable<? extends NativeLinkable> getNativeLinkTargetDeps(        CxxPlatform cxxPlatform){
           return FluentIterable.from(getPlatformDeps(params,ruleResolver,pythonPlatform,args)).filter(NativeLinkable.class);
         }
-        @Override public Optional<String> getSharedNativeLinkTargetLibraryName(        CxxPlatform cxxPlatform){
-          return Optional.absent();
-        }
-        @Override public NativeLinkableInput getSharedNativeLinkTargetInput(        CxxPlatform cxxPlatform) throws NoSuchBuildTargetException {
+        @Override public NativeLinkableInput getNativeLinkTargetInput(        CxxPlatform cxxPlatform) throws NoSuchBuildTargetException {
           return NativeLinkableInput.builder().addAllArgs(getExtensionArgs(params.copyWithChanges(params.getBuildTarget().withAppendedFlavors(pythonPlatform.getFlavor(),CxxDescriptionEnhancer.SHARED_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.copyOf(getPlatformDeps(params,ruleResolver,pythonPlatform,args))),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),ruleResolver,pathResolver,cxxPlatform,args)).addAllFrameworks(args.frameworks.or(ImmutableSortedSet.<FrameworkPath>of())).build();
         }
       }

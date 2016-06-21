@@ -1,7 +1,7 @@
 {
   final PythonPackageComponents.Builder allComponents=new PythonPackageComponents.Builder(params.getBuildTarget());
   final Map<BuildTarget,CxxPythonExtension> extensions=new LinkedHashMap<>();
-  final Map<BuildTarget,SharedNativeLinkTarget> nativeLinkTargetRoots=new LinkedHashMap<>();
+  final Map<BuildTarget,NativeLinkTarget> nativeLinkTargetRoots=new LinkedHashMap<>();
   final Map<BuildTarget,NativeLinkable> nativeLinkableRoots=new LinkedHashMap<>();
   final Set<BuildTarget> excludedNativeLinkableRoots=new LinkedHashSet<>();
   allComponents.addComponent(packageComponents,params.getBuildTarget());
@@ -9,7 +9,7 @@
     private final ImmutableList<BuildRule> empty=ImmutableList.of();
     @Override public Iterable<BuildRule> visit(    BuildRule rule) throws NoSuchBuildTargetException {
       Iterable<BuildRule> deps=empty;
-      Optional<SharedNativeLinkTarget> linkTarget=nativeLinkStrategy == NativeLinkStrategy.MERGED ? NativeLinkables.getSharedNativeLinkTarget(rule,cxxPlatform) : Optional.<SharedNativeLinkTarget>absent();
+      Optional<NativeLinkTarget> linkTarget=nativeLinkStrategy == NativeLinkStrategy.MERGED ? NativeLinkables.getNativeLinkTarget(rule,cxxPlatform) : Optional.<NativeLinkTarget>absent();
       if (rule instanceof CxxPythonExtension) {
         extensions.put(rule.getBuildTarget(),(CxxPythonExtension)rule);
       }
@@ -47,15 +47,15 @@
       }
     }
 .start();
-    Map<BuildTarget,SharedNativeLinkTarget> includedNativeLinkTargetRoots=new LinkedHashMap<>();
-    for (    Map.Entry<BuildTarget,SharedNativeLinkTarget> ent : nativeLinkTargetRoots.entrySet()) {
+    Map<BuildTarget,NativeLinkTarget> includedNativeLinkTargetRoots=new LinkedHashMap<>();
+    for (    Map.Entry<BuildTarget,NativeLinkTarget> ent : nativeLinkTargetRoots.entrySet()) {
       if (!transitivelyExcludedNativeLinkables.contains(ent.getKey())) {
         includedNativeLinkTargetRoots.put(ent.getKey(),ent.getValue());
       }
     }
     Map<BuildTarget,CxxPythonExtension> includedExtensions=new LinkedHashMap<>();
     for (    CxxPythonExtension extension : extensions.values()) {
-      SharedNativeLinkTarget target=extension.getNativeLinkTarget(pythonPlatform);
+      NativeLinkTarget target=extension.getNativeLinkTarget(pythonPlatform);
       includedExtensions.put(target.getBuildTarget(),extension);
       includedNativeLinkTargetRoots.put(target.getBuildTarget(),target);
     }
@@ -66,8 +66,9 @@
         allComponents.addModule(extension.getModule(),root.getValue().getPath(),root.getKey());
       }
  else {
-        SharedNativeLinkTarget target=Preconditions.checkNotNull(nativeLinkTargetRoots.get(root.getKey()),"%s: linked unexpected omnibus root: %s",params.getBuildTarget(),root.getKey());
-        String soname=Preconditions.checkNotNull(target.getSharedNativeLinkTargetLibraryName(cxxPlatform).orNull(),"%s: omnibus library for %s was built without soname",params.getBuildTarget(),root.getKey());
+        NativeLinkTarget target=Preconditions.checkNotNull(nativeLinkTargetRoots.get(root.getKey()),"%s: linked unexpected omnibus root: %s",params.getBuildTarget(),root.getKey());
+        NativeLinkTargetMode mode=target.getNativeLinkTargetMode(cxxPlatform);
+        String soname=Preconditions.checkNotNull(mode.getLibraryName().orNull(),"%s: omnibus library for %s was built without soname",params.getBuildTarget(),root.getKey());
         allComponents.addNativeLibraries(Paths.get(soname),root.getValue().getPath(),root.getKey());
       }
     }
@@ -79,7 +80,7 @@
     Map<BuildTarget,NativeLinkable> extensionNativeDeps=new LinkedHashMap<>();
     for (    Map.Entry<BuildTarget,CxxPythonExtension> entry : extensions.entrySet()) {
       allComponents.addComponent(entry.getValue().getPythonPackageComponents(pythonPlatform,cxxPlatform),entry.getKey());
-      extensionNativeDeps.putAll(Maps.uniqueIndex(entry.getValue().getNativeLinkTarget(pythonPlatform).getSharedNativeLinkTargetDeps(cxxPlatform),HasBuildTarget.TO_TARGET));
+      extensionNativeDeps.putAll(Maps.uniqueIndex(entry.getValue().getNativeLinkTarget(pythonPlatform).getNativeLinkTargetDeps(cxxPlatform),HasBuildTarget.TO_TARGET));
     }
     ImmutableMap<BuildTarget,NativeLinkable> nativeLinkables=NativeLinkables.getTransitiveNativeLinkables(cxxPlatform,Iterables.concat(nativeLinkableRoots.values(),extensionNativeDeps.values()));
     for (    NativeLinkable nativeLinkable : nativeLinkables.values()) {
