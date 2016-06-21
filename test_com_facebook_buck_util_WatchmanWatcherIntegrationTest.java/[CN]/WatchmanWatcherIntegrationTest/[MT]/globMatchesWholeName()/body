@@ -1,0 +1,13 @@
+{
+  WatchmanWatcher watcher=createWatchmanWatcher(new PathOrGlobMatcher("*.txt"));
+  Path path=tmp.getRootPath().getFileSystem().getPath("foo/bar/hello.txt");
+  Files.createDirectories(tmp.getRootPath().resolve(path).getParent());
+  Files.write(tmp.getRootPath().resolve(path),new byte[0]);
+  watcher.postEvents(new BuckEventBus(new FakeClock(0),new BuildId()),ImmutableSet.<String>builder());
+  ImmutableList<WatchEvent<?>> events=watchmanEventCollector.getEvents();
+  assertThat(events.size(),Matchers.equalTo(1));
+  WatchEvent<?> event=events.get(0);
+  Path eventPath=(Path)event.context();
+  assertThat(eventPath,Matchers.equalTo(path));
+  assertSame(event.kind(),StandardWatchEventKinds.ENTRY_CREATE);
+}
