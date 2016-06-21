@@ -1,0 +1,19 @@
+{
+  Set<QueryTarget> universeSet=args.get(0).getExpression().eval(env,executor);
+  env.buildTransitiveClosure(universeSet,Integer.MAX_VALUE,executor);
+  final Predicate<QueryTarget> inUniversePredicate=Predicates.in(env.getTransitiveClosure(universeSet));
+  Set<QueryTarget> visited=new LinkedHashSet<>();
+  Set<QueryTarget> argumentSet=args.get(1).getExpression().eval(env,executor);
+  Collection<QueryTarget> current=argumentSet;
+  int depthBound=args.size() > 2 ? args.get(2).getInteger() : Integer.MAX_VALUE;
+  for (int i=0; i <= depthBound; i++) {
+    Iterable<QueryTarget> currentInUniverse=Iterables.filter(current,inUniversePredicate);
+    Collection<QueryTarget> next=env.getReverseDeps(Iterables.filter(currentInUniverse,Predicates.not(Predicates.in(visited))));
+    Iterables.addAll(visited,currentInUniverse);
+    if (next.isEmpty()) {
+      break;
+    }
+    current=next;
+  }
+  return visited;
+}
