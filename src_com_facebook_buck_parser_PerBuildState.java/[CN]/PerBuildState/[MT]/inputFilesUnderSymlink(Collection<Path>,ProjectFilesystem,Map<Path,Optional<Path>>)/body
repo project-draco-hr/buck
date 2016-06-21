@@ -1,0 +1,28 @@
+{
+  Map<Path,Path> newSymlinksEncountered=Maps.newHashMap();
+  for (  Path input : inputs) {
+    for (int i=1; i < input.getNameCount(); i++) {
+      Path subpath=input.subpath(0,i);
+      Optional<Path> resolvedSymlink=symlinkExistenceCache.get(subpath);
+      if (resolvedSymlink != null) {
+        if (resolvedSymlink.isPresent()) {
+          LOG.verbose("Detected cached symlink %s -> %s",subpath,resolvedSymlink.get());
+          newSymlinksEncountered.put(subpath,resolvedSymlink.get());
+        }
+      }
+ else {
+        if (projectFilesystem.isSymLink(subpath)) {
+          Path symlinkTarget=projectFilesystem.resolve(subpath).toRealPath();
+          Path relativeSymlinkTarget=projectFilesystem.getPathRelativeToProjectRoot(symlinkTarget).or(symlinkTarget);
+          LOG.verbose("Detected symbolic link %s -> %s",subpath,relativeSymlinkTarget);
+          newSymlinksEncountered.put(subpath,relativeSymlinkTarget);
+          symlinkExistenceCache.put(subpath,Optional.of(relativeSymlinkTarget));
+        }
+ else {
+          symlinkExistenceCache.put(subpath,Optional.<Path>absent());
+        }
+      }
+    }
+  }
+  return newSymlinksEncountered;
+}
