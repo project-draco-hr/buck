@@ -2,13 +2,21 @@
   for (  BuildRule rule : bundle.getDeps()) {
     if (rule instanceof AppleBundle) {
       AppleBundle appleBundle=(AppleBundle)rule;
-      if (appleBundle.getBinary().isPresent() && appleBundle.getPlatformName().startsWith("watch")) {
+      if (appleBundle.getBinary().isPresent()) {
         BuildRule binary=appleBundle.getBinary().get();
-        if (binary instanceof WriteFile) {
+        if (binary instanceof WriteFile && appleBundle.getPlatformName().startsWith("watch")) {
           commands.add(new MkdirStep(getProjectFilesystem(),temp.resolve("Symbols")));
           Path watchKitSupportDir=temp.resolve("WatchKitSupport2");
           commands.add(new MkdirStep(getProjectFilesystem(),watchKitSupportDir));
           commands.add(new WriteFileStep(getProjectFilesystem(),ByteSource.wrap(((WriteFile)binary).getFileContents()),watchKitSupportDir.resolve("WK"),true));
+        }
+ else {
+          Optional<WriteFile> legacyWatchStub=getLegacyWatchStubFromDeps(appleBundle);
+          if (legacyWatchStub.isPresent()) {
+            Path watchKitSupportDir=temp.resolve("WatchKitSupport");
+            commands.add(new MkdirStep(getProjectFilesystem(),watchKitSupportDir));
+            commands.add(new WriteFileStep(getProjectFilesystem(),ByteSource.wrap(legacyWatchStub.get().getFileContents()),watchKitSupportDir.resolve("WK"),true));
+          }
         }
       }
     }
