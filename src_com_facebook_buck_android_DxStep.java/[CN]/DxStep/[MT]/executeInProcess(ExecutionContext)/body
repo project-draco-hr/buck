@@ -3,9 +3,15 @@
   Preconditions.checkState(argv.get(0).endsWith(File.separator + "dx") || argv.get(0).endsWith("\\dx.bat"));
   Preconditions.checkState(argv.get(1).equals("--dex"));
   ImmutableList<String> args=argv.subList(2,argv.size());
+  ByteArrayOutputStream stderr=new ByteArrayOutputStream();
+  PrintStream stderrStream=new PrintStream(stderr);
   try {
     com.android.dx.command.dexer.Main dexer=new com.android.dx.command.dexer.Main();
-    int returncode=dexer.run(args.toArray(new String[args.size()]),context.getStdOut(),context.getStdErr());
+    int returncode=dexer.run(args.toArray(new String[args.size()]),context.getStdOut(),stderrStream);
+    String stdErrOutput=stderr.toString();
+    if (!stdErrOutput.isEmpty()) {
+      context.postEvent(ConsoleEvent.warning("%s",stdErrOutput));
+    }
     if (returncode == 0) {
       resourcesReferencedInCode=dexer.getReferencedResourceNames();
     }
