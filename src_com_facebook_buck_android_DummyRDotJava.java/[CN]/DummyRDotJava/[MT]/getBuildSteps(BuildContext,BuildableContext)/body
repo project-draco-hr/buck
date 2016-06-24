@@ -10,9 +10,16 @@
     javaSourceFilePaths=ImmutableSortedSet.of(emptyRDotJava);
   }
  else {
-    MergeAndroidResourcesStep mergeStep=MergeAndroidResourcesStep.createStepForDummyRDotJava(getProjectFilesystem(),getResolver(),androidResourceDeps,rDotJavaSrcFolder,forceFinalResourceIds,unionPackage);
+    MergeAndroidResourcesStep mergeStep=MergeAndroidResourcesStep.createStepForDummyRDotJava(getProjectFilesystem(),getResolver(),androidResourceDeps,rDotJavaSrcFolder,forceFinalResourceIds,unionPackage,Optional.<String>absent());
     steps.add(mergeStep);
-    javaSourceFilePaths=mergeStep.getRDotJavaFiles();
+    if (!finalRName.isPresent()) {
+      javaSourceFilePaths=mergeStep.getRDotJavaFiles();
+    }
+ else {
+      MergeAndroidResourcesStep mergeFinalRStep=MergeAndroidResourcesStep.createStepForDummyRDotJava(getProjectFilesystem(),getResolver(),androidResourceDeps,rDotJavaSrcFolder,true,unionPackage,finalRName);
+      steps.add(mergeFinalRStep);
+      javaSourceFilePaths=ImmutableSortedSet.<Path>naturalOrder().addAll(mergeStep.getRDotJavaFiles()).addAll(mergeFinalRStep.getRDotJavaFiles()).build();
+    }
   }
   final Path rDotJavaClassesFolder=getRDotJavaBinFolder();
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),rDotJavaClassesFolder));
