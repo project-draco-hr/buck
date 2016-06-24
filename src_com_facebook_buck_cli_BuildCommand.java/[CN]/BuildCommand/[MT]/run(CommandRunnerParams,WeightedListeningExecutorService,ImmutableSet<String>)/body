@@ -10,18 +10,21 @@
     params.getBuckEventBus().post(started);
   }
   int exitCode;
-  if (useDistributedBuild) {
-    exitCode=executeDistributedBuild(params,executorService);
-  }
+  try {
+    if (useDistributedBuild) {
+      exitCode=executeDistributedBuild(params,executorService);
+    }
  else {
-    ActionGraphAndResolver actionGraphAndResolver=createActionGraphAndResolver(params,executorService);
-    if (actionGraphAndResolver == null) {
-      return 1;
+      ActionGraphAndResolver actionGraphAndResolver=createActionGraphAndResolver(params,executorService);
+      exitCode=executeLocalBuild(params,actionGraphAndResolver,executorService);
+      if (exitCode == 0 && (showOutput || showRuleKey)) {
+        showOutputs(params,actionGraphAndResolver);
+      }
     }
-    exitCode=executeLocalBuild(params,actionGraphAndResolver,executorService);
-    if (exitCode == 0 && (showOutput || showRuleKey)) {
-      showOutputs(params,actionGraphAndResolver);
-    }
+  }
+ catch (  ActionGraphCreationException e) {
+    params.getConsole().printBuildFailure(e.getMessage());
+    exitCode=1;
   }
   params.getBuckEventBus().post(BuildEvent.finished(started,exitCode));
   return exitCode;
