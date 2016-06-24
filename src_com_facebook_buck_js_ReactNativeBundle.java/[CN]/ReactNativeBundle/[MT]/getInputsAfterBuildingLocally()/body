@@ -1,0 +1,14 @@
+{
+  ImmutableList.Builder<SourcePath> inputs=ImmutableList.builder();
+  ImmutableMap<Path,SourcePath> pathToSourceMap=Maps.uniqueIndex(srcs,getResolver().getAbsolutePathFunction());
+  Path depFile=getPathToDepFile(getBuildTarget(),getProjectFilesystem());
+  for (  String line : getProjectFilesystem().readLines(depFile)) {
+    Path path=getProjectFilesystem().getRootPath().getFileSystem().getPath(line);
+    SourcePath sourcePath=pathToSourceMap.get(path);
+    if (sourcePath == null) {
+      throw new IOException(String.format("%s: entry path '%s' transitively uses source file not preset in `srcs`: %s",getBuildTarget(),entryPath,path));
+    }
+    inputs.add(sourcePath);
+  }
+  return inputs.build();
+}
