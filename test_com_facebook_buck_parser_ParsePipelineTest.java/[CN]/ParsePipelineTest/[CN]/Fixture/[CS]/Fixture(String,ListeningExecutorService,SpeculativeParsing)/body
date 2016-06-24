@@ -24,15 +24,11 @@ synchronized (projectBuildFileParsers) {
     }
   }
 ;
-  this.parsePipeline=new ParsePipeline(this.cache,new ParsePipeline.Delegate(){
-    @Override public TargetNode<?> createTargetNode(    Cell cell,    Path buildFile,    BuildTarget target,    Map<String,Object> rawNode){
-      return DaemonicParserState.createTargetNode(eventBus,cell,buildFile,target,rawNode,constructorArgMarshaller,coercerFactory,CacheBuilder.newBuilder().build(new CacheLoader<Cell,BuildFileTree>(){
-        @Override public BuildFileTree load(        Cell key) throws Exception {
-          return new InMemoryBuildFileTree(ImmutableList.<Path>of());
-        }
-      }
-),nodeListener);
+  LoadingCache<Cell,BuildFileTree> buildFileTrees=CacheBuilder.newBuilder().build(new CacheLoader<Cell,BuildFileTree>(){
+    @Override public BuildFileTree load(    Cell cell) throws Exception {
+      return new FilesystemBackedBuildFileTree(cell.getFilesystem(),cell.getBuildFileName());
     }
   }
-,this.executorService,this.eventBus,this.projectBuildFileParserPool,speculativeParsing.value());
+);
+  this.parsePipeline=new ParsePipeline(this.cache,new DefaultParserTargetNodeFactory(eventBus,constructorArgMarshaller,coercerFactory,buildFileTrees,nodeListener),this.executorService,this.eventBus,this.projectBuildFileParserPool,speculativeParsing.value());
 }
