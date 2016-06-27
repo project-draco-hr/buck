@@ -1,6 +1,13 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
-  steps.add(new MkdirStep(getProjectFilesystem(),getAndroidManifestXml().getParent()),CopyStep.forFile(getProjectFilesystem(),getResolver().getAbsolutePath(manifest),getAndroidManifestXml()));
+  steps.add(new MkdirStep(getProjectFilesystem(),getAndroidManifestXml().getParent()));
+  Optional<ImmutableMap<String,String>> placeholders=manifestEntries.getPlaceholders();
+  if (placeholders.isPresent() && !placeholders.get().isEmpty()) {
+    steps.add(new ReplaceManifestPlaceholdersStep(getProjectFilesystem(),getResolver().getAbsolutePath(manifest),getAndroidManifestXml(),placeholders.get()));
+  }
+ else {
+    steps.add(CopyStep.forFile(getProjectFilesystem(),getResolver().getAbsolutePath(manifest),getAndroidManifestXml()));
+  }
   steps.add(new MkdirStep(getProjectFilesystem(),getResourceApkPath().getParent()));
   Path rDotTxtDir=getPathToRDotTxtDir();
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),rDotTxtDir));
