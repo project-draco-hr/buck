@@ -1,0 +1,20 @@
+{
+  ListeningExecutorService exec=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(Runtime.getRuntime().availableProcessors(),new MostExecutors.NamedThreadFactory("artifact download")));
+  @SuppressWarnings("unchecked") List<ListenableFuture<Map.Entry<Path,Prebuilt>>> results=(List<ListenableFuture<Map.Entry<Path,Prebuilt>>>)(List<?>)exec.invokeAll(FluentIterable.from(graph.getNodes()).transform(new Function<Artifact,Callable<Map.Entry<Path,Prebuilt>>>(){
+    @Override public Callable<Map.Entry<Path,Prebuilt>> apply(    final Artifact artifact){
+      return new Callable<Map.Entry<Path,Prebuilt>>(){
+        @Override public Map.Entry<Path,Prebuilt> call() throws Exception {
+          return downloadArtifact(artifact,graph);
+        }
+      }
+;
+    }
+  }
+).toList());
+  try {
+    return ImmutableSetMultimap.<Path,Prebuilt>builder().orderValuesBy(Ordering.natural()).putAll(Futures.allAsList(results).get()).build();
+  }
+  finally {
+    exec.shutdown();
+  }
+}

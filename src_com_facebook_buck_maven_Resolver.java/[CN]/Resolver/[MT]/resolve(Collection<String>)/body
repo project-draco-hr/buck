@@ -1,0 +1,24 @@
+{
+  ImmutableList.Builder<RemoteRepository> repoBuilder=ImmutableList.builder();
+  ImmutableMap.Builder<String,Dependency> dependencyBuilder=ImmutableMap.builder();
+  repoBuilder.addAll(repos);
+  for (  String artifact : artifacts) {
+    if (artifact.endsWith(".pom")) {
+      Model model=loadPomModel(Paths.get(artifact));
+      repoBuilder.addAll(getReposFromPom(model));
+      for (      Dependency dep : getDependenciesFromPom(model)) {
+        dependencyBuilder.put(buildKey(dep.getArtifact()),dep);
+      }
+    }
+ else {
+      Dependency dep=getDependencyFromString(artifact);
+      dependencyBuilder.put(buildKey(dep.getArtifact()),dep);
+    }
+  }
+  repos=repoBuilder.build();
+  specifiedDependencies=dependencyBuilder.build();
+  ImmutableMap<String,Artifact> knownDeps=getRunTimeTransitiveDeps(specifiedDependencies.values());
+  final MutableDirectedGraph<Artifact> graph=buildDependencyGraph(knownDeps);
+  ImmutableSetMultimap<Path,Prebuilt> downloadedArtifacts=downloadArtifacts(graph);
+  createBuckFiles(downloadedArtifacts);
+}

@@ -1,0 +1,29 @@
+{
+  String projectName=getProjectName(artifactToDownload);
+  Path project=buckRepoRoot.resolve(buckThirdPartyRelativePath).resolve(projectName);
+  Files.createDirectories(project);
+  Prebuilt library=resolveLib(artifactToDownload,project);
+  Iterable<Artifact> incoming=graph.getIncomingNodesFor(artifactToDownload);
+  for (  Artifact artifact : incoming) {
+    String groupName=getProjectName(artifact);
+    if (projectName.equals(groupName)) {
+      library.addDep(String.format(":%s",artifact.getArtifactId()));
+    }
+ else {
+      library.addDep(buckThirdPartyRelativePath,artifact);
+    }
+  }
+  Iterable<Artifact> outgoing=graph.getOutgoingNodesFor(artifactToDownload);
+  for (  Artifact artifact : outgoing) {
+    String groupName=getProjectName(artifact);
+    if (!groupName.equals(projectName)) {
+      library.addVisibility(buckThirdPartyRelativePath,artifact);
+    }
+  }
+  if (specifiedDependencies.containsKey(buildKey(artifactToDownload))) {
+    for (    String rule : visibility) {
+      library.addVisibility(rule);
+    }
+  }
+  return Maps.immutableEntry(project,library);
+}

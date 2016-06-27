@@ -1,0 +1,28 @@
+{
+  return FluentIterable.from(model.getDependencies()).transform(new Function<org.apache.maven.model.Dependency,Dependency>(){
+    @Override public Dependency apply(    org.apache.maven.model.Dependency dep){
+      ArtifactType stereotype=session.getArtifactTypeRegistry().get(dep.getType());
+      if (stereotype == null) {
+        stereotype=new DefaultArtifactType(dep.getType());
+      }
+      Map<String,String> props=null;
+      boolean system=dep.getSystemPath() != null && dep.getSystemPath().length() > 0;
+      if (system) {
+        props=ImmutableMap.of(ArtifactProperties.LOCAL_PATH,dep.getSystemPath());
+      }
+      DefaultArtifact artifact=new DefaultArtifact(dep.getGroupId(),dep.getArtifactId(),dep.getClassifier(),null,dep.getVersion(),props,stereotype);
+      ImmutableList<Exclusion> exclusions=FluentIterable.from(dep.getExclusions()).transform(new Function<org.apache.maven.model.Exclusion,Exclusion>(){
+        @Override public Exclusion apply(        org.apache.maven.model.Exclusion input){
+          String group=input.getGroupId();
+          String artifact=input.getArtifactId();
+          group=(group == null || group.length() == 0) ? "*" : group;
+          artifact=(artifact == null || artifact.length() == 0) ? "*" : artifact;
+          return new Exclusion(group,artifact,"*","*");
+        }
+      }
+).toList();
+      return new Dependency(artifact,dep.getScope(),dep.isOptional(),exclusions);
+    }
+  }
+).toList();
+}
