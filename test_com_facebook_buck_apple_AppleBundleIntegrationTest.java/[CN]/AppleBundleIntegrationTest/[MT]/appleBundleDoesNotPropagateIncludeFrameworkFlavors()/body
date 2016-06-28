@@ -1,0 +1,19 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_app_with_extension",tmp);
+  workspace.setUp();
+  BuildTarget target=BuildTargetFactory.newInstance("//:DemoAppWithExtension#no-debug");
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("build","--show-output",target.getFullyQualifiedName());
+  result.assertSuccess();
+  BuckBuildLog buckBuildLog=workspace.getBuildLog();
+  ImmutableSet<String> targetsThatShouldContainIncludeFrameworkFlavors=ImmutableSet.of("//:DemoAppWithExtension","//:DemoExtension");
+  ImmutableSet<Flavor> includeFrameworkFlavors=ImmutableSet.<Flavor>of(ImmutableFlavor.of("no-include-frameworks"),ImmutableFlavor.of("include-frameworks"));
+  for (  BuildTarget builtTarget : buckBuildLog.getAllTargets()) {
+    if (Sets.intersection(builtTarget.getFlavors(),includeFrameworkFlavors).isEmpty()) {
+      assertThat(builtTarget.getUnflavoredBuildTarget().getFullyQualifiedName(),not(in(targetsThatShouldContainIncludeFrameworkFlavors)));
+    }
+ else {
+      assertThat(builtTarget.getUnflavoredBuildTarget().getFullyQualifiedName(),in(targetsThatShouldContainIncludeFrameworkFlavors));
+    }
+  }
+}
