@@ -1,11 +1,29 @@
 {
-  ImmutableList<SourcePath> nonDepFileSourcePaths=getNonDepFileSourcePaths(possibleDepFileSourcePaths);
-  ImmutableList<SourcePath> depFileSourcePaths=getDepFileSourcePaths(depFileEntries,possibleDepFileSourcePaths);
-  builder.addToRuleKey(nonDepFileSourcePaths);
-  builder.addToRuleKey(depFileSourcePaths);
+  Iterable<SourcePath> inputsSoFar=builder.getIterableInputsSoFar();
+  ImmutableSet<SourcePath> fastPossibleSourcePaths=possibleDepFileSourcePaths.isPresent() ? ImmutableSet.copyOf(possibleDepFileSourcePaths.get()) : ImmutableSet.copyOf(inputsSoFar);
+  ImmutableSet<DependencyFileEntry> depFileEntriesSet=ImmutableSet.copyOf(depFileEntries);
+  final ImmutableSet.Builder<SourcePath> depFileSourcePathsBuilder=ImmutableSet.builder();
+  final ImmutableSet.Builder<DependencyFileEntry> filesAccountedFor=ImmutableSet.builder();
+  for (  SourcePath input : inputsSoFar) {
+    if (!fastPossibleSourcePaths.contains(input)) {
+      builder.addToRuleKey(input);
+    }
+ else {
+      DependencyFileEntry entry=DependencyFileEntry.fromSourcePath(input,pathResolver);
+      if (depFileEntriesSet.contains(entry)) {
+        builder.addToRuleKey(input);
+        depFileSourcePathsBuilder.add(input);
+        filesAccountedFor.add(entry);
+      }
+    }
+  }
+  Sets.SetView<DependencyFileEntry> filesUnaccountedFor=Sets.difference(depFileEntriesSet,filesAccountedFor.build());
+  if (!filesUnaccountedFor.isEmpty()) {
+    throw new NoSuchFileException(String.format("%s: could not find any inputs matching the relative paths [%s]",rule.getBuildTarget(),Joiner.on(',').join(filesUnaccountedFor)));
+  }
   Optional<RuleKey> ruleKey=builder.build();
   if (ruleKey.isPresent()) {
-    return Optional.of(new Pair<>(ruleKey.get(),ImmutableSet.copyOf(depFileSourcePaths)));
+    return Optional.of(new Pair<>(ruleKey.get(),depFileSourcePathsBuilder.build()));
   }
  else {
     return Optional.absent();
