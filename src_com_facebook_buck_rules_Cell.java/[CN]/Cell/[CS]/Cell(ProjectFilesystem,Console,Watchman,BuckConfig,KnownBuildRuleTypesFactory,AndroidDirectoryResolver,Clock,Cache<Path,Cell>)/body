@@ -10,12 +10,15 @@
   this.tempFilePatterns=parserConfig.getTempFilePatterns();
   ImmutableMap<String,String> allCells=getBuckConfig().getEntriesForSection("repositories");
   ImmutableSet.Builder<Path> roots=ImmutableSet.builder();
+  ImmutableMap.Builder<Path,Optional<String>> rootsMap=ImmutableMap.builder();
   roots.add(filesystem.getRootPath());
   for (  String cellName : allCells.keySet()) {
     Path cellRoot=Preconditions.checkNotNull(getCellRoots().getCellPath(Optional.of(cellName)));
     roots.add(cellRoot);
+    rootsMap.put(cellRoot,Optional.of(cellName));
   }
   this.knownRoots=roots.build();
+  this.rootToCellMapDeprecated=rootsMap.build();
   PythonBuckConfig pythonConfig=new PythonBuckConfig(config,new ExecutableFinder());
   this.pythonInterpreter=pythonConfig.getPythonInterpreter();
   this.knownBuildRuleTypes=knownBuildRuleTypesFactory.create(config);
@@ -25,10 +28,10 @@
       if (!knownRoots.contains(cellPath)) {
         throw new HumanReadableException("Unable to find repository rooted at %s. Known roots are:\n  %s",getFilesystem().getRootPath(),Joiner.on(",\n  ").join(knownRoots));
       }
-      Config config=Configs.createDefaultConfig(cellPath,RawConfig.of());
-      ProjectFilesystem cellFilesystem=new ProjectFilesystem(cellPath,config);
       Cell parent=Cell.this;
       BuckConfig parentConfig=parent.getBuckConfig();
+      Config config=Configs.createDefaultConfig(Optional.fromNullable(rootToCellMapDeprecated.get(cellPath)).or(Optional.<String>absent()),cellPath,parentConfig.getConfigOverrides());
+      ProjectFilesystem cellFilesystem=new ProjectFilesystem(cellPath,config);
       BuckConfig buckConfig=new BuckConfig(config,cellFilesystem,parentConfig.getArchitecture(),parentConfig.getPlatform(),parentConfig.getEnvironment());
       Watchman.build(cellPath,parentConfig.getEnvironment(),console,clock).close();
       return new Cell(cellFilesystem,console,watchman,buckConfig,knownBuildRuleTypesFactory,directoryResolver,clock,cells);
