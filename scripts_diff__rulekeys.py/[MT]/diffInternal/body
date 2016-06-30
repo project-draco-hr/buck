@@ -1,8 +1,9 @@
-def diffInternal(label, left_s, left_info, right_s, right_info, verbose, format_tuple):
+def diffInternal(label, left_s, left_info, right_s, right_info, verbose, format_tuple, check_paths):
     keys = set(left_s.keys()).union(set(right_s.keys()))
     changed_key_pairs_with_labels = set()
     changed_key_pairs_with_values = collections.defaultdict((lambda : KeyValueDiff(format_tuple[0], format_tuple[1])))
     changed_key_pairs_with_labels_for_key = set()
+    interesting_paths = set()
     report = []
     for key in keys:
         if (key is None):
@@ -30,11 +31,15 @@ def diffInternal(label, left_s, left_info, right_s, right_info, verbose, format_
         value_pairs = changed_key_pairs_with_values[key]
         report.append(((u'  (' + key) + u'):'))
         report.extend([(u'    ' + l) for l in value_pairs.diff()])
+        interesting_paths.update(value_pairs.getInterestingPaths())
     changed_key_pairs_with_labels.update(changed_key_pairs_with_labels_for_key)
     if (len(changed_key_pairs_with_labels_for_key) > 0):
         changed_labels = [label for (label, _) in changed_key_pairs_with_labels_for_key]
         if verbose:
             report.append((((u'  (' + key) + u') : changed because of ') + u','.join(sorted(changed_labels))))
+    if (check_paths and (len(interesting_paths) > 0)):
+        report.append(u'Information on paths the script has seen:')
+        report.extend(reportOnInterestingPaths(interesting_paths))
     if (len(report) > 0):
         report = ([((u'Change details for [' + label) + u']')] + report)
     return (report, changed_key_pairs_with_labels)
