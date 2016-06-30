@@ -1,11 +1,17 @@
 {
   Optional<ImmutableSet<String>> filesChangedFromMasterBranchPoint=Optional.absent();
+  Optional<String> masterRevisionId=Optional.of(vcCmdLineInterface.revisionId("remote/master"));
+  String currentRevisionId=vcCmdLineInterface.currentRevisionId();
+  Optional<String> diffBase=masterRevisionId;
   try {
     filesChangedFromMasterBranchPoint=Optional.of(vcCmdLineInterface.changedFiles("ancestor(., remote/master)"));
   }
  catch (  VersionControlCommandFailedException e) {
     LOG.info(e,"Couldn't get files changed");
   }
-  String currentRevisionId=vcCmdLineInterface.currentRevisionId();
-  return SourceControlInfo.builder().setCurrentRevisionId(currentRevisionId).setDirtyFiles(vcCmdLineInterface.changedFiles(".")).setFilesChangedFromMasterBranchPoint(filesChangedFromMasterBranchPoint).build();
+  Optional<String> producedDiff=Optional.absent();
+  if (diffBase.isPresent()) {
+    producedDiff=Optional.of(vcCmdLineInterface.diffBetweenRevisions(currentRevisionId,diffBase.get()));
+  }
+  return SourceControlInfo.builder().setCurrentRevisionId(currentRevisionId).setDiff(producedDiff).setDirtyFiles(vcCmdLineInterface.changedFiles(".")).setFilesChangedFromMasterBranchPoint(filesChangedFromMasterBranchPoint).build();
 }
