@@ -1,0 +1,63 @@
+{
+  final TargetNode<?> suggestedNode=graph.get(suggestedTarget);
+  SortedSet<String> deps=new TreeSet<>(LOCAL_DEPS_FIRST_COMPARATOR);
+  SortedSet<PathSourcePath> srcs=new TreeSet<>();
+  for (  String providedSymbol : namedComponent.symbols) {
+    PathSourcePath src=providedSymbolToSrc.get(providedSymbol);
+    srcs.add(src);
+    for (    String requiredSymbol : providedSymbolToRequiredSymbols.get(providedSymbol)) {
+      NamedStronglyConnectedComponent requiredComponent=namedComponentsIndex.get(requiredSymbol);
+      if (requiredComponent != null) {
+        if (!requiredComponent.equals(namedComponent)) {
+          deps.add(":" + requiredComponent.name);
+        }
+        continue;
+      }
+      Set<TargetNode<?>> depProviders=dependencyInfo.symbolToProviders.get(requiredSymbol);
+      if (depProviders == null || depProviders.size() == 0) {
+        console.getStdErr().printf("# Suspicious: no provider for '%s'\n",requiredSymbol);
+        continue;
+      }
+      depProviders=FluentIterable.from(depProviders).filter(new Predicate<TargetNode<?>>(){
+        @Override public boolean apply(        TargetNode<?> provider){
+          return provider.isVisibleTo(suggestedNode);
+        }
+      }
+).toSet();
+      TargetNode<?> depProvider;
+      if (depProviders.size() == 1) {
+        depProvider=Iterables.getOnlyElement(depProviders);
+      }
+ else {
+        console.getStdErr().printf("# Suspicious: no lone provider for '%s': [%s]\n",requiredSymbol,Joiner.on(", ").join(depProviders));
+        continue;
+      }
+      if (!depProvider.equals(suggestedNode)) {
+        deps.add(depProvider.toString());
+      }
+    }
+    for (    String requiredSymbol : symbolsDependencies.getOutgoingNodesFor(providedSymbol)) {
+      NamedStronglyConnectedComponent componentDep=namedComponentsIndex.get(requiredSymbol);
+      if (!componentDep.equals(namedComponent)) {
+        deps.add(":" + componentDep.name);
+      }
+    }
+  }
+  final Path basePathForSuggestedTarget=suggestedTarget.getBasePath();
+  Iterable<String> relativeSrcs=FluentIterable.from(srcs).transform(new Function<PathSourcePath,String>(){
+    @Override public String apply(    PathSourcePath input){
+      return basePathForSuggestedTarget.relativize(input.getRelativePath()).toString();
+    }
+  }
+);
+  StringBuilder rule=new StringBuilder("\njava_library(\n" + "  name = '" + namedComponent.name + "',\n"+ "  srcs = [\n");
+  for (  String src : relativeSrcs) {
+    rule.append(String.format("    '%s',\n",src));
+  }
+  rule.append("  ],\n" + "  deps = [\n");
+  for (  String dep : deps) {
+    rule.append(String.format("    '%s',\n",dep));
+  }
+  rule.append("  ],\n" + visibilityArg + ")\n");
+  return rule.toString();
+}

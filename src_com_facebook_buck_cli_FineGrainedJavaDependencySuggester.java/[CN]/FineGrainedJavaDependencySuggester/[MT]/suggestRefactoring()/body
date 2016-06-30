@@ -1,0 +1,59 @@
+{
+  final TargetNode<?> suggestedNode=graph.get(suggestedTarget);
+  if (!(suggestedNode.getConstructorArg() instanceof JavaLibraryDescription.Arg)) {
+    console.printErrorText(String.format("'%s' does not correspond to a Java rule",suggestedTarget));
+    throw new IllegalArgumentException();
+  }
+  JavaLibraryDescription.Arg arg=(JavaLibraryDescription.Arg)suggestedNode.getConstructorArg();
+  JavaFileParser javaFileParser=javaDepsFinder.getJavaFileParser();
+  Multimap<String,String> providedSymbolToRequiredSymbols=HashMultimap.create();
+  Map<String,PathSourcePath> providedSymbolToSrc=new HashMap<>();
+  for (  SourcePath src : arg.srcs.get()) {
+    extractProvidedSymbolInfoFromSourceFile(src,javaFileParser,providedSymbolToRequiredSymbols,providedSymbolToSrc);
+  }
+  MutableDirectedGraph<String> symbolsDependencies=new MutableDirectedGraph<>();
+  for (  String providedSymbol : providedSymbolToSrc.keySet()) {
+    symbolsDependencies.addNode(providedSymbol);
+    for (    String requiredSymbol : providedSymbolToRequiredSymbols.get(providedSymbol)) {
+      if (providedSymbolToRequiredSymbols.containsKey(requiredSymbol) && !providedSymbol.equals(requiredSymbol)) {
+        symbolsDependencies.addEdge(providedSymbol,requiredSymbol);
+      }
+    }
+  }
+  Set<Set<String>> stronglyConnectedComponents=symbolsDependencies.findStronglyConnectedComponents();
+  Map<String,NamedStronglyConnectedComponent> namedComponentsIndex=new TreeMap<>();
+  Set<NamedStronglyConnectedComponent> namedComponents=new TreeSet<>();
+  for (  Set<String> stronglyConnectedComponent : stronglyConnectedComponents) {
+    String name=Iterables.getFirst(stronglyConnectedComponent,null);
+    if (name == null) {
+      throw new IllegalStateException("A strongly connected component was created with zero nodes.");
+    }
+    NamedStronglyConnectedComponent namedComponent=new NamedStronglyConnectedComponent(name,stronglyConnectedComponent);
+    namedComponents.add(namedComponent);
+    for (    String providedSymbol : stronglyConnectedComponent) {
+      namedComponentsIndex.put(providedSymbol,namedComponent);
+    }
+  }
+  StringBuilder visibilityBuilder=new StringBuilder("  visibility = [\n");
+  SortedSet<String> visibilities=FluentIterable.from(suggestedNode.getVisibilityPatterns()).transform(new Function<VisibilityPattern,String>(){
+    @Override public String apply(    VisibilityPattern pattern){
+      return pattern.getRepresentation();
+    }
+  }
+).toSortedSet(Ordering.natural());
+  for (  String visibility : visibilities) {
+    visibilityBuilder.append("    '" + visibility + "',\n");
+  }
+  visibilityBuilder.append("  ],\n");
+  String visibilityArg=visibilityBuilder.toString();
+  console.getStdOut().printf("java_library(\n" + "  name = '%s',\n" + "  exported_deps = [\n",suggestedTarget.getShortName());
+  for (  NamedStronglyConnectedComponent namedComponent : namedComponents) {
+    console.getStdOut().printf("    ':%s',\n",namedComponent.name);
+  }
+  console.getStdOut().print("  ],\n" + visibilityArg + ")\n");
+  JavaDepsFinder.DependencyInfo dependencyInfo=javaDepsFinder.findDependencyInfoForGraph(graph);
+  for (  NamedStronglyConnectedComponent namedComponent : namedComponents) {
+    String buildRuleDefinition=createBuildRuleDefinition(namedComponent,providedSymbolToSrc,providedSymbolToRequiredSymbols,namedComponentsIndex,dependencyInfo,symbolsDependencies,visibilityArg);
+    console.getStdOut().print(buildRuleDefinition);
+  }
+}

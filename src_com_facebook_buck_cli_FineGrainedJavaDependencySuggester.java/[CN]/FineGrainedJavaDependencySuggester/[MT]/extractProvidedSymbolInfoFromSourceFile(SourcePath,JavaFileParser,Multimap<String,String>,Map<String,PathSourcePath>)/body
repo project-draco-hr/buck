@@ -1,0 +1,20 @@
+{
+  if (!(src instanceof PathSourcePath)) {
+    return;
+  }
+  PathSourcePath path=(PathSourcePath)src;
+  ProjectFilesystem filesystem=path.getFilesystem();
+  Optional<String> contents=filesystem.readFileIfItExists(path.getRelativePath());
+  if (!contents.isPresent()) {
+    throw new RuntimeException(String.format("Could not read file '%s'",path.getRelativePath()));
+  }
+  JavaFileParser.JavaFileFeatures features=javaFileParser.extractFeaturesFromJavaCode(contents.get());
+  String providedSymbol=Iterables.getFirst(features.providedSymbols,null);
+  if (providedSymbol == null) {
+    console.getStdErr().printf("%s cowardly refuses to provide any types.\n",path.getRelativePath());
+    return;
+  }
+  providedSymbolToSrc.put(providedSymbol,path);
+  providedSymbolToRequiredSymbols.putAll(providedSymbol,features.requiredSymbols);
+  providedSymbolToRequiredSymbols.putAll(providedSymbol,features.exportedSymbols);
+}

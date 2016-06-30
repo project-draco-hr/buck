@@ -1,0 +1,23 @@
+{
+  final ConcurrencyLimit concurrencyLimit=command.getConcurrencyLimit(params.getBuckConfig());
+  try (CommandThreadManager pool=new CommandThreadManager(command.getClass().getName(),concurrencyLimit)){
+    Cell cell=params.getCell();
+    WeightedListeningExecutorService executorService=pool.getExecutor();
+    TargetGraph graph;
+    try {
+      graph=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),cell,command.getEnableParserProfiling(),executorService,ImmutableList.of(TargetNodePredicateSpec.of(Predicates.<TargetNode<?>>alwaysTrue(),BuildFileSpec.fromRecursivePath(Paths.get(""),cell.getRoot()))),true).getTargetGraph();
+    }
+ catch (    BuildTargetException|BuildFileParseException e) {
+      params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
+      throw new ExitCodeException(1);
+    }
+    BuildRuleResolver buildRuleResolver=new BuildRuleResolver(graph,new DefaultTargetNodeToBuildRuleTransformer());
+    BuildEngine buildEngine=new CachingBuildEngine(executorService,params.getFileHashCache(),CachingBuildEngine.BuildMode.SHALLOW,params.getBuckConfig().getBuildDepFiles(),params.getBuckConfig().getBuildMaxDepFileCacheEntries(),params.getBuckConfig().getBuildArtifactCacheSizeLimit(),params.getBuckConfig().getBuildInputRuleKeyFileSizeLimit(),params.getObjectMapper(),buildRuleResolver,params.getBuckConfig().getKeySeed());
+    BuckEventBus eventBus=params.getBuckEventBus();
+    ExecutionContext executionContext=ExecutionContext.builder().setConsole(params.getConsole()).setConcurrencyLimit(concurrencyLimit).setBuckEventBus(eventBus).setEnvironment(ImmutableMap.<String,String>of()).setExecutors(ImmutableMap.<ExecutionContext.ExecutorPool,ListeningExecutorService>of(ExecutionContext.ExecutorPool.CPU,executorService)).setJavaPackageFinder(params.getJavaPackageFinder()).setObjectMapper(params.getObjectMapper()).setPlatform(params.getPlatform()).build();
+    StepRunner stepRunner=new DefaultStepRunner(executionContext);
+    BuildContext buildContext=ImmutableBuildContext.builder().setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).setStepRunner(stepRunner).setClock(params.getClock()).setArtifactCache(params.getArtifactCache()).setJavaPackageFinder(executionContext.getJavaPackageFinder()).setEventBus(eventBus).setBuildId(eventBus.getBuildId()).setObjectMapper(params.getObjectMapper()).putAllEnvironment(executionContext.getEnvironment()).setKeepGoing(false).setShouldReportAbsolutePaths(false).build();
+    JavaDepsFinder javaDepsFinder=JavaDepsFinder.createJavaDepsFinder(params.getBuckConfig(),params.getCell().getCellRoots(),params.getObjectMapper(),buildContext,buildEngine);
+    processor.process(graph,javaDepsFinder,executorService);
+  }
+ }

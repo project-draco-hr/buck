@@ -1,34 +1,15 @@
 {
-  ConcurrencyLimit concurrencyLimit=getConcurrencyLimit(params.getBuckConfig());
-  try (CommandThreadManager pool=new CommandThreadManager("Autodeps",concurrencyLimit)){
-    Cell cell=params.getCell();
-    WeightedListeningExecutorService executorService=pool.getExecutor();
-    TargetGraph graph;
-    try {
-      graph=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),cell,getEnableParserProfiling(),executorService,ImmutableList.of(TargetNodePredicateSpec.of(Predicates.<TargetNode<?>>alwaysTrue(),BuildFileSpec.fromRecursivePath(Paths.get(""),cell.getRoot()))),true).getTargetGraph();
+  JavaBuildGraphProcessor.Processor processor=new JavaBuildGraphProcessor.Processor(){
+    @Override public void process(    TargetGraph graph,    JavaDepsFinder javaDepsFinder,    WeightedListeningExecutorService executorService) throws IOException {
+      generateAutodeps(params,getConcurrencyLimit(params.getBuckConfig()),params.getCell(),executorService,graph,javaDepsFinder,params.getConsole());
     }
- catch (    BuildTargetException|BuildFileParseException e) {
-      params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
-      return 1;
-    }
-    BuildRuleResolver buildRuleResolver=new BuildRuleResolver(graph,new DefaultTargetNodeToBuildRuleTransformer());
-    BuildEngine buildEngine=new CachingBuildEngine(executorService,params.getFileHashCache(),CachingBuildEngine.BuildMode.SHALLOW,params.getBuckConfig().getBuildDepFiles(),params.getBuckConfig().getBuildMaxDepFileCacheEntries(),params.getBuckConfig().getBuildArtifactCacheSizeLimit(),params.getBuckConfig().getBuildInputRuleKeyFileSizeLimit(),params.getObjectMapper(),buildRuleResolver,params.getBuckConfig().getKeySeed());
-    BuckEventBus eventBus=params.getBuckEventBus();
-    ExecutionContext executionContext=ExecutionContext.builder().setConsole(params.getConsole()).setConcurrencyLimit(concurrencyLimit).setBuckEventBus(eventBus).setEnvironment(ImmutableMap.<String,String>of()).setExecutors(ImmutableMap.<ExecutionContext.ExecutorPool,ListeningExecutorService>of(ExecutionContext.ExecutorPool.CPU,executorService)).setJavaPackageFinder(params.getJavaPackageFinder()).setObjectMapper(params.getObjectMapper()).setPlatform(params.getPlatform()).build();
-    StepRunner stepRunner=new DefaultStepRunner(executionContext);
-    BuildContext buildContext=ImmutableBuildContext.builder().setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).setStepRunner(stepRunner).setClock(params.getClock()).setArtifactCache(params.getArtifactCache()).setJavaPackageFinder(executionContext.getJavaPackageFinder()).setEventBus(eventBus).setBuildId(eventBus.getBuildId()).setObjectMapper(params.getObjectMapper()).putAllEnvironment(executionContext.getEnvironment()).setKeepGoing(false).setShouldReportAbsolutePaths(false).build();
-    JavaDepsFinder javaDepsFinder=JavaDepsFinder.createJavaDepsFinder(params.getBuckConfig(),params.getCell().getCellRoots(),params.getObjectMapper(),buildContext,buildEngine);
-    Console console=params.getConsole();
-    DepsForBuildFiles depsForBuildFiles=javaDepsFinder.findDepsForBuildFiles(graph,console);
-    int numWritten;
-    try {
-      numWritten=AutodepsWriter.write(depsForBuildFiles,cell.getBuildFileName(),params.getObjectMapper(),executorService,concurrencyLimit.threadLimit);
-    }
- catch (    ExecutionException e) {
-      throw new RuntimeException(e);
-    }
-    String message=numWritten == 1 ? "1 file written." : numWritten + " files written.";
-    console.printSuccess(message);
   }
-   return 0;
+;
+  try {
+    JavaBuildGraphProcessor.run(params,this,processor);
+  }
+ catch (  JavaBuildGraphProcessor.ExitCodeException e) {
+    return e.exitCode;
+  }
+  return 0;
 }
