@@ -21,18 +21,11 @@
   ImmutableSetMultimap<String,TargetNode<?>> buildForTestNodes=buildForTestNodesBuilder.build();
   ImmutableMultimap<AppleTestBundleParamsKey,TargetNode<AppleTestDescription.Arg>> groupedTests=groupedTestsBuilder.build();
   ImmutableSetMultimap<String,TargetNode<AppleTestDescription.Arg>> ungroupedTests=ungroupedTestsBuilder.build();
-  Iterable<PBXTarget> synthesizedCombinedTestTargets=ImmutableList.of();
   ImmutableSet<BuildTarget> targetsInRequiredProjects=FluentIterable.from(Optional.presentInstances(schemeNameToSrcTargetNode.values())).append(buildForTestNodes.values()).transform(HasBuildTarget.TO_TARGET).toSet();
   ImmutableMultimap.Builder<BuildTarget,PBXTarget> buildTargetToPbxTargetMapBuilder=ImmutableMultimap.builder();
   ImmutableMap.Builder<PBXTarget,Path> targetToProjectPathMapBuilder=ImmutableMap.builder();
   Optional<BuildTarget> targetToBuildWithBuck=getTargetToBuildWithBuck();
-  if (combinedProject) {
-    synthesizedCombinedTestTargets=generateCombinedProject(workspaceName,outputDirectory,workspaceGenerator,groupedTests,targetsInRequiredProjects,buildTargetToPbxTargetMapBuilder,targetToProjectPathMapBuilder,targetToBuildWithBuck);
-  }
- else {
-    synthesizedCombinedTestTargets=generateProject(projectGenerators,workspaceGenerator,groupedTests,synthesizedCombinedTestTargets,targetsInRequiredProjects,buildTargetToPbxTargetMapBuilder,targetToProjectPathMapBuilder,targetToBuildWithBuck);
-  }
-  Path workspacePath=workspaceGenerator.writeWorkspace();
+  Iterable<PBXTarget> synthesizedCombinedTestTargets=generateProjectsAndCombinedTestTargets(projectGenerators,workspaceName,outputDirectory,workspaceGenerator,groupedTests,targetsInRequiredProjects,buildTargetToPbxTargetMapBuilder,targetToProjectPathMapBuilder,targetToBuildWithBuck);
   final Multimap<BuildTarget,PBXTarget> buildTargetToTarget=buildTargetToPbxTargetMapBuilder.build();
   writeWorkspaceSchemes(workspaceName,outputDirectory,schemeConfigs,schemeNameToSrcTargetNode,buildForTestNodes,ungroupedTests,targetToProjectPathMapBuilder.build(),synthesizedCombinedTestTargets,new Function<TargetNode<?>,Collection<PBXTarget>>(){
     @Override public Collection<PBXTarget> apply(    TargetNode<?> input){
@@ -40,5 +33,5 @@
     }
   }
 ,getTargetNodeToPBXTargetTransformFunction(buildTargetToTarget,buildWithBuck));
-  return workspacePath;
+  return workspaceGenerator.writeWorkspace();
 }
