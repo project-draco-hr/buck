@@ -1,0 +1,30 @@
+{
+  ProjectGenerator generator=projectGenerators.get(projectDirectory);
+  if (generator == null) {
+    LOG.debug("Generating project for directory %s with targets %s",projectDirectory,rules);
+    String projectName;
+    if (projectDirectory.getFileName().toString().equals("")) {
+      projectName="Project";
+    }
+ else {
+      projectName=projectDirectory.getFileName().toString();
+    }
+    generator=new ProjectGenerator(projectGraph,rules,projectCell,projectDirectory,projectName,buildFileName,projectGeneratorOptions,Optionals.bind(targetToBuildWithBuck,new Function<BuildTarget,Optional<BuildTarget>>(){
+      @Override public Optional<BuildTarget> apply(      BuildTarget input){
+        return rules.contains(input) ? Optional.of(input) : Optional.<BuildTarget>absent();
+      }
+    }
+),buildWithBuckFlags,focusModules,executableFinder,environment,cxxPlatforms,defaultCxxPlatform,sourcePathResolverForNode,buckEventBus,halideBuckConfig,cxxBuckConfig,appleConfig).setTestsToGenerateAsStaticLibraries(groupableTests);
+    generator.createXcodeProjects();
+    requiredBuildTargetsBuilder.addAll(generator.getRequiredBuildTargets());
+    projectGenerators.put(projectDirectory,generator);
+  }
+ else {
+    LOG.debug("Already generated project for target %s, skipping",projectDirectory);
+  }
+  workspaceGenerator.addFilePath(relativeTargetCell.resolve(generator.getProjectPath()));
+  buildTargetToPbxTargetMapBuilder.putAll(generator.getBuildTargetToGeneratedTargetMap());
+  for (  PBXTarget target : generator.getBuildTargetToGeneratedTargetMap().values()) {
+    targetToProjectPathMapBuilder.put(target,generator.getProjectPath());
+  }
+}
