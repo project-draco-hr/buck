@@ -1,27 +1,34 @@
 {
-  ProjectGenerator generator=projectGenerators.get(projectDirectory);
-  ImmutableSet<BuildTarget> requiredBuildTargets=ImmutableSet.of();
-  if (generator == null) {
-    LOG.debug("Generating project for directory %s with targets %s",projectDirectory,rules);
-    String projectName;
-    if (projectDirectory.getFileName().toString().equals("")) {
-      projectName="Project";
+  boolean shouldGenerateProjects=false;
+  ProjectGenerator generator;
+synchronized (projectGenerators) {
+    generator=projectGenerators.get(projectDirectory);
+    if (generator != null) {
+      LOG.debug("Already generated project for target %s, skipping",projectDirectory);
     }
  else {
-      projectName=projectDirectory.getFileName().toString();
-    }
-    generator=new ProjectGenerator(projectGraph,rules,projectCell,projectDirectory,projectName,buildFileName,projectGeneratorOptions,Optionals.bind(targetToBuildWithBuck,new Function<BuildTarget,Optional<BuildTarget>>(){
-      @Override public Optional<BuildTarget> apply(      BuildTarget input){
-        return rules.contains(input) ? Optional.of(input) : Optional.<BuildTarget>absent();
+      LOG.debug("Generating project for directory %s with targets %s",projectDirectory,rules);
+      String projectName;
+      if (projectDirectory.getFileName().toString().equals("")) {
+        projectName="Project";
       }
-    }
+ else {
+        projectName=projectDirectory.getFileName().toString();
+      }
+      generator=new ProjectGenerator(projectGraph,rules,projectCell,projectDirectory,projectName,buildFileName,projectGeneratorOptions,Optionals.bind(targetToBuildWithBuck,new Function<BuildTarget,Optional<BuildTarget>>(){
+        @Override public Optional<BuildTarget> apply(        BuildTarget input){
+          return rules.contains(input) ? Optional.of(input) : Optional.<BuildTarget>absent();
+        }
+      }
 ),buildWithBuckFlags,focusModules,executableFinder,environment,cxxPlatforms,defaultCxxPlatform,sourcePathResolverForNode,buckEventBus,halideBuckConfig,cxxBuckConfig,appleConfig).setTestsToGenerateAsStaticLibraries(groupableTests);
+      projectGenerators.put(projectDirectory,generator);
+      shouldGenerateProjects=true;
+    }
+  }
+  ImmutableSet<BuildTarget> requiredBuildTargets=ImmutableSet.of();
+  if (shouldGenerateProjects) {
     generator.createXcodeProjects();
     requiredBuildTargets=generator.getRequiredBuildTargets();
-    projectGenerators.put(projectDirectory,generator);
-  }
- else {
-    LOG.debug("Already generated project for target %s, skipping",projectDirectory);
   }
   return GenerationResult.of(generator.getProjectPath(),requiredBuildTargets,generator.getBuildTargetToGeneratedTargetMap(),ImmutableList.<PBXTarget>of());
 }

@@ -1,0 +1,50 @@
+{
+  ImmutableMultimap.Builder<Cell,BuildTarget> projectCellToBuildTargetsBuilder=ImmutableMultimap.builder();
+  for (  TargetNode<?> targetNode : projectGraph.getNodes()) {
+    BuildTarget buildTarget=targetNode.getBuildTarget();
+    projectCellToBuildTargetsBuilder.put(rootCell.getCell(buildTarget),buildTarget);
+  }
+  ImmutableMultimap<Cell,BuildTarget> projectCellToBuildTargets=projectCellToBuildTargetsBuilder.build();
+  List<ListenableFuture<GenerationResult>> projectGeneratorFutures=new ArrayList<>();
+  for (  final Cell projectCell : projectCellToBuildTargets.keySet()) {
+    ImmutableMultimap.Builder<Path,BuildTarget> projectDirectoryToBuildTargetsBuilder=ImmutableMultimap.builder();
+    final ImmutableSet<BuildTarget> cellRules=ImmutableSet.copyOf(projectCellToBuildTargets.get(projectCell));
+    for (    BuildTarget buildTarget : cellRules) {
+      projectDirectoryToBuildTargetsBuilder.put(buildTarget.getBasePath(),buildTarget);
+    }
+    ImmutableMultimap<Path,BuildTarget> projectDirectoryToBuildTargets=projectDirectoryToBuildTargetsBuilder.build();
+    final Path relativeTargetCell=rootCell.getRoot().relativize(projectCell.getRoot());
+    for (    final Path projectDirectory : projectDirectoryToBuildTargets.keySet()) {
+      final ImmutableSet<BuildTarget> rules=filterRulesForProjectDirectory(projectGraph,ImmutableSet.copyOf(projectDirectoryToBuildTargets.get(projectDirectory)));
+      if (Sets.intersection(targetsInRequiredProjects,rules).isEmpty()) {
+        continue;
+      }
+      projectGeneratorFutures.add(listeningExecutorService.submit(new Callable<GenerationResult>(){
+        @Override public GenerationResult call() throws Exception {
+          GenerationResult result=generateProjectForDirectory(projectGenerators,targetToBuildWithBuck,projectCell,projectDirectory,rules);
+          result=GenerationResult.of(relativeTargetCell.resolve(result.getProjectPath()),result.getRequiredBuildTargets(),result.getBuildTargetToGeneratedTargetMap(),result.getBuildableCombinedTestTargets());
+          return result;
+        }
+      }
+));
+    }
+  }
+  final AtomicReference<Iterable<PBXTarget>> combinedTestTargets=new AtomicReference<Iterable<PBXTarget>>(ImmutableList.<PBXTarget>of());
+  if (!groupedTests.isEmpty()) {
+    projectGeneratorFutures.add(listeningExecutorService.submit(new Callable<GenerationResult>(){
+      @Override public GenerationResult call() throws Exception {
+        GenerationResult result=generateCombinedProjectForTests(groupedTests);
+        combinedTestTargets.set(result.getBuildableCombinedTestTargets());
+        return result;
+      }
+    }
+));
+  }
+  List<GenerationResult> generationResults=Futures.allAsList(projectGeneratorFutures).get();
+  for (  GenerationResult result : generationResults) {
+    workspaceGenerator.addFilePath(result.getProjectPath());
+    processGenerationResult(buildTargetToPbxTargetMapBuilder,targetToProjectPathMapBuilder,result);
+  }
+  Preconditions.checkNotNull(combinedTestTargets.get(),"combinedTestTargets must be set to non-null list of targets");
+  return combinedTestTargets.get();
+}
