@@ -1,17 +1,17 @@
 {
-  Optional<ImmutableSet<String>> filesChangedFromMasterBranchPoint=Optional.absent();
-  Optional<String> masterRevisionId=Optional.of(vcCmdLineInterface.revisionId("remote/master"));
-  String currentRevisionId=vcCmdLineInterface.currentRevisionId();
+  Optional<String> masterRevisionId=getMasterRevisionId();
   Optional<String> diffBase=masterRevisionId;
-  try {
-    filesChangedFromMasterBranchPoint=Optional.of(vcCmdLineInterface.changedFiles("ancestor(., remote/master)"));
-  }
- catch (  VersionControlCommandFailedException e) {
-    LOG.info(e,"Couldn't get files changed");
-  }
+  String currentRevisionId=vcCmdLineInterface.currentRevisionId();
+  Optional<ImmutableSet<String>> filesChangedFromMasterBranchPoint=Optional.absent();
+  Optional<ImmutableSet<String>> diffBaseBookmarks=Optional.absent();
   Optional<String> producedDiff=Optional.absent();
-  if (diffBase.isPresent()) {
-    producedDiff=Optional.of(vcCmdLineInterface.diffBetweenRevisions(currentRevisionId,diffBase.get()));
+  if (masterRevisionId.isPresent()) {
+    diffBase=getCommonAncestorRevisionId(currentRevisionId,masterRevisionId.get());
+    if (diffBase.isPresent()) {
+      filesChangedFromMasterBranchPoint=Optional.of(vcCmdLineInterface.changedFiles(diffBase.get()));
+      diffBaseBookmarks=Optional.of(getBasedOffWhichTrackedBookmark(diffBase.get()));
+      producedDiff=Optional.of(vcCmdLineInterface.diffBetweenRevisions(currentRevisionId,diffBase.get()));
+    }
   }
-  return SourceControlInfo.builder().setCurrentRevisionId(currentRevisionId).setDiff(producedDiff).setDirtyFiles(vcCmdLineInterface.changedFiles(".")).setFilesChangedFromMasterBranchPoint(filesChangedFromMasterBranchPoint).build();
+  return SourceControlInfo.builder().setCurrentRevisionId(currentRevisionId).setBasedOffWhichTracked(diffBaseBookmarks).setRevisionIdOffTracked(diffBase).setDiff(producedDiff).setDirtyFiles(vcCmdLineInterface.changedFiles(".")).setFilesChangedFromMasterBranchPoint(filesChangedFromMasterBranchPoint).build();
 }
