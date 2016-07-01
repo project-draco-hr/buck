@@ -4,12 +4,13 @@
   ImmutableList<String> lines=createRenderLinesAtTime(clock.currentTimeMillis());
   ImmutableList<String> logLines=createLogRenderLines();
   lastNumLinesPrinted=lines.size();
+  boolean stdoutDirty;
+  boolean stderrDirty;
 synchronized (console.getStdOut()) {
 synchronized (console.getStdErr()) {
-      boolean stdoutDirty=console.getStdOut().isDirty();
-      boolean stderrDirty=console.getStdErr().isDirty();
+      stdoutDirty=console.getStdOut().isDirty();
+      stderrDirty=console.getStdErr().isDirty();
       if (stdoutDirty || stderrDirty) {
-        LOG.debug("Stopping console output (stdout dirty %s, stderr dirty %s).",stdoutDirty,stderrDirty);
         stopRenderScheduler();
       }
  else       if (!lastRenderClear.isEmpty() || !lines.isEmpty() || !logLines.isEmpty()) {
@@ -21,5 +22,8 @@ synchronized (console.getStdErr()) {
         console.getStdErr().getRawStream().print(fullFrame);
       }
     }
+  }
+  if (stdoutDirty || stderrDirty) {
+    LOG.debug("Stopping console output (stdout dirty %s, stderr dirty %s).",stdoutDirty,stderrDirty);
   }
 }
