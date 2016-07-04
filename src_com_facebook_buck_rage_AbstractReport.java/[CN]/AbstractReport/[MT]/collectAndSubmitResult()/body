@@ -15,9 +15,12 @@
     output.printf("There was a problem gathering additional information: %s. " + "The results will not be attached to the report.",e.getMessage());
   }
   UserLocalConfiguration userLocalConfiguration=UserLocalConfiguration.of(isNoBuckCheckPresent(),getLocalConfigs());
-  ImmutableSet<Path> includedPaths=FluentIterable.from(highlightedBuilds).transform(new Function<BuildLogEntry,Path>(){
-    @Override public Path apply(    BuildLogEntry input){
-      return input.getRelativePath();
+  ImmutableSet<Path> includedPaths=FluentIterable.from(highlightedBuilds).transformAndConcat(new Function<BuildLogEntry,Iterable<Path>>(){
+    @Override public Iterable<Path> apply(    BuildLogEntry input){
+      ImmutableSet.Builder<Path> result=ImmutableSet.builder();
+      Optionals.addIfPresent(input.getRuleKeyLoggerLogFile(),result);
+      result.add(input.getRelativePath());
+      return result.build();
     }
   }
 ).append(extraInfoPaths).append(userLocalConfiguration.getLocalConfigs()).toSet();
