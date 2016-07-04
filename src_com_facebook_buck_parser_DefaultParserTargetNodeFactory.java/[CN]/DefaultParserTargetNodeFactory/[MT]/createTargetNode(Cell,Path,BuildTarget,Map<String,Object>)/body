@@ -18,7 +18,7 @@
     throw new IllegalStateException(String.format("Inconsistent internal state, target from data: %s, expected: %s, raw data: %s",unflavoredBuildTargetFromRawData,unflavoredBuildTarget,Joiner.on(',').withKeyValueSeparator("->").join(rawNode)));
   }
   Cell targetCell=cell.getCell(target);
-  BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetCell.getFilesystem(),target,buildFileTrees.getUnchecked(targetCell),targetCell.isEnforcingBuckPackageBoundaries());
+  BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetCell.getFilesystem(),target);
   Object constructorArg=description.createUnpopulatedConstructorArg();
   try {
     ImmutableSet.Builder<BuildTarget> declaredDeps=ImmutableSet.builder();
@@ -32,11 +32,14 @@
       JsonObjectHashing.hashJsonObject(hasher,rawNode);
       TargetNodeFactory targetNodeFactory=new TargetNodeFactory(typeCoercerFactory);
       TargetNode<?> node=targetNodeFactory.createFromObject(hasher.hash(),description,constructorArg,factoryParams,declaredDeps.build(),visibilityPatterns.build(),targetCell.getCellRoots());
+      if (buildFileTrees.isPresent() && cell.isEnforcingBuckPackageBoundaries()) {
+        enforceBuckPackageBoundaries(target,buildFileTrees.get().getUnchecked(targetCell),node.getInputs());
+      }
       nodeListener.onCreate(buildFile,node);
       return node;
     }
    }
- catch (  NoSuchBuildTargetException|TargetNodeFactory.InvalidSourcePathInputException e) {
+ catch (  NoSuchBuildTargetException e) {
     throw new HumanReadableException(e);
   }
 catch (  ConstructorArgMarshalException e) {
