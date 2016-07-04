@@ -1,5 +1,5 @@
 {
-  setupNewDefaultLogFileWriter(info.getTimestampMillis());
+  ReferenceCountedWriter writer=rotateDefaultLogFileWriter(info.getLogFilePath());
   final long threadId=Thread.currentThread().getId();
   final String commandId=info.getCommandId();
   threadIdToCommandId.putIfAbsent(threadId,commandId);
@@ -14,16 +14,10 @@
  catch (  IOException e) {
     LOG.error(e,"Failed to created 'per command log directory': [%s]",logDirectory.toAbsolutePath());
   }
-  String logFilePath=logDirectory.resolve(BuckConstant.BUCK_LOG_FILE_NAME).toString();
-  try {
-    commandIdToLogFileHandlerWriter.put(commandId,ConsoleHandler.utf8OutputStreamWriter(new FileOutputStream(logFilePath)));
-  }
- catch (  FileNotFoundException e) {
-    LOG.error(e,"Failed to create log file [%s].",logFilePath);
-  }
+  commandIdToLogFileHandlerWriter.put(commandId,writer.newReference());
   return new Closeable(){
     @Override public void close() throws IOException {
-      OutputStreamWriter writer=commandIdToLogFileHandlerWriter.remove(commandId);
+      Writer writer=commandIdToLogFileHandlerWriter.remove(commandId);
       if (writer != null) {
         writer.flush();
         writer.close();
