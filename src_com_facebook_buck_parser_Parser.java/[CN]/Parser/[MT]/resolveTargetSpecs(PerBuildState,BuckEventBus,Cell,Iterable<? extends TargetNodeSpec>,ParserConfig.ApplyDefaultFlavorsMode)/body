@@ -10,40 +10,45 @@
  else {
     buildFileSearchMethod=ParserConfig.BuildFileSearchMethod.FILESYSTEM_CRAWL;
   }
-  ImmutableList.Builder<ListenableFuture<ImmutableSet<BuildTarget>>> targetFutures=ImmutableList.builder();
-  Multimap<Path,TargetNodeSpec> perBuildFileSpecs=LinkedHashMultimap.create();
-  for (  final TargetNodeSpec spec : specs) {
+  final ImmutableList<TargetNodeSpec> orderedSpecs=ImmutableList.copyOf(specs);
+  Multimap<Path,Integer> perBuildFileSpecs=LinkedHashMultimap.create();
+  for (int index=0; index < orderedSpecs.size(); index++) {
+    TargetNodeSpec spec=orderedSpecs.get(index);
     Cell cell=rootCell.getCell(spec.getBuildFileSpec().getCellPath());
     ImmutableSet<Path> buildFiles;
     try (SimplePerfEvent.Scope perfEventScope=SimplePerfEvent.scope(eventBus,PerfEventId.of("FindBuildFiles"),"targetNodeSpec",spec)){
       buildFiles=spec.getBuildFileSpec().findBuildFiles(cell,buildFileSearchMethod);
     }
      for (    Path buildFile : buildFiles) {
-      perBuildFileSpecs.put(buildFile,spec);
+      perBuildFileSpecs.put(buildFile,index);
     }
   }
+  ArrayList<ListenableFuture<ImmutableList<Map.Entry<Integer,ImmutableSet<BuildTarget>>>>> targetFutures=new ArrayList<>();
   for (  Path buildFile : perBuildFileSpecs.keySet()) {
-    final Collection<TargetNodeSpec> buildFileSpecs=perBuildFileSpecs.get(buildFile);
-    TargetNodeSpec firstSpec=Iterables.get(buildFileSpecs,0);
+    final Collection<Integer> buildFileSpecs=perBuildFileSpecs.get(buildFile);
+    TargetNodeSpec firstSpec=orderedSpecs.get(Iterables.get(buildFileSpecs,0));
     Cell cell=rootCell.getCell(firstSpec.getBuildFileSpec().getCellPath());
     if (!cell.getFilesystem().isFile(buildFile)) {
       throw new MissingBuildFileException(firstSpec,cell.getFilesystem().getRootPath().relativize(buildFile));
     }
-    targetFutures.add(Futures.transform(state.getAllTargetNodesJob(cell,buildFile),new Function<ImmutableSet<TargetNode<?>>,ImmutableSet<BuildTarget>>(){
-      @Override public ImmutableSet<BuildTarget> apply(      ImmutableSet<TargetNode<?>> nodes){
-        ImmutableSet.Builder<BuildTarget> targets=ImmutableSet.builder();
-        for (        TargetNodeSpec spec : buildFileSpecs) {
-          targets.addAll(applySpecFilter(spec,nodes,applyDefaultFlavorsMode));
+    targetFutures.add(Futures.transform(state.getAllTargetNodesJob(cell,buildFile),new Function<ImmutableSet<TargetNode<?>>,ImmutableList<Map.Entry<Integer,ImmutableSet<BuildTarget>>>>(){
+      @Override public ImmutableList<Map.Entry<Integer,ImmutableSet<BuildTarget>>> apply(      ImmutableSet<TargetNode<?>> nodes){
+        ImmutableList.Builder<Map.Entry<Integer,ImmutableSet<BuildTarget>>> targets=ImmutableList.builder();
+        for (        int index : buildFileSpecs) {
+          targets.add(new AbstractMap.SimpleEntry<>(index,applySpecFilter(orderedSpecs.get(index),nodes,applyDefaultFlavorsMode)));
         }
         return targets.build();
       }
     }
 ));
   }
-  ImmutableSet.Builder<BuildTarget> targets=ImmutableSet.builder();
+  LinkedHashMultimap<Integer,BuildTarget> targetsMap=LinkedHashMultimap.create();
   try {
-    for (    ImmutableSet<BuildTarget> partialTargets : Futures.allAsList(targetFutures.build()).get()) {
-      targets.addAll(partialTargets);
+    for (    ListenableFuture<ImmutableList<Map.Entry<Integer,ImmutableSet<BuildTarget>>>> targetFuture : targetFutures) {
+      ImmutableList<Map.Entry<Integer,ImmutableSet<BuildTarget>>> results=targetFuture.get();
+      for (      Map.Entry<Integer,ImmutableSet<BuildTarget>> ent : results) {
+        targetsMap.putAll(ent.getKey(),ent.getValue());
+      }
     }
   }
  catch (  ExecutionException e) {
@@ -51,6 +56,10 @@
     Throwables.propagateIfInstanceOf(e.getCause(),BuildTargetException.class);
     Throwables.propagateIfInstanceOf(e.getCause(),IOException.class);
     throw ParsePipeline.propagateRuntimeException(e);
+  }
+  ImmutableList.Builder<ImmutableSet<BuildTarget>> targets=ImmutableList.builder();
+  for (int index=0; index < orderedSpecs.size(); index++) {
+    targets.add(ImmutableSet.copyOf(targetsMap.get(index)));
   }
   return targets.build();
 }

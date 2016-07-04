@@ -1,0 +1,29 @@
+{
+  ImmutableMap.Builder<String,ImmutableSet<QueryTarget>> resolved=ImmutableMap.builder();
+  Map<String,String> unresolved=new HashMap<>();
+  for (  String pattern : patterns) {
+    ImmutableSet<QueryTarget> targets=resolvedTargets.get(pattern);
+    if (targets != null) {
+      resolved.put(pattern,targets);
+      continue;
+    }
+    BuildTarget alias=params.getBuckConfig().getBuildTargetForAlias(pattern).getFirst();
+    if (alias != null) {
+      unresolved.put(alias.getFullyQualifiedName(),pattern);
+    }
+ else {
+      if (pattern.contains("//") || pattern.startsWith(":")) {
+        unresolved.put(pattern,pattern);
+      }
+ else {
+        ImmutableSet<QueryTarget> fileTargets=resolveFilePattern(pattern);
+        resolved.put(pattern,fileTargets);
+        resolvedTargets.put(pattern,fileTargets);
+      }
+    }
+  }
+  ImmutableMap<String,ImmutableSet<QueryTarget>> results=MoreMaps.transformKeys(resolveBuildTargetPatterns(ImmutableList.copyOf(unresolved.keySet()),executor),Functions.forMap(unresolved));
+  resolved.putAll(results);
+  resolvedTargets.putAll(results);
+  return resolved.build();
+}
