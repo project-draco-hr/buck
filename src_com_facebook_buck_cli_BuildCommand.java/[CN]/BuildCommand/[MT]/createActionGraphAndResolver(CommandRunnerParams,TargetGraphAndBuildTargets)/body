@@ -1,0 +1,15 @@
+{
+  buildTargets=targetGraphAndBuildTargets.getBuildTargets();
+  buildTargetsHaveBeenCalculated=true;
+  ActionGraphAndResolver actionGraphAndResolver=Preconditions.checkNotNull(params.getActionGraphCache().getActionGraph(params.getBuckEventBus(),BuildIdSampler.apply(params.getBuckConfig().getActionGraphCacheCheckSampleRate(),params.getBuckEventBus().getBuildId()),targetGraphAndBuildTargets.getTargetGraph(),params.getBuckConfig().getKeySeed()));
+  if (justBuildTarget != null) {
+    BuildTarget explicitTarget=BuildTargetParser.INSTANCE.parse(justBuildTarget,BuildTargetPatternParser.fullyQualified(),params.getCell().getCellRoots());
+    Iterable<BuildRule> actionGraphRules=Preconditions.checkNotNull(actionGraphAndResolver.getActionGraph().getNodes());
+    ImmutableSet<BuildTarget> actionGraphTargets=ImmutableSet.copyOf(Iterables.transform(actionGraphRules,HasBuildTarget.TO_TARGET));
+    if (!actionGraphTargets.contains(explicitTarget)) {
+      throw new ActionGraphCreationException("Targets specified via `--just-build` must be a subset of action graph.");
+    }
+    buildTargets=ImmutableSet.of(explicitTarget);
+  }
+  return actionGraphAndResolver;
+}

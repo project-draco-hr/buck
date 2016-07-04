@@ -1,30 +1,3 @@
 {
-  if (getArguments().isEmpty()) {
-    ImmutableSet<String> aliases=params.getBuckConfig().getAliases();
-    if (!aliases.isEmpty()) {
-      params.getBuckEventBus().post(ConsoleEvent.severe(String.format("Try building one of the following targets:\n%s",Joiner.on(' ').join(Iterators.limit(aliases.iterator(),10)))));
-    }
-    throw new ActionGraphCreationException("Must specify at least one build target.");
-  }
-  ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
-  ActionGraphAndResolver actionGraphAndResolver;
-  try {
-    TargetGraphAndBuildTargets result=params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),params.getCell(),getEnableParserProfiling(),executor,parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),getArguments()),false,parserConfig.getDefaultFlavorsMode());
-    buildTargets=result.getBuildTargets();
-    buildTargetsHaveBeenCalculated=true;
-    actionGraphAndResolver=Preconditions.checkNotNull(params.getActionGraphCache().getActionGraph(params.getBuckEventBus(),BuildIdSampler.apply(params.getBuckConfig().getActionGraphCacheCheckSampleRate(),params.getBuckEventBus().getBuildId()),result.getTargetGraph(),params.getBuckConfig().getKeySeed()));
-  }
- catch (  BuildTargetException|BuildFileParseException e) {
-    throw new ActionGraphCreationException(MoreExceptions.getHumanReadableOrLocalizedMessage(e));
-  }
-  if (justBuildTarget != null) {
-    BuildTarget explicitTarget=BuildTargetParser.INSTANCE.parse(justBuildTarget,BuildTargetPatternParser.fullyQualified(),params.getCell().getCellRoots());
-    Iterable<BuildRule> actionGraphRules=Preconditions.checkNotNull(actionGraphAndResolver.getActionGraph().getNodes());
-    ImmutableSet<BuildTarget> actionGraphTargets=ImmutableSet.copyOf(Iterables.transform(actionGraphRules,HasBuildTarget.TO_TARGET));
-    if (!actionGraphTargets.contains(explicitTarget)) {
-      throw new ActionGraphCreationException("Targets specified via `--just-build` must be a subset of action graph.");
-    }
-    buildTargets=ImmutableSet.of(explicitTarget);
-  }
-  return actionGraphAndResolver;
+  return createActionGraphAndResolver(params,createTargetGraph(params,executor));
 }

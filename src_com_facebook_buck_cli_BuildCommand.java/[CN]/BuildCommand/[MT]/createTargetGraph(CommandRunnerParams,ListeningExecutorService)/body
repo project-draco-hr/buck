@@ -1,0 +1,16 @@
+{
+  if (getArguments().isEmpty()) {
+    ImmutableSet<String> aliases=params.getBuckConfig().getAliases();
+    if (!aliases.isEmpty()) {
+      params.getBuckEventBus().post(ConsoleEvent.severe(String.format("Try building one of the following targets:\n%s",Joiner.on(' ').join(Iterators.limit(aliases.iterator(),10)))));
+    }
+    throw new ActionGraphCreationException("Must specify at least one build target.");
+  }
+  ParserConfig parserConfig=new ParserConfig(params.getBuckConfig());
+  try {
+    return params.getParser().buildTargetGraphForTargetNodeSpecs(params.getBuckEventBus(),params.getCell(),getEnableParserProfiling(),executor,parseArgumentsAsTargetNodeSpecs(params.getBuckConfig(),getArguments()),false,parserConfig.getDefaultFlavorsMode());
+  }
+ catch (  BuildTargetException|BuildFileParseException e) {
+    throw new ActionGraphCreationException(MoreExceptions.getHumanReadableOrLocalizedMessage(e));
+  }
+}
