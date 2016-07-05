@@ -1,0 +1,19 @@
+{
+  assumeThat(Platform.detect(),is(not(WINDOWS)));
+  ProjectFilesystem filesystem=createFakeFilesystem("/Users/user/src");
+  String cellName="cellname";
+  BuildTarget testBuildTarget=BuildTarget.builder().setUnflavoredBuildTarget(UnflavoredBuildTarget.of(filesystem.getRootPath(),Optional.of(cellName),"//target","short")).addFlavors(CxxInferEnhancer.InferFlavors.INFER.get()).build();
+  BuildRuleParams testBuildRuleParams=new FakeBuildRuleParamsBuilder(testBuildTarget).setProjectFilesystem(filesystem).build();
+  BuildRuleResolver testBuildRuleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  SourcePathResolver testSourcePathResolver=new SourcePathResolver(testBuildRuleResolver);
+  InferBuckConfig inferBuckConfig=new InferBuckConfig(FakeBuckConfig.builder().build());
+  CxxInferCaptureAndAggregatingRules<CxxInferAnalyze> captureAndAggregatingRules=new CxxInferCaptureAndAggregatingRules<>(ImmutableSet.<CxxInferCapture>of(),ImmutableSet.<CxxInferAnalyze>of());
+  CxxInferAnalyze analyzeRule=new CxxInferAnalyze(testBuildRuleParams,testSourcePathResolver,inferBuckConfig,captureAndAggregatingRules);
+  Path outputFile=Paths.get("infer-deps.txt");
+  CxxCollectAndLogInferDependenciesStep step=CxxCollectAndLogInferDependenciesStep.fromAnalyzeRule(analyzeRule,filesystem,outputFile);
+  ExecutionContext executionContext=TestExecutionContext.newInstance();
+  int exitCode=step.execute(executionContext).getExitCode();
+  assertThat(exitCode,is(StepExecutionResult.SUCCESS.getExitCode()));
+  String expectedOutput=new InferLogLine(testBuildTarget,analyzeRule.getResultsDir()).toString();
+  assertEquals(expectedOutput + "\n",filesystem.readFileIfItExists(outputFile).get());
+}

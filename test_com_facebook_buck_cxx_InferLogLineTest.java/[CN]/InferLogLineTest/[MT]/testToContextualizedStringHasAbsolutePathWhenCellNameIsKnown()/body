@@ -1,0 +1,12 @@
+{
+  assumeTrue(Platform.detect() != Platform.WINDOWS);
+  Path rootPath=Paths.get("/Users/user/src");
+  BuildTarget testBuildTarget=BuildTarget.builder().setUnflavoredBuildTarget(UnflavoredBuildTarget.of(rootPath,Optional.of("cellname"),"//target","short")).addFlavors(CxxInferEnhancer.InferFlavors.INFER.get()).build();
+  ImmutableMap<String,Path> map=ImmutableMap.<String,Path>builder().put("cellname",rootPath).build();
+  CellPathResolver cellPathResolver=createFakeCellPathResolver(map,Optional.<Path>absent());
+  InferLogLine inferLogLine=new InferLogLine(testBuildTarget,Paths.get("buck-out/a/b/c/"));
+  Path expectedContextualizedPath=rootPath.resolve("buck-out/a/b/c");
+  assertTrue("Contextualized path must be absolute",expectedContextualizedPath.isAbsolute());
+  String expectedOutput="cellname//target:short#infer\t[infer]\t" + expectedContextualizedPath.toString();
+  assertEquals(expectedOutput,inferLogLine.toContextualizedString(cellPathResolver));
+}

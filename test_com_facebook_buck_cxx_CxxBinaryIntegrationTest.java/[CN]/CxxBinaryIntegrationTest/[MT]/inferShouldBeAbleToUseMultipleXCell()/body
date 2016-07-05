@@ -1,0 +1,17 @@
+{
+  assumeTrue(Platform.detect() != Platform.WINDOWS);
+  final Path rootWorkspacePath=tmp.getRootPath();
+  InferHelper.setupWorkspace(this,rootWorkspacePath,"infertest");
+  Path primaryRootPath=tmp.newFolder().toPath().toRealPath().normalize();
+  ProjectWorkspace primary=InferHelper.setupCxxInferWorkspace(this,InferHelper.createTemporaryRoot(primaryRootPath),Optional.<String>absent(),"infertest/inter-cell/multi-cell/primary",Optional.of(rootWorkspacePath.resolve("fake-infer")));
+  Path secondaryRootPath=tmp.newFolder().toPath().toRealPath().normalize();
+  ProjectWorkspace secondary=InferHelper.setupWorkspace(this,secondaryRootPath,"infertest/inter-cell/multi-cell/secondary");
+  registerCell(primary,"secondary",secondary);
+  BuildTarget inputBuildTarget=BuildTargetFactory.newInstance("//:cxxbinary").withFlavors(CxxInferEnhancer.InferFlavors.INFER.get());
+  ProjectWorkspace.ProcessResult result=primary.runBuckBuild(InferHelper.getCxxCLIConfigurationArgs(rootWorkspacePath.resolve("fake-infer"),Optional.<String>absent(),inputBuildTarget));
+  result.assertSuccess();
+  ProjectFilesystem filesystem=new ProjectFilesystem(primary.getDestPath());
+  String reportPath=BuildTargets.getGenPath(filesystem,inputBuildTarget,"infer-%s/report.json").toString();
+  List<Object> bugs=InferHelper.loadInferReport(primary,reportPath);
+  Assert.assertThat("2 bugs expected in " + reportPath + " not found",bugs.size(),Matchers.equalTo(2));
+}

@@ -1,0 +1,22 @@
+{
+  assumeThat(Platform.detect(),is(not(WINDOWS)));
+  ProjectFilesystem filesystem1=createFakeFilesystem("/Users/user/cell_one");
+  BuildTarget buildTarget1=BuildTarget.builder().setUnflavoredBuildTarget(UnflavoredBuildTarget.of(filesystem1.getRootPath(),Optional.of("cell1"),"//target/in_cell_one","short1")).addFlavors(CxxInferEnhancer.InferFlavors.INFER.get()).build();
+  BuildRuleParams buildRuleParams1=new FakeBuildRuleParamsBuilder(buildTarget1).setProjectFilesystem(filesystem1).build();
+  ProjectFilesystem filesystem2=createFakeFilesystem("/Users/user/cell_two");
+  BuildTarget buildTarget2=BuildTarget.builder().setUnflavoredBuildTarget(UnflavoredBuildTarget.of(filesystem2.getRootPath(),Optional.of("cell2"),"//target/in_cell_two","short2")).addFlavors(CxxInferEnhancer.InferFlavors.INFER_CAPTURE.get()).build();
+  BuildRuleParams buildRuleParams2=new FakeBuildRuleParamsBuilder(buildTarget2).setProjectFilesystem(filesystem2).build();
+  BuildRuleResolver testBuildRuleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  SourcePathResolver testSourcePathResolver=new SourcePathResolver(testBuildRuleResolver);
+  InferBuckConfig inferBuckConfig=new InferBuckConfig(FakeBuckConfig.builder().build());
+  CxxInferCapture captureRule=createCaptureRule(buildRuleParams2,testSourcePathResolver,filesystem2,inferBuckConfig);
+  CxxInferCaptureAndAggregatingRules<CxxInferAnalyze> captureAndAggregatingRules=new CxxInferCaptureAndAggregatingRules<>(ImmutableSet.of(captureRule),ImmutableSet.<CxxInferAnalyze>of());
+  CxxInferAnalyze analyzeRule=new CxxInferAnalyze(buildRuleParams1,testSourcePathResolver,inferBuckConfig,captureAndAggregatingRules);
+  Path outputFile=Paths.get("infer-deps.txt");
+  CxxCollectAndLogInferDependenciesStep step=CxxCollectAndLogInferDependenciesStep.fromAnalyzeRule(analyzeRule,filesystem1,outputFile);
+  ExecutionContext executionContext=TestExecutionContext.newInstance();
+  int exitCode=step.execute(executionContext).getExitCode();
+  assertThat(exitCode,is(StepExecutionResult.SUCCESS.getExitCode()));
+  String expectedOutput=new InferLogLine(buildTarget1,analyzeRule.getResultsDir()).toString() + "\n" + new InferLogLine(buildTarget2,captureRule.getPathToOutput()).toString();
+  assertEquals(expectedOutput + "\n",filesystem1.readFileIfItExists(outputFile).get());
+}
