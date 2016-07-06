@@ -4,8 +4,12 @@
     SourcePath sourcePath=entry.getValue();
     NdkCxxPlatforms.TargetCpuType targetCpuType=entry.getKey().getFirst();
     NdkCxxPlatform platform=Preconditions.checkNotNull(nativePlatforms.get(targetCpuType));
+    BuildTarget baseBuildTarget=appRuleTarget;
+    if (sourcePath instanceof BuildTargetSourcePath) {
+      baseBuildTarget=((BuildTargetSourcePath)sourcePath).getTarget();
+    }
     String sharedLibrarySoName=entry.getKey().getSecond();
-    BuildTarget targetForStripRule=BuildTarget.builder(originalBuildTarget).addFlavors(ImmutableFlavor.of("android-strip")).addFlavors(ImmutableFlavor.of(Flavor.replaceInvalidCharacters(sharedLibrarySoName))).addFlavors(ImmutableFlavor.of(Flavor.replaceInvalidCharacters(targetCpuType.name()))).build();
+    BuildTarget targetForStripRule=BuildTarget.builder(baseBuildTarget).addFlavors(ImmutableFlavor.of("android-strip")).addFlavors(ImmutableFlavor.of(Flavor.replaceInvalidCharacters(sharedLibrarySoName))).addFlavors(ImmutableFlavor.of(Flavor.replaceInvalidCharacters(targetCpuType.name()))).build();
     Optional<BuildRule> previouslyCreated=ruleResolver.getRuleOptional(targetForStripRule);
     StripLinkable stripLinkable;
     if (previouslyCreated.isPresent()) {
