@@ -1,8 +1,11 @@
 {
-  ProjectWorkspace.ProcessResult buildResult=runBuckBuild(args);
+  ImmutableList<String> buildArgs=ImmutableList.<String>builder().add("--show-output").add(args).build();
+  ProjectWorkspace.ProcessResult buildResult=runBuckBuild(buildArgs.toArray(new String[buildArgs.size()]));
   buildResult.assertSuccess();
-  ProjectWorkspace.ProcessResult outputFileResult=runBuckCommand("targets","--show-output",args[args.length - 1]);
-  outputFileResult.assertSuccess();
-  String pathToGeneratedJarFile=outputFileResult.getStdout().split(" ")[1].trim();
-  return getPath(pathToGeneratedJarFile);
+  List<String> lines=Splitter.on(CharMatcher.anyOf(System.lineSeparator())).trimResults().omitEmptyStrings().splitToList(buildResult.getStdout());
+  assertThat(lines.get(0),Matchers.equalTo("The outputs are:"));
+  lines=lines.subList(1,lines.size());
+  assertThat(String.format("expected only a single build target in command `%s`: %s",ImmutableList.copyOf(args),lines),lines,Matchers.hasSize(1));
+  String path=Splitter.on(' ').trimResults().splitToList(lines.get(0)).get(1);
+  return getPath(path);
 }
