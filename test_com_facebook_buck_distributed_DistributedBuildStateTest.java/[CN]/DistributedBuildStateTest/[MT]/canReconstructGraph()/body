@@ -1,0 +1,19 @@
+{
+  ProjectWorkspace projectWorkspace=TestDataHelper.createProjectWorkspaceForScenario(this,"simple_java_target",temporaryFolder);
+  projectWorkspace.setUp();
+  Cell cell=projectWorkspace.asCell();
+  ProjectFilesystem projectFilesystem=cell.getFilesystem();
+  projectFilesystem.mkdirs(projectFilesystem.getBuckPaths().getBuckOut());
+  BuckConfig buckConfig=cell.getBuckConfig();
+  TypeCoercerFactory typeCoercerFactory=new DefaultTypeCoercerFactory(ObjectMappers.newDefaultInstance());
+  ConstructorArgMarshaller constructorArgMarshaller=new ConstructorArgMarshaller(typeCoercerFactory);
+  Parser parser=new Parser(new ParserConfig(buckConfig),typeCoercerFactory,constructorArgMarshaller);
+  TargetGraph targetGraph=parser.buildTargetGraph(BuckEventBusFactory.newInstance(),cell,false,MoreExecutors.listeningDecorator(Executors.newSingleThreadExecutor()),ImmutableSet.of(BuildTargetFactory.newInstance(projectFilesystem.getRootPath(),"//:lib")));
+  DistributedBuildTargetGraphCodec targetGraphCodec=defaultCodec(cell,Optional.of(parser));
+  BuildJobState dump=DistributedBuildState.dump(buckConfig,emptyActionGraph(),targetGraphCodec,targetGraph);
+  DistributedBuildState distributedBuildState=new DistributedBuildState(dump);
+  TargetGraph reconstructedGraph=distributedBuildState.createTargetGraph(targetGraphCodec);
+  assertThat(reconstructedGraph.getNodes(),Matchers.hasSize(1));
+  TargetNode<JavaLibraryDescription.Arg> reconstructedJavaLibrary=FluentIterable.from(reconstructedGraph.getNodes()).get(0).castArg(JavaLibraryDescription.Arg.class).get();
+  assertThat(reconstructedJavaLibrary.getConstructorArg().srcs.get(),Matchers.<SourcePath>contains(new PathSourcePath(reconstructedJavaLibrary.getRuleFactoryParams().getProjectFilesystem(),Paths.get("A.java"))));
+}

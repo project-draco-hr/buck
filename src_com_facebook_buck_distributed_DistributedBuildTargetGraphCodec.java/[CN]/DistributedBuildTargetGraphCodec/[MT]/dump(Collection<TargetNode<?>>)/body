@@ -1,0 +1,25 @@
+{
+  BuildJobStateTargetGraph result=new BuildJobStateTargetGraph();
+  BiMap<Integer,ProjectFilesystem> filesystemIndex=HashBiMap.create();
+  for (  TargetNode<?> targetNode : targetNodes) {
+    Map<String,Object> rawTargetNode=nodeToRawNode.apply(targetNode);
+    ProjectFilesystem projectFilesystem=targetNode.getRuleFactoryParams().getProjectFilesystem();
+    BuildJobStateTargetNode remoteNode=new BuildJobStateTargetNode();
+    remoteNode.setFileSystemRootIndex(getIndex(projectFilesystem,filesystemIndex));
+    remoteNode.setBuildTarget(encodeBuildTarget(targetNode.getBuildTarget()));
+    try {
+      remoteNode.setRawNode(objectMapper.writeValueAsString(rawTargetNode));
+    }
+ catch (    JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+    result.addToNodes(remoteNode);
+  }
+  result.setFileSystemRoots(Maps.transformValues(filesystemIndex,new Function<ProjectFilesystem,String>(){
+    @Override public String apply(    ProjectFilesystem input){
+      return input.getRootPath().toString();
+    }
+  }
+));
+  return result;
+}

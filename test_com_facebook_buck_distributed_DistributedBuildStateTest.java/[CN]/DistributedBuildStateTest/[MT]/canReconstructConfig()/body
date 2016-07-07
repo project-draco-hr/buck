@@ -1,7 +1,8 @@
 {
   ProjectFilesystem filesystem=FakeProjectFilesystem.createJavaOnlyFilesystem();
-  BuckConfig buckConfig=new BuckConfig(new Config(ConfigBuilder.rawFromLines()),filesystem,Architecture.detect(),Platform.detect(),ImmutableMap.of("envKey","envValue"));
-  BuildJobState dump=DistributedBuildState.dump(buckConfig,emptyActionGraph());
+  BuckConfig buckConfig=new BuckConfig(new Config(ConfigBuilder.rawFromLines()),filesystem,Architecture.detect(),Platform.detect(),ImmutableMap.<String,String>builder().putAll(System.getenv()).put("envKey","envValue").build());
+  Cell cell=new TestCellBuilder().setFilesystem(filesystem).setBuckConfig(buckConfig).build();
+  BuildJobState dump=DistributedBuildState.dump(buckConfig,emptyActionGraph(),defaultCodec(cell,Optional.<Parser>absent()),TargetGraph.EMPTY);
   DistributedBuildState distributedBuildState=new DistributedBuildState(dump);
   assertThat(distributedBuildState.createBuckConfig(filesystem),Matchers.equalTo(buckConfig));
 }
