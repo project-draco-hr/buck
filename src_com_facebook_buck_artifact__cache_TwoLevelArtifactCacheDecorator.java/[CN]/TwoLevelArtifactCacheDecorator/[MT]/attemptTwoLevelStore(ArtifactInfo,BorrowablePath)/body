@@ -1,26 +1,17 @@
 {
-  ListenableFuture<Optional<String>> contentHash=Futures.transformAsync(Futures.<Void>immediateFuture(null),new AsyncFunction<Void,Optional<String>>(){
-    @Override public ListenableFuture<Optional<String>> apply(    Void input) throws Exception {
+  return Futures.transformAsync(Futures.<Void>immediateFuture(null),new AsyncFunction<Void,Boolean>(){
+    @Override public ListenableFuture<Boolean> apply(    Void input) throws Exception {
       long fileSize=projectFilesystem.getFileSize(output.getPath());
       if (!performTwoLevelStores || fileSize < minimumTwoLevelStoredArtifactSize || (maximumTwoLevelStoredArtifactSize.isPresent() && fileSize > maximumTwoLevelStoredArtifactSize.get())) {
-        return Futures.immediateFuture(Optional.<String>absent());
+        return Futures.immediateFuture(false);
       }
       long hashComputationStart=System.currentTimeMillis();
       String hashCode=projectFilesystem.computeSha1(output.getPath()) + "2c00";
       long hashComputationEnd=System.currentTimeMillis();
       secondLevelHashComputationTimeMs.addSample(hashComputationEnd - hashComputationStart);
-      return Futures.transform(delegate.store(ArtifactInfo.builder().addRuleKeys(new RuleKey(hashCode)).build(),output),Functions.constant(Optional.of(hashCode)));
+      ImmutableMap<String,String> metadataWithCacheKey=ImmutableMap.<String,String>builder().putAll(info.getMetadata()).put(METADATA_KEY,hashCode).build();
+      return Futures.transform(Futures.allAsList(delegate.store(ArtifactInfo.builder().setRuleKeys(info.getRuleKeys()).setMetadata(metadataWithCacheKey).build(),BorrowablePath.notBorrowablePath(emptyFilePath)),delegate.store(ArtifactInfo.builder().addRuleKeys(new RuleKey(hashCode)).build(),output)),Functions.constant(true));
     }
   }
-,listeningExecutorService);
-  return Futures.transformAsync(contentHash,new AsyncFunction<Optional<String>,Boolean>(){
-    @Override public ListenableFuture<Boolean> apply(    Optional<String> contentHash) throws Exception {
-      if (!contentHash.isPresent()) {
-        return Futures.immediateFuture(false);
-      }
-      ImmutableMap<String,String> metadataWithCacheKey=ImmutableMap.<String,String>builder().putAll(info.getMetadata()).put(METADATA_KEY,contentHash.get()).build();
-      return Futures.transform(delegate.store(ArtifactInfo.builder().setRuleKeys(info.getRuleKeys()).setMetadata(metadataWithCacheKey).build(),BorrowablePath.notBorrowablePath(emptyFilePath)),Functions.constant(true));
-    }
-  }
-,listeningExecutorService);
+);
 }
