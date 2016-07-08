@@ -1,20 +1,17 @@
 {
   FakeProjectFilesystem filesystem=new FakeProjectFilesystem(){
     @Override public File getFileForRelativePath(    String pathRelativeToProjectRoot){
-      return new ExistingFile(getRootPath(),pathRelativeToProjectRoot);
+      return new MissingFile(getRootPath(),pathRelativeToProjectRoot);
     }
   }
 ;
   ImmutableSet<String> inputs=ImmutableSet.of("java/somefolder/badfolder/somefile.java","java/somefolder/perfect.java","com/test/subtest/random.java");
-  ImmutableSet<Path> inputPaths=asPaths(inputs);
   BuildTarget target=BuildTargetFactory.newInstance("//base:name");
-  TargetNode<?> targetNode=createTargetNode(target,inputPaths);
-  CommandRunnerParams params=createAuditOwnerCommandRunnerParams(filesystem);
+  TargetNode<?> targetNode=createTargetNode(target,ImmutableSet.<Path>of());
+  CommandRunnerParams params=createOwnersReportRunnerParams(filesystem);
   OwnersReport report=OwnersReport.generateOwnersReport(params,targetNode,inputs);
+  assertTrue(report.owners.isEmpty());
   assertTrue(report.nonFileInputs.isEmpty());
-  assertTrue(report.nonExistentInputs.isEmpty());
   assertTrue(report.inputsWithNoOwners.isEmpty());
-  assertEquals(inputs.size(),report.owners.size());
-  assertTrue(report.owners.containsKey(targetNode));
-  assertEquals(targetNode.getInputs(),report.owners.get(targetNode));
+  assertEquals(inputs,report.nonExistentInputs);
 }
