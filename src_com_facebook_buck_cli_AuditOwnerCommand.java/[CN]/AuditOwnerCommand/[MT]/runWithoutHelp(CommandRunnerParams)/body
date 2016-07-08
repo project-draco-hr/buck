@@ -1,15 +1,16 @@
 {
-  BuildFileTree buildFileTree=new FilesystemBackedBuildFileTree(params.getCell().getFilesystem(),params.getCell().getBuildFileName());
   if (params.getConsole().getAnsi().isAnsiTerminal()) {
     params.getBuckEventBus().post(ConsoleEvent.info("'buck audit owner' is deprecated. Please use 'buck query' instead. e.g.\n\t%s\n\n" + "The query language is documented at https://buckbuild.com/command/query.html",QueryCommand.buildAuditOwnerQueryExpression(getArguments(),shouldGenerateJsonOutput())));
   }
-  try {
-    OwnersReport report=buildOwnersReport(params,buildFileTree,getArguments());
-    printReport(params,report);
+  BuckQueryEnvironment env=new BuckQueryEnvironment(params,getEnableParserProfiling());
+  try (CommandThreadManager pool=new CommandThreadManager("Audit",getConcurrencyLimit(params.getBuckConfig()))){
+    return QueryCommand.runMultipleQuery(params,env,pool.getExecutor(),"owner('%s')",getArguments(),shouldGenerateJsonOutput());
   }
- catch (  BuildFileParseException|BuildTargetException e) {
+ catch (  QueryException e) {
+    if (e.getCause() instanceof InterruptedException) {
+      throw (InterruptedException)e.getCause();
+    }
     params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
-    return BUILD_TARGET_ERROR;
+    return 1;
   }
-  return 0;
 }
