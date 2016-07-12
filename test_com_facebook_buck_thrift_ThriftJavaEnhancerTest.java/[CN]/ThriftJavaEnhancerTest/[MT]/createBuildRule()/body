@@ -1,0 +1,18 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  BuildRuleParams flavoredParams=new FakeBuildRuleParamsBuilder(TARGET).build();
+  ThriftConstructorArg arg=new ThriftConstructorArg();
+  ImmutableMap<String,ThriftSource> sources=ImmutableMap.of("test1.thrift",new ThriftSource(createFakeThriftCompiler("//:thrift_source1",pathResolver),ImmutableList.<String>of(),Paths.get("output1")),"test2.thrift",new ThriftSource(createFakeThriftCompiler("//:thrift_source2",pathResolver),ImmutableList.<String>of(),Paths.get("output2")));
+  ImmutableSortedSet<BuildRule> deps=ImmutableSortedSet.<BuildRule>of(createFakeBuildRule("//:dep",pathResolver));
+  DefaultJavaLibrary library=ENHANCER.createBuildRule(TargetGraph.EMPTY,flavoredParams,resolver,arg,sources,deps);
+  BuildRule srcZip1=resolver.getRule(ENHANCER.getSourceZipBuildTarget(TARGET.getUnflavoredBuildTarget(),"test1.thrift"));
+  assertNotNull(srcZip1);
+  assertTrue(srcZip1 instanceof SrcZip);
+  assertEquals(ImmutableSortedSet.<BuildRule>of(sources.get("test1.thrift").getCompileRule()),srcZip1.getDeps());
+  BuildRule srcZip2=resolver.getRule(ENHANCER.getSourceZipBuildTarget(TARGET.getUnflavoredBuildTarget(),"test2.thrift"));
+  assertNotNull(srcZip2);
+  assertTrue(srcZip2 instanceof SrcZip);
+  assertEquals(ImmutableSortedSet.<BuildRule>of(sources.get("test2.thrift").getCompileRule()),srcZip2.getDeps());
+  assertEquals(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(deps).add(srcZip1).add(srcZip2).build(),library.getDeps());
+}

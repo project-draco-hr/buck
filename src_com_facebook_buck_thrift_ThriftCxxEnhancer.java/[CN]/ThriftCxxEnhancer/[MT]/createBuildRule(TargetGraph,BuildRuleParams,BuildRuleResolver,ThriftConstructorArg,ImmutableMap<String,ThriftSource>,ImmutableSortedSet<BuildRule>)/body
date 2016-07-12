@@ -1,0 +1,38 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  CxxHeadersAndSources spec=getThriftHeaderSourceSpec(params,args,sources);
+  ImmutableSortedSet<BuildRule> allDeps=ImmutableSortedSet.<BuildRule>naturalOrder().addAll(deps).addAll(resolver.getAllRules((cpp2 ? args.cpp2Deps : args.cppDeps).or(ImmutableSortedSet.<BuildTarget>of()))).build();
+  BuildRuleParams langParams=params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(allDeps));
+  ImmutableSortedMap.Builder<String,SourcePath> headersBuilder=ImmutableSortedMap.naturalOrder();
+  headersBuilder.putAll(spec.getHeaders());
+  if (args.cppExportedHeaders.isPresent()) {
+    if (args.cppExportedHeaders.get().getNamedSources().isPresent()) {
+      headersBuilder.putAll(args.cppExportedHeaders.get().getNamedSources().get());
+    }
+ else {
+      headersBuilder.putAll(pathResolver.getSourcePathNames(params.getBuildTarget(),"cpp_headers",args.cppExportedHeaders.get().getUnnamedSources().get()));
+    }
+  }
+  ImmutableSortedMap<String,SourcePath> headers=headersBuilder.build();
+  ImmutableSortedMap.Builder<String,SourceWithFlags> srcsBuilder=ImmutableSortedMap.naturalOrder();
+  srcsBuilder.putAll(spec.getSources());
+  if (args.cppSrcs.isPresent()) {
+    if (args.cppSrcs.get().getNamedSources().isPresent()) {
+      srcsBuilder.putAll(args.cppSrcs.get().getNamedSources().get());
+    }
+ else {
+      for (      SourceWithFlags sourceWithFlags : args.cppSrcs.get().getUnnamedSources().get()) {
+        srcsBuilder.put(pathResolver.getSourcePathName(params.getBuildTarget(),sourceWithFlags.getSourcePath()),sourceWithFlags);
+      }
+    }
+  }
+  ImmutableSortedMap<String,SourceWithFlags> srcs=srcsBuilder.build();
+  CxxLibraryDescription.Arg langArgs=CxxLibraryDescription.createEmptyConstructorArg();
+  langArgs.headerNamespace=args.cppHeaderNamespace;
+  langArgs.srcs=Optional.of(ImmutableSortedSet.copyOf(srcs.values()));
+  langArgs.exportedHeaders=Optional.of(SourceList.ofNamedSources(headers));
+  langArgs.canBeAsset=Optional.absent();
+  langArgs.compilerFlags=cpp2 ? args.cpp2CompilerFlags : args.cppCompilerFlags;
+  langArgs.exportedDeps=Optional.of(FluentIterable.from(allDeps).transform(HasBuildTarget.TO_TARGET).toSortedSet(Ordering.<BuildTarget>natural()));
+  return cxxLibraryDescription.createBuildRule(targetGraph,langParams,resolver,langArgs);
+}

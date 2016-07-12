@@ -1,0 +1,19 @@
+{
+  BuildTarget thriftTarget=BuildTargetFactory.newInstance("//bar:thrift_compiler");
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer()));
+  FakeBuildRule implicitDep=createFakeBuildRule("//foo:implicit_dep",resolver);
+  String language="fake";
+  Flavor flavor=ImmutableFlavor.of("fake");
+  ImmutableSet<String> options=ImmutableSet.of();
+  ImmutableSet<BuildTarget> implicitDeps=ImmutableSet.of(implicitDep.getBuildTarget());
+  BuildTarget unflavoredTarget=BuildTargetFactory.newInstance("//:thrift");
+  BuildTarget flavoredTarget=BuildTargets.createFlavoredBuildTarget(unflavoredTarget.checkUnflavored(),flavor);
+  BuckConfig buckConfig=FakeBuckConfig.builder().setSections(ImmutableMap.of("thrift",ImmutableMap.of("compiler",thriftTarget.toString()))).build();
+  ThriftBuckConfig thriftBuckConfig=new ThriftBuckConfig(buckConfig);
+  ThriftLanguageSpecificEnhancer enhancer=new FakeThriftLanguageSpecificEnhancer(language,flavor,implicitDeps,options);
+  ThriftLibraryDescription desc=new ThriftLibraryDescription(thriftBuckConfig,ImmutableList.of(enhancer));
+  ThriftConstructorArg constructorArg=desc.createUnpopulatedConstructorArg();
+  constructorArg.deps=Optional.of(ImmutableSortedSet.<BuildTarget>of());
+  Iterable<BuildTarget> results=desc.findDepsForTargetFromConstructorArgs(flavoredTarget,createCellRoots(null),constructorArg);
+  assertEquals(ImmutableSet.<BuildTarget>builder().add(unflavoredTarget).add(thriftTarget).addAll(implicitDeps).build(),ImmutableSet.copyOf(results));
+}

@@ -1,0 +1,15 @@
+{
+  ImmutableMap<String,BuildTarget> config=ImmutableMap.of("python_library",BuildTargetFactory.newInstance("//:python_library"),"python_twisted_library",BuildTargetFactory.newInstance("//:python_twisted_library"),"python_asyncio_library",BuildTargetFactory.newInstance("//:python_asyncio_library"));
+  ImmutableMap.Builder<String,String> strConfig=ImmutableMap.builder();
+  for (  ImmutableMap.Entry<String,BuildTarget> ent : config.entrySet()) {
+    strConfig.put(ent.getKey(),ent.getValue().toString());
+  }
+  BuckConfig buckConfig=FakeBuckConfig.builder().setSections(ImmutableMap.of("thrift",strConfig.build())).build();
+  ThriftBuckConfig thriftBuckConfig=new ThriftBuckConfig(buckConfig);
+  ThriftPythonEnhancer enhancer=new ThriftPythonEnhancer(thriftBuckConfig,ThriftPythonEnhancer.Type.NORMAL);
+  ThriftPythonEnhancer twistedEnhancer=new ThriftPythonEnhancer(thriftBuckConfig,ThriftPythonEnhancer.Type.TWISTED);
+  ThriftPythonEnhancer asyncioEnhancer=new ThriftPythonEnhancer(thriftBuckConfig,ThriftPythonEnhancer.Type.ASYNCIO);
+  expectImplicitDeps(enhancer,ImmutableSet.<String>of(),ImmutableSet.of(config.get("python_library")));
+  expectImplicitDeps(twistedEnhancer,ImmutableSet.of("twisted"),ImmutableSet.of(config.get("python_library"),config.get("python_twisted_library")));
+  expectImplicitDeps(asyncioEnhancer,ImmutableSet.of("asyncio"),ImmutableSet.of(config.get("python_library"),config.get("python_asyncio_library")));
+}

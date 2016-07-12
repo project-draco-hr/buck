@@ -1,0 +1,28 @@
+{
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  Tool compiler=thriftBuckConfig.getCompiler(compilerType,resolver);
+  ImmutableMap.Builder<Path,SourcePath> includesBuilder=ImmutableMap.builder();
+  ImmutableSortedSet.Builder<HeaderSymlinkTree> includeTreeRulesBuilder=ImmutableSortedSet.naturalOrder();
+  ImmutableList.Builder<Path> includeRootsBuilder=ImmutableList.builder();
+  ImmutableSet.Builder<Path> headerMapsBuilder=ImmutableSet.builder();
+  for (  ThriftLibrary dep : deps) {
+    includesBuilder.putAll(dep.getIncludes());
+    includeTreeRulesBuilder.add(dep.getIncludeTreeRule());
+    includeRootsBuilder.add(dep.getIncludeTreeRule().getIncludePath());
+    headerMapsBuilder.addAll(dep.getIncludeTreeRule().getHeaderMap().asSet());
+  }
+  ImmutableMap<Path,SourcePath> includes=includesBuilder.build();
+  ImmutableSortedSet<HeaderSymlinkTree> includeTreeRules=includeTreeRulesBuilder.build();
+  ImmutableList<Path> includeRoots=includeRootsBuilder.build();
+  ImmutableSet<Path> headerMaps=headerMapsBuilder.build();
+  ImmutableMap.Builder<String,ThriftCompiler> compileRules=ImmutableMap.builder();
+  for (  ImmutableMap.Entry<String,SourcePath> ent : srcs.entrySet()) {
+    String name=ent.getKey();
+    SourcePath source=ent.getValue();
+    ImmutableSortedSet<String> genSrcs=Preconditions.checkNotNull(generatedSources.get(name));
+    BuildTarget target=createThriftCompilerBuildTarget(params.getBuildTarget(),name);
+    Path outputDir=getThriftCompilerOutputDir(params.getProjectFilesystem(),params.getBuildTarget(),name);
+    compileRules.put(name,new ThriftCompiler(params.copyWithChanges(target,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(compiler.getDeps(pathResolver)).addAll(new SourcePathResolver(resolver).filterBuildRuleInputs(ImmutableList.<SourcePath>builder().add(source).addAll(includes.values()).build())).addAll(includeTreeRules).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,compiler,flags,outputDir,source,language,options,includeRoots,headerMaps,includes,genSrcs));
+  }
+  return compileRules.build();
+}

@@ -1,0 +1,27 @@
+{
+  SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer()));
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  FakeFileHashCache hashCache=FakeFileHashCache.createFromStrings(ImmutableMap.of("blah/something.thrift",Strings.repeat("e",40),"different",Strings.repeat("c",40),"something.thrift",Strings.repeat("d",40),"thrift",Strings.repeat("a",40),"test.thrift",Strings.repeat("b",40)));
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
+  RuleKey defaultRuleKey=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_HEADER_MAPS,DEFAULT_INCLUDES,DEFAULT_GENERATED_SOURCES));
+  RuleKey compilerChange=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,new CommandTool.Builder().addArg(new StringArg("different")).build(),DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_HEADER_MAPS,DEFAULT_INCLUDES,DEFAULT_GENERATED_SOURCES));
+  assertNotEquals(defaultRuleKey,compilerChange);
+  RuleKey flagsChange=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,DEFAULT_COMPILER,ImmutableList.of("--different"),DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_HEADER_MAPS,DEFAULT_INCLUDES,DEFAULT_GENERATED_SOURCES));
+  assertNotEquals(defaultRuleKey,flagsChange);
+  RuleKey outputDirChange=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,Paths.get("different-dir"),DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_HEADER_MAPS,DEFAULT_INCLUDES,DEFAULT_GENERATED_SOURCES));
+  assertNotEquals(defaultRuleKey,outputDirChange);
+  RuleKey inputChange=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,new FakeSourcePath("different"),DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_HEADER_MAPS,DEFAULT_INCLUDES,DEFAULT_GENERATED_SOURCES));
+  assertNotEquals(defaultRuleKey,inputChange);
+  RuleKey languageChange=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,"different",DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_HEADER_MAPS,DEFAULT_INCLUDES,DEFAULT_GENERATED_SOURCES));
+  assertNotEquals(defaultRuleKey,languageChange);
+  RuleKey optionsChange=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,ImmutableSet.of("different"),DEFAULT_INCLUDE_ROOTS,DEFAULT_HEADER_MAPS,DEFAULT_INCLUDES,DEFAULT_GENERATED_SOURCES));
+  assertNotEquals(defaultRuleKey,optionsChange);
+  RuleKey includeRootsChange=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,ImmutableList.of(Paths.get("different")),DEFAULT_HEADER_MAPS,DEFAULT_INCLUDES,DEFAULT_GENERATED_SOURCES));
+  assertEquals(defaultRuleKey,includeRootsChange);
+  RuleKey headerMapKeyChange=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,ImmutableSet.of(Paths.get("different-header-map")),DEFAULT_INCLUDES,DEFAULT_GENERATED_SOURCES));
+  assertEquals(defaultRuleKey,headerMapKeyChange);
+  RuleKey includesKeyChange=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_HEADER_MAPS,ImmutableMap.<Path,SourcePath>of(DEFAULT_INCLUDES.entrySet().iterator().next().getKey(),new FakeSourcePath("different")),DEFAULT_GENERATED_SOURCES));
+  assertNotEquals(defaultRuleKey,includesKeyChange);
+  RuleKey includesValueChange=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(new ThriftCompiler(params,resolver,DEFAULT_COMPILER,DEFAULT_FLAGS,DEFAULT_OUTPUT_DIR,DEFAULT_INPUT,DEFAULT_LANGUAGE,DEFAULT_OPTIONS,DEFAULT_INCLUDE_ROOTS,DEFAULT_HEADER_MAPS,ImmutableMap.of(Paths.get("different"),DEFAULT_INCLUDES.entrySet().iterator().next().getValue()),DEFAULT_GENERATED_SOURCES));
+  assertNotEquals(defaultRuleKey,includesValueChange);
+}

@@ -1,0 +1,23 @@
+{
+  ImmutableMap.Builder<String,SourceWithFlags> cxxSourcesBuilder=ImmutableMap.builder();
+  ImmutableMap.Builder<String,SourcePath> headersBuilder=ImmutableMap.builder();
+  for (  ImmutableMap.Entry<String,ThriftSource> ent : sources.entrySet()) {
+    final String thriftName=ent.getKey();
+    final ThriftSource source=ent.getValue();
+    final Path outputDir=source.getOutputDir();
+    for (    String partialName : getGeneratedSources(params.getBuildTarget(),args,thriftName,source.getServices())) {
+      String name=ThriftCompiler.resolveLanguageDir(getLanguage(),partialName);
+      String extension=Files.getFileExtension(name);
+      if (CxxCompilables.SOURCE_EXTENSIONS.contains(extension)) {
+        cxxSourcesBuilder.put(name,SourceWithFlags.of(new BuildTargetSourcePath(source.getCompileRule().getBuildTarget(),outputDir.resolve(name))));
+      }
+ else       if (CxxCompilables.HEADER_EXTENSIONS.contains(extension)) {
+        headersBuilder.put(name,new BuildTargetSourcePath(source.getCompileRule().getBuildTarget(),outputDir.resolve(name)));
+      }
+ else {
+        throw new HumanReadableException(String.format("%s: unexpected extension for \"%s\"",params.getBuildTarget(),name));
+      }
+    }
+  }
+  return new CxxHeadersAndSources(headersBuilder.build(),cxxSourcesBuilder.build());
+}
