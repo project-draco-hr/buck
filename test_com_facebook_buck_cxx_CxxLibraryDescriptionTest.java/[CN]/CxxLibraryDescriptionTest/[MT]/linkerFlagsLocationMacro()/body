@@ -1,0 +1,10 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  Genrule dep=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:dep")).setOut("out").build(resolver);
+  CxxLibraryBuilder builder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:rule#shared,platform")).setLinkerFlags(ImmutableList.of("--linker-script=$(location //:dep)")).setSrcs(ImmutableSortedSet.<SourceWithFlags>of(SourceWithFlags.of(new FakeSourcePath("foo.c"))));
+  assertThat(builder.findImplicitDeps(),hasItem(dep.getBuildTarget()));
+  BuildRule binary=builder.build(resolver);
+  assertThat(binary,instanceOf(CxxLink.class));
+  assertThat(Arg.stringify(((CxxLink)binary).getArgs()),hasItem(String.format("--linker-script=%s",dep.getAbsoluteOutputFilePath())));
+  assertThat(binary.getDeps(),hasItem(dep));
+}

@@ -1,0 +1,11 @@
+{
+  assumeThat(Platform.detect(),is(Platform.MACOS));
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  Genrule dep=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:dep")).setOut("out").build(resolver);
+  AppleLibraryBuilder builder=new AppleLibraryBuilder(BuildTargetFactory.newInstance("//:rule#shared,default")).setLinkerFlags(ImmutableList.of("--linker-script=$(location //:dep)")).setSrcs(ImmutableSortedSet.<SourceWithFlags>of(SourceWithFlags.of(new FakeSourcePath("foo.c"))));
+  assertThat(builder.findImplicitDeps(),Matchers.hasItem(dep.getBuildTarget()));
+  BuildRule binary=builder.build(resolver);
+  assertThat(binary,Matchers.instanceOf(CxxLink.class));
+  assertThat(Arg.stringify(((CxxLink)binary).getArgs()),Matchers.hasItem(String.format("--linker-script=%s",dep.getAbsoluteOutputFilePath())));
+  assertThat(binary.getDeps(),Matchers.hasItem(dep));
+}

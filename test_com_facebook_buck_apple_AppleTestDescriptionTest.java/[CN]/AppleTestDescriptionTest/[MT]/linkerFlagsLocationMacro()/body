@@ -1,0 +1,13 @@
+{
+  assumeThat(Platform.detect(),is(Platform.MACOS));
+  AppleTestBuilder builder=new AppleTestBuilder(BuildTargetFactory.newInstance("//:rule#macosx-x86_64")).setLinkerFlags(ImmutableList.of("--linker-script=$(location //:dep)")).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("foo.c"))));
+  GenruleBuilder depBuilder=GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//:dep")).setOut("out");
+  TargetGraph targetGraph=TargetGraphFactory.newInstance(builder.build(),depBuilder.build());
+  BuildRuleResolver resolver=new BuildRuleResolver(targetGraph,new DefaultTargetNodeToBuildRuleTransformer());
+  Genrule dep=(Genrule)depBuilder.build(resolver,targetGraph);
+  assertThat(builder.findImplicitDeps(),Matchers.hasItem(dep.getBuildTarget()));
+  BuildRule binary=((CxxStrip)((AppleBundle)((AppleTest)builder.build(resolver,targetGraph)).getRuntimeDeps().first()).getBinary().get()).getDeps().first();
+  assertThat(binary,Matchers.instanceOf(CxxLink.class));
+  assertThat(Arg.stringify(((CxxLink)binary).getArgs()),Matchers.hasItem(String.format("--linker-script=%s",dep.getAbsoluteOutputFilePath())));
+  assertThat(binary.getDeps(),Matchers.hasItem(dep));
+}
