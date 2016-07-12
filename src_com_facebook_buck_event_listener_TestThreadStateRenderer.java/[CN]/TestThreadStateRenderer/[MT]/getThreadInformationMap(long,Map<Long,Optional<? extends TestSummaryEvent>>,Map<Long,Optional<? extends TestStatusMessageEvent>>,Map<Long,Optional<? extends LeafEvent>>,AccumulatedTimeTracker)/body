@@ -1,0 +1,41 @@
+{
+  ImmutableMap.Builder<Long,ThreadRenderingInformation> threadInformationMapBuilder=ImmutableMap.builder();
+  Map<Long,Optional<? extends TestRuleEvent>> testEventsByThread=accumulatedTimeTracker.getTestEventsByThread();
+  ImmutableList<Long> threadIds=ImmutableList.copyOf(testEventsByThread.keySet());
+  for (  long threadId : threadIds) {
+    Optional<? extends TestRuleEvent> testRuleEvent=testEventsByThread.get(threadId);
+    if (testRuleEvent == null) {
+      continue;
+    }
+    Optional<BuildTarget> buildTarget=Optional.absent();
+    if (testRuleEvent.isPresent()) {
+      buildTarget=Optional.of(testRuleEvent.get().getBuildTarget());
+    }
+    Optional<? extends TestSummaryEvent> testSummary=testSummariesByThread.get(threadId);
+    if (testSummary == null) {
+      testSummary=Optional.absent();
+    }
+    Optional<? extends TestStatusMessageEvent> testStatusMessage=testStatusMessagesByThread.get(threadId);
+    if (testStatusMessage == null) {
+      testStatusMessage=Optional.absent();
+    }
+    AtomicLong accumulatedTime=null;
+    if (buildTarget.isPresent()) {
+      accumulatedTime=accumulatedTimeTracker.getTime(buildTarget.get());
+    }
+    long elapsedTimeMs=0;
+    if (testRuleEvent.isPresent() && accumulatedTime != null) {
+      elapsedTimeMs=currentTimeMs - testRuleEvent.get().getTimestamp() + accumulatedTime.get();
+    }
+ else {
+      testRuleEvent=Optional.absent();
+      buildTarget=Optional.absent();
+    }
+    Optional<? extends LeafEvent> runningStep=runningStepsByThread.get(threadId);
+    if (runningStep == null) {
+      runningStep=Optional.absent();
+    }
+    threadInformationMapBuilder.put(threadId,new ThreadRenderingInformation(buildTarget,testRuleEvent,testSummary,testStatusMessage,runningStep,elapsedTimeMs));
+  }
+  return threadInformationMapBuilder.build();
+}
