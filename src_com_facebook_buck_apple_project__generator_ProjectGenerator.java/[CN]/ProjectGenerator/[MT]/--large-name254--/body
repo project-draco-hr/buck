@@ -65,7 +65,16 @@
   buckReference.setExplicitFileType(Optional.of("text.script.python"));
   ImmutableMap.Builder<String,String> extraSettingsBuilder=ImmutableMap.builder();
   extraSettingsBuilder.put("TARGET_NAME",buildTargetName).put("SRCROOT",pathRelativizer.outputPathToBuildTargetPath(buildTarget).toString());
-  if (bundleLoaderNode.isPresent() && isFocusedOnTarget) {
+  if (productType == ProductType.UI_TEST && isFocusedOnTarget) {
+    if (bundleLoaderNode.isPresent()) {
+      BuildTarget testTarget=bundleLoaderNode.get().getBuildTarget();
+      extraSettingsBuilder.put("TEST_TARGET_NAME",getXcodeTargetName(testTarget));
+    }
+ else {
+      throw new HumanReadableException("The test rule '%s' is configured with 'is_ui_test' but has no test_host_app",buildTargetName);
+    }
+  }
+ else   if (bundleLoaderNode.isPresent() && isFocusedOnTarget) {
     TargetNode<AppleBundleDescription.Arg> bundleLoader=bundleLoaderNode.get();
     String bundleLoaderProductName=getProductNameForBuildTarget(bundleLoader.getBuildTarget());
     String bundleLoaderBundleName=bundleLoaderProductName + "." + getExtensionString(bundleLoader.getConstructorArg().getExtension());
