@@ -1,0 +1,13 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  ProvisioningProfileCopyStep step=new ProvisioningProfileCopyStep(projectFilesystem,testdataDir.resolve("Info.plist"),Optional.of("00000000-0000-0000-0000-000000000000"),Optional.of(entitlementsFile),ProvisioningProfileStore.fromSearchPath(testdataDir),outputFile,xcentFile,codeSignIdentityStore);
+  step.execute(executionContext);
+  ProvisioningProfileMetadata selectedProfile=step.getSelectedProvisioningProfileFuture().get();
+  ImmutableMap<String,NSObject> profileEntitlements=selectedProfile.getEntitlements();
+  assertTrue(profileEntitlements.containsKey("com.apple.security.application-groups"));
+  Optional<String> xcentContents=projectFilesystem.readFileIfItExists(xcentFile);
+  assertTrue(xcentContents.isPresent());
+  NSDictionary xcentPlist=(NSDictionary)PropertyListParser.parse(xcentContents.get().getBytes());
+  assertFalse(xcentPlist.containsKey("com.apple.security.application-groups"));
+  assertEquals(xcentPlist.get("com.apple.developer.team-identifier"),profileEntitlements.get("com.apple.developer.team-identifier"));
+}
