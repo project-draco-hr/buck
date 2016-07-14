@@ -22,7 +22,10 @@ def _process(self, build_env, path, implicit_includes=[]):
         contents = f.read()
     future_features = __future__.absolute_import.compiler_flag
     code = compile(contents, path, 'exec', future_features, 1)
+    original_import = __builtin__.__import__
+    __builtin__.__import__ = self.custom_import(self._enable_build_file_sandboxing, path)
     exec code in module.__dict__
+    __builtin__.__import__ = original_import
     self._pop_build_env()
     self._cache[path] = (build_env, module)
     return (build_env, module)
