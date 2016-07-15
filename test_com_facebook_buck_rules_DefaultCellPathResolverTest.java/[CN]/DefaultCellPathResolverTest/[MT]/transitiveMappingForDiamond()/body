@@ -1,0 +1,16 @@
+{
+  FileSystem vfs=Jimfs.newFileSystem(Configuration.unix());
+  Path root=vfs.getPath("/opt/local/");
+  Path cell1Root=root.resolve("repo1");
+  Files.createDirectories(cell1Root);
+  Path cellLeftRoot=root.resolve("left");
+  Files.createDirectories(cellLeftRoot);
+  Path cellRightRoot=root.resolve("right");
+  Files.createDirectories(cellRightRoot);
+  Path cellCenterRoot=root.resolve("center");
+  Files.createDirectories(cellCenterRoot);
+  DefaultCellPathResolver cellPathResolver=new DefaultCellPathResolver(cell1Root,ConfigBuilder.createFromText(REPOSITORIES_SECTION," left = " + cellLeftRoot.toString()," right = " + cellRightRoot.toString()));
+  Files.write(cellLeftRoot.resolve(".buckconfig"),ImmutableList.of(REPOSITORIES_SECTION," center = " + cellCenterRoot.toString()),StandardCharsets.UTF_8);
+  Files.write(cellRightRoot.resolve(".buckconfig"),ImmutableList.of(REPOSITORIES_SECTION," center = " + cellCenterRoot.toString()),StandardCharsets.UTF_8);
+  assertThat(cellPathResolver.getTransitivePathMapping(),Matchers.equalTo(ImmutableMultimap.<Path,RelativeCellName>builder().put(cell1Root,RelativeCellName.ROOT_CELL_NAME).put(cellLeftRoot,RelativeCellName.of(ImmutableList.of("left"))).put(cellCenterRoot,RelativeCellName.of(ImmutableList.of("left","center"))).put(cellCenterRoot,RelativeCellName.of(ImmutableList.of("right","center"))).put(cellRightRoot,RelativeCellName.of(ImmutableList.of("right"))).build()));
+}

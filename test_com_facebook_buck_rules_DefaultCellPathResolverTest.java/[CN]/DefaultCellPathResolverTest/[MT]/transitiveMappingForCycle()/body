@@ -1,0 +1,14 @@
+{
+  FileSystem vfs=Jimfs.newFileSystem(Configuration.unix());
+  Path root=vfs.getPath("/opt/local/");
+  Path cell1Root=root.resolve("repo1");
+  Files.createDirectories(cell1Root);
+  Path cell2Root=root.resolve("repo2");
+  Files.createDirectories(cell2Root);
+  Path cell3Root=root.resolve("repo3");
+  Files.createDirectories(cell3Root);
+  DefaultCellPathResolver cellPathResolver=new DefaultCellPathResolver(cell1Root,ConfigBuilder.createFromText(REPOSITORIES_SECTION," simple = " + cell2Root.toString()));
+  Files.write(cell2Root.resolve(".buckconfig"),ImmutableList.of(REPOSITORIES_SECTION," three = " + cell3Root.toString()),StandardCharsets.UTF_8);
+  Files.write(cell3Root.resolve(".buckconfig"),ImmutableList.of(REPOSITORIES_SECTION," cycle = " + cell1Root.toString()),StandardCharsets.UTF_8);
+  assertThat(cellPathResolver.getTransitivePathMapping(),Matchers.equalTo(ImmutableMultimap.of(cell1Root,RelativeCellName.ROOT_CELL_NAME,cell2Root,RelativeCellName.of(ImmutableList.of("simple")),cell3Root,RelativeCellName.of(ImmutableList.of("simple","three")))));
+}

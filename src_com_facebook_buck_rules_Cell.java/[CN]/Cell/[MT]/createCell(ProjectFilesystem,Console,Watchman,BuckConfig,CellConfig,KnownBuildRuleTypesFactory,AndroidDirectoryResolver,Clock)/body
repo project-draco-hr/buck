@@ -1,0 +1,15 @@
+{
+  Cache<Path,Cell> cells=CacheBuilder.newBuilder().build();
+  DefaultCellPathResolver rootCellCellPathResolver=new DefaultCellPathResolver(filesystem.getRootPath(),rootConfig.getEntriesForSection(DefaultCellPathResolver.REPOSITORIES_SECTION));
+  final ImmutableMap<Path,RawConfig> pathToConfigOverrides=getPathToConfigOverrides(rootCellConfigOverrides,rootCellCellPathResolver.getTransitivePathMapping());
+  CellConstructionDelegate delegate=new CellConstructionDelegate(){
+    @Override public CellConstructionDelegateData get(    Path cellPath) throws IOException {
+      RawConfig configOverrides=Optional.fromNullable(pathToConfigOverrides.get(cellPath)).or(RawConfig.of(ImmutableMap.<String,ImmutableMap<String,String>>of()));
+      Config config=Configs.createDefaultConfig(cellPath,configOverrides);
+      DefaultCellPathResolver cellPathResolver=new DefaultCellPathResolver(cellPath,config);
+      return CellConstructionDelegateData.builder().setCellPathResolver(cellPathResolver).setConfig(config).setKnownRoots(cellPathResolver.getKnownRoots()).build();
+    }
+  }
+;
+  return new Cell(rootCellCellPathResolver.getKnownRoots(),filesystem,console,watchman,rootConfig,delegate,knownBuildRuleTypesFactory,directoryResolver,clock,cells);
+}

@@ -1,9 +1,20 @@
 {
   ImmutableMap.Builder<Integer,Cell> cellBuilder=ImmutableMap.builder();
   for (  Map.Entry<Integer,String> remoteFileSystemRoot : remoteTargetGraph.getFileSystemRoots().entrySet()) {
-    Path remoteFilesystemRoot=Files.createTempDirectory(rootFilesystem.resolve(rootFilesystem.getBuckPaths().getBuckOut()),"remote_");
+    final Path remoteFilesystemRoot=Files.createTempDirectory(rootFilesystem.resolve(rootFilesystem.getBuckPaths().getBuckOut()),"remote_");
     ProjectFilesystem projectFilesystem=new ProjectFilesystem(remoteFilesystemRoot);
-    Cell cell=rootCell.createCellForDistributedBuild(console,clock,projectFilesystem,rootCell.getBuckConfig());
+    Cell cell=rootCell.createCellForDistributedBuild(console,clock,projectFilesystem,rootCell.getBuckConfig(),new Cell.CellConstructionDelegate(){
+      @Override public CellConstructionDelegateData get(      Path cellPath) throws IOException {
+        return CellConstructionDelegateData.builder().setKnownRoots(ImmutableSet.<Path>of(remoteFilesystemRoot)).setConfig(new Config()).setCellPathResolver(new CellPathResolver(){
+          @Override public Path getCellPath(          Optional<String> cellName){
+            Preconditions.checkState(!cellName.isPresent());
+            return remoteFilesystemRoot;
+          }
+        }
+).build();
+      }
+    }
+);
     cellBuilder.put(remoteFileSystemRoot.getKey(),cell);
   }
   ImmutableMap<Integer,Cell> cells=cellBuilder.build();

@@ -1,0 +1,22 @@
+{
+  ImmutableMap<String,Path> partialMapping=parentStub.getPartialMapping();
+  for (  Map.Entry<String,Path> entry : partialMapping.entrySet()) {
+    Path cellRoot=entry.getValue();
+    if (pathStack.contains(cellRoot)) {
+      continue;
+    }
+    pathStack.add(cellRoot);
+    RelativeCellName relativeCellName=parentCellPath.withAppendedComponent(entry.getKey());
+    result.put(cellRoot,relativeCellName);
+    Config config;
+    try {
+      config=Configs.createDefaultConfig(cellRoot);
+    }
+ catch (    IOException e) {
+      LOG.debug(e,"Error when constructing cell, skipping path %s",cellRoot);
+      continue;
+    }
+    constructFullMapping(result,pathStack,relativeCellName,new DefaultCellPathResolver(cellRoot,config.get(REPOSITORIES_SECTION)));
+    pathStack.remove(cellRoot);
+  }
+}

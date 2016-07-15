@@ -28,9 +28,9 @@
     }
   }
   Path canonicalRootPath=projectRoot.toRealPath().normalize();
-  Config config=Configs.createDefaultConfig(Optional.<String>absent(),canonicalRootPath,command.getConfigOverrides());
+  Config config=Configs.createDefaultConfig(canonicalRootPath,command.getConfigOverrides().getForCell(RelativeCellName.ROOT_CELL_NAME));
   ProjectFilesystem filesystem=new ProjectFilesystem(canonicalRootPath,config);
-  BuckConfig buckConfig=new BuckConfig(config,filesystem,architecture,platform,clientEnvironment);
+  BuckConfig buckConfig=new BuckConfig(config,filesystem,architecture,platform,clientEnvironment,new DefaultCellPathResolver(filesystem.getRootPath(),config));
   Verbosity verbosity=VerbosityParser.parse(args);
   Optional<String> color;
   if (context.isPresent() && (context.get().getEnv() != null)) {
@@ -86,7 +86,7 @@
         TRASH_CLEANER.startCleaningDirectory();
       }
       KnownBuildRuleTypesFactory factory=new KnownBuildRuleTypesFactory(processExecutor,androidDirectoryResolver,testTempDirOverride);
-      Cell rootCell=Cell.createCell(filesystem,console,watchman,buckConfig,factory,androidDirectoryResolver,clock);
+      Cell rootCell=Cell.createCell(filesystem,console,watchman,buckConfig,command.getConfigOverrides(),factory,androidDirectoryResolver,clock);
       int exitCode;
       ImmutableList<BuckEventListener> eventListeners=ImmutableList.of();
       ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(clientEnvironment,System.getProperties());
