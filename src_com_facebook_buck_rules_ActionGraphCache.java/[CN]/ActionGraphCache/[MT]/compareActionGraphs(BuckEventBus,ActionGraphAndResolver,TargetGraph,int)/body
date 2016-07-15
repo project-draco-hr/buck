@@ -1,0 +1,18 @@
+{
+  try (SimplePerfEvent.Scope scope=SimplePerfEvent.scope(eventBus,PerfEventId.of("ActionGraphCacheCheck"))){
+    LOG.info("ActionGraph integrity check spawned.");
+    Pair<TargetGraph,ActionGraphAndResolver> newActionGraph=new Pair<TargetGraph,ActionGraphAndResolver>(targetGraph,createActionGraph(eventBus,new DefaultTargetNodeToBuildRuleTransformer(),targetGraph));
+    Map<BuildRule,RuleKey> lastActionGraphRuleKeys=getRuleKeysFromBuildRules(lastActionGraphAndResolver.getActionGraph().getNodes(),lastActionGraphAndResolver.getResolver(),keySeed);
+    Map<BuildRule,RuleKey> newActionGraphRuleKeys=getRuleKeysFromBuildRules(newActionGraph.getSecond().getActionGraph().getNodes(),newActionGraph.getSecond().getResolver(),keySeed);
+    if (!lastActionGraphRuleKeys.equals(newActionGraphRuleKeys)) {
+      actionGraphsMismatch.inc();
+      invalidateCache();
+      String mismatchInfo="RuleKeys of cached and new ActionGraph don't match:\n";
+      MapDifference<BuildRule,RuleKey> mismatchedRules=Maps.difference(lastActionGraphRuleKeys,newActionGraphRuleKeys);
+      mismatchInfo+="Number of nodes in common/differing: " + mismatchedRules.entriesInCommon().size() + "/"+ mismatchedRules.entriesDiffering().size()+ "\n"+ "Entries only in the cached ActionGraph: "+ mismatchedRules.entriesOnlyOnLeft().size()+ "Entries only in the newly created ActionGraph: "+ mismatchedRules.entriesOnlyOnRight().size()+ "The rules that did not match:\n";
+      mismatchInfo+=mismatchedRules.entriesDiffering().keySet().toString();
+      LOG.error(mismatchInfo);
+      throw new RuntimeException(mismatchInfo);
+    }
+  }
+ }
