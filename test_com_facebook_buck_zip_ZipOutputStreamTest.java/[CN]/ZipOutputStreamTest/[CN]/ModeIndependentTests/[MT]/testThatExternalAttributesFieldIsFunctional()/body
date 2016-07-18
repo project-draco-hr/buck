@@ -1,0 +1,19 @@
+{
+  final ImmutableList<String> samplePermissions=ImmutableList.of("rwxrwxrwx","rw-r--r--","--x--x--x","---------");
+  for (  String stringPermissions : samplePermissions) {
+    long permissions=MorePosixFilePermissions.toMode(PosixFilePermissions.fromString(stringPermissions));
+    try (CustomZipOutputStream out=ZipOutputStreams.newOutputStream(output,mode)){
+      CustomZipEntry entry=new CustomZipEntry("test");
+      entry.setTime(System.currentTimeMillis());
+      entry.setExternalAttributes(permissions << 16);
+      out.putNextEntry(entry);
+      out.write(new byte[0]);
+    }
+     try (ZipFile in=new ZipFile(output.toFile())){
+      Enumeration<ZipArchiveEntry> entries=in.getEntries();
+      ZipArchiveEntry entry=entries.nextElement();
+      assertEquals(permissions,entry.getExternalAttributes() >> 16);
+      assertFalse(entries.hasMoreElements());
+    }
+   }
+}

@@ -1,0 +1,36 @@
+{
+  String packageName=getClass().getPackage().getName().replace(".","/");
+  URL sample=Resources.getResource(packageName + "/sample-bytes.properties");
+  byte[] input=Resources.toByteArray(sample);
+  try (CustomZipOutputStream out=ZipOutputStreams.newOutputStream(output,mode)){
+    CustomZipEntry entry=new CustomZipEntry("default");
+    out.putNextEntry(entry);
+    out.write(input);
+    entry=new CustomZipEntry("stored");
+    entry.setCompressionLevel(NO_COMPRESSION);
+    entry.setSize(input.length);
+    entry.setCompressedSize(input.length);
+    entry.setCrc(Hashing.crc32().hashBytes(input).padToLong());
+    out.putNextEntry(entry);
+    out.write(input);
+    entry=new CustomZipEntry("best");
+    entry.setCompressionLevel(BEST_COMPRESSION);
+    out.putNextEntry(entry);
+    out.write(input);
+  }
+   try (ZipInputStream in=new ZipInputStream(Files.newInputStream(output))){
+    ZipEntry entry=in.getNextEntry();
+    assertEquals("default",entry.getName());
+    assertArrayEquals(input,ByteStreams.toByteArray(in));
+    long defaultCompressedSize=entry.getCompressedSize();
+    assertNotEquals(entry.getSize(),entry.getCompressedSize());
+    entry=in.getNextEntry();
+    assertEquals("stored",entry.getName());
+    assertArrayEquals(input,ByteStreams.toByteArray(in));
+    assertEquals(entry.getSize(),entry.getCompressedSize());
+    entry=in.getNextEntry();
+    assertEquals("best",entry.getName());
+    assertArrayEquals(input,ByteStreams.toByteArray(in));
+    assertThat(entry.getCompressedSize(),lessThan(defaultCompressedSize));
+  }
+ }

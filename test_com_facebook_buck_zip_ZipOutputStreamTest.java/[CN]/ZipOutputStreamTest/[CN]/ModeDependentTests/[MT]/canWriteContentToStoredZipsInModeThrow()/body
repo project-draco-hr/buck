@@ -1,0 +1,21 @@
+{
+  String name="cheese.txt";
+  byte[] input="I like cheese".getBytes(UTF_8);
+  File reference=File.createTempFile("reference",".zip");
+  try (CustomZipOutputStream out=ZipOutputStreams.newOutputStream(output,THROW_EXCEPTION);ZipOutputStream ref=new ZipOutputStream(new FileOutputStream(reference))){
+    ZipEntry entry=new ZipEntry(name);
+    entry.setMethod(ZipEntry.STORED);
+    entry.setTime(System.currentTimeMillis());
+    entry.setSize(input.length);
+    entry.setCompressedSize(input.length);
+    entry.setCrc(calcCrc(input));
+    out.putNextEntry(entry);
+    ref.putNextEntry(entry);
+    out.write(input);
+    ref.write(input);
+  }
+   assertEquals(ImmutableList.of(new NameAndContent(name,input)),getExtractedEntries(output));
+  byte[] seen=Files.readAllBytes(output);
+  byte[] expected=Files.readAllBytes(reference.toPath());
+  assertArrayEquals(expected,seen);
+}
