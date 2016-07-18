@@ -1,0 +1,19 @@
+{
+  if (dexWithClasses.getSizeEstimate() > linearAllocHardLimit) {
+    context.logError("DexWithClasses %s with cost %s exceeds the max cost %s for a secondary dex file.",dexWithClasses.getPathToDexFile(),dexWithClasses.getSizeEstimate(),linearAllocHardLimit);
+    throw new HumanReadableException("Secondary dex exceeds linear alloc limit.");
+  }
+  if (dexWithClasses.getSizeEstimate() + currentDexSize > linearAllocHardLimit) {
+    currentDexSize=0;
+    currentDexContents=Lists.newArrayList();
+  }
+  if (currentDexContents.size() == 0) {
+    DexWithClasses canary=createCanary(filesystem,apkModule.getCanaryClassName(),dexesContents.size() + 1,steps);
+    currentDexSize+=canary.getSizeEstimate();
+    dexesContents.add(currentDexContents);
+    dexInputsHashes.put(canary.getPathToDexFile(),canary.getClassesHash());
+  }
+  currentDexContents.add(dexWithClasses);
+  dexInputsHashes.put(dexWithClasses.getPathToDexFile(),dexWithClasses.getClassesHash());
+  currentDexSize+=dexWithClasses.getSizeEstimate();
+}

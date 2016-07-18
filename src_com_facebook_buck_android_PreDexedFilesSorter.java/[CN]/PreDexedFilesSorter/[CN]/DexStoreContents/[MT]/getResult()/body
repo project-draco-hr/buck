@@ -1,0 +1,19 @@
+{
+  Map<Path,DexWithClasses> metadataTxtEntries=Maps.newHashMap();
+  ImmutableMultimap.Builder<Path,Path> secondaryOutputToInputs=ImmutableMultimap.builder();
+  boolean isRootModule=apkModule.equals(apkModuleGraph.getRootAPKModule());
+  for (int index=0; index < dexesContents.size(); index++) {
+    Path pathToSecondaryDex;
+    if (isRootModule) {
+      pathToSecondaryDex=secondaryDexJarFilesDir.resolve(dexStore.fileNameForSecondary(index));
+    }
+ else {
+      pathToSecondaryDex=additionalDexJarFilesDir.resolve(apkModule.getName()).resolve(dexStore.fileNameForSecondary(apkModule.getName(),index));
+    }
+    metadataTxtEntries.put(pathToSecondaryDex,dexesContents.get(index).get(0));
+    Collection<Path> dexContentPaths=Collections2.transform(dexesContents.get(index),DexWithClasses.TO_PATH);
+    secondaryOutputToInputs.putAll(pathToSecondaryDex,dexContentPaths);
+  }
+  ImmutableSet<Path> primaryDexInputs=FluentIterable.from(primaryDexContents).transform(DexWithClasses.TO_PATH).toSet();
+  return new Result(apkModule,primaryDexInputs,secondaryOutputToInputs.build(),metadataTxtEntries,dexInputsHashes.build());
+}

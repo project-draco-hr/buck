@@ -1,0 +1,44 @@
+{
+  StringBuilder nameBuilder=new StringBuilder(30);
+  final boolean isRootModule=result.apkModule.equals(apkModuleGraph.getRootAPKModule());
+  final String storeId=result.apkModule.getName();
+  nameBuilder.append("write_");
+  if (!isRootModule) {
+    nameBuilder.append(storeId);
+    nameBuilder.append("_");
+  }
+  nameBuilder.append("metadata_txt");
+  steps.add(new AbstractExecutionStep(nameBuilder.toString()){
+    @Override public StepExecutionResult execute(    ExecutionContext executionContext){
+      Map<Path,DexWithClasses> metadataTxtEntries=result.metadataTxtDexEntries;
+      List<String> lines=Lists.newArrayListWithCapacity(metadataTxtEntries.size());
+      lines.add(".id " + storeId);
+      if (isRootModule) {
+        if (dexSplitMode.getDexStore() == DexStore.RAW) {
+          lines.add(".root_relative");
+        }
+      }
+ else {
+        for (        APKModule dependency : apkModuleGraph.getGraph().getOutgoingNodesFor(result.apkModule)) {
+          lines.add(".requires " + dependency.getName());
+        }
+      }
+      try {
+        for (        Map.Entry<Path,DexWithClasses> entry : metadataTxtEntries.entrySet()) {
+          Path pathToSecondaryDex=entry.getKey();
+          String containedClass=Iterables.get(entry.getValue().getClassNames(),0);
+          containedClass=containedClass.replace('/','.');
+          String hash=getProjectFilesystem().computeSha1(pathToSecondaryDex);
+          lines.add(String.format("%s %s %s",pathToSecondaryDex.getFileName(),hash,containedClass));
+        }
+        getProjectFilesystem().writeLinesToPath(lines,metadataFilePath);
+      }
+ catch (      IOException e) {
+        executionContext.logError(e,"Failed when writing metadata.txt multi-dex.");
+        return StepExecutionResult.ERROR;
+      }
+      return StepExecutionResult.SUCCESS;
+    }
+  }
+);
+}

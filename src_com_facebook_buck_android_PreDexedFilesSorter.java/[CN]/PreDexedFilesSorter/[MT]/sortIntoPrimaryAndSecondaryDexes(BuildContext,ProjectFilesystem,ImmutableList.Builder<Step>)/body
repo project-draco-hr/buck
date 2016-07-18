@@ -1,47 +1,29 @@
 {
-  List<DexWithClasses> primaryDexContents=Lists.newArrayList();
-  List<List<DexWithClasses>> secondaryDexesContents=Lists.newArrayList();
-  int primaryDexSize=0;
+  Map<APKModule,DexStoreContents> apkModuleDexesContents=new HashMap<>();
+  DexStoreContents rootStoreContents=new DexStoreContents(apkModuleGraph.getRootAPKModule(),context,filesystem,steps);
+  apkModuleDexesContents.put(apkModuleGraph.getRootAPKModule(),rootStoreContents);
   if (rDotJavaDex.isPresent()) {
-    primaryDexSize+=rDotJavaDex.get().getSizeEstimate();
-    primaryDexContents.add(rDotJavaDex.get());
+    rootStoreContents.addPrimaryDex(rDotJavaDex.get());
   }
-  ImmutableList<DexWithClasses> sortedDexFilesToMerge=FluentIterable.from(dexFilesToMerge).toSortedList(DexWithClasses.DEX_WITH_CLASSES_COMPARATOR);
-  List<DexWithClasses> currentSecondaryDexContents=null;
-  int currentSecondaryDexSize=0;
-  for (  DexWithClasses dexWithClasses : sortedDexFilesToMerge) {
-    if (mustBeInPrimaryDex(dexWithClasses)) {
-      primaryDexSize+=dexWithClasses.getSizeEstimate();
-      if (primaryDexSize > linearAllocHardLimit) {
-        context.logError("DexWithClasses %s with cost %s puts the linear alloc estimate for the primary dex " + "at %s, exceeding the maximum of %s.",dexWithClasses.getPathToDexFile(),dexWithClasses.getSizeEstimate(),primaryDexSize,linearAllocHardLimit);
-        throw new HumanReadableException("Primary dex exceeds linear alloc limit.");
+  for (  APKModule module : dexFilesToMerge.keySet()) {
+    ImmutableList<DexWithClasses> sortedDexFilesToMerge=FluentIterable.from(dexFilesToMerge.get(module)).toSortedList(DexWithClasses.DEX_WITH_CLASSES_COMPARATOR);
+    for (    DexWithClasses dexWithClasses : sortedDexFilesToMerge) {
+      if (module.equals(apkModuleGraph.getRootAPKModule()) && mustBeInPrimaryDex(dexWithClasses)) {
+        rootStoreContents.addPrimaryDex(dexWithClasses);
       }
-      primaryDexContents.add(dexWithClasses);
-    }
  else {
-      if (dexWithClasses.getSizeEstimate() > linearAllocHardLimit) {
-        context.logError("DexWithClasses %s with cost %s exceeds the max cost %s for a secondary dex file.",dexWithClasses.getPathToDexFile(),dexWithClasses.getSizeEstimate(),linearAllocHardLimit);
-        throw new HumanReadableException("Secondary dex exceeds linear alloc limit.");
+        DexStoreContents storeContents=apkModuleDexesContents.get(module);
+        if (storeContents == null) {
+          storeContents=new DexStoreContents(module,context,filesystem,steps);
+          apkModuleDexesContents.put(module,storeContents);
+        }
+        storeContents.addDex(dexWithClasses);
       }
-      if (currentSecondaryDexContents == null || dexWithClasses.getSizeEstimate() + currentSecondaryDexSize > linearAllocHardLimit) {
-        DexWithClasses canary=createCanary(filesystem,secondaryDexesContents.size() + 1,steps);
-        currentSecondaryDexContents=Lists.newArrayList(canary);
-        currentSecondaryDexSize=canary.getSizeEstimate();
-        secondaryDexesContents.add(currentSecondaryDexContents);
-      }
-      currentSecondaryDexContents.add(dexWithClasses);
-      currentSecondaryDexSize+=dexWithClasses.getSizeEstimate();
     }
   }
-  ImmutableSet<Path> primaryDexInputs=FluentIterable.from(primaryDexContents).transform(DexWithClasses.TO_PATH).toSet();
-  Map<Path,DexWithClasses> metadataTxtEntries=Maps.newHashMap();
-  ImmutableMultimap.Builder<Path,Path> secondaryOutputToInputs=ImmutableMultimap.builder();
-  for (int index=0; index < secondaryDexesContents.size(); index++) {
-    String secondaryDexFilename=dexStore.fileNameForSecondary(index);
-    Path pathToSecondaryDex=secondaryDexJarFilesDir.resolve(secondaryDexFilename);
-    metadataTxtEntries.put(pathToSecondaryDex,secondaryDexesContents.get(index).get(0));
-    Collection<Path> dexContentPaths=Collections2.transform(secondaryDexesContents.get(index),DexWithClasses.TO_PATH);
-    secondaryOutputToInputs.putAll(pathToSecondaryDex,dexContentPaths);
+  ImmutableMap.Builder<String,Result> resultBuilder=ImmutableMap.builder();
+  for (  DexStoreContents contents : apkModuleDexesContents.values()) {
+    resultBuilder.put(contents.apkModule.getName(),contents.getResult());
   }
-  return new Result(primaryDexInputs,secondaryOutputToInputs.build(),metadataTxtEntries,getDexInputsHashes(primaryDexContents,secondaryDexesContents));
+  return resultBuilder.build();
 }
