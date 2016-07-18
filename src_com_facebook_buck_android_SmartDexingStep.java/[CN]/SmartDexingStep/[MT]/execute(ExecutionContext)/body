@@ -4,27 +4,33 @@
     runDxCommands(context,outputToInputs);
     if (secondaryOutputDir.isPresent()) {
       removeExtraneousSecondaryArtifacts(secondaryOutputDir.get(),outputToInputs.keySet(),filesystem);
-      ImmutableList.Builder<Path> secondaryDexJarsBuilder=ImmutableList.builder();
+      ImmutableMultimap.Builder<Path,Path> secondaryDexJarsMultimapBuilder=ImmutableMultimap.builder();
       for (      Path p : outputToInputs.keySet()) {
         if (DexStore.XZS.matchesPath(p)) {
-          secondaryDexJarsBuilder.add(p);
+          String[] matches=p.getFileName().toString().split("-");
+          Path output=p.getParent().resolve(matches[0].concat(SECONDARY_SOLID_DEX_EXTENSION));
+          secondaryDexJarsMultimapBuilder.put(output,p);
         }
       }
-      ImmutableList<Path> secondaryDexJars=secondaryDexJarsBuilder.build();
-      if (!secondaryDexJars.isEmpty()) {
-        Path secondaryBlobOutput=Paths.get(secondaryOutputDir.get().toString(),"secondary.blob");
-        Path secondaryCompressedBlobOutput=Paths.get(secondaryOutputDir.get().toString(),SECONDARY_SOLID_DEX_FILENAME);
-        StepRunner stepRunner=new DefaultStepRunner(context);
-        Step concatStep=new ConcatStep(filesystem,secondaryDexJars,secondaryBlobOutput);
-        Step xzStep;
-        if (xzCompressionLevel.isPresent()) {
-          xzStep=new XzStep(filesystem,secondaryBlobOutput,secondaryCompressedBlobOutput,xzCompressionLevel.get().intValue());
-        }
+      ImmutableMultimap<Path,Path> secondaryDexJarsMultimap=secondaryDexJarsMultimapBuilder.build();
+      if (!secondaryDexJarsMultimap.isEmpty()) {
+        for (        Map.Entry<Path,Collection<Path>> entry : secondaryDexJarsMultimap.asMap().entrySet()) {
+          Path store=entry.getKey();
+          Collection<Path> secondaryDexJars=entry.getValue();
+          Path secondaryBlobOutput=store.getParent().resolve("uncompressed.dex.blob");
+          Path secondaryCompressedBlobOutput=store;
+          StepRunner stepRunner=new DefaultStepRunner(context);
+          Step concatStep=new ConcatStep(filesystem,ImmutableList.copyOf(secondaryDexJars),secondaryBlobOutput);
+          Step xzStep;
+          if (xzCompressionLevel.isPresent()) {
+            xzStep=new XzStep(filesystem,secondaryBlobOutput,secondaryCompressedBlobOutput,xzCompressionLevel.get().intValue());
+          }
  else {
-          xzStep=new XzStep(filesystem,secondaryBlobOutput,secondaryCompressedBlobOutput);
+            xzStep=new XzStep(filesystem,secondaryBlobOutput,secondaryCompressedBlobOutput);
+          }
+          stepRunner.runStepForBuildTarget(concatStep,Optional.<BuildTarget>absent());
+          stepRunner.runStepForBuildTarget(xzStep,Optional.<BuildTarget>absent());
         }
-        stepRunner.runStepForBuildTarget(concatStep,Optional.<BuildTarget>absent());
-        stepRunner.runStepForBuildTarget(xzStep,Optional.<BuildTarget>absent());
       }
     }
   }
