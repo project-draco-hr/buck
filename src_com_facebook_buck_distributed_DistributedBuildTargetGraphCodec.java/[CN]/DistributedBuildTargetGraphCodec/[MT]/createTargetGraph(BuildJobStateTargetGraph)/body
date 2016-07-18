@@ -3,18 +3,7 @@
   for (  Map.Entry<Integer,String> remoteFileSystemRoot : remoteTargetGraph.getFileSystemRoots().entrySet()) {
     final Path remoteFilesystemRoot=Files.createTempDirectory(rootFilesystem.resolve(rootFilesystem.getBuckPaths().getBuckOut()),"remote_");
     ProjectFilesystem projectFilesystem=new ProjectFilesystem(remoteFilesystemRoot);
-    Cell cell=rootCell.createCellForDistributedBuild(console,clock,projectFilesystem,rootCell.getBuckConfig(),new Cell.CellConstructionDelegate(){
-      @Override public CellConstructionDelegateData get(      Path cellPath) throws IOException {
-        return CellConstructionDelegateData.builder().setKnownRoots(ImmutableSet.<Path>of(remoteFilesystemRoot)).setConfig(new Config()).setCellPathResolver(new CellPathResolver(){
-          @Override public Path getCellPath(          Optional<String> cellName){
-            Preconditions.checkState(!cellName.isPresent());
-            return remoteFilesystemRoot;
-          }
-        }
-).build();
-      }
-    }
-);
+    Cell cell=rootCell.createCellForDistributedBuild(remoteFilesystemRoot,ImmutableMap.of(remoteFilesystemRoot,rootCell.getBuckConfig()),ImmutableMap.of(remoteFilesystemRoot,projectFilesystem));
     cellBuilder.put(remoteFileSystemRoot.getKey(),cell);
   }
   ImmutableMap<Integer,Cell> cells=cellBuilder.build();
