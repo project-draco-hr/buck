@@ -1,0 +1,32 @@
+{
+  Path outJar=tempDir.newFile("test.jar").toPath();
+  ZipOutputStream zipOut=new ZipOutputStream(new BufferedOutputStream(Files.newOutputStream(outJar)));
+  Map<String,String> fileToClassName=ImmutableMap.of("com/facebook/foo.class","com.facebook.foo","bar.class","bar");
+  try {
+    for (    String entry : fileToClassName.keySet()) {
+      zipOut.putNextEntry(new ZipEntry(entry));
+      zipOut.write(new byte[]{0});
+    }
+  }
+  finally {
+    zipOut.close();
+  }
+  StringWriter stringWriter=new StringWriter();
+  BufferedWriter writer=new BufferedWriter(stringWriter);
+  ImmutableSet<APKModule> requires=ImmutableSet.of(APKModule.builder().setName("dependency").build());
+  try {
+    SplitZipStep.writeMetaList(writer,"module",requires,ImmutableList.of(outJar),DexStore.JAR);
+  }
+  finally {
+    writer.close();
+  }
+  List<String> lines=CharStreams.readLines(new StringReader(stringWriter.toString()));
+  assertEquals(3,lines.size());
+  assertEquals(lines.get(0),".id module");
+  assertEquals(lines.get(1),".requires dependency");
+  String line=Iterables.getLast(lines,null);
+  String[] data=line.split(" ");
+  assertEquals(3,data.length);
+  assertEquals("module-1.dex.jar",data[0]);
+  assertTrue(String.format("Unexpected class: %s",data[2]),fileToClassName.values().contains(data[2]));
+}

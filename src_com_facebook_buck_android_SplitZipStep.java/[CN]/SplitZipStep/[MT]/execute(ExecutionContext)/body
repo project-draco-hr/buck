@@ -7,6 +7,7 @@
     final ImmutableSet<String> wantedInPrimaryZip=getWantedPrimaryDexEntries(translatorFactory,classes);
     final ImmutableSet<String> secondaryHeadSet=getSecondaryHeadSet(translatorFactory);
     final ImmutableSet<String> secondaryTailSet=getSecondaryTailSet(translatorFactory);
+    final ImmutableMultimap<APKModule,String> additionalDexStoreClasses=APKModuleGraph.getAPKModuleToClassesMap(apkModuleToJarPathMap,translatorFactory.createObfuscationFunction(),filesystem);
     ZipSplitterFactory zipSplitterFactory;
     if (dexSplitMode.useLinearAllocSplitDex()) {
       zipSplitterFactory=new DalvikAwareZipSplitterFactory(dexSplitMode.getLinearAllocHardLimit(),wantedInPrimaryZip);
@@ -14,11 +15,20 @@
  else {
       zipSplitterFactory=new DefaultZipSplitterFactory(ZIP_SIZE_SOFT_LIMIT,ZIP_SIZE_HARD_LIMIT);
     }
-    outputFiles=zipSplitterFactory.newInstance(filesystem,inputJarPaths,primaryJarPath,secondaryJarDir,secondaryJarPattern,requiredInPrimaryZip,secondaryHeadSet,secondaryTailSet,dexSplitMode.getDexSplitStrategy(),ZipSplitter.CanaryStrategy.INCLUDE_CANARIES,filesystem.getPathForRelativePath(pathToReportDir)).execute();
-    try (BufferedWriter secondaryMetaInfoWriter=Files.newWriter(secondaryJarMetaPath.toFile(),Charsets.UTF_8)){
-      writeMetaList(secondaryMetaInfoWriter,outputFiles,dexSplitMode.getDexStore());
+    outputFiles=zipSplitterFactory.newInstance(filesystem,inputJarPaths,primaryJarPath,secondaryJarDir,secondaryJarPattern,additionalDexStoreJarDir,requiredInPrimaryZip,secondaryHeadSet,secondaryTailSet,additionalDexStoreClasses,apkModuleGraph,dexSplitMode.getDexSplitStrategy(),ZipSplitter.CanaryStrategy.INCLUDE_CANARIES,filesystem.getPathForRelativePath(pathToReportDir)).execute();
+    for (    APKModule dexStore : outputFiles.keySet()) {
+      if (dexStore.getName().equals(SECONDARY_DEX_ID)) {
+        try (BufferedWriter secondaryMetaInfoWriter=Files.newWriter(secondaryJarMetaPath.toFile(),Charsets.UTF_8)){
+          writeMetaList(secondaryMetaInfoWriter,SECONDARY_DEX_ID,ImmutableSet.<APKModule>of(),outputFiles.get(dexStore).asList(),dexSplitMode.getDexStore());
+        }
+       }
+ else {
+        try (BufferedWriter secondaryMetaInfoWriter=Files.newWriter(addtionalDexStoreJarMetaPath.resolve("assets").resolve(dexStore.getName()).resolve("metadata.txt").toFile(),Charsets.UTF_8)){
+          writeMetaList(secondaryMetaInfoWriter,dexStore.getName(),apkModuleGraph.getGraph().getOutgoingNodesFor(dexStore),outputFiles.get(dexStore).asList(),dexSplitMode.getDexStore());
+        }
+       }
     }
-     return StepExecutionResult.SUCCESS;
+    return StepExecutionResult.SUCCESS;
   }
  catch (  IOException e) {
     context.logError(e,"There was an error running SplitZipStep.");

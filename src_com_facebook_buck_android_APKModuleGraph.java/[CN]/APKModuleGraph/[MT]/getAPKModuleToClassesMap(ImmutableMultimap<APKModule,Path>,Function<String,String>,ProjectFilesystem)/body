@@ -1,0 +1,20 @@
+{
+  final ImmutableMultimap.Builder<APKModule,String> builder=ImmutableMultimap.builder();
+  if (!apkModuleToJarPathMap.isEmpty()) {
+    for (    final APKModule dexStore : apkModuleToJarPathMap.keySet()) {
+      for (      Path jarFilePath : apkModuleToJarPathMap.get(dexStore)) {
+        ClasspathTraverser classpathTraverser=new DefaultClasspathTraverser();
+        classpathTraverser.traverse(new ClasspathTraversal(ImmutableSet.of(jarFilePath),filesystem){
+          @Override public void visit(          FileLike entry){
+            if (!entry.getRelativePath().endsWith(".class")) {
+              return;
+            }
+            builder.put(dexStore,translatorFunction.apply(entry.getRelativePath()));
+          }
+        }
+);
+      }
+    }
+  }
+  return builder.build();
+}

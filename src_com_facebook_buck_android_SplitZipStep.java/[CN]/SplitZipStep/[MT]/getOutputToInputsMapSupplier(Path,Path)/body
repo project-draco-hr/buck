@@ -1,0 +1,31 @@
+{
+  return new Supplier<Multimap<Path,Path>>(){
+    @Override public Multimap<Path,Path> get(){
+      Preconditions.checkState(outputFiles != null,"SplitZipStep must complete successfully before listing its outputs.");
+      ImmutableMultimap.Builder<Path,Path> builder=ImmutableMultimap.builder();
+      for (      APKModule dexStore : outputFiles.keySet()) {
+        Path storeRoot;
+        if (dexStore.getName().equals(SECONDARY_DEX_ID)) {
+          storeRoot=secondaryOutputDir;
+        }
+ else {
+          storeRoot=additionalOutputDir.resolve(dexStore.getName());
+        }
+        ImmutableList<Path> outputList=outputFiles.get(dexStore).asList();
+        for (int i=0; i < outputList.size(); i++) {
+          String dexName;
+          if (dexStore.getName().equals(SECONDARY_DEX_ID)) {
+            dexName=dexSplitMode.getDexStore().fileNameForSecondary(i);
+          }
+ else {
+            dexName=dexSplitMode.getDexStore().fileNameForSecondary(dexStore.getName(),i);
+          }
+          Path outputDexPath=storeRoot.resolve(dexName);
+          builder.put(outputDexPath,outputList.get(i));
+        }
+      }
+      return builder.build();
+    }
+  }
+;
+}

@@ -1,6 +1,14 @@
 {
   AndroidPackageableCollection packageableCollection=enhancementResult.getPackageableCollection();
   ImmutableSet<Path> classpathEntriesToDex=FluentIterable.from(enhancementResult.getClasspathEntriesToDex()).transform(getResolver().deprecatedPathFunction()).append(Collections.singleton(enhancementResult.getCompiledUberRDotJava().getPathToOutput())).toSet();
+  ImmutableMultimap.Builder<APKModule,Path> additionalDexStoreToJarPathMapBuilder=ImmutableMultimap.builder();
+  additionalDexStoreToJarPathMapBuilder.putAll(FluentIterable.from(enhancementResult.getPackageableCollection().getModuleMappedClasspathEntriesToDex().entries()).transform(new Function<Map.Entry<APKModule,SourcePath>,Map.Entry<APKModule,Path>>(){
+    @Override public Map.Entry<APKModule,Path> apply(    Map.Entry<APKModule,SourcePath> input){
+      return new AbstractMap.SimpleEntry<>(input.getKey(),getResolver().deprecatedPathFunction().apply(input.getValue()));
+    }
+  }
+).toSet());
+  ImmutableMultimap<APKModule,Path> additionalDexStoreToJarPathMap=additionalDexStoreToJarPathMapBuilder.build();
   if (preprocessJavaClassesBash.isPresent()) {
     final Path preprocessJavaClassesInDir=getBinPath("java_classes_preprocess_in_%s");
     final Path preprocessJavaClassesOutDir=getBinPath("java_classes_preprocess_out_%s");
@@ -41,7 +49,7 @@
   Optional<PreDexMerge> preDexMerge=enhancementResult.getPreDexMerge();
   if (!preDexMerge.isPresent()) {
     steps.add(new MkdirStep(getProjectFilesystem(),primaryDexPath.getParent()));
-    addDexingSteps(classpathEntriesToDex,classNamesToHashesSupplier,secondaryDexDirectoriesBuilder,steps,primaryDexPath,dexReorderToolFile,dexReorderDataDumpFile);
+    addDexingSteps(classpathEntriesToDex,classNamesToHashesSupplier,secondaryDexDirectoriesBuilder,steps,primaryDexPath,dexReorderToolFile,dexReorderDataDumpFile,additionalDexStoreToJarPathMap);
   }
  else   if (!ExopackageMode.enabledForSecondaryDexes(exopackageModes)) {
     secondaryDexDirectoriesBuilder.addAll(preDexMerge.get().getSecondaryDexDirectories());

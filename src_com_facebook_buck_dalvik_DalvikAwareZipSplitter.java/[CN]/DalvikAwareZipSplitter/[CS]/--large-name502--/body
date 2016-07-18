@@ -1,0 +1,25 @@
+{
+  if (linearAllocLimit <= 0) {
+    throw new HumanReadableException("linear_alloc_hard_limit must be greater than zero.");
+  }
+  this.filesystem=filesystem;
+  this.inFiles=ImmutableSet.copyOf(inFiles);
+  this.outPrimary=outPrimary;
+  this.secondaryDexWriter=new MySecondaryDexHelper("secondary",outSecondaryDir,secondaryPattern,canaryStrategy);
+  this.additionalDexWriters=new HashMap<>();
+  this.requiredInPrimaryZip=requiredInPrimaryZip;
+  this.wantedInPrimaryZip=ImmutableSet.copyOf(wantedInPrimaryZip);
+  this.secondaryHeadSet=secondaryHeadSet;
+  this.secondaryTailSet=secondaryTailSet;
+  this.classPathToDexStore=additionalDexStoreSets.inverse();
+  for (  APKModule dexStore : additionalDexStoreSets.keySet()) {
+    if (!dexStore.equals(apkModuleGraph.getRootAPKModule())) {
+      additionalDexWriters.put(dexStore,new MySecondaryDexHelper(dexStore.getCanaryClassName(),outDexStoresDir.resolve(dexStore.getName()),secondaryPattern,CanaryStrategy.INCLUDE_CANARIES));
+    }
+  }
+  this.apkModuleGraph=apkModuleGraph;
+  this.reportDir=reportDir;
+  this.dexSplitStrategy=dexSplitStrategy;
+  this.linearAllocLimit=linearAllocLimit;
+  this.dalvikStatsCache=new DalvikStatsCache();
+}

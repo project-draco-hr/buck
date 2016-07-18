@@ -1,0 +1,95 @@
+{
+  final Supplier<Set<Path>> primaryInputsToDex;
+  final Optional<Path> secondaryDexDir;
+  final Optional<Supplier<Multimap<Path,Path>>> secondaryOutputToInputs;
+  Path secondaryDexParentDir=getBinPath("__%s_secondary_dex__/");
+  Path additionalDexParentDir=getBinPath("__%s_additional_dex__/");
+  Path additionalDexAssetsDir=additionalDexParentDir.resolve("assets");
+  final Optional<ImmutableSet<Path>> additionalDexDirs;
+  if (shouldSplitDex()) {
+    Optional<Path> proguardFullConfigFile=Optional.absent();
+    Optional<Path> proguardMappingFile=Optional.absent();
+    if (packageType.isBuildWithObfuscation()) {
+      Path proguardConfigDir=enhancementResult.getAaptPackageResources().getPathToGeneratedProguardConfigDir();
+      proguardFullConfigFile=Optional.of(proguardConfigDir.resolve("configuration.txt"));
+      proguardMappingFile=Optional.of(proguardConfigDir.resolve("mapping.txt"));
+    }
+    Path splitZipDir=getBinPath("__%s_split_zip__");
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),splitZipDir));
+    Path primaryJarPath=splitZipDir.resolve("primary.jar");
+    Path secondaryJarMetaDirParent=splitZipDir.resolve("secondary_meta");
+    Path secondaryJarMetaDir=secondaryJarMetaDirParent.resolve(SECONDARY_DEX_SUBDIR);
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),secondaryJarMetaDir));
+    Path secondaryJarMeta=secondaryJarMetaDir.resolve("metadata.txt");
+    final Path secondaryZipDir=getBinPath("__%s_secondary_zip__");
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),secondaryZipDir));
+    final Path additionalDexStoresZipDir=getBinPath("__%s_dex_stores_zip__");
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),additionalDexStoresZipDir));
+    for (    APKModule dexStore : additionalDexStoreToJarPathMap.keySet()) {
+      steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),additionalDexStoresZipDir.resolve(dexStore.getName())));
+      steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),secondaryJarMetaDirParent.resolve("assets").resolve(dexStore.getName())));
+    }
+    Path zipSplitReportDir=getBinPath("__%s_split_zip_report__");
+    steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),zipSplitReportDir));
+    SplitZipStep splitZipCommand=new SplitZipStep(getProjectFilesystem(),classpathEntriesToDex,secondaryJarMeta,primaryJarPath,secondaryZipDir,"secondary-%d.jar",secondaryJarMetaDirParent,additionalDexStoresZipDir,proguardFullConfigFile,proguardMappingFile,dexSplitMode,dexSplitMode.getPrimaryDexScenarioFile().transform(getResolver().deprecatedPathFunction()),dexSplitMode.getPrimaryDexClassesFile().transform(getResolver().deprecatedPathFunction()),dexSplitMode.getSecondaryDexHeadClassesFile().transform(getResolver().deprecatedPathFunction()),dexSplitMode.getSecondaryDexTailClassesFile().transform(getResolver().deprecatedPathFunction()),additionalDexStoreToJarPathMap,enhancementResult.getAPKModuleGraph(),zipSplitReportDir);
+    steps.add(splitZipCommand);
+    if (isReorderingClasses()) {
+      secondaryDexDir=Optional.of(secondaryDexParentDir.resolve(SMART_DEX_SECONDARY_DEX_SUBDIR));
+      Path intraDexReorderSecondaryDexDir=secondaryDexParentDir.resolve(SECONDARY_DEX_SUBDIR);
+      steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),secondaryDexDir.get()));
+      steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),intraDexReorderSecondaryDexDir));
+    }
+ else {
+      secondaryDexDir=Optional.of(secondaryDexParentDir.resolve(SECONDARY_DEX_SUBDIR));
+      steps.add(new MkdirStep(getProjectFilesystem(),secondaryDexDir.get()));
+    }
+    if (additionalDexStoreToJarPathMap.isEmpty()) {
+      additionalDexDirs=Optional.absent();
+    }
+ else {
+      ImmutableSet.Builder<Path> builder=ImmutableSet.builder();
+      for (      APKModule dexStore : additionalDexStoreToJarPathMap.keySet()) {
+        Path dexStorePath=additionalDexAssetsDir.resolve(dexStore.getName());
+        builder.add(dexStorePath);
+        steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),dexStorePath));
+      }
+      additionalDexDirs=Optional.of(builder.build());
+    }
+    if (dexSplitMode.getDexStore() == DexStore.RAW) {
+      secondaryDexDirectories.add(secondaryDexDir.get());
+    }
+ else {
+      secondaryDexDirectories.add(secondaryJarMetaDirParent);
+      secondaryDexDirectories.add(secondaryDexParentDir);
+    }
+    if (additionalDexDirs.isPresent()) {
+      secondaryDexDirectories.add(additionalDexParentDir);
+    }
+    primaryInputsToDex=Suppliers.<Set<Path>>ofInstance(ImmutableSet.of(primaryJarPath));
+    Supplier<Multimap<Path,Path>> secondaryOutputToInputsMap=splitZipCommand.getOutputToInputsMapSupplier(secondaryDexDir.get(),additionalDexAssetsDir);
+    secondaryOutputToInputs=Optional.of(secondaryOutputToInputsMap);
+  }
+ else {
+    primaryInputsToDex=Suppliers.ofInstance(classpathEntriesToDex);
+    secondaryDexDir=Optional.absent();
+    secondaryOutputToInputs=Optional.absent();
+  }
+  HashInputJarsToDexStep hashInputJarsToDexStep=new HashInputJarsToDexStep(getProjectFilesystem(),primaryInputsToDex,secondaryOutputToInputs,classNamesToHashesSupplier);
+  steps.add(hashInputJarsToDexStep);
+  Path successDir=getBinPath("__%s_smart_dex__/.success");
+  steps.add(new MkdirStep(getProjectFilesystem(),successDir));
+  EnumSet<DxStep.Option> dxOptions=PackageType.RELEASE.equals(packageType) ? EnumSet.noneOf(DxStep.Option.class) : EnumSet.of(DxStep.Option.NO_OPTIMIZE);
+  Path selectedPrimaryDexPath=primaryDexPath;
+  if (isReorderingClasses()) {
+    String primaryDexFileName=primaryDexPath.getFileName().toString();
+    String smartDexPrimaryDexFileName="smart-dex-" + primaryDexFileName;
+    Path smartDexPrimaryDexPath=Paths.get(primaryDexPath.toString().replace(primaryDexFileName,smartDexPrimaryDexFileName));
+    selectedPrimaryDexPath=smartDexPrimaryDexPath;
+  }
+  SmartDexingStep smartDexingCommand=new SmartDexingStep(getProjectFilesystem(),selectedPrimaryDexPath,primaryInputsToDex,secondaryDexDir,secondaryOutputToInputs,hashInputJarsToDexStep,successDir,dxOptions,dxExecutorService,xzCompressionLevel);
+  steps.add(smartDexingCommand);
+  if (isReorderingClasses()) {
+    IntraDexReorderStep intraDexReorderStep=new IntraDexReorderStep(getProjectFilesystem(),dexReorderToolFile,dexReorderDataDumpFile,getResolver(),getBuildTarget(),selectedPrimaryDexPath,primaryDexPath,secondaryOutputToInputs,SMART_DEX_SECONDARY_DEX_SUBDIR,SECONDARY_DEX_SUBDIR);
+    steps.add(intraDexReorderStep);
+  }
+}
