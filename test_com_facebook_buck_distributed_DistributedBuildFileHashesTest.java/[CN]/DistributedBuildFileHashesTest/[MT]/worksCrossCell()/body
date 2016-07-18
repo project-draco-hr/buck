@@ -12,17 +12,18 @@
   }
 ;
   List<BuildJobStateFileHashes> recordedHashes=f.distributedBuildFileHashes.getFileHashes();
+  ImmutableBiMap<Path,Integer> cellIndex=f.cellIndexer.getIndex();
   assertThat(recordedHashes,Matchers.hasSize(2));
   for (  BuildJobStateFileHashes hashes : recordedHashes) {
-    String name=hashes.getFileSystemRootName();
-    if (name.contains("first")) {
+    Path cellPath=cellIndex.inverse().get(hashes.getCellIndex());
+    if (cellPath.equals(f.projectFilesystem.getRootPath())) {
       assertThat(toFileHashEntryIndex(hashes),Matchers.hasKey(new PathWithUnixSeparators("src/A.java")));
     }
- else     if (name.contains("second")) {
+ else     if (cellPath.equals(f.secondProjectFilesystem.getRootPath())) {
       assertThat(toFileHashEntryIndex(hashes),Matchers.hasKey(new PathWithUnixSeparators("B.java")));
     }
  else {
-      fail("Unknown filesystem root:" + name);
+      fail("Unknown filesystem root:" + cellPath);
     }
   }
 }
