@@ -1,10 +1,14 @@
 {
   Optional<StripStyle> flavoredStripStyle=StripStyle.FLAVOR_DOMAIN.getValue(inputParams.getBuildTarget());
   final BuildRuleParams params=CxxStrip.removeStripStyleFlavorInParams(inputParams,flavoredStripStyle);
-  CxxPlatform cxxPlatform=cxxPlatforms.getValue(params.getBuildTarget()).or(defaultCxxPlatform);
+  Optional<CxxPlatform> platform=cxxPlatforms.getValue(params.getBuildTarget());
+  CxxPlatform cxxPlatform=platform.or(defaultCxxPlatform);
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   if (params.getBuildTarget().getFlavors().contains(CxxCompilationDatabase.COMPILATION_DATABASE)) {
     return CxxDescriptionEnhancer.createCompilationDatabase(params,resolver,pathResolver,cxxBuckConfig,cxxPlatform,args);
+  }
+  if (params.getBuildTarget().getFlavors().contains(CxxCompilationDatabase.UBER_COMPILATION_DATABASE)) {
+    return CxxDescriptionEnhancer.createUberCompilationDatabase(platform.isPresent() ? params : params.withFlavor(cxxPlatform.getFlavor()),resolver);
   }
   final CxxLinkAndCompileRules cxxLinkAndCompileRules=CxxDescriptionEnhancer.createBuildRulesForCxxBinaryDescriptionArg(params,resolver,cxxBuckConfig,cxxPlatform,args,flavoredStripStyle);
   BuildRuleParams testParams=params.appendExtraDeps(cxxLinkAndCompileRules.executable.getDeps(pathResolver));
