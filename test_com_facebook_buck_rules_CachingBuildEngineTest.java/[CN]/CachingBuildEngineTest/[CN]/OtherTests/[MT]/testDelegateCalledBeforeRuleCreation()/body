@@ -1,0 +1,15 @@
+{
+  BuildContext buildContext=FakeBuildContext.newBuilder().setArtifactCache(cache).setJavaPackageFinder(new FakeJavaPackageFinder()).setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).build();
+  BuildRule rule=new EmptyBuildRule(new FakeBuildRuleParamsBuilder("//:rule").setProjectFilesystem(filesystem).build(),pathResolver);
+  final AtomicReference<BuildRule> lastRuleToBeBuilt=new AtomicReference<>();
+  CachingBuildEngineDelegate testDelegate=new LocalCachingBuildEngineDelegate(fileHashCache){
+    @Override public void onRuleAboutToBeBuilt(    BuildRule buildRule){
+      super.onRuleAboutToBeBuilt(buildRule);
+      lastRuleToBeBuilt.set(buildRule);
+    }
+  }
+;
+  CachingBuildEngine cachingBuildEngine=cachingBuildEngineFactory().setCachingBuildEngineDelegate(testDelegate).build();
+  cachingBuildEngine.build(buildContext,rule).get();
+  assertThat(lastRuleToBeBuilt.get(),is(rule));
+}
