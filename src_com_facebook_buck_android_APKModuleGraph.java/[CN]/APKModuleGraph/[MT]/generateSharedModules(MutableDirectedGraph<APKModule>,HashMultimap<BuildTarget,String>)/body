@@ -1,0 +1,37 @@
+{
+  final Map<ImmutableSet<String>,APKModule.Builder> combinedModuleHashToModuleMap=new HashMap<>();
+  for (  Map.Entry<BuildTarget,Collection<String>> entry : targetToContainingApkModulesMap.asMap().entrySet()) {
+    ImmutableSet<String> containingModuleSet=ImmutableSet.copyOf(entry.getValue());
+    boolean exists=false;
+    for (    Map.Entry<ImmutableSet<String>,APKModule.Builder> existingEntry : combinedModuleHashToModuleMap.entrySet()) {
+      if (existingEntry.getKey().equals(containingModuleSet)) {
+        existingEntry.getValue().addBuildTargets(entry.getKey());
+        exists=true;
+        break;
+      }
+    }
+    if (!exists) {
+      String name=containingModuleSet.size() == 1 ? containingModuleSet.iterator().next() : generateNameFromTarget(entry.getKey());
+      combinedModuleHashToModuleMap.put(containingModuleSet,APKModule.builder().setName(name).addBuildTargets(entry.getKey()));
+    }
+  }
+  Map<String,APKModule> seedModules=new HashMap<>();
+  for (  Map.Entry<ImmutableSet<String>,APKModule.Builder> entry : combinedModuleHashToModuleMap.entrySet()) {
+    if (entry.getKey().size() == 1) {
+      APKModule seed=entry.getValue().build();
+      apkModuleGraph.addNode(seed);
+      seedModules.put(entry.getKey().iterator().next(),seed);
+      apkModuleGraph.addEdge(seed,rootAPKModuleSupplier.get());
+    }
+  }
+  for (  Map.Entry<ImmutableSet<String>,APKModule.Builder> entry : combinedModuleHashToModuleMap.entrySet()) {
+    if (entry.getKey().size() > 1) {
+      APKModule shared=entry.getValue().build();
+      apkModuleGraph.addNode(shared);
+      apkModuleGraph.addEdge(shared,rootAPKModuleSupplier.get());
+      for (      String seedName : entry.getKey()) {
+        apkModuleGraph.addEdge(seedModules.get(seedName),shared);
+      }
+    }
+  }
+}

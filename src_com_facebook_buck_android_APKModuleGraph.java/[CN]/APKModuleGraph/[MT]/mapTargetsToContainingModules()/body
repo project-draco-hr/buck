@@ -1,0 +1,21 @@
+{
+  final HashMultimap<BuildTarget,String> targetToContainingApkModuleNameMap=HashMultimap.create();
+  for (  BuildTarget seedTarget : seedTargets.get()) {
+    final String seedModuleName=generateNameFromTarget(seedTarget);
+    targetToContainingApkModuleNameMap.put(seedTarget,seedModuleName);
+    new AbstractBreadthFirstTraversal<TargetNode<?>>(targetGraph.get(seedTarget)){
+      @Override public ImmutableSet<TargetNode<?>> visit(      TargetNode<?> node){
+        ImmutableSet.Builder<TargetNode<?>> depsBuilder=ImmutableSet.builder();
+        for (        BuildTarget depTarget : node.getDeps()) {
+          if (!isInRootModule(depTarget) && !isSeedTarget(depTarget)) {
+            depsBuilder.add(targetGraph.get(depTarget));
+            targetToContainingApkModuleNameMap.put(depTarget,seedModuleName);
+          }
+        }
+        return depsBuilder.build();
+      }
+    }
+.start();
+  }
+  return targetToContainingApkModuleNameMap;
+}
