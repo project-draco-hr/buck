@@ -55,11 +55,14 @@
   assertEquals(fileSystem.getPath("src/com/facebook/key.properties"),linkSource2.getSource());
   assertEquals(fileSystem.getPath(relativePathToSrcDir + "/key.properties"),linkSource2.getTarget());
   Step seventhStep=steps.get(6);
-  assertTrue(seventhStep instanceof ShellStep);
-  ShellStep genruleCommand=(ShellStep)seventhStep;
+  assertTrue(seventhStep instanceof AbstractGenruleStep);
+  AbstractGenruleStep genruleCommand=(AbstractGenruleStep)seventhStep;
   assertEquals("genrule",genruleCommand.getShortName());
   ImmutableMap<String,String> environmentVariables=genruleCommand.getEnvironmentVariables(executionContext);
   assertEquals(new ImmutableMap.Builder<String,String>().put("APK",projectFilesystem.resolve(BuildTargets.getGenPath(projectFilesystem,apkTarget,"%s.apk")).toString()).put("OUT",expectedApkOutput).build(),environmentVariables);
-  assertEquals(ImmutableList.of("/bin/bash","-e","-c","python signer.py $APK key.properties > $OUT"),genruleCommand.getShellCommand(executionContext));
+  Path scriptFilePath=genruleCommand.getScriptFilePath(executionContext);
+  String scriptFileContents=genruleCommand.getScriptFileContents(executionContext);
+  assertEquals(ImmutableList.of("/bin/bash","-e",scriptFilePath.toString()),genruleCommand.getShellCommand(executionContext));
+  assertEquals("python signer.py $APK key.properties > $OUT",scriptFileContents);
   EasyMock.verify(parser);
 }

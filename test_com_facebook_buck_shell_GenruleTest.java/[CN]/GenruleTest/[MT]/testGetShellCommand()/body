@@ -6,15 +6,11 @@
   ExecutionContext linuxExecutionContext=newEmptyExecutionContext(Platform.LINUX);
   ExecutionContext windowsExecutionContext=newEmptyExecutionContext(Platform.WINDOWS);
   Genrule genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//example:genrule1")).setBash(bash).setCmdExe(cmdExe).setOut("out.txt").build(resolver);
-  ImmutableList<String> command=genrule.createGenruleStep().getShellCommand(linuxExecutionContext);
-  assertEquals(ImmutableList.of("/bin/bash","-e","-c",bash),command);
-  command=genrule.createGenruleStep().getShellCommand(windowsExecutionContext);
-  assertEquals(ImmutableList.of("cmd.exe","/c",cmdExe),command);
+  assertGenruleCommandAndScript(genrule.createGenruleStep(),linuxExecutionContext,ImmutableList.of("/bin/bash","-e"),bash);
+  assertGenruleCommandAndScript(genrule.createGenruleStep(),windowsExecutionContext,ImmutableList.<String>of(),cmdExe);
   genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//example:genrule2")).setCmd(cmd).setOut("out.txt").build(resolver);
-  command=genrule.createGenruleStep().getShellCommand(linuxExecutionContext);
-  assertEquals(ImmutableList.of("/bin/bash","-e","-c",cmd),command);
-  command=genrule.createGenruleStep().getShellCommand(windowsExecutionContext);
-  assertEquals(ImmutableList.of("cmd.exe","/c",cmd),command);
+  assertGenruleCommandAndScript(genrule.createGenruleStep(),linuxExecutionContext,ImmutableList.of("/bin/bash","-e"),cmd);
+  assertGenruleCommandAndScript(genrule.createGenruleStep(),windowsExecutionContext,ImmutableList.<String>of(),cmd);
   genrule=(Genrule)GenruleBuilder.newGenruleBuilder(BuildTargetFactory.newInstance("//example:genrule3")).setOut("out.txt").build(resolver);
   try {
     genrule.createGenruleStep().getShellCommand(linuxExecutionContext);

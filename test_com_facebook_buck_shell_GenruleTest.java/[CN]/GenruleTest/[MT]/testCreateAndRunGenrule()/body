@@ -36,14 +36,18 @@
   assertEquals(filesystem.getRootPath().getFileSystem().getPath("src/com/facebook/katana/AndroidManifest.xml"),linkSource2.getSource());
   assertEquals(filesystem.getRootPath().getFileSystem().getPath(pathToSrcDir + "/AndroidManifest.xml"),linkSource2.getTarget());
   Step sixthStep=steps.get(6);
-  assertTrue(sixthStep instanceof ShellStep);
-  ShellStep genruleCommand=(ShellStep)sixthStep;
+  assertTrue(sixthStep instanceof AbstractGenruleStep);
+  AbstractGenruleStep genruleCommand=(AbstractGenruleStep)sixthStep;
   assertEquals("genrule",genruleCommand.getShortName());
   assertEquals(ImmutableMap.<String,String>builder().put("OUT",filesystem.resolve(filesystem.getBuckPaths().getGenDir().resolve("src/com/facebook/katana/katana_manifest/AndroidManifest.xml")).toString()).build(),genruleCommand.getEnvironmentVariables(executionContext));
+  Path scriptFilePath=genruleCommand.getScriptFilePath(executionContext);
+  String scriptFileContents=genruleCommand.getScriptFileContents(executionContext);
   if (Platform.detect() == Platform.WINDOWS) {
-    assertEquals(ImmutableList.of("cmd.exe","/c","python convert_to_katana.py AndroidManifest.xml > %OUT%"),genruleCommand.getShellCommand(executionContext));
+    assertEquals(ImmutableList.of(scriptFilePath.toString()),genruleCommand.getShellCommand(executionContext));
+    assertEquals("python convert_to_katana.py AndroidManifest.xml > %OUT%",scriptFileContents);
   }
  else {
-    assertEquals(ImmutableList.of("/bin/bash","-e","-c","python convert_to_katana.py AndroidManifest.xml > $OUT"),genruleCommand.getShellCommand(executionContext));
+    assertEquals(ImmutableList.of("/bin/bash","-e",scriptFilePath.toString()),genruleCommand.getShellCommand(executionContext));
+    assertEquals("python convert_to_katana.py AndroidManifest.xml > $OUT",scriptFileContents);
   }
 }
