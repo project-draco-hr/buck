@@ -1,9 +1,12 @@
 {
-  ProjectFilesystem filesystem=FakeProjectFilesystem.createJavaOnlyFilesystem();
+  ProjectFilesystem filesystem=createJavaOnlyFilesystem("/saving");
   Config config=new Config(ConfigBuilder.rawFromLines());
   BuckConfig buckConfig=new BuckConfig(config,filesystem,Architecture.detect(),Platform.detect(),ImmutableMap.<String,String>builder().putAll(System.getenv()).put("envKey","envValue").build(),new DefaultCellPathResolver(filesystem.getRootPath(),config));
-  Cell cell=new TestCellBuilder().setFilesystem(filesystem).setBuckConfig(buckConfig).build();
-  BuildJobState dump=DistributedBuildState.dump(buckConfig,emptyActionGraph(),defaultCodec(cell,Optional.<Parser>absent()),TargetGraph.EMPTY);
-  DistributedBuildState distributedBuildState=new DistributedBuildState(dump);
-  assertThat(distributedBuildState.createBuckConfig(filesystem),Matchers.equalTo(buckConfig));
+  Cell rootCellWhenSaving=new TestCellBuilder().setFilesystem(filesystem).setBuckConfig(buckConfig).build();
+  BuildJobState dump=DistributedBuildState.dump(rootCellWhenSaving,emptyActionGraph(),createDefaultCodec(rootCellWhenSaving,Optional.<Parser>absent()),createTargetGraph(filesystem));
+  Cell rootCellWhenLoading=new TestCellBuilder().setFilesystem(createJavaOnlyFilesystem("/loading")).build();
+  DistributedBuildState distributedBuildState=DistributedBuildState.load(dump,rootCellWhenLoading);
+  ImmutableMap<Integer,Cell> cells=distributedBuildState.getCells();
+  assertThat(cells,Matchers.aMapWithSize(1));
+  assertThat(cells.get(0).getBuckConfig(),Matchers.equalTo(buckConfig));
 }

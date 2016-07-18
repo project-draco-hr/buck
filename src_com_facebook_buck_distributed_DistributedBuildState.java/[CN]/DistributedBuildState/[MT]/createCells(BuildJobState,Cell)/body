@@ -1,0 +1,18 @@
+{
+  ProjectFilesystem rootCellFilesystem=rootCell.getFilesystem();
+  ImmutableMap.Builder<Path,BuckConfig> cellConfigs=ImmutableMap.builder();
+  ImmutableMap.Builder<Path,ProjectFilesystem> cellFilesystems=ImmutableMap.builder();
+  ImmutableMap.Builder<Integer,Path> cellIndex=ImmutableMap.builder();
+  for (  Map.Entry<Integer,BuildJobStateCell> remoteCellEntry : remoteState.getCells().entrySet()) {
+    BuildJobStateCell remoteCell=remoteCellEntry.getValue();
+    Path cellRoot=Files.createTempDirectory(rootCellFilesystem.getRootPath().resolve(rootCellFilesystem.getBuckPaths().getBuckOut()),String.format("remote_%s_",remoteCell.getNameHint()));
+    Config config=createConfig(remoteCell.getConfig());
+    ProjectFilesystem projectFilesystem=new ProjectFilesystem(cellRoot,config);
+    BuckConfig buckConfig=createBuckConfig(config,projectFilesystem,remoteCell.getConfig());
+    cellConfigs.put(cellRoot,buckConfig);
+    cellFilesystems.put(cellRoot,projectFilesystem);
+    cellIndex.put(remoteCellEntry.getKey(),cellRoot);
+  }
+  LoadingCache<Path,Cell> cellLoader=rootCell.createCellLoaderForDistributedBuild(cellConfigs.build(),cellFilesystems.build());
+  return ImmutableMap.copyOf(Maps.transformValues(cellIndex.build(),cellLoader));
+}
