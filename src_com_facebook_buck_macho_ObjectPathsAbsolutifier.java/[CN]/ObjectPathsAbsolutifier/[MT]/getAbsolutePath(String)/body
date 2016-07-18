@@ -1,12 +1,21 @@
 {
-  Path path=filesystem.resolve(Paths.get(stringPath));
+  Path path=Paths.get(stringPath);
   Optional<String> archiveEntryName=getArchiveEntryNameFromPath(path);
   path=getArchivePathFromPath(path);
-  if (path.toFile().exists()) {
-    path=path.toRealPath();
+  Path absolutePath=filesystem.resolve(path);
+  if (absolutePath.toFile().exists()) {
+    absolutePath=absolutePath.toRealPath();
+  }
+ else {
+    for (    Path otherCells : knownRoots) {
+      Path otherCellPath=otherCells.resolve(path);
+      if (otherCellPath.toFile().exists()) {
+        absolutePath=otherCellPath.toRealPath();
+      }
+    }
   }
   if (archiveEntryName.isPresent()) {
-    path=Paths.get(path.toString() + archiveEntryName.get());
+    absolutePath=Paths.get(absolutePath.toString() + archiveEntryName.get());
   }
-  return path.normalize();
+  return absolutePath.normalize();
 }
