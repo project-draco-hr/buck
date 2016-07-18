@@ -1,7 +1,13 @@
 {
   DefaultCellPathResolver rootCellCellPathResolver=new DefaultCellPathResolver(filesystem.getRootPath(),rootConfig.getEntriesForSection(DefaultCellPathResolver.REPOSITORIES_SECTION));
   ImmutableMap<RelativeCellName,Path> transitiveCellPathMapping=rootCellCellPathResolver.getTransitivePathMapping();
-  ImmutableMap<Path,RawConfig> pathToConfigOverrides=getPathToConfigOverrides(rootCellConfigOverrides,transitiveCellPathMapping);
+  ImmutableMap<Path,RawConfig> pathToConfigOverrides;
+  try {
+    pathToConfigOverrides=rootCellConfigOverrides.getOverridesByPath(transitiveCellPathMapping);
+  }
+ catch (  CellConfig.MalformedOverridesException e) {
+    throw new HumanReadableException(e.getMessage());
+  }
   LoadingCache<Path,Cell> cellLoader=createCellLoader(console,watchman,rootConfig,knownBuildRuleTypesFactory,directoryResolver,clock,transitiveCellPathMapping,pathToConfigOverrides);
   Cell rootCell=new Cell(rootCellCellPathResolver.getKnownRoots(),filesystem,watchman,rootConfig,knownBuildRuleTypesFactory,directoryResolver,cellLoader);
   cellLoader.put(filesystem.getRootPath(),rootCell);

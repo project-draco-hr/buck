@@ -1,0 +1,31 @@
+{
+  ImmutableSet<RelativeCellName> relativeNamesOfCellsWithOverrides=FluentIterable.from(getValues().keySet()).filter(Predicates.not(Predicates.equalTo(ALL_CELLS_OVERRIDE))).toSet();
+  ImmutableSet.Builder<Path> pathsWithOverrides=ImmutableSet.builder();
+  for (  RelativeCellName cellWithOverride : relativeNamesOfCellsWithOverrides) {
+    if (!pathMapping.containsKey(cellWithOverride)) {
+      throw new MalformedOverridesException(String.format("Trying to override settings for unknown cell %s",cellWithOverride));
+    }
+    pathsWithOverrides.add(pathMapping.get(cellWithOverride));
+  }
+  ImmutableMultimap<Path,RelativeCellName> pathToRelativeName=Multimaps.index(pathMapping.keySet(),Functions.forMap(pathMapping));
+  for (  Path pathWithOverrides : pathsWithOverrides.build()) {
+    ImmutableCollection<RelativeCellName> namesForPath=pathToRelativeName.get(pathWithOverrides);
+    if (namesForPath.size() > 1) {
+      throw new MalformedOverridesException(String.format("Configuration override is ambiguous: cell rooted at %s is reachable " + "as [%s]. Please override the config by placing a .buckconfig.local file in the " + "cell's root folder.",pathWithOverrides,Joiner.on(',').join(namesForPath)));
+    }
+  }
+  Map<Path,RawConfig> overridesByPath=new HashMap<>();
+  for (  Map.Entry<RelativeCellName,Path> entry : pathMapping.entrySet()) {
+    RelativeCellName cellRelativeName=entry.getKey();
+    Path cellPath=entry.getValue();
+    RawConfig configFromOtherRelativeName=overridesByPath.get(cellPath);
+    RawConfig config=getForCell(cellRelativeName);
+    if (configFromOtherRelativeName != null) {
+      Preconditions.checkState(configFromOtherRelativeName.equals(config),"Attempting to create cell %s at %s with conflicting overrides [%s] vs [%s].",cellRelativeName,cellPath,configFromOtherRelativeName,config);
+    }
+ else {
+      overridesByPath.put(cellPath,config);
+    }
+  }
+  return ImmutableMap.copyOf(overridesByPath);
+}
