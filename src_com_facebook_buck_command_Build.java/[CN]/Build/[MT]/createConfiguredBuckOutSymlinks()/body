@@ -1,0 +1,15 @@
+{
+  for (  Cell cell : getAllCells()) {
+    BuckConfig buckConfig=cell.getBuckConfig();
+    ProjectFilesystem filesystem=cell.getFilesystem();
+    BuckPaths configuredPaths=filesystem.getBuckPaths();
+    if (!configuredPaths.getConfiguredBuckOut().equals(configuredPaths.getBuckOut()) && buckConfig.getBuckOutCompatLink() && Platform.detect() != Platform.WINDOWS) {
+      BuckPaths unconfiguredPaths=configuredPaths.withConfiguredBuckOut(configuredPaths.getBuckOut());
+      ImmutableMap<Path,Path> paths=ImmutableMap.of(unconfiguredPaths.getGenDir(),configuredPaths.getGenDir(),unconfiguredPaths.getScratchDir(),configuredPaths.getScratchDir());
+      for (      Map.Entry<Path,Path> entry : paths.entrySet()) {
+        filesystem.deleteRecursivelyIfExists(entry.getKey());
+        filesystem.createSymLink(entry.getKey(),entry.getKey().getParent().relativize(entry.getValue()),false);
+      }
+    }
+  }
+}
