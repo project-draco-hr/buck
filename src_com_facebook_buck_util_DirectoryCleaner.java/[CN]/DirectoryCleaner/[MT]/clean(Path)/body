@@ -1,0 +1,32 @@
+{
+  List<PathStats> pathStats=Lists.newArrayList();
+  long totalSizeBytes=0;
+  for (  Path path : args.getPathSelector().getCandidatesToDelete(pathToClean)) {
+    PathStats stats=computePathStats(path);
+    totalSizeBytes+=stats.getTotalSizeBytes();
+    pathStats.add(stats);
+  }
+  if (totalSizeBytes > args.getMaxTotalSizeBytes() || pathStats.size() > args.getMaxPathCount()) {
+    Collections.sort(pathStats,new Comparator<PathStats>(){
+      @Override public int compare(      PathStats stats1,      PathStats stats2){
+        return args.getPathSelector().comparePaths(stats1,stats2);
+      }
+    }
+);
+    int remainingLogDirectories=pathStats.size();
+    long finalMaxSizeBytes=args.getMaxTotalSizeBytes();
+    if (args.getMaxBytesAfterDeletion().isPresent()) {
+      finalMaxSizeBytes=args.getMaxBytesAfterDeletion().get();
+    }
+    for (int i=0; i < pathStats.size(); ++i) {
+      if (totalSizeBytes <= finalMaxSizeBytes && remainingLogDirectories <= args.getMaxPathCount()) {
+        break;
+      }
+      PathStats currentPath=pathStats.get(i);
+      LOG.verbose("Deleting path [%s] of total size [%d] bytes.",currentPath.getPath(),currentPath.getTotalSizeBytes());
+      MoreFiles.deleteRecursivelyIfExists(currentPath.getPath());
+      --remainingLogDirectories;
+      totalSizeBytes-=currentPath.getTotalSizeBytes();
+    }
+  }
+}

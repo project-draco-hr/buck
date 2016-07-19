@@ -1,0 +1,22 @@
+{
+  DirectoryCleanerArgs cleanerArgs=DirectoryCleanerArgs.builder().setPathSelector(new DirectoryCleaner.PathSelector(){
+    @Override public Iterable<Path> getCandidatesToDelete(    Path rootPath) throws IOException {
+      List<Path> dirPaths=Lists.newArrayList();
+      try (DirectoryStream<Path> directoryStream=Files.newDirectoryStream(rootPath)){
+        for (        Path path : directoryStream) {
+          Matcher matcher=DIR_PATTERN.matcher(path.getFileName().toString());
+          if (matcher.matches()) {
+            dirPaths.add(path);
+          }
+        }
+      }
+       return dirPaths;
+    }
+    @Override public int comparePaths(    DirectoryCleaner.PathStats path1,    DirectoryCleaner.PathStats path2){
+      return (int)(path1.getCreationMillis() - path2.getCreationMillis());
+    }
+  }
+).setMaxTotalSizeBytes(maxLogsSizeBytes).setMaxPathCount(maxLogsDirectories).build();
+  DirectoryCleaner cleaner=new DirectoryCleaner(cleanerArgs);
+  return cleaner;
+}
