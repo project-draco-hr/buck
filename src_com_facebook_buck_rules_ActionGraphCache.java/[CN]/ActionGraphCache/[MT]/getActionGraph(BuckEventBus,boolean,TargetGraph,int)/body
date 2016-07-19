@@ -3,14 +3,14 @@
   eventBus.post(started);
   try {
     if (lastActionGraph != null && lastActionGraph.getFirst().equals(targetGraph)) {
-      cacheHitCounter.inc();
+      eventBus.post(ActionGraphEvent.Cache.hit());
       LOG.info("ActionGraph cache hit.");
       if (checkActionGraphs) {
         compareActionGraphs(eventBus,lastActionGraph.getSecond(),targetGraph,keySeed);
       }
     }
  else {
-      cacheMissCounter.inc();
+      eventBus.post(ActionGraphEvent.Cache.miss());
       if (lastActionGraph == null) {
         LOG.info("ActionGraph cache miss. Cache was empty.");
       }
@@ -22,6 +22,9 @@
   }
   finally {
     eventBus.post(ActionGraphEvent.finished(started));
+    while (!watchmanEventsStack.isEmpty()) {
+      eventBus.post(watchmanEventsStack.pop());
+    }
   }
   return lastActionGraph.getSecond();
 }
