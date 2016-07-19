@@ -26,10 +26,21 @@
     }
   }
 .start();
-  Tool compiler=haskellConfig.getCompiler().resolve(resolver);
+  Collection<CxxPreprocessorInput> cxxPreprocessorInputs=CxxPreprocessables.getTransitiveCxxPreprocessorInput(cxxPlatform,baseParams.getDeps());
+  ExplicitCxxToolFlags.Builder toolFlagsBuilder=CxxToolFlags.explicitBuilder();
+  PreprocessorFlags.Builder ppFlagsBuilder=PreprocessorFlags.builder();
+  toolFlagsBuilder.setPlatformFlags(CxxSourceTypes.getPlatformPreprocessFlags(cxxPlatform,CxxSource.Type.C));
+  for (  CxxPreprocessorInput input : cxxPreprocessorInputs) {
+    ppFlagsBuilder.addAllIncludes(input.getIncludes());
+    ppFlagsBuilder.addAllSystemIncludePaths(input.getSystemIncludeRoots());
+    ppFlagsBuilder.addAllFrameworkPaths(input.getFrameworks());
+    toolFlagsBuilder.addAllRuleFlags(input.getPreprocessorFlags().get(CxxSource.Type.C));
+  }
+  ppFlagsBuilder.setOtherFlags(toolFlagsBuilder.build());
+  PreprocessorFlags ppFlags=ppFlagsBuilder.build();
   ImmutableList<String> compileFlags=ImmutableList.<String>builder().addAll(haskellConfig.getCompilerFlags()).addAll(flags).addAll(Iterables.concat(depFlags.values())).build();
   ImmutableList<SourcePath> includes=ImmutableList.copyOf(Iterables.concat(depIncludes.values()));
   ImmutableSortedMap<String,HaskellPackage> exposedPackages=exposedPackagesBuilder.build();
   ImmutableSortedMap<String,HaskellPackage> packages=packagesBuilder.build();
-  return new HaskellCompileRule(baseParams.copyWithChanges(target,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(compiler.getDeps(pathResolver)).addAll(pathResolver.filterBuildRuleInputs(includes)).addAll(sources.getDeps(pathResolver)).addAll(FluentIterable.from(exposedPackages.values()).transformAndConcat(HaskellPackage.getDepsFunction(pathResolver))).addAll(FluentIterable.from(packages.values()).transformAndConcat(HaskellPackage.getDepsFunction(pathResolver))).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,haskellConfig.getCompiler().resolve(resolver),compileFlags,picType,main,packageInfo,includes,exposedPackages,packages,sources);
+  return HaskellCompileRule.from(target,baseParams,pathResolver,haskellConfig.getCompiler().resolve(resolver),compileFlags,ppFlags,cxxPlatform,picType,main,packageInfo,includes,exposedPackages,packages,sources);
 }
