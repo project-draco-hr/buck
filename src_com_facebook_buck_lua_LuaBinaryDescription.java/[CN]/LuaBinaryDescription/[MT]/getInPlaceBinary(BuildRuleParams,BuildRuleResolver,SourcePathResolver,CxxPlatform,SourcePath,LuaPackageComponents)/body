@@ -1,26 +1,19 @@
 {
-  Path output=getOutputPath(params.getBuildTarget(),params.getProjectFilesystem());
   final List<SourcePath> extraInputs=new ArrayList<>();
-  final SymlinkTree modulesLinkTree=resolver.addToIndex(createSymlinkTree(params.getBuildTarget().withAppendedFlavors(ImmutableFlavor.of("modules-link-tree")),params,resolver,pathResolver,components.getModules()));
-  final Path relativeModulesLinkTreeRoot=output.getParent().relativize(params.getProjectFilesystem().getRootPath().relativize(modulesLinkTree.getRoot()));
-  Optional<Path> relativePythonModulesLinkTreeRoot=Optional.absent();
+  final SymlinkTree modulesLinkTree=resolver.addToIndex(createSymlinkTree(getModulesSymlinkTreeTarget(params.getBuildTarget()),params,resolver,pathResolver,params.getProjectFilesystem().resolve(getModulesSymlinkTreeRoot(params.getBuildTarget(),params.getProjectFilesystem())),components.getModules()));
   final List<SymlinkTree> pythonModulesLinktree=new ArrayList<>();
   if (!components.getPythonModules().isEmpty()) {
     SourcePath emptyInit=PythonBinaryDescription.createEmptyInitModule(params,resolver,pathResolver);
     extraInputs.add(emptyInit);
     ImmutableMap<String,SourcePath> pythonModules=MoreMaps.transformKeys(PythonBinaryDescription.addMissingInitModules(MoreMaps.transformKeys(components.getPythonModules(),MorePaths.toPathFn(params.getProjectFilesystem().getRootPath().getFileSystem())),emptyInit),Functions.toStringFunction());
-    final SymlinkTree symlinkTree=resolver.addToIndex(createSymlinkTree(params.getBuildTarget().withAppendedFlavors(ImmutableFlavor.of("python-modules-link-tree")),params,resolver,pathResolver,pythonModules));
+    final SymlinkTree symlinkTree=resolver.addToIndex(createSymlinkTree(getPythonModulesSymlinkTreeTarget(params.getBuildTarget()),params,resolver,pathResolver,params.getProjectFilesystem().resolve(getPythonModulesSymlinkTreeRoot(params.getBuildTarget(),params.getProjectFilesystem())),pythonModules));
     pythonModulesLinktree.add(symlinkTree);
-    relativePythonModulesLinkTreeRoot=Optional.of(output.getParent().relativize(params.getProjectFilesystem().getRootPath().relativize(symlinkTree.getRoot())));
   }
   final List<SymlinkTree> nativeLibsLinktree=new ArrayList<>();
-  Optional<Path> relativeNativeLibsLinkTreeRoot=Optional.absent();
   if (!components.getNativeLibraries().isEmpty()) {
-    SymlinkTree symlinkTree=resolver.addToIndex(createSymlinkTree(getNativeLibsSymlinkTreeTarget(params.getBuildTarget()),params,resolver,pathResolver,addVersionLessLibraries(cxxPlatform,components.getNativeLibraries())));
+    SymlinkTree symlinkTree=resolver.addToIndex(createSymlinkTree(getNativeLibsSymlinkTreeTarget(params.getBuildTarget()),params,resolver,pathResolver,params.getProjectFilesystem().resolve(getNativeLibsSymlinkTreeRoot(params.getBuildTarget(),params.getProjectFilesystem())),addVersionLessLibraries(cxxPlatform,components.getNativeLibraries())));
     nativeLibsLinktree.add(symlinkTree);
-    relativeNativeLibsLinkTreeRoot=Optional.of(output.getParent().relativize(params.getProjectFilesystem().getRootPath().relativize(symlinkTree.getRoot())));
   }
-  final SourcePath starter=getStarter(params,resolver,pathResolver,cxxPlatform,output,starterType,nativeStarterLibrary,mainModule,Optional.of(relativeModulesLinkTreeRoot),relativePythonModulesLinkTreeRoot,relativeNativeLibsLinkTreeRoot);
   return new Tool(){
     @Override public ImmutableCollection<BuildRule> getDeps(    SourcePathResolver resolver){
       return ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(starter)).addAll(components.getDeps(resolver)).add(modulesLinkTree).addAll(nativeLibsLinktree).addAll(pythonModulesLinktree).addAll(pathResolver.filterBuildRuleInputs(extraInputs)).build();

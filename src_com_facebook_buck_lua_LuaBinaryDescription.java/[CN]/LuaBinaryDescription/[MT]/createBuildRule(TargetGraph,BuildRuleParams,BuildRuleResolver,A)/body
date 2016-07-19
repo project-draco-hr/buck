@@ -2,12 +2,7 @@
   SourcePathResolver pathResolver=new SourcePathResolver(resolver);
   CxxPlatform cxxPlatform=cxxPlatforms.getValue(params.getBuildTarget()).or(defaultCxxPlatform);
   PythonPlatform pythonPlatform=pythonPlatforms.getValue(params.getBuildTarget()).or(pythonPlatforms.getValue(args.pythonPlatform.transform(Flavor.TO_FLAVOR).or(pythonPlatforms.getFlavors().iterator().next())));
-  LuaPackageComponents components=getPackageComponentsFromDeps(params.getDeps(),cxxPlatform,pythonPlatform);
-  StarterType starterType=getStarterType(components);
-  Optional<BuildTarget> nativeStarterLibrary=args.nativeStarterLibrary.or(luaConfig.getNativeStarterLibrary());
-  if (starterType == StarterType.NATIVE) {
-    components=addNativeDeps(components,cxxPlatform,getNativeStarterDeps(resolver,nativeStarterLibrary));
-  }
-  Tool binary=getBinary(params,resolver,pathResolver,cxxPlatform,starterType,nativeStarterLibrary,args.mainModule,components,args.packageStyle.or(luaConfig.getPackageStyle()));
-  return new LuaBinary(params.appendExtraDeps(binary.getDeps(pathResolver)),pathResolver,getOutputPath(params.getBuildTarget(),params.getProjectFilesystem()),binary,args.mainModule,components,luaConfig.getLua(resolver));
+  LuaBinaryPackageComponents components=getPackageComponentsFromDeps(params,resolver,pathResolver,cxxPlatform,pythonPlatform,args.nativeStarterLibrary.or(luaConfig.getNativeStarterLibrary()),args.mainModule,args.packageStyle.or(luaConfig.getPackageStyle()),params.getDeps());
+  Tool binary=getBinary(params,resolver,pathResolver,cxxPlatform,args.mainModule,components.getStarter(),components.getComponents(),args.packageStyle.or(luaConfig.getPackageStyle()));
+  return new LuaBinary(params.appendExtraDeps(binary.getDeps(pathResolver)),pathResolver,getOutputPath(params.getBuildTarget(),params.getProjectFilesystem()),binary,args.mainModule,components.getComponents(),luaConfig.getLua(resolver));
 }

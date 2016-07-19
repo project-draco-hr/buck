@@ -46,5 +46,26 @@
       builder.putAllNativeLibraries(nativeLinkable.getSharedLibraries(cxxPlatform));
     }
   }
-  return builder.build();
+  Path output=getOutputPath(baseParams.getBuildTarget(),baseParams.getProjectFilesystem());
+  LuaPackageComponents components=builder.build();
+  StarterType starterType=getStarterType(components);
+  if (starterType == StarterType.NATIVE) {
+    components=addNativeDeps(components,cxxPlatform,getNativeStarterDeps(ruleResolver,nativeStarterLibrary));
+  }
+  Optional<Path> relativeModulesDir=Optional.absent();
+  Optional<Path> relativePythonModulesDir=Optional.absent();
+  Optional<Path> relativeNativeLibsDir=Optional.absent();
+  if (packageStyle == LuaConfig.PackageStyle.INPLACE) {
+    if (!components.getModules().isEmpty()) {
+      relativeModulesDir=Optional.of(output.getParent().relativize(getModulesSymlinkTreeRoot(baseParams.getBuildTarget(),baseParams.getProjectFilesystem())));
+    }
+    if (!components.getNativeLibraries().isEmpty()) {
+      relativeNativeLibsDir=Optional.of(output.getParent().relativize(getNativeLibsSymlinkTreeRoot(baseParams.getBuildTarget(),baseParams.getProjectFilesystem())));
+    }
+    if (!components.getPythonModules().isEmpty()) {
+      relativePythonModulesDir=Optional.of(output.getParent().relativize(getPythonModulesSymlinkTreeRoot(baseParams.getBuildTarget(),baseParams.getProjectFilesystem())));
+    }
+  }
+  SourcePath starter=getStarter(baseParams,ruleResolver,pathResolver,cxxPlatform,output,starterType,nativeStarterLibrary,mainModule,relativeModulesDir,relativePythonModulesDir,relativeNativeLibsDir);
+  return LuaBinaryPackageComponents.of(starter,components);
 }
