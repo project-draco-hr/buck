@@ -1,0 +1,19 @@
+{
+  if (method == Method.STORE) {
+    Preconditions.checkState(entry.getSize() == length && entry.getCompressedSize() == length,"Number of bytes written differs from what is specified in the entry.");
+    Preconditions.checkState(entry.getCrc() == calculateCrc(),"CRC of bytes written differs from what is specified in the entry.");
+  }
+ else   if (method == Method.DEFLATE) {
+    deflater.finish();
+    while (!deflater.finished()) {
+      deflate(out);
+    }
+    entry.setSize(deflater.getBytesRead());
+    entry.setCompressedSize(deflater.getBytesWritten());
+    entry.setCrc(calculateCrc());
+  }
+  deflater.end();
+  byte[] dataDescriptor=getDataDescriptor();
+  out.write(dataDescriptor);
+  return entry.getCompressedSize() + dataDescriptor.length;
+}
