@@ -1,0 +1,8 @@
+{
+  BuildTarget templateTarget=BuildTarget.builder(getBaseParams().getBuildTarget()).addFlavors(ImmutableFlavor.of("starter-template")).build();
+  getRuleResolver().addToIndex(new WriteFile(getBaseParams().copyWithChanges(templateTarget,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),getPathResolver(),getPureStarterTemplate(),BuildTargets.getGenPath(getBaseParams().getProjectFilesystem(),templateTarget,"%s/starter.lua.in"),false));
+  BuildTarget target=BuildTarget.builder(getBaseParams().getBuildTarget()).addFlavors(ImmutableFlavor.of("pure-starter")).build();
+  final Tool lua=getLuaConfig().getLua(getRuleResolver());
+  getRuleResolver().addToIndex(WriteStringTemplateRule.from(getBaseParams(),getPathResolver(),target,getOutput(),new BuildTargetSourcePath(templateTarget),ImmutableMap.of("SHEBANG",lua.getCommandPrefix(getPathResolver()).get(0),"MAIN_MODULE",Escaper.escapeAsPythonString(getMainModule()),"MODULES_DIR",getRelativeModulesDir().isPresent() ? Escaper.escapeAsPythonString(getRelativeModulesDir().get().toString()) : "nil","PY_MODULES_DIR",getRelativePythonModulesDir().isPresent() ? Escaper.escapeAsPythonString(getRelativePythonModulesDir().get().toString()) : "nil","EXT_SUFFIX",Escaper.escapeAsPythonString(getCxxPlatform().getSharedLibraryExtension())),true));
+  return new BuildTargetSourcePath(target);
+}
