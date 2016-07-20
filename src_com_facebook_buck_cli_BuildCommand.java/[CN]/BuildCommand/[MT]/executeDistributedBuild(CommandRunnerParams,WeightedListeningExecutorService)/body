@@ -28,8 +28,18 @@
 );
       if (loading) {
         DistributedBuildState state=DistributedBuildState.load(protocol,params.getCell());
-        TargetGraph targetGraph=state.createTargetGraph(targetGraphCodec);
-        params.getBuckEventBus().post(ConsoleEvent.info("Done loading state. Aliases %s, TargetNodes %s",targetGraph.getNodes()));
+        final TargetGraph targetGraph=state.createTargetGraph(targetGraphCodec);
+        ActionGraphAndResolver actionGraphAndResolver=Preconditions.checkNotNull(params.getActionGraphCache().getActionGraph(params.getBuckEventBus(),false,targetGraph,params.getBuckConfig().getKeySeed()));
+        BuckConfig rootCellBuckConfig=state.getRootCell().getBuckConfig();
+        DistributedCachingBuildEngineDelegate cachingBuildEngineDelegate=new DistributedCachingBuildEngineDelegate(new SourcePathResolver(actionGraphAndResolver.getResolver()),state);
+        ImmutableList<TargetNodeSpec> targetNodeSpecs=parseArgumentsAsTargetNodeSpecs(rootCellBuckConfig,getArguments());
+        FluentIterable<BuildTarget> targetsToBuild=FluentIterable.from(targetNodeSpecs).transformAndConcat(new Function<TargetNodeSpec,Iterable<BuildTarget>>(){
+          @Override public Iterable<BuildTarget> apply(          TargetNodeSpec input){
+            return input.filter(targetGraph.getNodes()).keySet();
+          }
+        }
+);
+        return executeBuild(params,actionGraphAndResolver,executorService,params.getArtifactCache(),cachingBuildEngineDelegate,rootCellBuckConfig,targetsToBuild);
       }
  else {
         TargetGraphAndBuildTargets targetGraphAndBuildTargets=createTargetGraph(params,executorService);
@@ -39,6 +49,7 @@
         BuildJobState jobState=DistributedBuildState.dump(cellIndexer,distributedBuildFileHashes,targetGraphCodec,targetGraphAndBuildTargets.getTargetGraph());
         jobState.write(protocol);
         transport.flush();
+        return 0;
       }
     }
  catch (    TException e) {
