@@ -1,23 +1,5 @@
 {
-  DebuggableTemporaryFolder firstFolder=null;
-  DebuggableTemporaryFolder secondFolder=null;
-  try {
-    firstFolder=new DebuggableTemporaryFolder();
-    firstFolder.create();
-    secondFolder=new DebuggableTemporaryFolder();
-    secondFolder.create();
-    Fixture f=new Fixture(new ProjectFilesystem(firstFolder.getRootPath()),new ProjectFilesystem(secondFolder.getRootPath())){
-      @Override protected void setUpRules(      BuildRuleResolver resolver,      SourcePathResolver sourcePathResolver) throws Exception {
-        Path archivePath=getPath("src","archive.jar");
-        Path archiveMemberPath=getPath("Archive.class");
-        projectFilesystem.createParentDirs(archivePath);
-        try (HashingDeterministicJarWriter jarWriter=new HashingDeterministicJarWriter(new JarOutputStream(projectFilesystem.newFileOutputStream(archivePath)))){
-          jarWriter.writeEntry("Archive.class",ByteSource.wrap("data".getBytes(Charsets.UTF_8)));
-        }
-         resolver.addToIndex(new BuildRuleWithToolAndPath(new FakeBuildRuleParamsBuilder("//:with_tool").setProjectFilesystem(projectFilesystem).build(),sourcePathResolver,null,new ArchiveMemberSourcePath(new PathSourcePath(projectFilesystem,archivePath),archiveMemberPath)));
-      }
-    }
-;
+  try (ArchiveFilesFixture f=ArchiveFilesFixture.create()){
     List<BuildJobStateFileHashes> recordedHashes=f.distributedBuildFileHashes.getFileHashes();
     assertThat(recordedHashes,Matchers.hasSize(1));
     BuildJobStateFileHashes hashes=recordedHashes.get(0);
@@ -29,12 +11,4 @@
     assertFalse(fileHashEntry.isPathIsAbsolute());
     assertFalse(fileHashEntry.isIsDirectory());
   }
-  finally {
-    if (firstFolder != null) {
-      firstFolder.delete();
-    }
-    if (secondFolder != null) {
-      secondFolder.delete();
-    }
-  }
-}
+ }

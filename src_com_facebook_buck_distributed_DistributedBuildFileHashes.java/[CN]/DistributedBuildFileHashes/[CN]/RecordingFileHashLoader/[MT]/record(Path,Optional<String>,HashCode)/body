@@ -2,19 +2,23 @@
   Optional<Path> pathRelativeToProjectRoot=projectFilesystem.getPathRelativeToProjectRoot(path);
   BuildJobStateFileHashEntry fileHashEntry=new BuildJobStateFileHashEntry();
   Path entryKey;
-  if (pathRelativeToProjectRoot.isPresent()) {
-    entryKey=pathRelativeToProjectRoot.get();
-    fileHashEntry.setPathIsAbsolute(false);
-  }
- else {
-    entryKey=path;
-    fileHashEntry.setPathIsAbsolute(true);
-  }
-  fileHashEntry.setIsDirectory(projectFilesystem.isDirectory(path));
+  boolean pathIsAbsolute=!pathRelativeToProjectRoot.isPresent();
+  fileHashEntry.setPathIsAbsolute(pathIsAbsolute);
+  entryKey=pathIsAbsolute ? path : pathRelativeToProjectRoot.get();
+  boolean isDirectory=projectFilesystem.isDirectory(path);
+  fileHashEntry.setIsDirectory(isDirectory);
   fileHashEntry.setHashCode(hashCode.toString());
   fileHashEntry.setPath(new PathWithUnixSeparators(MorePaths.pathWithUnixSeparators(entryKey)));
   if (memberPath.isPresent()) {
     fileHashEntry.setArchiveMemberPath(memberPath.get().toString());
+  }
+  if (!isDirectory && !pathIsAbsolute) {
+    try {
+      fileHashEntry.setContents(Files.readAllBytes(path));
+    }
+ catch (    IOException e) {
+      throw new RuntimeException(e);
+    }
   }
   remoteFileHashes.addToEntries(fileHashEntry);
 }
