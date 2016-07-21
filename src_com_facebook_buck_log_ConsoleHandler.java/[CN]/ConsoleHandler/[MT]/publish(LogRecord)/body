@@ -1,14 +1,18 @@
 {
-  if (closed || !(isLoggable(record) || isLoggableWithRegisteredLogLevel(record))) {
-    return;
+synchronized (this) {
+    if (closed || !(isLoggable(record) || isLoggableWithRegisteredLogLevel(record))) {
+      return;
+    }
   }
   Iterable<OutputStreamWriter> outputStreamWriters=getOutputStreamWritersForRecord(record);
   try {
     String formatted=getFormatter().format(record);
     for (    OutputStreamWriter outputStreamWriter : outputStreamWriters) {
-      outputStreamWriter.write(formatted);
-      if (record.getLevel().intValue() >= Level.SEVERE.intValue()) {
-        outputStreamWriter.flush();
+synchronized (outputStreamWriter) {
+        outputStreamWriter.write(formatted);
+        if (record.getLevel().intValue() >= Level.SEVERE.intValue()) {
+          outputStreamWriter.flush();
+        }
       }
     }
   }
