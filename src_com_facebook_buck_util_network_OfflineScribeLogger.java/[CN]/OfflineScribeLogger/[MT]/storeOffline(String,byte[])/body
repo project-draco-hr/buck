@@ -1,0 +1,23 @@
+{
+  if (!storingAvailable) {
+    return;
+  }
+  long spaceLeft=maxScribeOfflineLogsBytes - bytesStoredSoFar;
+  if (scribeData.length > spaceLeft) {
+    LOG.warn("Not enough space left when trying to store data for category: %s.",category);
+    return;
+  }
+  try {
+    if (logFileStream == null) {
+      filesystem.mkdirs(logDir);
+      deleteOldLogsIfNeeded(spaceLeft - scribeData.length);
+      logFileStream=new BufferedOutputStream(new FileOutputStream(newLogPath.toFile()));
+    }
+    logFileStream.write(scribeData);
+    bytesStoredSoFar+=scribeData.length;
+  }
+ catch (  Exception e) {
+    storingAvailable=false;
+    LOG.error("Failed storing for offline logging for category: %s.\nError: %s\n%s",category,e.getClass(),e.getMessage());
+  }
+}
