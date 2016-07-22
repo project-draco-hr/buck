@@ -1,0 +1,75 @@
+{
+  try {
+    Optional<? extends Map<String,? extends Object>> queryResponse=watchmanClient.queryWithTimeout(TimeUnit.MILLISECONDS.toNanos(timeoutMillis),query.toArray());
+    if (!queryResponse.isPresent()) {
+      LOG.warn("Could get response from Watchman for query %s within %d ms",query,timeoutMillis);
+      postWatchEvent(createOverflowEvent());
+      return;
+    }
+    Map<String,? extends Object> response=queryResponse.get();
+    String error=(String)response.get("error");
+    if (error != null) {
+      WatchmanWatcherException e=new WatchmanWatcherException(error);
+      LOG.error(e,"Error in Watchman output. Posting an overflow event to flush the caches");
+      postWatchEvent(createOverflowEvent());
+      throw e;
+    }
+    String warning=(String)response.get("warning");
+    if (warning != null) {
+      buckEventBus.post(ConsoleEvent.warning("Watchman has produced a warning: %s",warning));
+      LOG.warn("Watchman has produced a warning: %s",warning);
+      watchmanWarningsBuilder.add(warning);
+    }
+    Boolean isFreshInstance=(Boolean)response.get("is_fresh_instance");
+    if (isFreshInstance != null && isFreshInstance) {
+      LOG.debug("Watchman indicated a fresh instance (fresh instance action %s)",freshInstanceAction);
+switch (freshInstanceAction) {
+case NONE:
+        break;
+case POST_OVERFLOW_EVENT:
+      postWatchEvent(createOverflowEvent());
+    break;
+}
+return;
+}
+List<Map<String,Object>> files=(List<Map<String,Object>>)response.get("files");
+if (files != null) {
+if (files.size() > overflow) {
+  LOG.warn("Too many changed files (%d > %d), giving up and posting overflow event.",files.size(),overflow);
+  postWatchEvent(createOverflowEvent());
+  return;
+}
+for (Map<String,Object> file : files) {
+  String fileName=(String)file.get("name");
+  if (fileName == null) {
+    LOG.warn("Filename missing from Watchman file response %s",file);
+    postWatchEvent(createOverflowEvent());
+    return;
+  }
+  PathEventBuilder builder=new PathEventBuilder();
+  builder.setPath(Paths.get(fileName));
+  Boolean fileNew=(Boolean)file.get("new");
+  if (fileNew != null && fileNew) {
+    builder.setCreationEvent();
+  }
+  Boolean fileExists=(Boolean)file.get("exists");
+  if (fileExists != null && !fileExists) {
+    builder.setDeletionEvent();
+  }
+  postWatchEvent(builder.build());
+}
+LOG.debug("Posted %d Watchman events.",files.size());
+}
+}
+ catch (InterruptedException e) {
+LOG.warn(e,"Interrupted while talking to Watchman");
+postWatchEvent(createOverflowEvent());
+Thread.currentThread().interrupt();
+throw e;
+}
+catch (IOException e) {
+LOG.error(e,"I/O error talking to Watchman");
+postWatchEvent(createOverflowEvent());
+throw e;
+}
+}
