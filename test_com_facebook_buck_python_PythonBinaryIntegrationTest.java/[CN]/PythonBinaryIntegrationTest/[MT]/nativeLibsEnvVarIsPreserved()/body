@@ -4,10 +4,8 @@
   String nativeLibsEnvVarName=DefaultCxxPlatforms.build(new CxxBuckConfig(FakeBuckConfig.builder().build())).getLd().resolve(resolver).searchPathEnvVar();
   String originalNativeLibsEnvVar="something";
   workspace.writeContentsToPath(String.format("import os; print(os.environ.get('%s'))",nativeLibsEnvVarName),"main_with_native_libs.py");
-  Map<String,String> env=Maps.newHashMap(System.getenv());
-  env.remove(nativeLibsEnvVarName);
-  String nativeLibsEnvVar=workspace.runBuckCommandWithEnvironmentAndContext(workspace.getPath(""),Optional.<NGContext>absent(),Optional.of(ImmutableMap.<String,String>builder().putAll(env).put(nativeLibsEnvVarName,originalNativeLibsEnvVar).build()),"run",":bin-with-native-libs").assertSuccess().getStdout().trim();
+  String nativeLibsEnvVar=workspace.runBuckCommandWithEnvironmentOverridesAndContext(workspace.getPath(""),Optional.<NGContext>absent(),ImmutableMap.<String,String>of(nativeLibsEnvVarName,originalNativeLibsEnvVar),"run",":bin-with-native-libs").assertSuccess().getStdout().trim();
   assertThat(nativeLibsEnvVar,equalTo(originalNativeLibsEnvVar));
-  nativeLibsEnvVar=workspace.runBuckCommandWithEnvironmentAndContext(workspace.getPath(""),Optional.<NGContext>absent(),Optional.of(ImmutableMap.copyOf(env)),"run",":bin-with-native-libs").assertSuccess().getStdout().trim();
+  nativeLibsEnvVar=workspace.runBuckCommandWithEnvironmentOverridesAndContext(workspace.getPath(""),Optional.<NGContext>absent(),ImmutableMap.<String,String>of(),"run",":bin-with-native-libs").assertSuccess().getStdout().trim();
   assertThat(nativeLibsEnvVar,equalTo("None"));
 }

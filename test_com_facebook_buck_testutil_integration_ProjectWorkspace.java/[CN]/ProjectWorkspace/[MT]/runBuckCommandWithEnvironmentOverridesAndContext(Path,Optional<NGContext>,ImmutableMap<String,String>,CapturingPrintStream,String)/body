@@ -3,18 +3,19 @@
   CapturingPrintStream stdout=new CapturingPrintStream();
   InputStream stdin=new ByteArrayInputStream("".getBytes());
   ImmutableList<String> inheritedEnvVars=ImmutableList.of("ANDROID_HOME","ANDROID_NDK","ANDROID_NDK_REPOSITORY","ANDROID_SDK","GROOVY_HOME","JAVA_HOME","NDK_HOME","PATH","PATHEXT","OS","ProgramW6432","ProgramFiles(x86)","HOME","TMP");
-  ImmutableMap.Builder<String,String> envBuilder=ImmutableMap.builder();
+  Map<String,String> envBuilder=new HashMap<>();
   for (  String variable : inheritedEnvVars) {
     String value=System.getenv(variable);
     if (value != null) {
       envBuilder.put(variable,value);
     }
   }
-  ImmutableMap<String,String> sanizitedEnv=envBuilder.build();
+  envBuilder.putAll(environmentOverrides);
+  ImmutableMap<String,String> sanizitedEnv=ImmutableMap.copyOf(envBuilder);
   Main main=new Main(stdout,stderr,stdin);
   int exitCode;
   try {
-    exitCode=main.runMainWithExitCode(new BuildId(),repoRoot,context,env.or(sanizitedEnv),CommandMode.TEST,args);
+    exitCode=main.runMainWithExitCode(new BuildId(),repoRoot,context,sanizitedEnv,CommandMode.TEST,args);
   }
  catch (  InterruptedException e) {
     e.printStackTrace(stderr);
