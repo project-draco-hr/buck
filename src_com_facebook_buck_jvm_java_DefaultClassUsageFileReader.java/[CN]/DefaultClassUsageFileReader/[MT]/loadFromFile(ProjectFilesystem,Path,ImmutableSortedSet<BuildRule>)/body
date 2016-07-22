@@ -1,0 +1,22 @@
+{
+  final ImmutableMap<Path,SourcePath> jarAbsolutePathToAbiJarSourcePath=buildJarToAbiJarMap(deps);
+  final ImmutableList.Builder<SourcePath> builder=ImmutableList.builder();
+  try {
+    final ImmutableSet<Map.Entry<String,ImmutableList<String>>> classUsageEntries=loadClassUsageMap(classUsageFilePath).entrySet();
+    for (    Map.Entry<String,ImmutableList<String>> jarUsedClassesEntry : classUsageEntries) {
+      Path jarAbsolutePath=projectFilesystem.getAbsolutifier().apply(Paths.get(jarUsedClassesEntry.getKey()));
+      SourcePath abiJarSourcePath=jarAbsolutePathToAbiJarSourcePath.get(jarAbsolutePath);
+      if (abiJarSourcePath == null) {
+        continue;
+      }
+      ImmutableList<String> classAbsolutePaths=jarUsedClassesEntry.getValue();
+      for (      String classAbsolutePath : classAbsolutePaths) {
+        builder.add(new ArchiveMemberSourcePath(abiJarSourcePath,Paths.get(classAbsolutePath)));
+      }
+    }
+  }
+ catch (  IOException e) {
+    throw new HumanReadableException(e,"Failed to load class usage files from %s:\n%s",classUsageFilePath,e.getLocalizedMessage());
+  }
+  return builder.build();
+}
