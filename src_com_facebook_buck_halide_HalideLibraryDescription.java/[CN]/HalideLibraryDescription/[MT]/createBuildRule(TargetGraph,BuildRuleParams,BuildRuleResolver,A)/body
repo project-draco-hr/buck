@@ -5,7 +5,7 @@
   if (flavors.contains(CxxDescriptionEnhancer.EXPORTED_HEADER_SYMLINK_TREE_FLAVOR)) {
     ImmutableMap.Builder<Path,SourcePath> headersBuilder=ImmutableMap.builder();
     BuildTarget compileTarget=resolver.requireRule(target.withFlavors(HALIDE_COMPILE_FLAVOR,cxxPlatform.getFlavor())).getBuildTarget();
-    Path outputPath=HalideCompile.headerOutputPath(compileTarget,params.getProjectFilesystem());
+    Path outputPath=HalideCompile.headerOutputPath(compileTarget,params.getProjectFilesystem(),args.functionName);
     headersBuilder.put(outputPath.getFileName(),new BuildTargetSourcePath(compileTarget,outputPath));
     return CxxDescriptionEnhancer.createHeaderSymlinkTree(params,resolver,new SourcePathResolver(resolver),cxxPlatform,headersBuilder.build(),HeaderVisibility.PUBLIC);
   }
@@ -16,13 +16,13 @@
     return createHalideCompiler(params.copyWithChanges(params.getBuildTarget().withFlavors(HALIDE_COMPILER_FLAVOR),Suppliers.ofInstance(resolver.getAllRules(compilerDeps)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),resolver,new SourcePathResolver(resolver),hostCxxPlatform,args.srcs.get(),args.compilerFlags,args.platformCompilerFlags,args.langCompilerFlags,args.linkerFlags,args.platformLinkerFlags);
   }
  else   if (flavors.contains(CxxDescriptionEnhancer.STATIC_FLAVOR) || flavors.contains(CxxDescriptionEnhancer.STATIC_PIC_FLAVOR)) {
-    return createHalideStaticLibrary(params,resolver,new SourcePathResolver(resolver),cxxPlatform);
+    return createHalideStaticLibrary(params,resolver,new SourcePathResolver(resolver),cxxPlatform,args.functionName);
   }
  else   if (flavors.contains(CxxDescriptionEnhancer.SHARED_FLAVOR)) {
     throw new HumanReadableException("halide_library '%s' does not support shared libraries as output",params.getBuildTarget());
   }
  else   if (flavors.contains(HALIDE_COMPILE_FLAVOR)) {
-    return createHalideCompile(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),resolver,new SourcePathResolver(resolver),cxxPlatform,args.compilerInvocationFlags);
+    return createHalideCompile(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),resolver,new SourcePathResolver(resolver),cxxPlatform,args.compilerInvocationFlags,args.functionName);
   }
   return new HalideLibrary(params,resolver,new SourcePathResolver(resolver),args.supportedPlatformsRegex);
 }

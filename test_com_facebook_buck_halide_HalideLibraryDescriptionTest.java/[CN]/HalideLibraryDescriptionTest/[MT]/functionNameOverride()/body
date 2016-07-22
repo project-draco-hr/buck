@@ -1,7 +1,7 @@
 {
   ProjectFilesystem filesystem=new FakeProjectFilesystem();
-  ImmutableList<String> extraCompilerFlags=ImmutableList.<String>builder().add("--test-flag").add("test-value").add("$TEST_MACRO").build();
-  BuildTarget compileTarget=BuildTargetFactory.newInstance("//:rule").withFlavors(HalideLibraryDescription.HALIDE_COMPILE_FLAVOR);
+  String defaultName="default-halide-name";
+  BuildTarget compileTarget=BuildTargetFactory.newInstance("//:" + defaultName).withFlavors(HalideLibraryDescription.HALIDE_COMPILE_FLAVOR);
   HalideLibraryBuilder compileBuilder=new HalideLibraryBuilder(compileTarget);
   compileBuilder.setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("main.cpp"))));
   TargetGraph targetGraph=TargetGraphFactory.newInstance(compileBuilder.build());
@@ -10,13 +10,15 @@
   ImmutableList<Step> buildSteps=compile.getBuildSteps(FakeBuildContext.NOOP_CONTEXT,new FakeBuildableContext());
   HalideCompilerStep compilerStep=(HalideCompilerStep)buildSteps.get(1);
   ImmutableList<String> shellCommand=compilerStep.getShellCommandInternal(TestExecutionContext.newInstance());
-  assertThat(shellCommand,not(hasItems("--test-flag","test-value")));
-  compileBuilder.setCompilerInvocationFlags(extraCompilerFlags);
+  assertThat(shellCommand,hasItem(defaultName));
+  String overrideName="override-halide-name";
+  compileBuilder.setFunctionNameOverride(overrideName);
   targetGraph=TargetGraphFactory.newInstance(compileBuilder.build());
   resolver=new BuildRuleResolver(targetGraph,new DefaultTargetNodeToBuildRuleTransformer());
   compile=(HalideCompile)compileBuilder.build(resolver,filesystem,targetGraph);
   buildSteps=compile.getBuildSteps(FakeBuildContext.NOOP_CONTEXT,new FakeBuildableContext());
   compilerStep=(HalideCompilerStep)buildSteps.get(1);
   shellCommand=compilerStep.getShellCommandInternal(TestExecutionContext.newInstance());
-  assertThat(shellCommand,hasItems("--test-flag","test-value","test_macro_expansion"));
+  assertThat(shellCommand,hasItem(overrideName));
+  assertThat(shellCommand,not(hasItem(defaultName)));
 }
