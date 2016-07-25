@@ -1,0 +1,45 @@
+{
+  this.pathToBuckPy=Optional.absent();
+  this.options=options;
+  this.marshaller=marshaller;
+  this.environment=environment;
+  this.buckEventBus=buckEventBus;
+  this.processExecutor=processExecutor;
+  this.bserDeserializer=new BserDeserializer(BserDeserializer.KeyOrdering.SORTED);
+  this.bserSerializer=new BserSerializer();
+  this.assertSingleThreadedParsing=new AssertScopeExclusiveAccess();
+  this.ignoreBuckAutodepsFiles=ignoreBuckAutodepsFiles;
+  this.watchmanDiagnosticCache=watchmanDiagnosticCache;
+  this.rawConfigJson=Suppliers.memoize(new Supplier<Path>(){
+    @Override public Path get(){
+      try {
+        Path rawConfigJson=Files.createTempFile("raw_config",".json");
+        Files.createDirectories(rawConfigJson.getParent());
+        try (OutputStream output=new BufferedOutputStream(Files.newOutputStream(rawConfigJson))){
+          bserSerializer.serializeToStream(options.getRawConfig(),output);
+        }
+         return rawConfigJson;
+      }
+ catch (      IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+);
+  this.ignorePathsJson=Suppliers.memoize(new Supplier<Path>(){
+    @Override public Path get(){
+      try {
+        Path ignorePathsJson=Files.createTempFile("ignore_paths",".json");
+        Files.createDirectories(ignorePathsJson.getParent());
+        try (OutputStream output=new BufferedOutputStream(Files.newOutputStream(ignorePathsJson))){
+          bserSerializer.serializeToStream(FluentIterable.from(options.getIgnorePaths()).transform(PathOrGlobMatcher.toPathOrGlob()).toList(),output);
+        }
+         return ignorePathsJson;
+      }
+ catch (      IOException e) {
+        throw new RuntimeException(e);
+      }
+    }
+  }
+);
+}

@@ -12,8 +12,12 @@ def glob_watchman(includes, excludes, include_dotfiles, base_path, watchman_watc
         query_params['sync_timeout'] = 0
     query = ['query', watchman_watch_root, query_params]
     res = watchman_client.query(*query)
-    if res.get('warning'):
-        diagnostics.add(DiagnosticMessageAndLevel(message='Watchman warning: {0}'.format(res.get('warning')), level='warning'))
+    error_message = res.get('error')
+    if (error_message is not None):
+        diagnostics.add(Diagnostic(message=error_message, level='error', source='watchman'))
+    warning_message = res.get('warning')
+    if (warning_message is not None):
+        diagnostics.add(Diagnostic(message=warning_message, level='warning', source='watchman'))
     result = res.get('files', [])
     if watchman_glob_stat_results:
         result = stat_results(base_path, result, diagnostics)

@@ -1,0 +1,28 @@
+{
+  WatchmanDiagnostic.Level watchmanDiagnosticLevel;
+switch (level) {
+case "warning":
+    watchmanDiagnosticLevel=WatchmanDiagnostic.Level.WARNING;
+  break;
+case "error":
+watchmanDiagnosticLevel=WatchmanDiagnostic.Level.ERROR;
+break;
+default :
+throw new RuntimeException(String.format("Unrecognized watchman diagnostic level: %s (message=%s)",level,message));
+}
+WatchmanDiagnostic watchmanDiagnostic=WatchmanDiagnostic.of(watchmanDiagnosticLevel,message);
+switch (watchmanDiagnosticCache.addDiagnostic(watchmanDiagnostic)) {
+case NEW_DIAGNOSTIC:
+switch (watchmanDiagnosticLevel) {
+case WARNING:
+buckEventBus.post(ConsoleEvent.warning("Watchman raised a warning: %s",message));
+break;
+case ERROR:
+buckEventBus.post(ConsoleEvent.severe("Watchman raised an error: %s",message));
+break;
+}
+break;
+case DUPLICATE_DIAGNOSTIC:
+break;
+}
+}

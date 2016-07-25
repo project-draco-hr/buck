@@ -85,7 +85,8 @@
         TRASH_CLEANER.startCleaningDirectory();
       }
       KnownBuildRuleTypesFactory factory=new KnownBuildRuleTypesFactory(processExecutor,androidDirectoryResolver,testTempDirOverride);
-      Cell rootCell=Cell.createCell(filesystem,console,watchman,buckConfig,command.getConfigOverrides(),factory,androidDirectoryResolver,clock);
+      WatchmanDiagnosticCache watchmanDiagnosticCache=new WatchmanDiagnosticCache();
+      Cell rootCell=Cell.createCell(filesystem,console,watchman,buckConfig,command.getConfigOverrides(),factory,androidDirectoryResolver,clock,watchmanDiagnosticCache);
       int exitCode;
       ImmutableList<BuckEventListener> eventListeners=ImmutableList.of();
       ExecutionEnvironment executionEnvironment=new DefaultExecutionEnvironment(clientEnvironment,System.getProperties());
@@ -145,7 +146,7 @@
           try {
             Daemon daemon=getDaemon(rootCell,objectMapper);
             WatchmanWatcher watchmanWatcher=new WatchmanWatcher(watchman.getWatchRoot().or(canonicalRootPath.toString()),daemon.getFileEventBus(),ImmutableSet.<PathOrGlobMatcher>builder().addAll(filesystem.getIgnorePaths()).addAll(DEFAULT_IGNORE_GLOBS).build(),watchman,daemon.getWatchmanQueryUUID());
-            parser=getParserFromDaemon(context,rootCell,startedEvent,buildEventBus,watchmanWatcher,watchmanFreshInstanceAction);
+            parser=getParserFromDaemon(context,rootCell,startedEvent,buildEventBus,watchmanWatcher,watchmanFreshInstanceAction,watchmanDiagnosticCache);
           }
  catch (          WatchmanWatcherException|IOException e) {
             buildEventBus.post(ConsoleEvent.warning("Watchman threw an exception while parsing file changes.\n%s",e.getMessage()));

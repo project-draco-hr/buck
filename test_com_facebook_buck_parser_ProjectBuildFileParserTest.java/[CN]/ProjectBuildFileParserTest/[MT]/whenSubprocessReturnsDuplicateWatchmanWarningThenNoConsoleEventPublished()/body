@@ -1,0 +1,19 @@
+{
+  assumeTrue(Platform.detect() != Platform.WINDOWS);
+  TestProjectBuildFileParserFactory buildFileParserFactory=new TestProjectBuildFileParserFactory(cell.getRoot(),cell.getKnownBuildRuleTypes());
+  BuckEventBus buckEventBus=BuckEventBusFactory.newInstance(new FakeClock(0));
+  final List<ConsoleEvent> consoleEvents=new ArrayList<>();
+class EventListener {
+    @Subscribe public void onConsoleEvent(    ConsoleEvent consoleEvent){
+      consoleEvents.add(consoleEvent);
+    }
+  }
+  EventListener eventListener=new EventListener();
+  buckEventBus.register(eventListener);
+  buildFileParserFactory.watchmanDiagnostics.add(WatchmanDiagnostic.of(WatchmanDiagnostic.Level.WARNING,"This is a dupe watchman warning"));
+  try (ProjectBuildFileParser buildFileParser=buildFileParserFactory.createNoopParserThatAlwaysReturnsSuccessWithWarning(buckEventBus,"This is a dupe watchman warning","watchman")){
+    buildFileParser.initIfNeeded();
+    buildFileParser.getAllRulesAndMetaRules(Paths.get("foo"));
+  }
+   assertThat(consoleEvents,Matchers.empty());
+}
