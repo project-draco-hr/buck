@@ -8,6 +8,7 @@ def _process(self, build_env, path, implicit_includes=[]):
     default_globals['include_defs'] = functools.partial(self._include_defs, implicit_includes=implicit_includes)
     default_globals['add_build_file_dep'] = self._add_build_file_dep
     default_globals['read_config'] = self._read_config
+    default_globals['allow_unsafe_import'] = self._allow_unsafe_import
     for include in implicit_includes:
         include_path = self._get_include_path(include)
         (inner_env, mod) = self._process_include(include_path)
@@ -22,10 +23,8 @@ def _process(self, build_env, path, implicit_includes=[]):
         contents = f.read()
     future_features = __future__.absolute_import.compiler_flag
     code = compile(contents, path, 'exec', future_features, 1)
-    original_import = __builtin__.__import__
-    __builtin__.__import__ = self.custom_import(self._enable_build_file_sandboxing, path)
-    exec code in module.__dict__
-    __builtin__.__import__ = original_import
+    with self._allow_unsafe_import(False):
+        exec code in module.__dict__
     self._pop_build_env()
     self._cache[path] = (build_env, module)
     return (build_env, module)
