@@ -24,7 +24,7 @@
   HttpArtifactCacheEvent.Started storeStartedOne=postStoreStarted(eventBus,threadId,710L,storeScheduledOne);
   eventBus.postWithoutConfiguring(configureTestEventAtTime(BuildRuleEvent.finished(fakeRule,BuildRuleKeys.of(new RuleKey("aaaa")),BuildRuleStatus.SUCCESS,CacheResult.miss(),Optional.of(BuildRuleSuccessType.BUILT_LOCALLY),Optional.<HashCode>absent(),Optional.<Long>absent()),1000L,TimeUnit.MILLISECONDS,threadId));
   eventBus.postWithoutConfiguring(configureTestEventAtTime(BuildEvent.finished(buildEventStarted,0),1234L,TimeUnit.MILLISECONDS,threadId));
-  expectedOutput+="BUILT  0.4s //banana:stand\n" + "[-] BUILDING...FINISHED 0.8s\n" + "WAITING FOR HTTP CACHE UPLOADS (0 COMPLETE/0 FAILED/1 UPLOADING/1 PENDING)\n";
+  expectedOutput+="BUILT  0.4s //banana:stand\n" + "[-] BUILDING...FINISHED 0.8s\n" + "WAITING FOR HTTP CACHE UPLOADS 0.00 B (0 COMPLETE/0 FAILED/1 UPLOADING/1 PENDING)\n";
   assertOutput(expectedOutput,console);
   eventBus.postWithoutConfiguring(configureTestEventAtTime(ConsoleEvent.severe("I've made a huge mistake."),1500L,TimeUnit.MILLISECONDS,threadId));
   expectedOutput+="I've made a huge mistake.\n";
@@ -35,10 +35,12 @@
   eventBus.postWithoutConfiguring(configureTestEventAtTime(InstallEvent.finished(installEventStarted,true,Optional.<Long>absent(),Optional.<String>absent()),4000L,TimeUnit.MILLISECONDS,threadId));
   expectedOutput+="[-] INSTALLING...FINISHED 1.5s\n";
   assertOutput(expectedOutput,console);
-  postStoreFinished(eventBus,threadId,5015L,true,storeStartedOne);
+  long artifactSizeOne=SizeUnit.MEGABYTES.toBytes(1.5);
+  postStoreFinished(eventBus,threadId,artifactSizeOne,5015L,true,storeStartedOne);
   HttpArtifactCacheEvent.Started storeStartedTwo=postStoreStarted(eventBus,threadId,5020L,storeScheduledTwo);
-  postStoreFinished(eventBus,threadId,5020L,false,storeStartedTwo);
+  long artifactSizeTwo=600;
+  postStoreFinished(eventBus,threadId,artifactSizeTwo,5020L,false,storeStartedTwo);
   eventBus.postWithoutConfiguring(configureTestEventAtTime(HttpArtifactCacheEvent.newShutdownEvent(),6000L,TimeUnit.MILLISECONDS,threadId));
-  expectedOutput+="[-] HTTP CACHE UPLOAD...FINISHED 5.3s (1 COMPLETE/1 FAILED/0 UPLOADING/0 PENDING)\n";
+  expectedOutput+="[-] HTTP CACHE UPLOAD...FINISHED 1.50 MB (1 COMPLETE/1 FAILED/0 UPLOADING/0 PENDING)\n";
   assertOutput(expectedOutput,console);
 }
