@@ -4,7 +4,7 @@
   BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).setProjectFilesystem(filesystem).build();
   final BuildRule rule=new FailingInputRuleKeyBuildRule(params,pathResolver);
   filesystem.writeContentsToPath(MAPPER.writeValueAsString(ImmutableList.of(rule.getPathToOutput().toString())),BuildInfo.getPathToMetadataDirectory(target,filesystem).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS));
-  Path artifact=tmp.newFile("artifact.zip").toPath();
+  Path artifact=tmp.newFile("artifact.zip");
   writeEntriesToZip(artifact,ImmutableMap.of(BuildInfo.getPathToMetadataDirectory(target,filesystem).resolve(BuildInfo.METADATA_KEY_FOR_RECORDED_PATHS),MAPPER.writeValueAsString(ImmutableList.of(rule.getPathToOutput().toString())),rule.getPathToOutput(),"stuff"));
   cache.store(ArtifactInfo.builder().addRuleKeys(inputRuleKey).setMetadata(ImmutableMap.of(BuildInfo.METADATA_KEY_FOR_RULE_KEY,new RuleKey("bbbb").toString(),BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY,inputRuleKey.toString())).build(),BorrowablePath.notBorrowablePath(artifact));
   CachingBuildEngine cachingBuildEngine=cachingBuildEngineFactory().setRuleKeyFactoriesFunction(Functions.constant(new CachingBuildEngine.RuleKeyFactories(ruleKeyBuilderFactory,new FakeInputBasedRuleKeyBuilderFactory(ImmutableMap.of(rule.getBuildTarget(),Optional.of(inputRuleKey))),NOOP_RULE_KEY_FACTORY,NOOP_DEP_FILE_RULE_KEY_FACTORY))).build();
@@ -13,7 +13,7 @@
   OnDiskBuildInfo onDiskBuildInfo=buildContext.createOnDiskBuildInfoFor(target,filesystem);
   assertThat(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_RULE_KEY),equalTo(Optional.of(ruleKeyBuilderFactory.build(rule))));
   assertThat(onDiskBuildInfo.getRuleKey(BuildInfo.METADATA_KEY_FOR_INPUT_BASED_RULE_KEY),equalTo(Optional.of(inputRuleKey)));
-  Path fetchedArtifact=tmp.newFile("fetched_artifact.zip").toPath();
+  Path fetchedArtifact=tmp.newFile("fetched_artifact.zip");
   assertThat(cache.fetch(ruleKeyBuilderFactory.build(rule),LazyPath.ofInstance(fetchedArtifact)).getType(),equalTo(CacheResultType.HIT));
   assertEquals(new ZipInspector(artifact).getZipFileEntries(),new ZipInspector(fetchedArtifact).getZipFileEntries());
   MoreAsserts.assertContentsEqual(artifact,fetchedArtifact);

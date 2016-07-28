@@ -7,16 +7,15 @@
     Map<String,ImmutableMap<NdkCxxPlatforms.TargetCpuType,RuleKey>> linkRukeKeys=Maps.newHashMap();
     for (    String dir : ImmutableList.of("android-ndk-r9c","android-ndk-r10b")) {
       for (      Platform platform : ImmutableList.of(Platform.LINUX,Platform.MACOS,Platform.WINDOWS)) {
-        tmp.create();
-        Path root=tmp.newFolder(dir).toPath();
-        FakeProjectFilesystem filesystem=new FakeProjectFilesystem(root.toFile());
+        Path root=tmp.newFolder(dir);
+        FakeProjectFilesystem filesystem=new FakeProjectFilesystem(root);
         MoreFiles.writeLinesToFile(ImmutableList.of("r9c"),root.resolve("RELEASE.TXT"));
         ImmutableMap<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> platforms=NdkCxxPlatforms.getPlatforms(CxxPlatformUtils.DEFAULT_CONFIG,filesystem,NdkCxxPlatformCompiler.builder().setType(config.getFirst()).setVersion("gcc-version").setGccVersion("clang-version").build(),NdkCxxPlatforms.CxxRuntime.GNUSTL,"target-app-platform",ImmutableSet.of("x86"),platform,new AlwaysFoundExecutableFinder());
         preprocessAndCompileRukeKeys.put(String.format("NdkCxxPlatform(%s, %s)",dir,platform),constructCompileRuleKeys(Operation.PREPROCESS_AND_COMPILE,platforms));
         preprocessRukeKeys.put(String.format("NdkCxxPlatform(%s, %s)",dir,platform),constructCompileRuleKeys(Operation.PREPROCESS,platforms));
         compileRukeKeys.put(String.format("NdkCxxPlatform(%s, %s)",dir,platform),constructCompileRuleKeys(Operation.COMPILE,platforms));
         linkRukeKeys.put(String.format("NdkCxxPlatform(%s, %s)",dir,platform),constructLinkRuleKeys(platforms));
-        tmp.delete();
+        MoreFiles.deleteRecursively(root);
       }
     }
     assertThat(Arrays.toString(preprocessAndCompileRukeKeys.entrySet().toArray()),Sets.newHashSet(preprocessAndCompileRukeKeys.values()),Matchers.hasSize(1));

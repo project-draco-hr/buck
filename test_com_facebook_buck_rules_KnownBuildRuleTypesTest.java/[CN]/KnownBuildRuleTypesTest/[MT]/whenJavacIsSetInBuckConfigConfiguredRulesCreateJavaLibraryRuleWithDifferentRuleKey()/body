@@ -1,11 +1,10 @@
 {
-  final File javac;
+  final Path javac;
   if (Platform.detect() == Platform.WINDOWS) {
-    javac=new File("C:/Windows/system32/rundll32.exe");
+    javac=Paths.get("C:/Windows/system32/rundll32.exe");
   }
  else {
-    javac=temporaryFolder.newFile();
-    assertTrue(javac.setExecutable(true));
+    javac=temporaryFolder.newExecutableFile();
   }
   ImmutableMap<String,ImmutableMap<String,String>> sections=ImmutableMap.of("tools",ImmutableMap.of("javac",javac.toString()));
   BuckConfig buckConfig=FakeBuckConfig.builder().setSections(sections).build();
@@ -15,8 +14,7 @@
   KnownBuildRuleTypes configuredBuildRuleTypes=KnownBuildRuleTypes.createBuilder(buckConfig,processExecutor,new FakeAndroidDirectoryResolver(),Optional.<Path>absent()).build();
   DefaultJavaLibrary configuredRule=createJavaLibrary(configuredBuildRuleTypes);
   SourcePathResolver resolver=new SourcePathResolver(new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer()));
-  Path javacPath=javac.toPath();
-  FakeFileHashCache hashCache=new FakeFileHashCache(ImmutableMap.of(javacPath,MorePaths.asByteSource(javacPath).hash(Hashing.sha1())));
+  FakeFileHashCache hashCache=new FakeFileHashCache(ImmutableMap.of(javac,MorePaths.asByteSource(javac).hash(Hashing.sha1())));
   RuleKey configuredKey=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(configuredRule);
   RuleKey libraryKey=new DefaultRuleKeyBuilderFactory(0,hashCache,resolver).build(libraryRule);
   assertNotEquals(libraryKey,configuredKey);

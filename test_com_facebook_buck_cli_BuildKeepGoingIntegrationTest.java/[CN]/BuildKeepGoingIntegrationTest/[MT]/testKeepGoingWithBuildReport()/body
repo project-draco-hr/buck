@@ -1,9 +1,9 @@
 {
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"keep_going",tmp).setUp();
-  File buildReport=new File(tmpFolderForBuildReport.getRoot(),"build-report.txt");
-  workspace.runBuckBuild("--build-report",buildReport.getAbsolutePath(),"--keep-going","//:rule_with_output","//:failing_rule").assertFailure();
-  assertTrue(buildReport.exists());
-  String buildReportContents=com.google.common.io.Files.toString(buildReport,Charsets.UTF_8);
+  Path buildReport=tmpFolderForBuildReport.getRoot().resolve("build-report.txt");
+  workspace.runBuckBuild("--build-report",buildReport.toAbsolutePath().toString(),"--keep-going","//:rule_with_output","//:failing_rule").assertFailure();
+  assertTrue(Files.exists(buildReport));
+  String buildReportContents=new String(Files.readAllBytes(buildReport),Charsets.UTF_8);
   ObjectMapper mapper=ObjectMappers.newDefaultInstance();
   String expectedReport=Joiner.on(System.lineSeparator()).join("{","  \"success\" : false,","  \"results\" : {","    \"//:rule_with_output\" : {","      \"success\" : true,","      \"type\" : \"BUILT_LOCALLY\",","      \"output\" : " + mapper.valueToTree(GENRULE_OUTPUT_PATH),"    },","    \"//:failing_rule\" : {","      \"success\" : false","    }","  },","  \"failures\" : {","    \"//:failing_rule\" : \"//:failing_rule failed with exit code 2:\\ngenrule" + "\\nstderr: \"","  }","}");
   assertEquals(expectedReport,buildReportContents);
