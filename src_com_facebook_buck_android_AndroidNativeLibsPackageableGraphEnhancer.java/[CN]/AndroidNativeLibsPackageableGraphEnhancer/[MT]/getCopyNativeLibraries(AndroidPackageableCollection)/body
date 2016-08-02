@@ -1,11 +1,18 @@
 {
+  ImmutableList<NativeLinkable> nativeLinkables=packageableCollection.getNativeLinkables();
+  ImmutableList<NativeLinkable> nativeLinkablesAssets=packageableCollection.getNativeLinkablesAssets();
+  if (nativeLibraryMergeMap.isPresent()) {
+    NativeLibraryMergeEnhancementResult enhancement=NativeLibraryMergeEnhancer.enhance(cxxBuckConfig,ruleResolver,pathResolver,buildRuleParams,nativeLibraryMergeMap.get(),nativeLinkables,nativeLinkablesAssets);
+    nativeLinkables=enhancement.getMergedLinkables();
+    nativeLinkablesAssets=enhancement.getMergedLinkablesAssets();
+  }
   ImmutableMap.Builder<Pair<NdkCxxPlatforms.TargetCpuType,String>,SourcePath> nativeLinkableLibsBuilder=ImmutableMap.builder();
   ImmutableMap.Builder<Pair<NdkCxxPlatforms.TargetCpuType,String>,SourcePath> nativeLinkableLibsAssetsBuilder=ImmutableMap.builder();
   ImmutableSet<NdkCxxPlatforms.TargetCpuType> filters=cpuFilters.isEmpty() ? nativePlatforms.keySet() : cpuFilters;
   for (  NdkCxxPlatforms.TargetCpuType targetCpuType : filters) {
     NdkCxxPlatform platform=Preconditions.checkNotNull(nativePlatforms.get(targetCpuType),"Unknown platform type " + targetCpuType.toString());
-    boolean hasNativeLibs=populateMapWithLinkables(packageableCollection.getNativeLinkables(),nativeLinkableLibsBuilder,targetCpuType,platform);
-    boolean hasNativeLibsAssets=populateMapWithLinkables(packageableCollection.getNativeLinkablesAssets(),nativeLinkableLibsAssetsBuilder,targetCpuType,platform);
+    boolean hasNativeLibs=populateMapWithLinkables(nativeLinkables,nativeLinkableLibsBuilder,targetCpuType,platform);
+    boolean hasNativeLibsAssets=populateMapWithLinkables(nativeLinkablesAssets,nativeLinkableLibsAssetsBuilder,targetCpuType,platform);
     NdkCxxPlatforms.CxxRuntime cxxRuntime=platform.getCxxRuntime();
     if ((hasNativeLibs || hasNativeLibsAssets) && !cxxRuntime.equals(NdkCxxPlatforms.CxxRuntime.SYSTEM)) {
       nativeLinkableLibsBuilder.put(new Pair<>(targetCpuType,cxxRuntime.getSoname()),new PathSourcePath(buildRuleParams.getProjectFilesystem(),platform.getCxxSharedRuntimePath()));
