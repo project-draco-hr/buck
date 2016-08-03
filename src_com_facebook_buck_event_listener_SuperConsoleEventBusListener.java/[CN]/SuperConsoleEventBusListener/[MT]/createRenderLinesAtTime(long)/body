@@ -17,11 +17,12 @@
     if (ruleCount.isPresent()) {
       List<String> columns=Lists.newArrayList();
       columns.add(String.format(locale,"%d/%d JOBS",numRulesCompleted.get(),ruleCount.get()));
-      columns.add(String.format(locale,"%d UPDATED",updated.get()));
-      if (ruleCount.isPresent() && ruleCount.get() > 0) {
-        columns.add(String.format(locale,"%d [%.1f%%] CACHE MISS",cacheMisses.get(),100 * (double)cacheMisses.get() / ruleCount.get()));
-        if (cacheErrors.get() > 0) {
-          columns.add(String.format(locale,"%d [%.1f%%] CACHE ERRORS",cacheErrors.get(),100 * (double)cacheErrors.get() / updated.get()));
+      CacheRateStatsKeeper.CacheRateStatsUpdateEvent cacheRateStats=cacheRateStatsKeeper.getStats();
+      columns.add(String.format(locale,"%d UPDATED",cacheRateStats.getRulesWithUpdatedKeysCount()));
+      if (ruleCount.or(0) > 0) {
+        columns.add(String.format(locale,"%d [%.1f%%] CACHE MISS",cacheRateStats.getCacheMissCount(),cacheRateStats.getCacheMissRate()));
+        if (cacheRateStats.getCacheErrorCount() > 0) {
+          columns.add(String.format(locale,"%d [%.1f%%] CACHE ERRORS",cacheRateStats.getCacheErrorCount(),cacheRateStats.getCacheErrorRate()));
         }
       }
       jobSummary="(" + Joiner.on(", ").join(columns) + ")";
