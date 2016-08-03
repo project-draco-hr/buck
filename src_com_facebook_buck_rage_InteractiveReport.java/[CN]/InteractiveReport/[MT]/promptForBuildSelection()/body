@@ -1,9 +1,15 @@
 {
   ImmutableList<BuildLogEntry> buildLogs=buildLogHelper.getBuildLogs();
-  return input.selectRange("Which buck invocations would you like to report?",buildLogs,new Function<BuildLogEntry,String>(){
+  List<BuildLogEntry> interestingBuildLogs=new ArrayList<>();
+  for (  BuildLogEntry entry : buildLogs) {
+    if (entry.getCommandArgs().isPresent() && !entry.getCommandArgs().get().contains("rage")) {
+      interestingBuildLogs.add(entry);
+    }
+  }
+  return input.selectRange("Which buck invocations would you like to report?",interestingBuildLogs,new Function<BuildLogEntry,String>(){
     @Override public String apply(    BuildLogEntry input){
       Pair<Double,SizeUnit> humanReadableSize=SizeUnit.getHumanReadableSize(input.getSize(),SizeUnit.BYTES);
-      return String.format("buck [%s] at %s (%.2f %s)",input.getCommandArgs().or("unknown args"),input.getLastModifiedTime(),humanReadableSize.getFirst(),humanReadableSize.getSecond().getAbbreviation());
+      return String.format("\t%s\tbuck [%s] (%.2f %s)",input.getLastModifiedTime(),input.getCommandArgs(),humanReadableSize.getFirst(),humanReadableSize.getSecond().getAbbreviation());
     }
   }
 );
