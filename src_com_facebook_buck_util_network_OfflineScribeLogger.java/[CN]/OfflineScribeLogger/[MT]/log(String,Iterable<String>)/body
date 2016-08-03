@@ -2,8 +2,12 @@
   ListenableFuture<Void> upload=scribeLogger.log(category,lines);
   Futures.addCallback(upload,new FutureCallback<Void>(){
     @Override public void onSuccess(    Void result){
+      if (startedSendingStored.compareAndSet(false,true) && !startedStoring) {
+        sendStoredLogs();
+      }
     }
     @Override public void onFailure(    Throwable t){
+      startedStoring=true;
       if (!blacklistCategories.contains(category)) {
         LOG.verbose("Storing Scribe lines from category: %s.",category);
         byte[] scribeData;

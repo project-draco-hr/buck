@@ -1,0 +1,98 @@
+{
+  ImmutableSortedSet<Path> logsPaths;
+  try {
+    if (!filesystem.isDirectory(logDir)) {
+      return;
+    }
+    logsPaths=filesystem.getSortedMatchingDirectoryContents(logDir,LOGFILE_PATTERN);
+  }
+ catch (  Exception e) {
+    LOG.error(e,"Fetching stored logs list failed.");
+    return;
+  }
+  long totalBytesToSend=0;
+  for (  Path logPath : logsPaths) {
+    if (startedStoring || startedClosing) {
+      break;
+    }
+    Iterator<ScribeData> it=null;
+    try {
+      File logFile=logPath.toFile();
+      totalBytesToSend+=logFile.length();
+      if (totalBytesToSend > maxScribeOfflineLogsBytes) {
+        LOG.warn("Total size of offline logs exceeds the limit. Ceasing to send them to Scribe.");
+        return;
+      }
+      InputStream logFileStream=new BufferedInputStream(new FileInputStream(logFile),BUFFER_SIZE);
+      it=new ObjectMapper().readValues(new JsonFactory().createParser(logFileStream),ScribeData.class);
+    }
+ catch (    Exception e) {
+      LOG.error(e,"Failed to initiate reading from: %s.",logPath);
+    }
+    List<ListenableFuture<Void>> logFutures=new LinkedList<>();
+    Map<String,CategoryData> logReadData=new HashMap<>();
+    try {
+      boolean interrupted=false;
+      while (it.hasNext()) {
+        if (startedStoring || startedClosing) {
+          interrupted=true;
+          break;
+        }
+        ScribeData newData=it.next();
+        if (!logReadData.containsKey(newData.getCategory())) {
+          logReadData.put(newData.getCategory(),new CategoryData());
+        }
+        CategoryData categoryData=logReadData.get(newData.getCategory());
+        if (categoryData.getLinesBytes() > CLUSTER_DISPATCH_SIZE) {
+          logFutures.add(scribeLogger.log(newData.getCategory(),categoryData.getLines()));
+          categoryData.clearData();
+        }
+        for (        String line : newData.getLines()) {
+          categoryData.addLine(line);
+        }
+      }
+      if (!interrupted) {
+        for (        Map.Entry<String,CategoryData> logReadDataEntry : logReadData.entrySet()) {
+          if (startedStoring || startedClosing) {
+            interrupted=true;
+            break;
+          }
+          List<String> categoryLines=logReadDataEntry.getValue().getLines();
+          if (categoryLines.size() > 0) {
+            logFutures.add(scribeLogger.log(logReadDataEntry.getKey(),categoryLines));
+          }
+        }
+      }
+      if (interrupted) {
+        LOG.info("Stopped while sending from offline log (it will not be removed): %s.",logPath);
+        logFutures.clear();
+        break;
+      }
+    }
+ catch (    Exception e) {
+      LOG.error(e,"Error while reading offline log from: %s. This log will not be removed now. If this " + "error reappears in further runs, the file may be corrupted and should be deleted. ",logPath);
+      logFutures.clear();
+      continue;
+    }
+ finally {
+      logReadData.clear();
+    }
+    try {
+      Futures.allAsList(logFutures).get(LOG_TIMEOUT,LOG_TIMEOUT_UNIT);
+      try {
+        filesystem.deleteFileAtPathIfExists(logPath);
+      }
+ catch (      Exception e) {
+        LOG.error(e,"Failed to remove successfully resent offline log. Stopping sending.");
+        break;
+      }
+    }
+ catch (    Exception e) {
+      LOG.info("Failed to send all data from offline log: %s. Log will not be removed.",logPath);
+      break;
+    }
+ finally {
+      logFutures.clear();
+    }
+  }
+}
