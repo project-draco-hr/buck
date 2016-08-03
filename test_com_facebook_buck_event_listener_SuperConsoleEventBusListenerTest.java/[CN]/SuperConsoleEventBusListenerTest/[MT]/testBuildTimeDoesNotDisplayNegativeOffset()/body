@@ -1,21 +1,19 @@
 {
   Clock fakeClock=new IncrementingFakeClock(TimeUnit.SECONDS.toNanos(1));
   BuckEventBus eventBus=BuckEventBusFactory.newInstance(fakeClock);
-  TestConsole console=new TestConsole();
+  SuperConsoleEventBusListener listener=createSuperConsole(fakeClock,eventBus);
   BuildTarget fakeTarget=BuildTargetFactory.newInstance("//banana:stand");
   ImmutableSet<BuildTarget> buildTargets=ImmutableSet.of(fakeTarget);
   Iterable<String> buildArgs=Iterables.transform(buildTargets,Functions.toStringFunction());
-  SuperConsoleEventBusListener listener=new SuperConsoleEventBusListener(new SuperConsoleConfig(FakeBuckConfig.builder().build()),console,fakeClock,silentSummaryVerbosity,new DefaultExecutionEnvironment(ImmutableMap.copyOf(System.getenv()),System.getProperties()),Optional.<WebServer>absent(),Locale.US,logPath,timeZone);
-  eventBus.register(listener);
   ParseEvent.Started parseStarted=ParseEvent.started(buildTargets);
   eventBus.postWithoutConfiguring(configureTestEventAtTime(parseStarted,100L,TimeUnit.MILLISECONDS,0L));
   eventBus.postWithoutConfiguring(configureTestEventAtTime(ParseEvent.finished(parseStarted,Optional.<TargetGraph>absent()),200L,TimeUnit.MILLISECONDS,0L));
   ActionGraphEvent.Started actionGraphStarted=ActionGraphEvent.started();
   eventBus.postWithoutConfiguring(configureTestEventAtTime(actionGraphStarted,200L,TimeUnit.MILLISECONDS,0L));
-  validateConsole(console,listener,200L,ImmutableList.of("[+] PROCESSING BUCK FILES...0.1s"));
+  validateConsole(listener,200L,ImmutableList.of("[+] PROCESSING BUCK FILES...0.1s"));
   eventBus.postWithoutConfiguring(configureTestEventAtTime(ActionGraphEvent.finished(actionGraphStarted),300L,TimeUnit.MILLISECONDS,0L));
   BuildEvent.Started buildEventStarted=BuildEvent.started(buildArgs);
   eventBus.postWithoutConfiguring(configureTestEventAtTime(buildEventStarted,300L,TimeUnit.MILLISECONDS,0L));
   final String parsingLine="[-] PROCESSING BUCK FILES...FINISHED 0.2s";
-  validateConsole(console,listener,433L,ImmutableList.of(parsingLine,DOWNLOAD_STRING,"[+] BUILDING...0.1s"));
+  validateConsole(listener,433L,ImmutableList.of(parsingLine,DOWNLOAD_STRING,"[+] BUILDING...0.1s"));
 }

@@ -1,13 +1,11 @@
 {
   Clock fakeClock=new IncrementingFakeClock(TimeUnit.SECONDS.toNanos(1));
   BuckEventBus eventBus=BuckEventBusFactory.newInstance(fakeClock);
-  TestConsole console=new TestConsole();
-  SuperConsoleEventBusListener listener=new SuperConsoleEventBusListener(emptySuperConsoleConfig,console,fakeClock,silentSummaryVerbosity,new DefaultExecutionEnvironment(ImmutableMap.copyOf(System.getenv()),System.getProperties()),Optional.<WebServer>absent(),Locale.US,logPath,timeZone);
-  eventBus.register(listener);
+  SuperConsoleEventBusListener listener=createSuperConsole(fakeClock,eventBus);
   eventBus.post(ConsoleEvent.info("Hello world!"));
-  validateConsoleWithLogLines(console,listener,0L,ImmutableList.<String>of(),ImmutableList.of("Hello world!"));
+  validateConsoleWithLogLines(listener,0L,ImmutableList.<String>of(),ImmutableList.of("Hello world!"));
   eventBus.postWithoutConfiguring(configureTestEventAtTime(ProjectGenerationEvent.started(),0L,TimeUnit.MILLISECONDS,0L));
-  validateConsole(console,listener,0L,ImmutableList.of("[+] GENERATING PROJECT...0.0s"));
+  validateConsole(listener,0L,ImmutableList.of("[+] GENERATING PROJECT...0.0s"));
   eventBus.postWithoutConfiguring(configureTestEventAtTime(new ProjectGenerationEvent.Finished(),0L,TimeUnit.MILLISECONDS,0L));
-  validateConsole(console,listener,0L,ImmutableList.of("[-] GENERATING PROJECT...FINISHED 0.0s"));
+  validateConsole(listener,0L,ImmutableList.of("[-] GENERATING PROJECT...FINISHED 0.0s"));
 }
