@@ -1,0 +1,11 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  BuildTarget target=BuildTargetFactory.newInstance("//foo:bar");
+  BuildRuleParams params=new FakeBuildRuleParamsBuilder(target).build();
+  Archive archive=Archive.from(target,params,new SourcePathResolver(resolver),DEFAULT_ARCHIVER,ImmutableList.of("-foo"),DEFAULT_RANLIB,ImmutableList.of("-bar"),Archive.Contents.NORMAL,DEFAULT_OUTPUT,ImmutableList.<SourcePath>of(new FakeSourcePath("simple.o")));
+  ImmutableList<Step> steps=archive.getBuildSteps(FakeBuildContext.NOOP_CONTEXT,new FakeBuildableContext());
+  Step archiveStep=FluentIterable.from(steps).filter(ArchiveStep.class).first().get();
+  assertThat(archiveStep.getDescription(TestExecutionContext.newInstance()),containsString("-foo"));
+  Step ranlibStep=FluentIterable.from(steps).filter(RanlibStep.class).first().get();
+  assertThat(ranlibStep.getDescription(TestExecutionContext.newInstance()),containsString("-bar"));
+}
