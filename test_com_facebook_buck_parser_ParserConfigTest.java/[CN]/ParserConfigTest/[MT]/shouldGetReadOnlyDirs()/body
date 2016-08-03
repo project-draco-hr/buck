@@ -1,14 +1,13 @@
 {
-  temporaryFolder.newFolder("tmp");
-  temporaryFolder.newFolder("tmp2");
-  ArrayList<String> readOnlyPaths=new ArrayList<String>(2);
-  readOnlyPaths.add(temporaryFolder.getRoot() + "/tmp");
-  readOnlyPaths.add(temporaryFolder.getRoot() + "/tmp2");
-  ParserConfig parserConfig=new ParserConfig(FakeBuckConfig.builder().setSections("[project]","read_only_paths = " + readOnlyPaths.get(0) + ","+ readOnlyPaths.get(1)).build());
-  assertEquals(parserConfig.getReadOnlyPaths(),ImmutableSet.<Path>of(Paths.get(readOnlyPaths.get(0)),Paths.get(readOnlyPaths.get(1))));
-  String notExistingDir=temporaryFolder.getRoot() + "/not/existing/path";
-  parserConfig=new ParserConfig(FakeBuckConfig.builder().setSections("[project]","read_only_paths = " + notExistingDir).build());
+  String existingPath1="tmp/tmp-file";
+  String existingPath2="tmp2/tmp2-file";
+  ImmutableSet<Path> readOnlyPaths=ImmutableSet.<Path>of(Paths.get(existingPath1),Paths.get(existingPath2));
+  ProjectFilesystem filesystem=new FakeProjectFilesystem(readOnlyPaths);
+  ParserConfig parserConfig=new ParserConfig(FakeBuckConfig.builder().setSections("[project]","read_only_paths = " + existingPath1 + ","+ existingPath2).setFilesystem(filesystem).build());
+  assertTrue(parserConfig.getReadOnlyPaths().isPresent());
+  assertEquals(parserConfig.getReadOnlyPaths().get(),ImmutableList.<Path>of(filesystem.resolve(Paths.get(existingPath1)),filesystem.resolve(Paths.get(existingPath2))));
+  String notExistingDir="not/existing/path";
+  parserConfig=new ParserConfig(FakeBuckConfig.builder().setSections("[project]","read_only_paths = " + notExistingDir).setFilesystem(filesystem).build());
   thrown.expect(HumanReadableException.class);
-  thrown.expectMessage("Path " + MorePaths.pathWithPlatformSeparators(notExistingDir) + ", specified under read_only_paths does not exist.");
   parserConfig.getReadOnlyPaths();
 }

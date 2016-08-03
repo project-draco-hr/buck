@@ -5,11 +5,11 @@
     if (allowSymlinks == ParserConfig.AllowSymlinks.FORBID) {
       throw new HumanReadableException("Target %s contains input files under a path which contains a symbolic link " + "(%s). To resolve this, use separate rules and declare dependencies instead of " + "using symbolic links.",node.getBuildTarget(),newSymlinksEncountered);
     }
-    ImmutableSet<Path> readOnlyPaths=new ParserConfig(getCell(node.getBuildTarget()).getBuckConfig()).getReadOnlyPaths();
+    Optional<ImmutableList<Path>> readOnlyPaths=new ParserConfig(getCell(node.getBuildTarget()).getBuckConfig()).getReadOnlyPaths();
     Cell currentCell=cells.get(node.getBuildTarget().getCellPath());
-    if (!readOnlyPaths.isEmpty() && currentCell != null) {
+    if (readOnlyPaths.isPresent() && currentCell != null) {
       Path cellRootPath=currentCell.getFilesystem().getRootPath();
-      for (      Path readOnlyPath : readOnlyPaths) {
+      for (      Path readOnlyPath : readOnlyPaths.get()) {
         if (buildFile.startsWith(cellRootPath.resolve(readOnlyPath))) {
           LOG.debug("Target %s is under a symlink (%s). It will be cached because it belongs " + "under %s, a read-only path white listed in .buckconfing. under [project]" + " read_only_paths",node.getBuildTarget(),newSymlinksEncountered,readOnlyPath);
           return;
