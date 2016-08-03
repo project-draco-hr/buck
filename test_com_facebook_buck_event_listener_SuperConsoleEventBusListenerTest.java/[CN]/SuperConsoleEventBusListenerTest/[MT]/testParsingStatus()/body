@@ -1,0 +1,20 @@
+{
+  Clock fakeClock=new IncrementingFakeClock(TimeUnit.SECONDS.toNanos(1));
+  BuckEventBus eventBus=BuckEventBusFactory.newInstance(fakeClock);
+  SuperConsoleEventBusListener listener=createSuperConsole(fakeClock,eventBus);
+  eventBus.post(DaemonEvent.newDaemonInstance());
+  assertEquals(NEW_DAEMON_INSTANCE_MSG,listener.getParsingStatus());
+  eventBus.post(ActionGraphEvent.Cache.miss());
+  assertEquals(NEW_DAEMON_INSTANCE_MSG,listener.getParsingStatus());
+  String overflowMessage="and if you go chasing rabbits";
+  eventBus.post(WatchmanEvent.overflow(overflowMessage));
+  assertEquals(createParsingMessage(EMOJI_SNAIL,overflowMessage),listener.getParsingStatus());
+  eventBus.post(WatchmanEvent.fileCreation());
+  assertEquals(createParsingMessage(EMOJI_SNAIL,"File added"),listener.getParsingStatus());
+  eventBus.post(WatchmanEvent.fileDeletion());
+  assertEquals(createParsingMessage(EMOJI_SNAIL,"File removed"),listener.getParsingStatus());
+  eventBus.post(ParsingEvent.symlinkInvalidation());
+  assertEquals(createParsingMessage(EMOJI_WHALE,"Symlink caused cache invalidation"),listener.getParsingStatus());
+  eventBus.post(ActionGraphEvent.Cache.hit());
+  assertEquals(createParsingMessage(EMOJI_BUNNY,""),listener.getParsingStatus());
+}
