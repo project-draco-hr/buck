@@ -1,10 +1,10 @@
 {
   final Map<String,Pair<JarEntry,Optional<Path>>> entries=Maps.newTreeMap();
-  new DirectoryTraversal(directory){
-    @Override public void visit(    Path file,    String relativePath){
-      relativePath=relativePath.replace('\\','/');
+  filesystem.walkFileTree(directory,EnumSet.of(FileVisitOption.FOLLOW_LINKS),Integer.MAX_VALUE,new SimpleFileVisitor<Path>(){
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs) throws IOException {
+      String relativePath=MorePaths.pathWithUnixSeparators(MorePaths.relativize(directory,file));
       if (shouldEntryBeRemovedFromJar(eventBus,relativePath,blacklist)) {
-        return;
+        return FileVisitResult.CONTINUE;
       }
       JarEntry entry=new JarEntry(relativePath);
       String entryName=entry.getName();
@@ -13,24 +13,27 @@
         if (!entryName.endsWith("/")) {
           eventBus.post(ConsoleEvent.create(determineSeverity(entry),"Duplicate found when adding directory to jar: %s",relativePath));
         }
-        return;
+        return FileVisitResult.CONTINUE;
       }
       entries.put(entry.getName(),new Pair<>(entry,Optional.of(file)));
+      return FileVisitResult.CONTINUE;
     }
-    @Override public void visitDirectory(    Path directory,    String relativePath) throws IOException {
+    @Override public FileVisitResult preVisitDirectory(    Path dir,    BasicFileAttributes attrs) throws IOException {
+      String relativePath=MorePaths.pathWithUnixSeparators(MorePaths.relativize(directory,dir));
       if (relativePath.isEmpty()) {
-        return;
+        return FileVisitResult.CONTINUE;
       }
       String entryName=relativePath.replace('\\','/') + "/";
       if (alreadyAddedEntries.contains(entryName)) {
-        return;
+        return FileVisitResult.CONTINUE;
       }
       JarEntry entry=new JarEntry(entryName);
       entry.setTime(ZipConstants.getFakeTime());
       entries.put(entry.getName(),new Pair<>(entry,Optional.<Path>absent()));
+      return FileVisitResult.CONTINUE;
     }
   }
-.traverse();
+);
   for (  Pair<JarEntry,Optional<Path>> entry : entries.values()) {
     jar.putNextEntry(entry.getFirst());
     if (entry.getSecond().isPresent()) {
