@@ -1,13 +1,15 @@
 {
-  try (AutoCloseableLock writeLock=nodesAndTargetsLock.writeLock()){
+  try (AutoCloseableLock writeLock=rawAndComputedNodesLock.writeLock()){
     int invalidatedRawNodes=0;
-    List<Map<String,Object>> rawNodes=allRawNodes.getIfPresent(path);
+    ImmutableSet<Map<String,Object>> rawNodes=allRawNodes.getIfPresent(path);
     if (rawNodes != null) {
       invalidatedRawNodes=rawNodes.size();
       for (      Map<String,Object> rawNode : rawNodes) {
-        UnflavoredBuildTarget target=ParsePipeline.parseBuildTargetFromRawRule(cell.getRoot(),rawNode,path);
+        UnflavoredBuildTarget target=RawNodeParsePipeline.parseBuildTargetFromRawRule(cell.getRoot(),rawNode,path);
         LOG.debug("Invalidating target for path %s: %s",path,target);
-        allTargetNodes.invalidateAll(targetsCornucopia.get(target));
+        for (        CacheImpl<?> cache : typedNodeCaches.values()) {
+          cache.allComputedNodes.invalidateAll(targetsCornucopia.get(target));
+        }
         targetsCornucopia.removeAll(target);
       }
       allRawNodes.invalidate(path);

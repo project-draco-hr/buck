@@ -1,0 +1,19 @@
+{
+  Optional<T> cacheLookupResult=cache.lookupComputedNode(cell,key);
+  if (cacheLookupResult.isPresent()) {
+    return Futures.immediateFuture(cacheLookupResult.get());
+  }
+synchronized (lock) {
+    if (jobsCache.containsKey(key)) {
+      return jobsCache.get(key);
+    }
+    ListenableFuture<T> nodeJob=Futures.transformAsync(jobSupplier.get(),new AsyncFunction<T,T>(){
+      @Override public ListenableFuture<T> apply(      T input) throws BuildTargetException {
+        return Futures.immediateFuture(cache.putComputedNodeIfNotPresent(cell,key,input));
+      }
+    }
+);
+    jobsCache.put(key,nodeJob);
+    return nodeJob;
+  }
+}

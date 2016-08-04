@@ -6,7 +6,8 @@
   this.projectBuildFileParsers=new HashSet<>();
   this.workspace.setUp();
   this.cell=this.workspace.asCell();
-  this.cache=new ParsePipelineCache();
+  this.targetNodeParsePipelineCache=new TargetNodeParsePipelineCache();
+  this.rawNodeParsePipelineCache=new RawNodeParsePipelineCache();
   final TypeCoercerFactory coercerFactory=new DefaultTypeCoercerFactory(ObjectMappers.newDefaultInstance());
   final ConstructorArgMarshaller constructorArgMarshaller=new ConstructorArgMarshaller(coercerFactory);
   projectBuildFileParserPool=new ProjectBuildFileParserPool(4,new Function<Cell,ProjectBuildFileParser>(){
@@ -30,5 +31,6 @@ synchronized (projectBuildFileParsers) {
     }
   }
 );
-  this.parsePipeline=new ParsePipeline(this.cache,DefaultParserTargetNodeFactory.createForParser(eventBus,constructorArgMarshaller,buildFileTrees,nodeListener,new TargetNodeFactory(coercerFactory)),this.executorService,this.eventBus,this.projectBuildFileParserPool,speculativeParsing.value());
+  this.rawNodeParsePipeline=new RawNodeParsePipeline(this.rawNodeParsePipelineCache,this.projectBuildFileParserPool,executorService);
+  this.targetNodeParsePipeline=new TargetNodeParsePipeline(this.targetNodeParsePipelineCache,DefaultParserTargetNodeFactory.createForParser(eventBus,constructorArgMarshaller,buildFileTrees,nodeListener,new TargetNodeFactory(coercerFactory)),this.executorService,this.eventBus,speculativeParsing.value(),this.rawNodeParsePipeline);
 }

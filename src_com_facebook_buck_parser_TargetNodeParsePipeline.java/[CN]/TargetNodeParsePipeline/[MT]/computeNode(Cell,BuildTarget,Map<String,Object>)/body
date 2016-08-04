@@ -1,0 +1,27 @@
+{
+  try (SimplePerfEvent.Scope scope=Parser.getTargetNodeEventScope(eventBus,buildTarget)){
+    final TargetNode<?> targetNode=delegate.createTargetNode(cell,cell.getAbsolutePathToBuildFile(buildTarget),buildTarget,rawNode);
+    if (speculativeDepsTraversal) {
+      executorService.submit(new Runnable(){
+        @Override public void run(){
+          for (          BuildTarget depTarget : targetNode.getDeps()) {
+            Path depCellPath=depTarget.getCellPath();
+            if (depCellPath.equals(cell.getRoot())) {
+              try {
+                if (depTarget.isFlavored()) {
+                  getNodeJob(cell,BuildTarget.of(depTarget.getUnflavoredBuildTarget()));
+                }
+                getNodeJob(cell,depTarget);
+              }
+ catch (              BuildTargetException e) {
+                LOG.info(e,"Could not schedule speculative parsing for %s",depTarget);
+              }
+            }
+          }
+        }
+      }
+);
+    }
+    return targetNode;
+  }
+ }

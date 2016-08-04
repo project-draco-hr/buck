@@ -1,0 +1,32 @@
+{
+  ListenableFuture<List<T>> allNodesListJob=Futures.transformAsync(getItemsToConvert(cell,buildFile),new AsyncFunction<ImmutableSet<F>,List<T>>(){
+    @Override public ListenableFuture<List<T>> apply(    ImmutableSet<F> allToConvert) throws BuildTargetException {
+      if (shuttingDown()) {
+        return Futures.immediateCancelledFuture();
+      }
+      ImmutableList.Builder<ListenableFuture<T>> allNodeJobs=ImmutableList.builder();
+      for (      final F from : allToConvert) {
+        if (isValid(from)) {
+          final BuildTarget target=getBuildTarget(cell.getRoot(),buildFile,from);
+          allNodeJobs.add(cache.getJobWithCacheLookup(cell,target,new JobSupplier<T>(){
+            @Override public ListenableFuture<T> get() throws BuildTargetException {
+              if (shuttingDown()) {
+                return Futures.immediateCancelledFuture();
+              }
+              return dispatchComputeNode(cell,target,from);
+            }
+          }
+));
+        }
+      }
+      return Futures.allAsList(allNodeJobs.build());
+    }
+  }
+);
+  return Futures.transform(allNodesListJob,new Function<List<T>,ImmutableSet<T>>(){
+    @Override public ImmutableSet<T> apply(    List<T> input){
+      return ImmutableSet.copyOf(input);
+    }
+  }
+);
+}
