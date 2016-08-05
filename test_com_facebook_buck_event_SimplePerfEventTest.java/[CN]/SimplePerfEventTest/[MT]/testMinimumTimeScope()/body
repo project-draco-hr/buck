@@ -1,0 +1,25 @@
+{
+  PerfEventId ignoredEventId=PerfEventId.of("IgnoreMe");
+  PerfEventId loggedEventId=PerfEventId.of("LogMe");
+  PerfEventId parentId=PerfEventId.of("Parent");
+  SimplePerfEventListener listener=new SimplePerfEventListener();
+  SettableFakeClock clock=new SettableFakeClock(0L,0L);
+  BuckEventBus eventBus=BuckEventBusFactory.newInstance(clock);
+  eventBus.register(listener);
+  try (SimplePerfEvent.Scope parent=SimplePerfEvent.scope(eventBus,parentId)){
+    clock.advanceTimeNanos(10L);
+    try (SimplePerfEvent.Scope scope=SimplePerfEvent.scopeIgnoringShortEvents(eventBus,ignoredEventId,parent,1,TimeUnit.SECONDS)){
+      clock.advanceTimeNanos(10L);
+    }
+     clock.advanceTimeNanos(10L);
+    try (SimplePerfEvent.Scope scope=SimplePerfEvent.scopeIgnoringShortEvents(eventBus,loggedEventId,parent,1,TimeUnit.MILLISECONDS)){
+      clock.advanceTimeNanos(TimeUnit.MILLISECONDS.toNanos(2));
+    }
+   }
+   ImmutableList<SimplePerfEvent> perfEvents=listener.getPerfEvents();
+  assertThat(perfEvents,Matchers.hasSize(4));
+  assertPerfEvent(perfEvents.get(0),parentId,SimplePerfEvent.Type.STARTED,ImmutableMap.<String,String>of());
+  assertPerfEvent(perfEvents.get(1),loggedEventId,SimplePerfEvent.Type.STARTED,ImmutableMap.<String,String>of());
+  assertPerfEvent(perfEvents.get(2),loggedEventId,SimplePerfEvent.Type.FINISHED,ImmutableMap.<String,String>of());
+  assertPerfEvent(perfEvents.get(3),parentId,SimplePerfEvent.Type.FINISHED,ImmutableMap.of("IgnoreMe_accumulated_count","1","IgnoreMe_accumulated_duration_ns","10"));
+}

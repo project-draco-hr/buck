@@ -1,6 +1,12 @@
 {
-  try (SimplePerfEvent.Scope scope=Parser.getTargetNodeEventScope(eventBus,buildTarget)){
-    final TargetNode<?> targetNode=delegate.createTargetNode(cell,cell.getAbsolutePathToBuildFile(buildTarget),buildTarget,rawNode);
+  try (final SimplePerfEvent.Scope scope=SimplePerfEvent.scopeIgnoringShortEvents(eventBus,PerfEventId.of("GetTargetNode"),"target",buildTarget,targetNodePipelineLifetimeEventScope,getMinimumPerfEventTimeMs(),TimeUnit.MILLISECONDS)){
+    Function<PerfEventId,SimplePerfEvent.Scope> perfEventScopeFunction=new Function<PerfEventId,SimplePerfEvent.Scope>(){
+      @Override public SimplePerfEvent.Scope apply(      PerfEventId perfEventId){
+        return SimplePerfEvent.scopeIgnoringShortEvents(eventBus,perfEventId,scope,getMinimumPerfEventTimeMs(),TimeUnit.MILLISECONDS);
+      }
+    }
+;
+    final TargetNode<?> targetNode=delegate.createTargetNode(cell,cell.getAbsolutePathToBuildFile(buildTarget),buildTarget,rawNode,perfEventScopeFunction);
     if (speculativeDepsTraversal) {
       executorService.submit(new Runnable(){
         @Override public void run(){

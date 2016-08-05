@@ -1,0 +1,33 @@
+{
+  Preconditions.checkArgument(!target.isFlavored());
+  UnflavoredBuildTarget unflavoredBuildTarget=target.withoutCell().getUnflavoredBuildTarget();
+  UnflavoredBuildTarget unflavoredBuildTargetFromRawData=RawNodeParsePipeline.parseBuildTargetFromRawRule(cell.getRoot(),rawNode,buildFile);
+  if (!unflavoredBuildTarget.equals(unflavoredBuildTargetFromRawData)) {
+    throw new IllegalStateException(String.format("Inconsistent internal state, target from data: %s, expected: %s, raw data: %s",unflavoredBuildTargetFromRawData,unflavoredBuildTarget,Joiner.on(',').withKeyValueSeparator("->").join(rawNode)));
+  }
+  BuildRuleType buildRuleType=parseBuildRuleTypeFromRawRule(cell,rawNode);
+  Description<?> description=cell.getDescription(buildRuleType);
+  Cell targetCell=cell.getCell(target);
+  BuildRuleFactoryParams factoryParams=new BuildRuleFactoryParams(targetCell.getFilesystem(),target);
+  TargetGroupDescription.Arg constructorArg=(TargetGroupDescription.Arg)description.createUnpopulatedConstructorArg();
+  try {
+    ImmutableSet.Builder<BuildTarget> declaredDeps=ImmutableSet.builder();
+    ImmutableSet.Builder<VisibilityPattern> visibilityPatterns=ImmutableSet.builder();
+    try (SimplePerfEvent.Scope scope=perfEventScope.apply(PerfEventId.of("MarshalledConstructorArg"))){
+      marshaller.populate(targetCell.getCellRoots(),targetCell.getFilesystem(),factoryParams,constructorArg,declaredDeps,visibilityPatterns,rawNode);
+    }
+     try (SimplePerfEvent.Scope scope=perfEventScope.apply(PerfEventId.of("CreatedTargetNode"))){
+      Hasher hasher=Hashing.sha1().newHasher();
+      hasher.putString(BuckVersion.getVersion(),UTF_8);
+      JsonObjectHashing.hashJsonObject(hasher,rawNode);
+      TargetGroup node=new TargetGroup(constructorArg.targets,constructorArg.restrictOutboundVisibility,factoryParams.target);
+      return node;
+    }
+   }
+ catch (  NoSuchBuildTargetException e) {
+    throw new HumanReadableException(e);
+  }
+catch (  ConstructorArgMarshalException e) {
+    throw new HumanReadableException("%s: %s",target,e.getMessage());
+  }
+}
