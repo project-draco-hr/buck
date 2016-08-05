@@ -10,15 +10,14 @@
   Path modulePath=Paths.get("module/submodule");
   String modulePathArg=String.format("-Dcom.facebook.buck.moduleBasePath=%s",modulePath);
   Path directoryForTestResults=Paths.get("buck-out/gen/theresults/");
-  Path directoryForTemp=Paths.get("buck-out/gen/thetmp/");
   Path testRunnerClasspath=Paths.get("build/classes/junit");
   ProjectFilesystem filesystem=FakeProjectFilesystem.createJavaOnlyFilesystem();
   Path classpathFile=filesystem.resolve("foo");
-  JUnitJvmArgs args=JUnitJvmArgs.builder().setTmpDirectory(directoryForTemp).setBuildId(pretendBuildId).setBuckModuleBaseSourceCodePath(modulePath).setClasspathFile(classpathFile).setTestRunnerClasspath(testRunnerClasspath).setExtraJvmArgs(vmArgs).setTestType(TestType.JUNIT).setDirectoryForTestResults(directoryForTestResults).addAllTestClasses(testClassNames).build();
+  JUnitJvmArgs args=JUnitJvmArgs.builder().setBuildId(pretendBuildId).setBuckModuleBaseSourceCodePath(modulePath).setClasspathFile(classpathFile).setTestRunnerClasspath(testRunnerClasspath).setExtraJvmArgs(vmArgs).setTestType(TestType.JUNIT).setDirectoryForTestResults(directoryForTestResults).addAllTestClasses(testClassNames).build();
   JUnitStep junit=new JUnitStep(filesystem,ImmutableMap.<String,String>of(),Optional.<Long>absent(),ImmutableMap.<String,String>of(),new ExternalJavaRuntimeLauncher("/foo/bar/custom/java"),args);
   ExecutionContext executionContext=TestExecutionContext.newBuilder().setConsole(new TestConsole(Verbosity.ALL)).setDefaultTestTimeoutMillis(5000L).build();
   assertEquals(executionContext.getVerbosity(),Verbosity.ALL);
   assertEquals(executionContext.getDefaultTestTimeoutMillis(),5000L);
   List<String> observedArgs=junit.getShellCommand(executionContext);
-  MoreAsserts.assertListEquals(ImmutableList.of("/foo/bar/custom/java","-Djava.io.tmpdir=" + filesystem.resolve(directoryForTemp),"-Dbuck.testrunner_classes=" + testRunnerClasspath,buildIdArg,modulePathArg,vmArg1,vmArg2,"-verbose","-classpath","@" + classpathFile + File.pathSeparator+ MorePaths.pathWithPlatformSeparators("build/classes/junit"),FileClassPathRunner.class.getName(),"com.facebook.buck.testrunner.JUnitMain","--output",directoryForTestResults.toString(),"--default-test-timeout","5000",testClass1,testClass2),observedArgs);
+  MoreAsserts.assertListEquals(ImmutableList.of("/foo/bar/custom/java","-Dbuck.testrunner_classes=" + testRunnerClasspath,buildIdArg,modulePathArg,vmArg1,vmArg2,"-verbose","-classpath","@" + classpathFile + File.pathSeparator+ MorePaths.pathWithPlatformSeparators("build/classes/junit"),FileClassPathRunner.class.getName(),"com.facebook.buck.testrunner.JUnitMain","--output",directoryForTestResults.toString(),"--default-test-timeout","5000",testClass1,testClass2),observedArgs);
 }

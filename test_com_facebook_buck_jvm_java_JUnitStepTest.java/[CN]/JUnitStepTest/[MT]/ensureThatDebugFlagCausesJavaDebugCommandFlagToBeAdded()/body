@@ -10,15 +10,14 @@
   Path modulePath=Paths.get("module/submodule");
   String modulePathArg=String.format("-Dcom.facebook.buck.moduleBasePath=%s",modulePath);
   Path directoryForTestResults=Paths.get("buck-out/gen/theresults/");
-  Path directoryForTemp=Paths.get("buck-out/gen/thetmp/");
   Path testRunnerClasspath=Paths.get("build/classes/junit");
   ProjectFilesystem filesystem=FakeProjectFilesystem.createJavaOnlyFilesystem();
   Path classpathFile=filesystem.resolve("foo");
-  JUnitJvmArgs args=JUnitJvmArgs.builder().setTmpDirectory(directoryForTemp).setClasspathFile(classpathFile).setBuildId(pretendBuildId).setBuckModuleBaseSourceCodePath(modulePath).setTestRunnerClasspath(testRunnerClasspath).setDebugEnabled(true).setExtraJvmArgs(vmArgs).setTestType(TestType.JUNIT).setDirectoryForTestResults(directoryForTestResults).addAllTestClasses(testClassNames).build();
+  JUnitJvmArgs args=JUnitJvmArgs.builder().setClasspathFile(classpathFile).setBuildId(pretendBuildId).setBuckModuleBaseSourceCodePath(modulePath).setTestRunnerClasspath(testRunnerClasspath).setDebugEnabled(true).setExtraJvmArgs(vmArgs).setTestType(TestType.JUNIT).setDirectoryForTestResults(directoryForTestResults).addAllTestClasses(testClassNames).build();
   JUnitStep junit=new JUnitStep(filesystem,ImmutableMap.<String,String>of(),Optional.<Long>absent(),ImmutableMap.<String,String>of(),new ExternalJavaRuntimeLauncher("/foo/bar/custom/java"),args);
   TestConsole console=new TestConsole(Verbosity.ALL);
   ExecutionContext executionContext=TestExecutionContext.newBuilder().setConsole(console).setDebugEnabled(true).build();
   List<String> observedArgs=junit.getShellCommand(executionContext);
-  MoreAsserts.assertListEquals(ImmutableList.of("/foo/bar/custom/java","-Djava.io.tmpdir=" + filesystem.resolve(directoryForTemp),"-Dbuck.testrunner_classes=" + testRunnerClasspath,buildIdArg,modulePathArg,"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005",vmArg1,vmArg2,"-verbose","-classpath","@" + classpathFile + File.pathSeparator+ MorePaths.pathWithPlatformSeparators("build/classes/junit"),FileClassPathRunner.class.getName(),"com.facebook.buck.testrunner.JUnitMain","--output",directoryForTestResults.toString(),"--default-test-timeout","0",testClass1,testClass2),observedArgs);
+  MoreAsserts.assertListEquals(ImmutableList.of("/foo/bar/custom/java","-Dbuck.testrunner_classes=" + testRunnerClasspath,buildIdArg,modulePathArg,"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5005",vmArg1,vmArg2,"-verbose","-classpath","@" + classpathFile + File.pathSeparator+ MorePaths.pathWithPlatformSeparators("build/classes/junit"),FileClassPathRunner.class.getName(),"com.facebook.buck.testrunner.JUnitMain","--output",directoryForTestResults.toString(),"--default-test-timeout","0",testClass1,testClass2),observedArgs);
   assertEquals("Debugging. Suspending JVM. Connect a JDWP debugger to port 5005 to proceed.",console.getTextWrittenToStdErr().trim());
 }
