@@ -1,0 +1,19 @@
+{
+  Path visibilityData=TestDataHelper.getTestDataScenario(this,"visibility");
+  Path visibilityBuckFile=cellRoot.resolve("BUCK");
+  Path visibilitySubBuckFile=cellRoot.resolve("sub/BUCK");
+  Files.createDirectories(visibilityBuckFile.getParent());
+  Files.createDirectories(visibilitySubBuckFile.getParent());
+  Files.copy(visibilityData.resolve("BUCK.fixture"),visibilityBuckFile);
+  Files.copy(visibilityData.resolve("sub/BUCK.fixture"),visibilitySubBuckFile);
+  parser.buildTargetGraph(eventBus,cell,false,executorService,ImmutableSet.of(BuildTargetFactory.newInstance(cellRoot,"//:should_pass")));
+  parser.buildTargetGraph(eventBus,cell,false,executorService,ImmutableSet.of(BuildTargetFactory.newInstance(cellRoot,"//:should_pass2")));
+  try {
+    parser.buildTargetGraph(eventBus,cell,false,executorService,ImmutableSet.of(BuildTargetFactory.newInstance(cellRoot,"//:should_fail")));
+    Assert.fail("did not expect to succeed parsing");
+  }
+ catch (  Exception e) {
+    assertThat(e,instanceOf(HumanReadableException.class));
+    assertThat(e.getMessage(),containsString("//:should_fail depends on //sub:sub, which is not visible"));
+  }
+}
