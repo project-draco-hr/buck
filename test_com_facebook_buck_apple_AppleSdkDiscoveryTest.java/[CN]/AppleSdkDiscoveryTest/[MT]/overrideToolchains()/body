@@ -1,0 +1,17 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"sdk-discovery-minimal",temp);
+  workspace.setUp();
+  Path root=workspace.getPath("");
+  String toolchainName1="toolchainoverride.1";
+  String toolchainPath1="Toolchains/" + toolchainName1;
+  AppleToolchain overrideToolchain1=AppleToolchain.builder().setIdentifier(toolchainName1).setPath(root.resolve(toolchainPath1)).setVersion("1").build();
+  String toolchainName2="toolchainoverride.2";
+  String toolchainPath2="Toolchains/" + toolchainName2;
+  AppleToolchain overrideToolchain2=AppleToolchain.builder().setIdentifier(toolchainName2).setPath(root.resolve(toolchainPath2)).setVersion("1").build();
+  ImmutableMap<String,AppleToolchain> allToolchains=ImmutableMap.of("com.apple.dt.toolchain.XcodeDefault",getDefaultToolchain(root),toolchainName1,overrideToolchain1,toolchainName2,overrideToolchain2);
+  AppleSdk macosx109Sdk=AppleSdk.builder().setName("macosx10.9").setVersion("10.9").setApplePlatform(ApplePlatform.MACOSX).addArchitectures("i386","x86_64").addAllToolchains(ImmutableList.of(overrideToolchain1,overrideToolchain2)).build();
+  AppleSdkPaths macosx109Paths=AppleSdkPaths.builder().setDeveloperPath(root).addToolchainPaths(root.resolve(toolchainPath1),root.resolve(toolchainPath2)).setPlatformPath(root.resolve("Platforms/MacOSX.platform")).setSdkPath(root.resolve("Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.9.sdk")).build();
+  ImmutableMap<AppleSdk,AppleSdkPaths> expected=ImmutableMap.<AppleSdk,AppleSdkPaths>builder().put(macosx109Sdk,macosx109Paths).put(macosx109Sdk.withName("macosx"),macosx109Paths).build();
+  AppleConfig fakeAppleConfig=new AppleConfig(FakeBuckConfig.builder().setSections("[apple]","  macosx10.9_toolchains_override = " + toolchainName1 + ","+ toolchainName2,"  macosx_toolchains_override = " + toolchainName1 + ","+ toolchainName2).build());
+  assertThat(AppleSdkDiscovery.discoverAppleSdkPaths(Optional.of(root),ImmutableList.of(root),allToolchains,fakeAppleConfig),equalTo(expected));
+}
