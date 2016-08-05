@@ -9,25 +9,37 @@
       NativeLinkable nativeLinkable=Preconditions.checkNotNull(nativeLinkables.get(target));
       graph.addNode(target);
       Iterable<? extends NativeLinkable> nativeLinkableDeps=nativeLinkable.getNativeLinkableExportedDeps(cxxPlatform);
-      if (linkStyle != Linker.LinkableDepType.SHARED || nativeLinkable.getPreferredLinkage(cxxPlatform) == NativeLinkable.Linkage.STATIC) {
-        nativeLinkableDeps=Iterables.concat(nativeLinkableDeps,nativeLinkable.getNativeLinkableDeps(cxxPlatform));
-      }
-      ImmutableSet.Builder<BuildTarget> deps=ImmutableSet.builder();
-      for (      NativeLinkable dep : nativeLinkableDeps) {
-        BuildTarget depTarget=dep.getBuildTarget();
-        graph.addEdge(target,depTarget);
-        deps.add(depTarget);
-        nativeLinkables.put(depTarget,dep);
-      }
-      return deps.build();
-    }
-  }
+      boolean shouldTraverse=true;
+switch (nativeLinkable.getPreferredLinkage(cxxPlatform)) {
+case ANY:
+        shouldTraverse=linkStyle != Linker.LinkableDepType.SHARED;
+      break;
+case SHARED:
+    shouldTraverse=false;
+  break;
+case STATIC:
+shouldTraverse=true;
+break;
+}
+if (shouldTraverse) {
+nativeLinkableDeps=Iterables.concat(nativeLinkableDeps,nativeLinkable.getNativeLinkableDeps(cxxPlatform));
+}
+ImmutableSet.Builder<BuildTarget> deps=ImmutableSet.builder();
+for (NativeLinkable dep : nativeLinkableDeps) {
+BuildTarget depTarget=dep.getBuildTarget();
+graph.addEdge(target,depTarget);
+deps.add(depTarget);
+nativeLinkables.put(depTarget,dep);
+}
+return deps.build();
+}
+}
 ;
-  visitor.start();
-  Iterable<BuildTarget> ordered=TopologicalSort.sort(graph,Predicates.<BuildTarget>alwaysTrue()).reverse();
-  ImmutableMap.Builder<BuildTarget,NativeLinkable> result=ImmutableMap.builder();
-  for (  BuildTarget target : ordered) {
-    result.put(target,nativeLinkables.get(target));
-  }
-  return result.build();
+visitor.start();
+Iterable<BuildTarget> ordered=TopologicalSort.sort(graph,Predicates.<BuildTarget>alwaysTrue()).reverse();
+ImmutableMap.Builder<BuildTarget,NativeLinkable> result=ImmutableMap.builder();
+for (BuildTarget target : ordered) {
+result.put(target,nativeLinkables.get(target));
+}
+return result.build();
 }
