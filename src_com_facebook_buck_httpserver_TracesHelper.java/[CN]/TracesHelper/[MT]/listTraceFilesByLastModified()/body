@@ -1,3 +1,32 @@
 {
-  return projectFilesystem.getSortedMatchingDirectoryContents(BuckConstant.getBuckTraceDir(),"build.*.trace");
+  final List<Path> allTraces=Lists.newArrayList();
+  projectFilesystem.walkFileTree(projectFilesystem.getBuckPaths().getBuckOut(),new SimpleFileVisitor<Path>(){
+    @Override public FileVisitResult visitFile(    Path file,    BasicFileAttributes attrs) throws IOException {
+      Matcher matcher=TRACES_FILE_PATTERN.matcher(file.getFileName().toString());
+      if (matcher.matches()) {
+        allTraces.add(file);
+      }
+      return super.visitFile(file,attrs);
+    }
+  }
+);
+  Collections.sort(allTraces,new Comparator<Path>(){
+    @Override public int compare(    Path path1,    Path path2){
+      int result=0;
+      try {
+        result=Long.compare(projectFilesystem.getLastModifiedTime(path2),projectFilesystem.getLastModifiedTime(path1));
+      }
+ catch (      IOException e) {
+        throw new RuntimeException(e);
+      }
+      if (result == 0) {
+        return path2.toString().compareTo(path1.toString());
+      }
+ else {
+        return result;
+      }
+    }
+  }
+);
+  return allTraces;
 }
