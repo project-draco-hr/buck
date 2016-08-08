@@ -1,0 +1,14 @@
+{
+  CxxLibraryBuilder transitiveCxxDepBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:transitive_dep")).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("transitive_dep.c"))));
+  CxxLibraryBuilder cxxDepBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:dep")).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("dep.c")))).setDeps(ImmutableSortedSet.of(transitiveCxxDepBuilder.getTarget()));
+  CxxLibraryBuilder cxxBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:cxx")).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("cxx.c")))).setDeps(ImmutableSortedSet.of(cxxDepBuilder.getTarget()));
+  LuaBinaryBuilder binaryBuilder=new LuaBinaryBuilder(BuildTargetFactory.newInstance("//:bin"),FakeLuaConfig.DEFAULT.withNativeLinkStrategy(NativeLinkStrategy.SEPARATE));
+  binaryBuilder.setMainModule("main");
+  binaryBuilder.setDeps(ImmutableSortedSet.of(cxxBuilder.getTarget()));
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(transitiveCxxDepBuilder.build(),cxxDepBuilder.build(),cxxBuilder.build(),binaryBuilder.build()),new DefaultTargetNodeToBuildRuleTransformer());
+  transitiveCxxDepBuilder.build(resolver);
+  cxxDepBuilder.build(resolver);
+  cxxBuilder.build(resolver);
+  LuaBinary binary=(LuaBinary)binaryBuilder.build(resolver);
+  assertThat(Iterables.transform(binary.getComponents().getNativeLibraries().keySet(),Functions.toStringFunction()),Matchers.containsInAnyOrder("libtransitive_dep.so","libdep.so","libcxx.so"));
+}

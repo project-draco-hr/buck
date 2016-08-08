@@ -1,0 +1,17 @@
+{
+  CxxLibraryBuilder transitiveCxxDepBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:transitive_dep")).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("transitive_dep.c"))));
+  CxxLibraryBuilder cxxDepBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:dep")).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("dep.c")))).setDeps(ImmutableSortedSet.of(transitiveCxxDepBuilder.getTarget()));
+  CxxLibraryBuilder cxxBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:cxx")).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("cxx.c")))).setDeps(ImmutableSortedSet.of(cxxDepBuilder.getTarget()));
+  CxxLibraryBuilder nativeStarterCxxBuilder=new CxxLibraryBuilder(BuildTargetFactory.newInstance("//:native_starter")).setSrcs(ImmutableSortedSet.of(SourceWithFlags.of(new FakeSourcePath("native_starter.c")))).setDeps(ImmutableSortedSet.of(transitiveCxxDepBuilder.getTarget()));
+  LuaBinaryBuilder binaryBuilder=new LuaBinaryBuilder(BuildTargetFactory.newInstance("//:bin"),FakeLuaConfig.DEFAULT.withNativeLinkStrategy(NativeLinkStrategy.MERGED));
+  binaryBuilder.setMainModule("main");
+  binaryBuilder.setDeps(ImmutableSortedSet.of(cxxBuilder.getTarget()));
+  binaryBuilder.setNativeStarterLibrary(nativeStarterCxxBuilder.getTarget());
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(transitiveCxxDepBuilder.build(),cxxDepBuilder.build(),cxxBuilder.build(),nativeStarterCxxBuilder.build(),binaryBuilder.build()),new DefaultTargetNodeToBuildRuleTransformer());
+  transitiveCxxDepBuilder.build(resolver);
+  cxxDepBuilder.build(resolver);
+  cxxBuilder.build(resolver);
+  nativeStarterCxxBuilder.build(resolver);
+  LuaBinary binary=(LuaBinary)binaryBuilder.build(resolver);
+  assertThat(Iterables.transform(binary.getComponents().getNativeLibraries().keySet(),Functions.toStringFunction()),Matchers.containsInAnyOrder("libomnibus.so","libcxx.so","libnative_starter.so","libtransitive_dep.so"));
+}
