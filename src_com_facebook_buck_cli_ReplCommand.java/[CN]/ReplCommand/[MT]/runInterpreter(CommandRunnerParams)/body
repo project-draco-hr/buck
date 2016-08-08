@@ -3,33 +3,36 @@
     params.getBuckEventBus().post(ConsoleEvent.severe("This feature requires Nashorn " + "JavaScript engine. This comes bundled with Java 8."));
     return 0;
   }
-  ScriptEngine engine=initializeEngine(params);
-  BufferedReader bufferRead=new BufferedReader(new InputStreamReader(params.getStdIn()));
-  String line;
-  boolean eof=false;
-  while (!eof) {
-    params.getConsole().getStdOut().print("buck $ ");
-    try {
-      if ((line=bufferRead.readLine()) != null) {
-        engine.eval(line);
-      }
+  try (CommandThreadManager queryPool=new CommandThreadManager("Query",new ConcurrencyLimit(1,Float.POSITIVE_INFINITY));PerBuildState parserState=new PerBuildState(params.getParser(),params.getBuckEventBus(),queryPool.getExecutor(),params.getCell(),false,SpeculativeParsing.of(true),false)){
+    ScriptEngine engine=initializeEngine(params,queryPool,parserState);
+    BufferedReader bufferRead=new BufferedReader(new InputStreamReader(params.getStdIn()));
+    String line;
+    while (true) {
+      params.getConsole().getStdOut().print("buck $ ");
+      try {
+        if ((line=bufferRead.readLine()) != null) {
+          engine.eval(line);
+        }
  else {
-        eof=true;
-        break;
+          break;
+        }
       }
-    }
- catch (    ScriptException e) {
-      if (!e.getMessage().contains(EXIT_MESSAGE)) {
-        params.getConsole().getStdOut().println("Script error: " + e.getMessage());
-      }
+ catch (      ScriptException e) {
+        if (!e.getMessage().contains(EXIT_MESSAGE)) {
+          params.getConsole().getStdOut().println("Script error: " + e.getMessage());
+        }
  else {
-        break;
+          break;
+        }
+      }
+catch (      Exception e) {
+        params.getConsole().getStdOut().println(e.getMessage());
       }
     }
-catch (    Exception e) {
-      params.getConsole().getStdOut().println(e.getMessage());
-    }
+    bufferRead.close();
   }
-  bufferRead.close();
+ catch (  BuildFileParseException e) {
+    params.getConsole().getStdOut().println("Repl failed: " + e.getMessage());
+  }
   return 0;
 }

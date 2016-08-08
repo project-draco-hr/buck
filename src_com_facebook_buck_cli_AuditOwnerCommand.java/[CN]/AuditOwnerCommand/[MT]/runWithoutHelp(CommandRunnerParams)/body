@@ -2,11 +2,11 @@
   if (params.getConsole().getAnsi().isAnsiTerminal()) {
     params.getBuckEventBus().post(ConsoleEvent.info("'buck audit owner' is deprecated. Please use 'buck query' instead. e.g.\n\t%s\n\n" + "The query language is documented at https://buckbuild.com/command/query.html",QueryCommand.buildAuditOwnerQueryExpression(getArguments(),shouldGenerateJsonOutput())));
   }
-  BuckQueryEnvironment env=new BuckQueryEnvironment(params,getEnableParserProfiling());
-  try (CommandThreadManager pool=new CommandThreadManager("Audit",getConcurrencyLimit(params.getBuckConfig()))){
+  try (CommandThreadManager pool=new CommandThreadManager("Audit",getConcurrencyLimit(params.getBuckConfig()));PerBuildState parserState=new PerBuildState(params.getParser(),params.getBuckEventBus(),pool.getExecutor(),params.getCell(),getEnableParserProfiling(),SpeculativeParsing.of(true),false)){
+    BuckQueryEnvironment env=new BuckQueryEnvironment(params,parserState,getEnableParserProfiling());
     return QueryCommand.runMultipleQuery(params,env,pool.getExecutor(),"owner('%s')",getArguments(),shouldGenerateJsonOutput());
   }
- catch (  QueryException e) {
+ catch (  Exception e) {
     if (e.getCause() instanceof InterruptedException) {
       throw (InterruptedException)e.getCause();
     }

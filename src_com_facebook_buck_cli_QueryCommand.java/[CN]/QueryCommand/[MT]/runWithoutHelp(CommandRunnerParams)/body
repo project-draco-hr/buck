@@ -3,12 +3,12 @@
     params.getBuckEventBus().post(ConsoleEvent.severe("Must specify at least the query expression"));
     return 1;
   }
-  BuckQueryEnvironment env=new BuckQueryEnvironment(params,getEnableParserProfiling());
-  try (CommandThreadManager pool=new CommandThreadManager("Query",getConcurrencyLimit(params.getBuckConfig()))){
+  try (CommandThreadManager pool=new CommandThreadManager("Query",getConcurrencyLimit(params.getBuckConfig()));PerBuildState parserState=new PerBuildState(params.getParser(),params.getBuckEventBus(),pool.getExecutor(),params.getCell(),getEnableParserProfiling(),SpeculativeParsing.of(true),false)){
+    BuckQueryEnvironment env=new BuckQueryEnvironment(params,parserState,getEnableParserProfiling());
     ListeningExecutorService executor=pool.getExecutor();
     return formatAndRunQuery(params,env,executor);
   }
- catch (  QueryException e) {
+ catch (  Exception e) {
     params.getBuckEventBus().post(ConsoleEvent.severe(MoreExceptions.getHumanReadableOrLocalizedMessage(e)));
     return 1;
   }
