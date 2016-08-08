@@ -1,8 +1,13 @@
 def _create_custom_import(self):
-    "\n        Returns customised '__import__' function that blocks importing modules.\n        "
+    "\n        Returns customised '__import__' function that blocks importing modules that are not\n        whitelisted or don't have safe versions.\n        "
+    import_whitelist = set(['copy', 're', 'functools', 'itertools', 'json', 'hashlib', 'types', 'string', 'ast', '__future__', 'collections', 'operator', 'fnmatch'])
 
-    def _import(name, globals=None, locals=None, fromlist=(), level=0):
+    def _import(name, globals=None, locals=None, fromlist=(), level=(-1)):
         if (name in ['os', 'os.path']):
+            if ((name == 'os.path') and fromlist):
+                return self._safe_os_module.path
             return self._safe_os_module
+        if (name in import_whitelist):
+            return ORIGINAL_IMPORT(name, globals, locals, fromlist, level)
         raise ImportError(((('Importing module %s is forbidden. ' % name) + 'If you really need to import this module read about ') + 'allow_unsafe_import() function'))
     return _import
