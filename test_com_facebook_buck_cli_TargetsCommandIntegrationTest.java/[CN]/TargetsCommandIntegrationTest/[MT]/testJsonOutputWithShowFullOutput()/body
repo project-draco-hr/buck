@@ -1,0 +1,15 @@
+{
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"output_path",tmp);
+  workspace.setUp();
+  ProcessResult result=workspace.runBuckCommand("targets","--json","--show-full-output","//:test");
+  ObjectMapper objectMapper=ObjectMappers.newDefaultInstance();
+  JsonNode observed=objectMapper.readTree(objectMapper.getFactory().createParser(result.getStdout()));
+  assertTrue(observed.isArray());
+  JsonNode targetNode=observed.get(0);
+  assertTrue(targetNode.isObject());
+  JsonNode cellPath=targetNode.get("buck.outputPath");
+  assertNotNull(cellPath);
+  Path expectedPath=tmp.getRoot().resolve("buck-out/gen/test/test-output");
+  String expectedRootPath=MorePaths.pathWithPlatformSeparators(expectedPath);
+  assertEquals(expectedRootPath,cellPath.asText());
+}
