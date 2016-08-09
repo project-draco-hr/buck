@@ -1,0 +1,19 @@
+def memoized(deepcopy=True):
+    "Decorator. Caches a function's return value each time it is called.\n    If called later with the same arguments, the cached value is returned\n    (not reevaluated).\n\n    Makes a defensive copy of the cached value each time it's returned,\n    so callers mutating the result do not poison the cache, unless\n    deepcopy is set to False.\n\n    "
+
+    def decorator(func):
+        cache = {}
+
+        @functools.wraps(func)
+        def wrapped(*args, **kwargs):
+            args_key = (repr(args) + repr(sorted(kwargs.items())))
+            _sentinel = object()
+            value = cache.get(args_key, _sentinel)
+            if (value is _sentinel):
+                value = func(*args, **kwargs)
+                cache[args_key] = value
+            if deepcopy:
+                value = copy.deepcopy(value)
+            return value
+        return wrapped
+    return decorator
