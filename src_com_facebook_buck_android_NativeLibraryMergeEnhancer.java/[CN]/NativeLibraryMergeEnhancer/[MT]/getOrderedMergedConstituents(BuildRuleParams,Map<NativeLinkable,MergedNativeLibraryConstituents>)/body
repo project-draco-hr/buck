@@ -1,0 +1,35 @@
+{
+  HashSet<MergedNativeLibraryConstituents> possibleRoots=new HashSet<>(linkableMembership.values());
+  for (  Map.Entry<NativeLinkable,MergedNativeLibraryConstituents> entry : linkableMembership.entrySet()) {
+    for (    NativeLinkable constituentLinkable : entry.getValue().getLinkables()) {
+      for (      NativeLinkable dep : constituentLinkable.getNativeLinkableDeps(null)) {
+        MergedNativeLibraryConstituents mergedDep=linkableMembership.get(dep);
+        if (mergedDep != entry.getValue()) {
+          possibleRoots.remove(mergedDep);
+        }
+      }
+    }
+  }
+  Iterable<MergedNativeLibraryConstituents> ordered;
+  try {
+    ordered=new AcyclicDepthFirstPostOrderTraversal<>(new GraphTraversable<MergedNativeLibraryConstituents>(){
+      @Override public Iterator<MergedNativeLibraryConstituents> findChildren(      MergedNativeLibraryConstituents node){
+        ImmutableSet.Builder<MergedNativeLibraryConstituents> depBuilder=ImmutableSet.builder();
+        for (        NativeLinkable linkable : node.getLinkables()) {
+          for (          NativeLinkable dep : Iterables.concat(linkable.getNativeLinkableDeps(null),linkable.getNativeLinkableExportedDeps(null))) {
+            MergedNativeLibraryConstituents mappedDep=linkableMembership.get(dep);
+            if (mappedDep != node) {
+              depBuilder.add(mappedDep);
+            }
+          }
+        }
+        return depBuilder.build().iterator();
+      }
+    }
+).traverse(possibleRoots);
+  }
+ catch (  AcyclicDepthFirstPostOrderTraversal.CycleException e) {
+    throw new RuntimeException("Dependency cycle detected when merging native libs for " + buildRuleParams.getBuildTarget(),e);
+  }
+  return ordered;
+}
