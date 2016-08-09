@@ -1,0 +1,16 @@
+{
+  if (getPreferredLinkage(cxxPlatform) == Linkage.STATIC) {
+    return ImmutableMap.of();
+  }
+  if (canUseOriginal) {
+    return constituents.getLinkables().iterator().next().getSharedLibraries(cxxPlatform);
+  }
+  String soname=getSoname(cxxPlatform);
+  BuildTarget target=getBuildTargetForPlatform(cxxPlatform);
+  Optional<BuildRule> ruleOptional=ruleResolver.getRuleOptional(target);
+  if (!ruleOptional.isPresent()) {
+    CxxLink rule=CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxBuckConfig,cxxPlatform,baseBuildRuleParams,ruleResolver,pathResolver,target,Linker.LinkType.SHARED,Optional.of(soname),BuildTargets.getGenPath(baseBuildRuleParams.getProjectFilesystem(),target,"%s/" + getSoname(cxxPlatform)),Linker.LinkableDepType.SHARED,Iterables.concat(getNativeLinkableDeps(cxxPlatform),getNativeLinkableExportedDeps(cxxPlatform)),Optional.<Linker.CxxRuntimeType>absent(),Optional.<SourcePath>absent(),ImmutableSet.<BuildTarget>of(),getImmediateNativeLinkableInput(cxxPlatform));
+    ruleResolver.addToIndex(rule);
+  }
+  return ImmutableMap.of(soname,(SourcePath)new BuildTargetSourcePath(target));
+}

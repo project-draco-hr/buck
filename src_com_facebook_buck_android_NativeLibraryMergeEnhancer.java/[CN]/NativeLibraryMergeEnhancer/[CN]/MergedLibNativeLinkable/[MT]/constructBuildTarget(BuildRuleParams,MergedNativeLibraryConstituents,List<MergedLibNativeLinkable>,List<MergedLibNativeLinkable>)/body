@@ -1,0 +1,29 @@
+{
+  BuildTarget initialTarget;
+  if (!constituents.getSoname().isPresent()) {
+    initialTarget=constituents.getLinkables().iterator().next().getBuildTarget();
+  }
+ else {
+    BuildTarget baseBuildTarget=baseBuildRuleParams.getBuildTarget();
+    UnflavoredBuildTarget baseUnflavored=baseBuildTarget.getUnflavoredBuildTarget();
+    UnflavoredBuildTarget unflavored=baseUnflavored.withShortName("merged_lib_" + Flavor.replaceInvalidCharacters(constituents.getSoname().get()));
+    initialTarget=BuildTarget.of(unflavored);
+  }
+  Hasher hasher=Hashing.murmur3_32().newHasher();
+  for (  NativeLinkable nativeLinkable : constituents.getLinkables()) {
+    hasher.putString(nativeLinkable.getBuildTarget().toString(),Charsets.UTF_8);
+    hasher.putChar('^');
+  }
+  hasher.putString("__DEPS__^",Charsets.UTF_8);
+  for (  MergedLibNativeLinkable dep : orderedDeps) {
+    hasher.putString(dep.getBuildTarget().toString(),Charsets.UTF_8);
+    hasher.putChar('^');
+  }
+  hasher.putString("__EXPORT__^",Charsets.UTF_8);
+  for (  MergedLibNativeLinkable dep : orderedExportedDeps) {
+    hasher.putString(dep.getBuildTarget().toString(),Charsets.UTF_8);
+    hasher.putChar('^');
+  }
+  String mergeFlavor="merge_structure_" + hasher.hash();
+  return BuildTarget.builder().from(initialTarget).addFlavors(ImmutableFlavor.of(mergeFlavor)).build();
+}

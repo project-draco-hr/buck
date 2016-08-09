@@ -1,0 +1,19 @@
+{
+  final Linker linker=cxxPlatform.getLd().resolve(ruleResolver);
+  ImmutableList.Builder<NativeLinkableInput> builder=ImmutableList.builder();
+  for (  NativeLinkable linkable : constituents.getLinkables()) {
+    if (linkable instanceof NativeLinkTarget) {
+      builder.add(((NativeLinkTarget)linkable).getNativeLinkTargetInput(cxxPlatform));
+    }
+ else {
+      NativeLinkableInput staticPic=linkable.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.STATIC_PIC);
+      builder.add(staticPic.withArgs(FluentIterable.from(staticPic.getArgs()).transformAndConcat(new Function<Arg,Iterable<Arg>>(){
+        @Override public Iterable<Arg> apply(        Arg arg){
+          return linker.linkWhole(arg);
+        }
+      }
+)));
+    }
+  }
+  return NativeLinkableInput.concat(builder.build());
+}

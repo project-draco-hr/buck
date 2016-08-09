@@ -1,0 +1,24 @@
+{
+  if (type == Linker.LinkableDepType.STATIC_PIC) {
+    ImmutableList.Builder<NativeLinkableInput> builder=ImmutableList.builder();
+    for (    NativeLinkable linkable : constituents.getLinkables()) {
+      builder.add(linkable.getNativeLinkableInput(cxxPlatform,type));
+    }
+    return NativeLinkableInput.concat(builder.build());
+  }
+  Preconditions.checkArgument(type == Linker.LinkableDepType.SHARED);
+  ImmutableList.Builder<Arg> argsBuilder=ImmutableList.builder();
+  ImmutableMap<String,SourcePath> sharedLibraries=getSharedLibraries(cxxPlatform);
+  for (  SourcePath sharedLib : sharedLibraries.values()) {
+    argsBuilder.add(new SourcePathArg(pathResolver,sharedLib));
+  }
+  for (  NativeLinkable linkable : constituents.getLinkables()) {
+    if (linkable instanceof CxxLibrary) {
+      argsBuilder.addAll(((CxxLibrary)linkable).getExportedLinkerFlags(cxxPlatform));
+    }
+ else     if (linkable instanceof PrebuiltCxxLibrary) {
+      argsBuilder.addAll(StringArg.from(((PrebuiltCxxLibrary)linkable).getExportedLinkerFlags(cxxPlatform)));
+    }
+  }
+  return NativeLinkableInput.of(argsBuilder.build(),ImmutableList.<FrameworkPath>of(),ImmutableList.<FrameworkPath>of());
+}

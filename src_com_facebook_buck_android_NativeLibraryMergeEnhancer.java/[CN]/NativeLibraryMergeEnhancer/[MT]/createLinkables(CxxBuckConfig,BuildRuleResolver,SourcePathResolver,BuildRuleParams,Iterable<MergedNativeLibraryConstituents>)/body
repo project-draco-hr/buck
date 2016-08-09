@@ -1,0 +1,23 @@
+{
+  final Map<NativeLinkable,MergedLibNativeLinkable> mergeResults=new HashMap<>();
+  for (  MergedNativeLibraryConstituents constituents : orderedConstituents) {
+    final ImmutableCollection<NativeLinkable> preMergeLibs=constituents.getLinkables();
+    List<MergedLibNativeLinkable> orderedDeps=getStructuralDeps(constituents,new Function<NativeLinkable,Iterable<? extends NativeLinkable>>(){
+      @Override public Iterable<? extends NativeLinkable> apply(      NativeLinkable l){
+        return l.getNativeLinkableDeps(null);
+      }
+    }
+,mergeResults);
+    List<MergedLibNativeLinkable> orderedExportedDeps=getStructuralDeps(constituents,new Function<NativeLinkable,Iterable<? extends NativeLinkable>>(){
+      @Override public Iterable<? extends NativeLinkable> apply(      NativeLinkable l){
+        return l.getNativeLinkableExportedDeps(null);
+      }
+    }
+,mergeResults);
+    MergedLibNativeLinkable mergedLinkable=new MergedLibNativeLinkable(cxxBuckConfig,ruleResolver,pathResolver,buildRuleParams,constituents,orderedDeps,orderedExportedDeps);
+    for (    NativeLinkable lib : preMergeLibs) {
+      mergeResults.put(lib,mergedLinkable);
+    }
+  }
+  return ImmutableSortedSet.copyOf(HasBuildTarget.BUILD_TARGET_COMPARATOR,mergeResults.values());
+}

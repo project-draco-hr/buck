@@ -1,0 +1,20 @@
+{
+  this.cxxBuckConfig=cxxBuckConfig;
+  this.ruleResolver=ruleResolver;
+  this.pathResolver=pathResolver;
+  this.baseBuildRuleParams=baseBuildRuleParams;
+  this.constituents=constituents;
+  Iterable<MergedLibNativeLinkable> allDeps=Iterables.concat(orderedDeps,orderedExportedDeps);
+  Map<NativeLinkable,MergedLibNativeLinkable> mergedDeps=new HashMap<>();
+  for (  MergedLibNativeLinkable dep : allDeps) {
+    for (    NativeLinkable linkable : dep.constituents.getLinkables()) {
+      MergedLibNativeLinkable old=mergedDeps.put(linkable,dep);
+      if (old != null && old != dep) {
+        throw new RuntimeException(String.format("BUG: When processing %s, dep %s mapped to both %s and %s",constituents,linkable,dep,old));
+      }
+    }
+  }
+  mergedDepMap=Collections.unmodifiableMap(mergedDeps);
+  canUseOriginal=computeCanUseOriginal(constituents,allDeps);
+  buildTarget=constructBuildTarget(baseBuildRuleParams,constituents,orderedDeps,orderedExportedDeps);
+}
