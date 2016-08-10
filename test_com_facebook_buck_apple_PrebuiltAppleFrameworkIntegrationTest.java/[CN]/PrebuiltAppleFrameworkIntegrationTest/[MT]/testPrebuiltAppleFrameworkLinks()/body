@@ -1,0 +1,15 @@
+{
+  assumeTrue(Platform.detect() == Platform.MACOS);
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"prebuilt_apple_framework_links",tmp);
+  workspace.setUp();
+  ProjectFilesystem filesystem=new ProjectFilesystem(workspace.getDestPath());
+  BuildTarget target=BuildTargetFactory.newInstance("//app:TestApp");
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("build",target.getFullyQualifiedName());
+  result.assertSuccess();
+  Path testBinaryPath=workspace.getPath(BuildTargets.getGenPath(filesystem,target,"%s"));
+  assertTrue(Files.exists(testBinaryPath));
+  ProcessExecutor.Result otoolResult=workspace.runCommand("otool","-L",testBinaryPath.toString());
+  assertEquals(0,otoolResult.getExitCode());
+  Assert.assertThat(otoolResult.getStdout().or(""),containsString("@rpath/BuckTest.framework/BuckTest"));
+  Assert.assertThat(otoolResult.getStdout().or(""),not(containsString("BuckTest.dylib")));
+}

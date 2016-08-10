@@ -1,0 +1,15 @@
+{
+  if (!isPlatformSupported(cxxPlatform)) {
+    return NativeLinkableInput.of();
+  }
+  ImmutableList.Builder<Arg> linkerArgsBuilder=ImmutableList.builder();
+  linkerArgsBuilder.addAll(StringArg.from(Preconditions.checkNotNull(exportedLinkerFlags.apply(cxxPlatform))));
+  ImmutableSet.Builder<FrameworkPath> frameworkPaths=ImmutableSet.builder();
+  frameworkPaths.addAll(Preconditions.checkNotNull(frameworks));
+  if (type == Linker.LinkableDepType.SHARED) {
+    frameworkPaths.add(FrameworkPath.ofSourcePath(new BuildTargetSourcePath(this.getBuildTarget())));
+    linkerArgsBuilder.addAll(StringArg.from("-rpath","@loader_path/Frameworks","-rpath","@executable_path/Frameworks"));
+  }
+  final ImmutableList<Arg> linkerArgs=linkerArgsBuilder.build();
+  return NativeLinkableInput.of(linkerArgs,frameworkPaths.build(),Collections.<FrameworkPath>emptySet());
+}
