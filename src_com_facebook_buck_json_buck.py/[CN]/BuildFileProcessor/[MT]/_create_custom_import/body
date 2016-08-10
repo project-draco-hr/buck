@@ -1,13 +1,15 @@
 def _create_custom_import(self):
-    "\n        Returns customised '__import__' function that blocks importing modules that are not\n        whitelisted or don't have safe versions.\n        "
-    import_whitelist = set(['copy', 're', 'functools', 'itertools', 'json', 'hashlib', 'types', 'string', 'ast', '__future__', 'collections', 'operator', 'fnmatch'])
+    "\n        Returns customised '__import__' function.\n        "
+    import_whitelist = set(['copy', 're', 'functools', 'itertools', 'json', 'hashlib', 'types', 'string', 'ast', '__future__', 'collections', 'operator', 'fnmatch', 'copy_reg'])
 
     def _import(name, globals=None, locals=None, fromlist=(), level=(-1)):
-        if (name in ['os', 'os.path']):
-            if ((name == 'os.path') and fromlist):
-                return self._safe_os_module.path
-            return self._safe_os_module
+        "\n            Custom '__import__' function.\n            Returns safe version of a module if configured in '_safe_modules_config'.\n            Returns standard module if the module is whitelisted.\n            Blocks importing other modules.\n            "
+        if (not fromlist):
+            name = name.split('.')[0]
+        if (name in self._safe_modules_config):
+            return self._get_safe_module(name)
         if (name in import_whitelist):
-            return ORIGINAL_IMPORT(name, globals, locals, fromlist, level)
+            with self._allow_unsafe_import():
+                return ORIGINAL_IMPORT(name, globals, locals, fromlist, level)
         raise ImportError(((('Importing module %s is forbidden. ' % name) + 'If you really need to import this module read about ') + 'allow_unsafe_import() function'))
     return _import
