@@ -4,6 +4,7 @@
   Preconditions.checkArgument(maxScribeOfflineLogsKB > 0);
   Preconditions.checkNotNull(projectFilesystem);
   Preconditions.checkNotNull(objectMapper);
+  Preconditions.checkNotNull(buckEventBus);
   Preconditions.checkNotNull(buildId);
   this.scribeLogger=scribeLogger;
   this.blacklistCategories=blacklistCategories;
@@ -18,4 +19,8 @@
   this.logDir=projectFilesystem.getBuckPaths().getOfflineLogDir();
   this.newLogPath=projectFilesystem.resolve(logDir.resolve(LOGFILE_PREFIX + buildId + LOGFILE_SUFFIX));
   this.startedSendingStored=new AtomicBoolean(false);
+  this.totalLinesResent=new IntegerCounter(COUNTERS_CATEGORY,"total_lines_resent",ImmutableMap.<String,String>of());
+  this.totalBytesResent=new IntegerCounter(COUNTERS_CATEGORY,"total_bytes_resent",ImmutableMap.<String,String>of());
+  this.logfilesResent=new IntegerCounter(COUNTERS_CATEGORY,"logfiles_resent",ImmutableMap.<String,String>of());
+  buckEventBus.post(new CounterRegistry.AsyncCounterRegistrationEvent(ImmutableSet.<Counter>of(totalLinesResent,totalBytesResent,logfilesResent)));
 }

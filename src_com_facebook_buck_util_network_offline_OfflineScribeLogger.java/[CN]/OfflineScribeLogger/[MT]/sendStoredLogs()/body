@@ -16,8 +16,9 @@
       break;
     }
     Iterator<ScribeData> it=null;
+    File logFile=null;
     try {
-      File logFile=logPath.toFile();
+      logFile=logPath.toFile();
       totalBytesToSend+=logFile.length();
       if (totalBytesToSend > maxScribeOfflineLogsBytes) {
         LOG.warn("Total size of offline logs exceeds the limit. Ceasing to send them to Scribe.");
@@ -27,8 +28,10 @@
       it=new ObjectMapper().readValues(new JsonFactory().createParser(logFileStream),ScribeData.class);
     }
  catch (    Exception e) {
-      LOG.error(e,"Failed to initiate reading from: %s.",logPath);
+      LOG.error(e,"Failed to initiate reading from: %s. File may be corrupted.",logPath);
+      continue;
     }
+    int scribeLinesInFile=0;
     List<ListenableFuture<Void>> logFutures=new LinkedList<>();
     Map<String,CategoryData> logReadData=new HashMap<>();
     try {
@@ -49,6 +52,7 @@
         }
         for (        String line : newData.getLines()) {
           categoryData.addLine(line);
+          scribeLinesInFile++;
         }
       }
       if (!interrupted) {
@@ -79,6 +83,9 @@
     }
     try {
       Futures.allAsList(logFutures).get(LOG_TIMEOUT,LOG_TIMEOUT_UNIT);
+      totalBytesResent.inc(logFile.length());
+      totalLinesResent.inc(scribeLinesInFile);
+      logfilesResent.inc();
       try {
         filesystem.deleteFileAtPathIfExists(logPath);
       }
