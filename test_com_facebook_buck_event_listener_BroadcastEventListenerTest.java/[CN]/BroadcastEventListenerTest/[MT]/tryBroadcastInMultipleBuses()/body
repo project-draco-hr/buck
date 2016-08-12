@@ -1,0 +1,26 @@
+{
+  BuckEventBus bus1=BuckEventBusFactory.newInstance(new IncrementingFakeClock(TimeUnit.SECONDS.toNanos(1)),new BuildId("bus1"));
+  BuckEventBus bus2=BuckEventBusFactory.newInstance(new IncrementingFakeClock(TimeUnit.SECONDS.toNanos(1)),new BuildId("bus2"));
+  bus1.register(new Object(){
+    @Subscribe public void actionGraphCacheMiss(    ActionGraphEvent.Cache.Miss event){
+      trackedEvents.add(event);
+    }
+  }
+);
+  bus2.register(new Object(){
+    @Subscribe public void actionGraphCacheHit(    ActionGraphEvent.Cache.Hit event){
+      trackedEvents.add(event);
+    }
+    @Subscribe public void actionGraphCacheMiss(    ActionGraphEvent.Cache.Miss event){
+      trackedEvents.add(event);
+    }
+  }
+);
+  BroadcastEventListener listener=new BroadcastEventListener();
+  listener.addEventBus(bus1);
+  listener.addEventBus(bus2);
+  listener.broadcast(ActionGraphEvent.Cache.hit());
+  listener.broadcast(ActionGraphEvent.Cache.miss());
+  assertEquals(countEventsOf(ActionGraphEvent.Cache.Miss.class),2);
+  assertEquals(countEventsOf(ActionGraphEvent.Cache.Hit.class),1);
+}
