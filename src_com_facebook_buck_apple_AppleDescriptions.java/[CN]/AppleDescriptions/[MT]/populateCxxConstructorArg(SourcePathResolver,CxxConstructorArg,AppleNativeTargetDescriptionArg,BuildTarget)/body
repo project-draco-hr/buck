@@ -1,7 +1,18 @@
 {
   Path headerPathPrefix=AppleDescriptions.getHeaderPathPrefix(arg,buildTarget);
   ImmutableSortedMap<String,SourcePath> headerMap=ImmutableSortedMap.<String,SourcePath>naturalOrder().putAll(convertAppleHeadersToPublicCxxHeaders(resolver.deprecatedPathFunction(),headerPathPrefix,arg)).putAll(convertAppleHeadersToPrivateCxxHeaders(resolver.deprecatedPathFunction(),headerPathPrefix,arg)).build();
-  output.srcs=arg.srcs;
+  if (arg.srcs.isPresent()) {
+    ImmutableSortedSet.Builder<SourceWithFlags> nonSwiftSrcs=ImmutableSortedSet.naturalOrder();
+    for (    SourceWithFlags src : arg.srcs.get()) {
+      if (!MorePaths.getFileExtension(resolver.getAbsolutePath(src.getSourcePath())).equalsIgnoreCase(SWIFT_EXTENSION)) {
+        nonSwiftSrcs.add(src);
+      }
+    }
+    output.srcs=Optional.of(nonSwiftSrcs.build());
+  }
+ else {
+    output.srcs=Optional.absent();
+  }
   output.platformSrcs=arg.platformSrcs;
   output.headers=Optional.of(SourceList.ofNamedSources(headerMap));
   output.platformHeaders=arg.platformHeaders;
