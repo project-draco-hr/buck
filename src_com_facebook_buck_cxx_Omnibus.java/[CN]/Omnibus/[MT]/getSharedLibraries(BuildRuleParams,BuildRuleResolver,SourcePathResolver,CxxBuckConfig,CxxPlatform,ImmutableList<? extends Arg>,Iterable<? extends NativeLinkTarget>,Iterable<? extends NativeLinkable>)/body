@@ -3,12 +3,25 @@
   OmnibusSpec spec=buildSpec(cxxPlatform,nativeLinkTargetRoots,nativeLinkableRoots);
   SourcePath dummyOmnibus=createDummyOmnibus(params,ruleResolver,pathResolver,cxxBuckConfig,cxxPlatform,extraLdflags);
   for (  NativeLinkTarget target : spec.getRoots().values()) {
-    OmnibusRoot root=createRoot(params,ruleResolver,pathResolver,cxxBuckConfig,cxxPlatform,extraLdflags,spec,dummyOmnibus,target);
-    libs.putRoots(target.getBuildTarget(),root);
+    if (shouldCreateDummyRoot(target,cxxPlatform)) {
+      createDummyRoot(params,ruleResolver,pathResolver,cxxBuckConfig,cxxPlatform,extraLdflags,spec,dummyOmnibus,target);
+    }
+ else {
+      OmnibusRoot root=createRoot(params,ruleResolver,pathResolver,cxxBuckConfig,cxxPlatform,extraLdflags,spec,dummyOmnibus,target);
+      libs.putRoots(target.getBuildTarget(),root);
+    }
   }
+  Optional<SourcePath> realOmnibus=Optional.absent();
   if (!spec.getBody().isEmpty()) {
     OmnibusLibrary omnibus=createOmnibus(params,ruleResolver,pathResolver,cxxBuckConfig,cxxPlatform,extraLdflags,spec);
     libs.addLibraries(omnibus);
+    realOmnibus=Optional.of(omnibus.getPath());
+  }
+  for (  NativeLinkTarget target : spec.getRoots().values()) {
+    if (shouldCreateDummyRoot(target,cxxPlatform)) {
+      OmnibusRoot root=createRoot(params,ruleResolver,pathResolver,cxxBuckConfig,cxxPlatform,extraLdflags,spec,realOmnibus.or(dummyOmnibus),target);
+      libs.putRoots(target.getBuildTarget(),root);
+    }
   }
   for (  NativeLinkable nativeLinkable : spec.getExcluded().values()) {
     if (nativeLinkable.getPreferredLinkage(cxxPlatform) != NativeLinkable.Linkage.STATIC) {
