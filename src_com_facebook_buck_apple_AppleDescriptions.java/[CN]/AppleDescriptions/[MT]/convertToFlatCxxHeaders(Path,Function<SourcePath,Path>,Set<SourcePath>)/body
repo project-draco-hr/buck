@@ -1,9 +1,12 @@
 {
-  ImmutableSortedMap.Builder<String,SourcePath> cxxHeaders=ImmutableSortedMap.naturalOrder();
+  Map<String,SourcePath> includeToFile=new HashMap<>(headerPaths.size());
   for (  SourcePath headerPath : headerPaths) {
     Path fileName=sourcePathResolver.apply(headerPath).getFileName();
     String key=headerPathPrefix.resolve(fileName).toString();
-    cxxHeaders.put(key,headerPath);
+    if (includeToFile.containsKey(key)) {
+      throw new HumanReadableException("The same include path maps to multiple files:\n" + "  Include path: %s\n" + "  Conflicting files:\n"+ "    %s\n"+ "    %s",key,headerPath,includeToFile.get(key));
+    }
+    includeToFile.put(key,headerPath);
   }
-  return cxxHeaders.build();
+  return ImmutableSortedMap.copyOf(includeToFile);
 }
