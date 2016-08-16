@@ -1,0 +1,27 @@
+{
+  BuildTarget target=baseParams.getBuildTarget();
+  BuildRule library;
+switch (depType) {
+case SHARED:
+    library=requireSharedLibrary(getBaseBuildTarget(target),baseParams,resolver,pathResolver,cxxPlatform,args);
+  break;
+case STATIC:
+case STATIC_PIC:
+library=requireStaticLibrary(getBaseBuildTarget(target),baseParams,resolver,pathResolver,cxxPlatform,args,depType);
+break;
+default :
+throw new IllegalStateException();
+}
+ImmutableSortedMap.Builder<String,HaskellPackage> depPackagesBuilder=ImmutableSortedMap.naturalOrder();
+for (BuildRule rule : baseParams.getDeclaredDeps().get()) {
+if (rule instanceof HaskellCompileDep) {
+ImmutableList<HaskellPackage> packages=((HaskellCompileDep)rule).getCompileInput(cxxPlatform,depType).getPackages();
+for (HaskellPackage pkg : packages) {
+depPackagesBuilder.put(pkg.getInfo().getIdentifier(),pkg);
+}
+}
+}
+ImmutableSortedMap<String,HaskellPackage> depPackages=depPackagesBuilder.build();
+HaskellCompileRule compileRule=requireCompileRule(baseParams,resolver,pathResolver,cxxPlatform,args,depType);
+return HaskellPackageRule.from(target,baseParams,pathResolver,haskellConfig.getPackager().resolve(resolver),getPackageInfo(target),depPackages,compileRule.getModules(),ImmutableSortedSet.<SourcePath>of(new BuildTargetSourcePath(library.getBuildTarget())),ImmutableSortedSet.of(compileRule.getInterfaces()));
+}
