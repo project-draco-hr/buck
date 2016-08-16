@@ -1,6 +1,6 @@
 {
   final LuaPackageComponents.Builder builder=LuaPackageComponents.builder();
-  final OmnibusRoots.Builder omnibusRoots=OmnibusRoots.builder(cxxPlatform,FluentIterable.from(getNativeStarterDeps(ruleResolver,nativeStarterLibrary)).transform(HasBuildTarget.TO_TARGET).toSet());
+  final OmnibusRoots.Builder omnibusRoots=OmnibusRoots.builder(cxxPlatform,ImmutableSet.<BuildTarget>of());
   final Map<BuildTarget,NativeLinkable> nativeLinkableRoots=new LinkedHashMap<>();
   final Map<BuildTarget,CxxLuaExtension> luaExtensions=new LinkedHashMap<>();
   final Map<BuildTarget,CxxPythonExtension> pythonExtensions=new LinkedHashMap<>();
@@ -59,7 +59,13 @@
     }
   }
 .start();
+  Starter starter=createStarter(baseParams,ruleResolver,pathResolver,cxxPlatform,nativeStarterLibrary,mainModule,packageStyle,!nativeLinkableRoots.isEmpty() || !omnibusRoots.isEmpty());
+  SourcePath starterPath=null;
   if (luaConfig.getNativeLinkStrategy() == NativeLinkStrategy.MERGED) {
+    if (starter instanceof NativeExecutableStarter) {
+      NativeExecutableStarter nativeStarter=(NativeExecutableStarter)starter;
+      omnibusRoots.addIncludedRoot(nativeStarter);
+    }
     OmnibusRoots roots=omnibusRoots.build();
     OmnibusLibraries libraries=Omnibus.getSharedLibraries(baseParams,ruleResolver,pathResolver,cxxBuckConfig,cxxPlatform,ImmutableList.<com.facebook.buck.rules.args.Arg>of(),roots.getIncludedRoots().values(),roots.getExcludedRoots().values());
     for (    Map.Entry<BuildTarget,OmnibusRoot> root : libraries.getRoots().entrySet()) {
@@ -71,6 +77,10 @@
       CxxPythonExtension pythonExtension=pythonExtensions.get(root.getKey());
       if (pythonExtension != null) {
         builder.putPythonModules(pythonExtension.getModule().toString(),root.getValue().getPath());
+        continue;
+      }
+      if (root.getKey().equals(baseParams.getBuildTarget())) {
+        starterPath=root.getValue().getPath();
         continue;
       }
       NativeLinkTarget target=Preconditions.checkNotNull(roots.getIncludedRoots().get(root.getKey()),"%s: linked unexpected omnibus root: %s",baseParams.getBuildTarget(),root.getKey());
@@ -101,26 +111,8 @@
       }
     }
   }
-  Path output=getOutputPath(baseParams.getBuildTarget(),baseParams.getProjectFilesystem());
-  LuaPackageComponents components=builder.build();
-  StarterType starterType=getStarterType(components);
-  if (starterType == StarterType.NATIVE) {
-    components=addNativeDeps(components,cxxPlatform,getNativeStarterDeps(ruleResolver,nativeStarterLibrary));
+  if (starterPath == null) {
+    starterPath=starter.build();
   }
-  Optional<Path> relativeModulesDir=Optional.absent();
-  Optional<Path> relativePythonModulesDir=Optional.absent();
-  Optional<Path> relativeNativeLibsDir=Optional.absent();
-  if (packageStyle == LuaConfig.PackageStyle.INPLACE) {
-    if (!components.getModules().isEmpty()) {
-      relativeModulesDir=Optional.of(output.getParent().relativize(getModulesSymlinkTreeRoot(baseParams.getBuildTarget(),baseParams.getProjectFilesystem())));
-    }
-    if (!components.getNativeLibraries().isEmpty()) {
-      relativeNativeLibsDir=Optional.of(output.getParent().relativize(getNativeLibsSymlinkTreeRoot(baseParams.getBuildTarget(),baseParams.getProjectFilesystem())));
-    }
-    if (!components.getPythonModules().isEmpty()) {
-      relativePythonModulesDir=Optional.of(output.getParent().relativize(getPythonModulesSymlinkTreeRoot(baseParams.getBuildTarget(),baseParams.getProjectFilesystem())));
-    }
-  }
-  Starter starter=getStarter(baseParams,ruleResolver,pathResolver,cxxPlatform,baseParams.getBuildTarget().withAppendedFlavors(packageStyle == LuaConfig.PackageStyle.STANDALONE ? ImmutableFlavor.of("starter") : BINARY_FLAVOR),packageStyle == LuaConfig.PackageStyle.STANDALONE ? output.resolveSibling(output.getFileName() + "-starter") : output,starterType,nativeStarterLibrary,mainModule,relativeModulesDir,relativePythonModulesDir,relativeNativeLibsDir);
-  return LuaBinaryPackageComponents.of(starter.build(),components);
+  return LuaBinaryPackageComponents.of(starterPath,builder.build());
 }
