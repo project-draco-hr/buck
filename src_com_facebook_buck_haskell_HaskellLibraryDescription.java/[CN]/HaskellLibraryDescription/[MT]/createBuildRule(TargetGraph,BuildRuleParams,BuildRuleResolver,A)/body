@@ -5,27 +5,15 @@
   Optional<CxxPlatform> cxxPlatform=cxxPlatforms.getValue(buildTarget);
   if (type.isPresent()) {
     Preconditions.checkState(cxxPlatform.isPresent());
-    BuildTarget baseTarget=params.getBuildTarget().withoutFlavors(Sets.union(Type.FLAVOR_VALUES,cxxPlatforms.getFlavors()));
 switch (type.get().getValue()) {
-case PACKAGE_SHARED:
-case PACKAGE_STATIC:
-case PACKAGE_STATIC_PIC:
-      Linker.LinkableDepType depType;
-    if (type.get().getValue().equals(Type.PACKAGE_SHARED)) {
-      depType=Linker.LinkableDepType.SHARED;
-    }
- else     if (type.get().getValue().equals(Type.PACKAGE_STATIC)) {
-      depType=Linker.LinkableDepType.STATIC;
-    }
- else {
-      depType=Linker.LinkableDepType.STATIC_PIC;
-    }
-  return createPackage(params,resolver,pathResolver,cxxPlatform.get(),args,depType);
+case PACKAGE:
+case PACKAGE_DYNAMIC:
+      return createPackage(params,resolver,pathResolver,cxxPlatform.get(),args,type.get().getValue() == Type.PACKAGE_DYNAMIC ? CxxSourceRuleFactory.PicType.PIC : CxxSourceRuleFactory.PicType.PDC);
 case SHARED:
-return requireSharedLibrary(baseTarget,params,resolver,pathResolver,cxxPlatform.get(),args);
+    return createSharedLibrary(params,resolver,pathResolver,cxxPlatform.get(),args);
 case STATIC_PIC:
 case STATIC:
-return requireStaticLibrary(baseTarget,params,resolver,pathResolver,cxxPlatform.get(),args,type.get().getValue() == Type.STATIC ? Linker.LinkableDepType.STATIC : Linker.LinkableDepType.STATIC_PIC);
+  return createStaticLibrary(params,resolver,pathResolver,cxxPlatform.get(),args,type.get().getValue() == Type.STATIC_PIC ? CxxSourceRuleFactory.PicType.PIC : CxxSourceRuleFactory.PicType.PDC);
 }
 throw new IllegalStateException(String.format("%s: unexpected type `%s`",params.getBuildTarget(),type.get().getValue()));
 }
