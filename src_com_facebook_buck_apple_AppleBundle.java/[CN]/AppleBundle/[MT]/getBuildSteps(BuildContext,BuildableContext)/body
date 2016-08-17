@@ -49,46 +49,33 @@
     }
   }
   if (needCodeSign()) {
-    Optional<Path> signingEntitlementsTempPath;
-    Supplier<CodeSignIdentity> codeSignIdentitySupplier;
-    if (adHocCodeSignIsSufficient()) {
-      signingEntitlementsTempPath=Optional.absent();
-      codeSignIdentitySupplier=new Supplier<CodeSignIdentity>(){
-        @Override public CodeSignIdentity get(){
-          return CodeSignIdentity.AD_HOC;
-        }
-      }
-;
+    Optional<Path> entitlementsPlist=Optional.absent();
+    final Path srcRoot=getProjectFilesystem().getRootPath().resolve(getBuildTarget().getBasePath());
+    Optional<String> entitlementsPlistString=InfoPlistSubstitution.getVariableExpansionForPlatform(CODE_SIGN_ENTITLEMENTS,platformName,withDefaults(infoPlistSubstitutions,ImmutableMap.of("SOURCE_ROOT",srcRoot.toString(),"SRCROOT",srcRoot.toString())));
+    if (entitlementsPlistString.isPresent()) {
+      entitlementsPlist=Optional.of(srcRoot.resolve(Paths.get(entitlementsPlistString.get())));
     }
- else {
-      Optional<Path> entitlementsPlist=Optional.absent();
-      final Path srcRoot=getProjectFilesystem().getRootPath().resolve(getBuildTarget().getBasePath());
-      Optional<String> entitlementsPlistString=InfoPlistSubstitution.getVariableExpansionForPlatform(CODE_SIGN_ENTITLEMENTS,platformName,withDefaults(infoPlistSubstitutions,ImmutableMap.of("SOURCE_ROOT",srcRoot.toString(),"SRCROOT",srcRoot.toString())));
-      if (entitlementsPlistString.isPresent()) {
-        entitlementsPlist=Optional.of(srcRoot.resolve(Paths.get(entitlementsPlistString.get())));
-      }
-      signingEntitlementsTempPath=Optional.of(BuildTargets.getScratchPath(getProjectFilesystem(),getBuildTarget(),"%s.xcent"));
-      final ProvisioningProfileCopyStep provisioningProfileCopyStep=new ProvisioningProfileCopyStep(getProjectFilesystem(),infoPlistOutputPath,Optional.<String>absent(),entitlementsPlist,provisioningProfileStore,resourcesDestinationPath.resolve("embedded.mobileprovision"),signingEntitlementsTempPath.get(),codeSignIdentityStore);
-      stepsBuilder.add(provisioningProfileCopyStep);
-      codeSignIdentitySupplier=new Supplier<CodeSignIdentity>(){
-        @Override public CodeSignIdentity get(){
-          ProvisioningProfileMetadata selectedProfile=Futures.getUnchecked(provisioningProfileCopyStep.getSelectedProvisioningProfileFuture());
-          ImmutableSet<HashCode> fingerprints=selectedProfile.getDeveloperCertificateFingerprints();
-          if (fingerprints.isEmpty()) {
-            return Iterables.getFirst(codeSignIdentityStore.getIdentities(),CodeSignIdentity.AD_HOC);
-          }
-          for (          CodeSignIdentity identity : codeSignIdentityStore.getIdentities()) {
-            if (identity.getFingerprint().isPresent() && fingerprints.contains(identity.getFingerprint().get())) {
-              return identity;
-            }
-          }
-          throw new HumanReadableException("No code sign identity available for provisioning profile: %s\n" + "Profile requires an identity with one of the following SHA1 fingerprints " + "available in your keychain: \n  %s",selectedProfile.getProfilePath(),Joiner.on("\n  ").join(fingerprints));
+    final Path signingEntitlementsTempPath=BuildTargets.getScratchPath(getProjectFilesystem(),getBuildTarget(),"%s.xcent");
+    final ProvisioningProfileCopyStep provisioningProfileCopyStep=new ProvisioningProfileCopyStep(getProjectFilesystem(),infoPlistOutputPath,Optional.<String>absent(),entitlementsPlist,provisioningProfileStore,resourcesDestinationPath.resolve("embedded.mobileprovision"),signingEntitlementsTempPath,codeSignIdentityStore);
+    stepsBuilder.add(provisioningProfileCopyStep);
+    Supplier<CodeSignIdentity> codeSignIdentitySupplier=new Supplier<CodeSignIdentity>(){
+      @Override public CodeSignIdentity get(){
+        ProvisioningProfileMetadata selectedProfile=Futures.getUnchecked(provisioningProfileCopyStep.getSelectedProvisioningProfileFuture());
+        ImmutableSet<HashCode> fingerprints=selectedProfile.getDeveloperCertificateFingerprints();
+        if (fingerprints.isEmpty()) {
+          return Iterables.getFirst(codeSignIdentityStore.getIdentities(),CodeSignIdentity.AD_HOC);
         }
+        for (        CodeSignIdentity identity : codeSignIdentityStore.getIdentities()) {
+          if (identity.getFingerprint().isPresent() && fingerprints.contains(identity.getFingerprint().get())) {
+            return identity;
+          }
+        }
+        throw new HumanReadableException("No code sign identity available for provisioning profile: %s\n" + "Profile requires an identity with one of the following SHA1 fingerprints " + "available in your keychain: \n  %s",selectedProfile.getProfilePath(),Joiner.on("\n  ").join(fingerprints));
       }
-;
     }
+;
     addSwiftStdlibStepIfNeeded(Optional.of(codeSignIdentitySupplier),stepsBuilder);
-    stepsBuilder.add(new CodeSignStep(getProjectFilesystem().getRootPath(),getResolver(),bundleRoot,signingEntitlementsTempPath,codeSignIdentitySupplier,codesignAllocatePath));
+    stepsBuilder.add(new CodeSignStep(getProjectFilesystem().getRootPath(),getResolver(),resourcesDestinationPath,signingEntitlementsTempPath,codeSignIdentitySupplier,codesignAllocatePath));
   }
  else {
     addSwiftStdlibStepIfNeeded(Optional.<Supplier<CodeSignIdentity>>absent(),stepsBuilder);
