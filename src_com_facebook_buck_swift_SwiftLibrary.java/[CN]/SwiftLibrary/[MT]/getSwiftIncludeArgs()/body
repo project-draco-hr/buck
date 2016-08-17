@@ -1,0 +1,22 @@
+{
+  SourcePathResolver resolver=getResolver();
+  ImmutableList.Builder<String> args=ImmutableList.builder();
+  LinkedHashSet<String> headerMaps=new LinkedHashSet<String>();
+  LinkedHashSet<String> roots=new LinkedHashSet<String>();
+  for (  CxxPreprocessorInput cxxPreprocessorInput : cxxPreprocessorInputs) {
+    Iterable<CxxHeaders> cxxHeaderses=cxxPreprocessorInput.getIncludes();
+    for (    CxxHeaders cxxHeaders : cxxHeaderses) {
+      if (cxxHeaders.getIncludeType() == CxxPreprocessables.IncludeType.SYSTEM) {
+        continue;
+      }
+      Optional<SourcePath> headerMap=cxxHeaders.getHeaderMap();
+      if (headerMap.isPresent()) {
+        headerMaps.add(resolver.getAbsolutePath(headerMap.get()).toString());
+      }
+      roots.add(resolver.getAbsolutePath(cxxHeaders.getIncludeRoot()).toString());
+    }
+  }
+  args.addAll(Iterables.transform(headerMaps,PREPEND_INCLUDE_FLAG));
+  args.addAll(Iterables.transform(roots,PREPEND_INCLUDE_FLAG));
+  return args.build();
+}
