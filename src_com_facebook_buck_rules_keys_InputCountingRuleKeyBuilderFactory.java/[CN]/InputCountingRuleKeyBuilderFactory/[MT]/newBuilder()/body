@@ -1,0 +1,45 @@
+{
+  return new RuleKeyBuilder<InputCountingRuleKeyBuilderFactory.Result>(pathResolver,hashLoader){
+    private int inputsCount;
+    private long inputsSize;
+    private ImmutableSet.Builder<Path> paths=ImmutableSet.builder();
+    private ImmutableSet.Builder<SourcePath> sourcePaths=ImmutableSet.builder();
+    @Override protected RuleKeyBuilder<InputCountingRuleKeyBuilderFactory.Result> setBuildRule(    BuildRule rule){
+      return this;
+    }
+    @Override public RuleKeyBuilder<InputCountingRuleKeyBuilderFactory.Result> setAppendableRuleKey(    String key,    RuleKeyAppendable appendable){
+      InputCountingRuleKeyBuilderFactory.Result result=resultCache.getUnchecked(appendable);
+      inputsCount+=result.getInputsCount();
+      inputsSize+=result.getInputsSize();
+      return this;
+    }
+    @Override protected RuleKeyBuilder<Result> setNonHashingSourcePath(    SourcePath sourcePath){
+      return setSourcePath(sourcePath);
+    }
+    @Override protected RuleKeyBuilder<Result> setSourcePath(    SourcePath sourcePath){
+      sourcePaths.add(sourcePath);
+      return this;
+    }
+    @Override public RuleKeyBuilder<Result> setPath(    Path absolutePath,    Path ideallyRelative) throws IOException {
+      paths.add(absolutePath);
+      return this;
+    }
+    @Override public RuleKeyBuilder<Result> setArchiveMemberPath(    ArchiveMemberPath absoluteArchiveMemberPath,    ArchiveMemberPath relativeArchiveMemberPath) throws IOException {
+      paths.add(absoluteArchiveMemberPath.getArchivePath());
+      return this;
+    }
+    @Override public InputCountingRuleKeyBuilderFactory.Result build(){
+      try {
+        for (        Path path : Iterables.concat(paths.build(),pathResolver.getAllAbsolutePaths(sourcePaths.build()))) {
+          inputsCount+=1;
+          inputsSize+=hashLoader.getSize(path);
+        }
+      }
+ catch (      IOException e) {
+        throw new WrappedIoException(e);
+      }
+      return new Result(inputsCount,inputsSize);
+    }
+  }
+;
+}
