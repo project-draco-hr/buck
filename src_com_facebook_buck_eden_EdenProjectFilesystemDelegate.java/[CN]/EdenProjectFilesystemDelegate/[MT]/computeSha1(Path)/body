@@ -1,14 +1,12 @@
 {
   Path fileToHash=getPathForRelativePath(pathRelativeToProjectRootOrJustAbsolute);
-  if (fileToHash.startsWith(mount.getMountPoint())) {
-    Path entry=mount.getMountPoint().relativize(fileToHash);
-    if (!entry.startsWith(buckPaths.getBuckOut())) {
-      try {
-        return mount.getSha1(entry);
-      }
- catch (      TException|EdenError e) {
-        throw new IOException(e);
-      }
+  Optional<Path> entry=mount.getPathRelativeToProjectRoot(fileToHash);
+  if (entry.isPresent() && !entry.get().toString().contains("buck-out")) {
+    try {
+      return mount.getSha1(entry.get());
+    }
+ catch (    TException|EdenError e) {
+      throw new IOException(e);
     }
   }
   return delegate.computeSha1(pathRelativeToProjectRootOrJustAbsolute);
