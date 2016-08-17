@@ -1,0 +1,21 @@
+{
+  Path rootDirectory=Files.createTempDirectory("buck_python_program");
+  LOG.debug("Creating temporary buck.py instance at %s.",rootDirectory);
+  try (Writer out=Files.newBufferedWriter(rootDirectory.resolve("buck.py"),UTF_8)){
+    URL resource=Resources.getResource(BUCK_PY_RESOURCE);
+    Resources.asCharSource(resource,UTF_8).copyTo(out);
+    out.write("\n\n");
+    BuckPyFunction function=new BuckPyFunction(marshaller);
+    for (    Description<?> description : descriptions) {
+      out.write(function.toPythonFunction(description.getBuildRuleType(),description.createUnpopulatedConstructorArg()));
+      out.write('\n');
+    }
+  }
+   String pathlibDir=PATH_TO_PATHLIB_PY.getParent().toString();
+  String watchmanDir=PATH_TO_PYWATCHMAN.toString();
+  try (Writer out=Files.newBufferedWriter(rootDirectory.resolve("__main__.py"),UTF_8)){
+    out.write(Joiner.on("\n").join("import sys","sys.path.insert(0, \"" + Escaper.escapeAsBashString(MorePaths.pathWithUnixSeparators(pathlibDir)) + "\")","sys.path.insert(0, \"" + Escaper.escapeAsBashString(MorePaths.pathWithUnixSeparators(watchmanDir)) + "\")","import buck","if __name__ == '__main__':","    try:","        buck.main()","    except KeyboardInterrupt:","        print >> sys.stderr, 'Killed by User'",""));
+  }
+   LOG.debug("Created temporary buck.py instance at %s.",rootDirectory);
+  return new BuckPythonProgram(rootDirectory);
+}
