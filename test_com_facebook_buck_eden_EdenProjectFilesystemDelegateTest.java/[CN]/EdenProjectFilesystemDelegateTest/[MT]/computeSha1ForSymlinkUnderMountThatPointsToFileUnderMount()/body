@@ -1,0 +1,18 @@
+{
+  FileSystem fs=Jimfs.newFileSystem(Configuration.unix());
+  Path root=fs.getPath(JIMFS_WORKING_DIRECTORY);
+  ProjectFilesystemDelegate delegate=new DefaultProjectFilesystemDelegate(root);
+  Path link=fs.getPath("/work/link");
+  Path target=fs.getPath("/work/target");
+  Files.createFile(target);
+  Files.createSymbolicLink(link,target);
+  EdenMount mount=createMock(EdenMount.class);
+  expect(mount.getPathRelativeToProjectRoot(link)).andReturn(Optional.of(fs.getPath("link")));
+  expect(mount.getPathRelativeToProjectRoot(target)).andReturn(Optional.of(fs.getPath("target")));
+  expect(mount.getSha1(fs.getPath("link"))).andThrow(new EdenError());
+  expect(mount.getSha1(fs.getPath("target"))).andReturn(DUMMY_SHA1);
+  replay(mount);
+  EdenProjectFilesystemDelegate edenDelegate=new EdenProjectFilesystemDelegate(mount,delegate);
+  assertEquals(DUMMY_SHA1,edenDelegate.computeSha1(link));
+  verify(mount);
+}

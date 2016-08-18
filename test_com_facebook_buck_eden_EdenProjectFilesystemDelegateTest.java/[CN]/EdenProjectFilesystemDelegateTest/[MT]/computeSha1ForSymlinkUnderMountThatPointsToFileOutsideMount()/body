@@ -1,0 +1,19 @@
+{
+  FileSystem fs=Jimfs.newFileSystem(Configuration.unix());
+  Path root=fs.getPath(JIMFS_WORKING_DIRECTORY);
+  ProjectFilesystemDelegate delegate=new DefaultProjectFilesystemDelegate(root);
+  Path link=fs.getPath("/work/link");
+  Path target=fs.getPath("/example");
+  Files.createFile(target);
+  byte[] bytes=new byte[]{66,85,67,75};
+  Files.write(target,bytes);
+  Files.createSymbolicLink(link,target);
+  EdenMount mount=createMock(EdenMount.class);
+  expect(mount.getPathRelativeToProjectRoot(link)).andReturn(Optional.of(fs.getPath("link")));
+  expect(mount.getPathRelativeToProjectRoot(target)).andReturn(Optional.<Path>absent());
+  expect(mount.getSha1(fs.getPath("link"))).andThrow(new EdenError());
+  replay(mount);
+  EdenProjectFilesystemDelegate edenDelegate=new EdenProjectFilesystemDelegate(mount,delegate);
+  assertEquals("EdenProjectFilesystemDelegate.computeSha1() should return the SHA-1 of the target of " + "the symlink even though the target is outside of the EdenFS root.",Sha1HashCode.fromHashCode(Hashing.sha1().hashBytes(bytes)),edenDelegate.computeSha1(link));
+  verify(mount);
+}

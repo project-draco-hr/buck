@@ -1,0 +1,22 @@
+{
+  Preconditions.checkArgument(path.isAbsolute());
+  Optional<Path> entry=mount.getPathRelativeToProjectRoot(path);
+  if (entry.isPresent() && !entry.get().toString().contains("buck-out")) {
+    try {
+      return mount.getSha1(entry.get());
+    }
+ catch (    TException e) {
+      throw new IOException(e);
+    }
+catch (    EdenError e) {
+      if (retryWithRealPathIfEdenError) {
+        Path realPath=path.toRealPath();
+        if (!realPath.equals(path)) {
+          return computeSha1(realPath,false);
+        }
+      }
+      throw new IOException(e);
+    }
+  }
+  return delegate.computeSha1(path);
+}

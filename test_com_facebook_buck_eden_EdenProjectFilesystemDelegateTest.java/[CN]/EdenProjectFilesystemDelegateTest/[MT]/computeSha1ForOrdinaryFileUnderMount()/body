@@ -1,0 +1,13 @@
+{
+  FileSystem fs=Jimfs.newFileSystem(Configuration.unix());
+  Path root=fs.getPath(JIMFS_WORKING_DIRECTORY);
+  ProjectFilesystemDelegate delegate=new DefaultProjectFilesystemDelegate(root);
+  EdenMount mount=createMock(EdenMount.class);
+  Path path=fs.getPath("foo/bar");
+  expect(mount.getPathRelativeToProjectRoot(root.resolve(path))).andReturn(Optional.of(path));
+  expect(mount.getSha1(path)).andReturn(DUMMY_SHA1);
+  replay(mount);
+  EdenProjectFilesystemDelegate edenDelegate=new EdenProjectFilesystemDelegate(mount,delegate);
+  assertEquals(DUMMY_SHA1,edenDelegate.computeSha1(path));
+  verify(mount);
+}
