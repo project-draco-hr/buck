@@ -1,7 +1,28 @@
 {
-  UnixDomainSocket socket=UnixDomainSocket.createSocketWithPath(socketFile);
-  TTransport transport=new TSocket(socket);
-  TProtocol protocol=new TBinaryProtocol(transport);
-  EdenService.Client client=new EdenService.Client(protocol);
-  return new EdenClient(client);
+  ThreadLocal<EdenService.Client> clientFactory=new ThreadLocal<EdenService.Client>(){
+    /** 
+ * @return {@code null} if there is no instance of Eden to connect to because this method
+ * cannot throw checked exceptions to signal a failure.
+ */
+    @Override @Nullable protected EdenService.Client initialValue(){
+      TTransport transport;
+      try {
+        UnixDomainSocket socket=UnixDomainSocket.createSocketWithPath(socketFile);
+        transport=new TSocket(socket);
+      }
+ catch (      IOException|TTransportException e) {
+        return null;
+      }
+      TProtocol protocol=new TBinaryProtocol(transport);
+      return new EdenService.Client(protocol);
+    }
+  }
+;
+  EdenService.Client client=clientFactory.get();
+  if (client != null) {
+    return Optional.of(new EdenClient(clientFactory));
+  }
+ else {
+    return Optional.absent();
+  }
 }

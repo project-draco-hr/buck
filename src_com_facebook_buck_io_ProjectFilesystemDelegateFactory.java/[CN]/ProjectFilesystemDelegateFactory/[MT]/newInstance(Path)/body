@@ -1,18 +1,15 @@
 {
-  EdenClient client=createEdenClientOrSwallowException();
-  EdenMount mount=null;
-  if (client != null) {
+  Optional<EdenClient> client=tryToCreateEdenClient();
+  if (client.isPresent()) {
     try {
-      mount=client.getMountFor(root);
+      EdenMount mount=client.get().getMountFor(root);
+      if (mount != null) {
+        return new EdenProjectFilesystemDelegate(mount);
+      }
     }
  catch (    TException|EdenError e) {
       LOG.error(e,"Failed to find Eden client for %s.",root);
     }
   }
-  if (mount != null) {
-    return new EdenProjectFilesystemDelegate(mount);
-  }
- else {
-    return new DefaultProjectFilesystemDelegate(root);
-  }
+  return new DefaultProjectFilesystemDelegate(root);
 }
