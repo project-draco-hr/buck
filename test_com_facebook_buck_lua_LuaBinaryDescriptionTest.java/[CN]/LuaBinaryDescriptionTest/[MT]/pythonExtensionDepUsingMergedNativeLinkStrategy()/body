@@ -1,0 +1,15 @@
+{
+  FlavorDomain<PythonPlatform> pythonPlatforms=FlavorDomain.of("Python Platform",PY2);
+  PrebuiltCxxLibraryBuilder python2Builder=new PrebuiltCxxLibraryBuilder(PYTHON2_DEP_TARGET).setProvided(true).setExportedLinkerFlags(ImmutableList.of("-lpython2"));
+  CxxPythonExtensionBuilder extensionBuilder=new CxxPythonExtensionBuilder(BuildTargetFactory.newInstance("//:extension"),pythonPlatforms,new CxxBuckConfig(FakeBuckConfig.builder().build()),CxxPlatformUtils.DEFAULT_PLATFORMS);
+  extensionBuilder.setBaseModule("hello");
+  LuaBinaryBuilder binaryBuilder=new LuaBinaryBuilder(BuildTargetFactory.newInstance("//:bin"),FakeLuaConfig.DEFAULT.withNativeLinkStrategy(NativeLinkStrategy.MERGED),CxxPlatformUtils.DEFAULT_CONFIG,CxxPlatformUtils.DEFAULT_PLATFORM,CxxPlatformUtils.DEFAULT_PLATFORMS,pythonPlatforms);
+  binaryBuilder.setMainModule("main");
+  binaryBuilder.setDeps(ImmutableSortedSet.of(extensionBuilder.getTarget()));
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(python2Builder.build(),extensionBuilder.build(),binaryBuilder.build()),new DefaultTargetNodeToBuildRuleTransformer());
+  python2Builder.build(resolver);
+  extensionBuilder.build(resolver);
+  LuaBinary binary=(LuaBinary)binaryBuilder.build(resolver);
+  assertThat(binary.getComponents().getNativeLibraries().entrySet(),Matchers.<Map.Entry<String,SourcePath>>empty());
+  assertThat(Iterables.transform(binary.getComponents().getPythonModules().keySet(),Functions.toStringFunction()),Matchers.hasItem(MorePaths.pathWithPlatformSeparators("hello/extension.so")));
+}
