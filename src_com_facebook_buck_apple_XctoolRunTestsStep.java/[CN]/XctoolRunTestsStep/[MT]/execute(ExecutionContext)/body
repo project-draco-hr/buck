@@ -32,12 +32,20 @@
       int exitCode=-1;
       String stderr="Unexpected termination";
       try {
-        ProcessOutputReader outputReader=new ProcessOutputReader(launchedProcess);
-        Thread readerThread=new Thread(outputReader);
-        readerThread.start();
+        ProcessStdoutReader stdoutReader=new ProcessStdoutReader(launchedProcess);
+        ProcessStderrReader stderrReader=new ProcessStderrReader(launchedProcess);
+        Thread stdoutReaderThread=new Thread(stdoutReader);
+        Thread stderrReaderThread=new Thread(stderrReader);
+        stdoutReaderThread.start();
+        stderrReaderThread.start();
         exitCode=waitForProcessAndGetExitCode(context.getProcessExecutor(),launchedProcess,timeoutInMs);
-        readerThread.join(timeoutInMs.or(1000L));
-        stderr=outputReader.getStdErr();
+        stdoutReaderThread.join(timeoutInMs.or(1000L));
+        stderrReaderThread.join(timeoutInMs.or(1000L));
+        Optional<IOException> exception=stdoutReader.getException();
+        if (exception.isPresent()) {
+          throw exception.get();
+        }
+        stderr=stderrReader.getStdErr();
         LOG.debug("Finished running command, exit code %d, stderr %s",exitCode,stderr);
       }
   finally {
