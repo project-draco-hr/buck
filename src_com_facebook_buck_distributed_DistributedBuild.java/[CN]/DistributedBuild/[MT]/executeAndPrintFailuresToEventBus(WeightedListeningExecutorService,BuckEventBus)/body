@@ -1,0 +1,36 @@
+{
+  BuildJob job=distBuildService.createBuild();
+  final BuildId id=job.getBuildId();
+  LOG.info("Created job. Build id = " + id.getId());
+  logDebugInfo(job);
+  try {
+    distBuildService.uploadMissingFiles(buildJobState.fileHashes,executorService).get();
+  }
+ catch (  ExecutionException e) {
+    LOG.error("Exception uploading local changes: " + e);
+    throw new RuntimeException(e);
+  }
+  LOG.info("Uploaded local changes. Build status: " + job.getStatus().toString());
+  job=distBuildService.startBuild(id);
+  LOG.info("Started job. Build status: " + job.getStatus().toString());
+  logDebugInfo(job);
+  Stopwatch stopwatch=Stopwatch.createStarted();
+  do {
+    job=distBuildService.pollBuild(id);
+    LOG.info("Got build status: " + job.getStatus().toString());
+    DistBuildStatus distBuildStatus=prepareStatusFromJob(job).setETAMillis(MAX_BUILD_DURATION_MILLIS - stopwatch.elapsed(TimeUnit.MILLISECONDS)).build();
+    eventBus.post(new DistBuildStatusEvent(distBuildStatus));
+    try {
+      Thread.sleep(millisBetweenStatusPoll);
+    }
+ catch (    InterruptedException e) {
+      LOG.error(e,"BuildStatus polling sleep call has been interrupted unexpectedly.");
+    }
+  }
+ while (!(job.getStatus().equals(BuildStatus.FINISHED_SUCCESSFULLY) || job.getStatus().equals(BuildStatus.FAILED)));
+  LOG.info("Build was " + (job.getStatus().equals(BuildStatus.FINISHED_SUCCESSFULLY) ? "" : "not ") + "successful!");
+  logDebugInfo(job);
+  DistBuildStatus distBuildStatus=prepareStatusFromJob(job).setETAMillis(0).build();
+  eventBus.post(new DistBuildStatusEvent(distBuildStatus));
+  return 0;
+}

@@ -1,0 +1,14 @@
+{
+  final TargetGraph targetGraph=state.createTargetGraph(targetGraphCodec);
+  ActionGraphAndResolver actionGraphAndResolver=Preconditions.checkNotNull(params.getActionGraphCache().getActionGraph(params.getBuckEventBus(),false,targetGraph,params.getBuckConfig().getKeySeed()));
+  BuckConfig rootCellBuckConfig=state.getRootCell().getBuckConfig();
+  DistributedCachingBuildEngineDelegate cachingBuildEngineDelegate=new DistributedCachingBuildEngineDelegate(new SourcePathResolver(actionGraphAndResolver.getResolver()),state);
+  ImmutableList<TargetNodeSpec> targetNodeSpecs=parseArgumentsAsTargetNodeSpecs(rootCellBuckConfig,getArguments());
+  FluentIterable<BuildTarget> targetsToBuild=FluentIterable.from(targetNodeSpecs).transformAndConcat(new Function<TargetNodeSpec,Iterable<BuildTarget>>(){
+    @Override public Iterable<BuildTarget> apply(    TargetNodeSpec input){
+      return input.filter(targetGraph.getNodes()).keySet();
+    }
+  }
+);
+  return executeBuild(params,actionGraphAndResolver,executorService,params.getArtifactCache(),cachingBuildEngineDelegate,rootCellBuckConfig,targetsToBuild);
+}

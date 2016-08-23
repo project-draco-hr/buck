@@ -1,0 +1,44 @@
+{
+  final List<Boolean> fileExistence=Arrays.asList(true,false,true);
+  Capture<FrontendRequest> containsRequest=EasyMock.newCapture();
+  FrontendResponse containsResponse=new FrontendResponse();
+  containsResponse.setType(FrontendRequestType.CAS_CONTAINS);
+  CASContainsResponse casContainsResponse=new CASContainsResponse();
+  casContainsResponse.setExists(fileExistence);
+  containsResponse.setCasContainsResponse(casContainsResponse);
+  containsResponse.setWasSuccessful(true);
+  EasyMock.expect(frontendService.makeRequest(EasyMock.capture(containsRequest))).andReturn(containsResponse).once();
+  Capture<FrontendRequest> storeRequest=EasyMock.newCapture();
+  FrontendResponse storeResponse=new FrontendResponse();
+  storeResponse.setType(FrontendRequestType.STORE_LOCAL_CHANGES);
+  storeResponse.setWasSuccessful(true);
+  EasyMock.expect(frontendService.makeRequest(EasyMock.capture(storeRequest))).andReturn(storeResponse).once();
+  EasyMock.replay(frontendService);
+  BuildJobStateFileHashEntry files[]=new BuildJobStateFileHashEntry[3];
+  for (int i=0; i < 3; i++) {
+    files[i]=new BuildJobStateFileHashEntry();
+    files[i].setHashCode(Integer.toString(i));
+    files[i].setContents(("content" + Integer.toString(i)).getBytes());
+  }
+  List<BuildJobStateFileHashes> fileHashes=new ArrayList<>();
+  fileHashes.add(new BuildJobStateFileHashes());
+  fileHashes.get(0).setCellIndex(0);
+  fileHashes.get(0).setEntries(new ArrayList<BuildJobStateFileHashEntry>());
+  fileHashes.get(0).getEntries().add(files[0]);
+  fileHashes.get(0).getEntries().add(files[1]);
+  fileHashes.add(new BuildJobStateFileHashes());
+  fileHashes.get(1).setCellIndex(1);
+  fileHashes.get(1).setEntries(new ArrayList<BuildJobStateFileHashEntry>());
+  fileHashes.get(1).getEntries().add(files[2]);
+  distBuildService.uploadMissingFiles(fileHashes,executor).get();
+  Assert.assertEquals(containsRequest.getValue().getType(),FrontendRequestType.CAS_CONTAINS);
+  Assert.assertTrue(containsRequest.getValue().isSetCasContainsRequest());
+  Assert.assertTrue(containsRequest.getValue().getCasContainsRequest().isSetContentSha1s());
+  Assert.assertEquals(new HashSet<String>(containsRequest.getValue().getCasContainsRequest().getContentSha1s()),new HashSet<String>(Arrays.asList("0","1","2")));
+  Assert.assertEquals(storeRequest.getValue().getType(),FrontendRequestType.STORE_LOCAL_CHANGES);
+  Assert.assertTrue(storeRequest.getValue().isSetStoreLocalChangesRequest());
+  Assert.assertTrue(storeRequest.getValue().getStoreLocalChangesRequest().isSetFiles());
+  Assert.assertEquals(storeRequest.getValue().getStoreLocalChangesRequest().getFiles().size(),1);
+  Assert.assertEquals(storeRequest.getValue().getStoreLocalChangesRequest().getFiles().get(0).getContentHash(),"1");
+  Assert.assertTrue(Arrays.equals(storeRequest.getValue().getStoreLocalChangesRequest().getFiles().get(0).getContent(),"content1".getBytes()));
+}

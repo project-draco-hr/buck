@@ -1,0 +1,25 @@
+{
+  final String idString="poll id";
+  Capture<FrontendRequest> request=EasyMock.newCapture();
+  FrontendResponse response=new FrontendResponse();
+  response.setType(FrontendRequestType.BUILD_STATUS);
+  BuildStatusResponse buildStatusResponse=new BuildStatusResponse();
+  BuildJob buildJob=new BuildJob();
+  BuildId buildId=new BuildId();
+  buildId.setId(idString);
+  buildJob.setBuildId(buildId);
+  buildStatusResponse.setBuildJob(buildJob);
+  response.setBuildStatusResponse(buildStatusResponse);
+  response.setWasSuccessful(true);
+  EasyMock.expect(frontendService.makeRequest(EasyMock.capture(request))).andReturn(response).once();
+  EasyMock.replay(frontendService);
+  BuildId id=new BuildId();
+  id.setId(idString);
+  BuildJob job=distBuildService.pollBuild(id);
+  Assert.assertEquals(request.getValue().getType(),FrontendRequestType.BUILD_STATUS);
+  Assert.assertTrue(request.getValue().isSetBuildStatusRequest());
+  Assert.assertTrue(request.getValue().getBuildStatusRequest().isSetBuildId());
+  Assert.assertEquals(request.getValue().getBuildStatusRequest().getBuildId(),id);
+  Assert.assertTrue(job.isSetBuildId());
+  Assert.assertEquals(job.getBuildId(),id);
+}
