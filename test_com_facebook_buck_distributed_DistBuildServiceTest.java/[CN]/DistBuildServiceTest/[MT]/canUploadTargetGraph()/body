@@ -1,0 +1,32 @@
+{
+  Capture<FrontendRequest> request=EasyMock.newCapture();
+  FrontendResponse response=new FrontendResponse();
+  response.setType(FrontendRequestType.STORE_BUILD_GRAPH);
+  response.setWasSuccessful(true);
+  EasyMock.expect(frontendService.makeRequest(EasyMock.capture(request))).andReturn(response).once();
+  EasyMock.replay(frontendService);
+  BuildJobState buildJobState=new BuildJobState();
+  List<BuildJobStateFileHashes> fileHashes=new ArrayList<>();
+  buildJobState.setFileHashes(fileHashes);
+  BuildJobStateTargetGraph graph=new BuildJobStateTargetGraph();
+  graph.setNodes(new ArrayList<BuildJobStateTargetNode>());
+  BuildJobStateTargetNode node1=new BuildJobStateTargetNode();
+  node1.setRawNode("node1");
+  BuildJobStateTargetNode node2=new BuildJobStateTargetNode();
+  node2.setRawNode("node1");
+  graph.addToNodes(node1);
+  graph.addToNodes(node2);
+  buildJobState.setTargetGraph(graph);
+  BuildId id=new BuildId();
+  id.setId("check-id");
+  distBuildService.uploadTargetGraph(buildJobState,id,executor).get();
+  Assert.assertTrue(request.getValue().isSetType());
+  Assert.assertEquals(request.getValue().getType(),FrontendRequestType.STORE_BUILD_GRAPH);
+  Assert.assertTrue(request.getValue().isSetStoreBuildGraphRequest());
+  Assert.assertTrue(request.getValue().getStoreBuildGraphRequest().isSetBuildId());
+  Assert.assertEquals(request.getValue().getStoreBuildGraphRequest().getBuildId(),id);
+  Assert.assertTrue(request.getValue().getStoreBuildGraphRequest().isSetBuildGraph());
+  BuildJobState sentState=new BuildJobState();
+  ThriftUtil.deserialize(ThriftProtocol.BINARY,request.getValue().getStoreBuildGraphRequest().getBuildGraph(),sentState);
+  Assert.assertTrue(buildJobState.equals(sentState));
+}

@@ -1,0 +1,26 @@
+{
+  final BuildJobState buildJobState=buildJobStateArg.deepCopy();
+  return executorService.submit(new Callable<Void>(){
+    @Override public Void call() throws IOException {
+      for (      BuildJobStateFileHashes cell : buildJobState.getFileHashes()) {
+        for (        BuildJobStateFileHashEntry file : cell.getEntries()) {
+          file.unsetContents();
+        }
+      }
+      StoreBuildGraphRequest storeBuildGraphRequest=new StoreBuildGraphRequest();
+      storeBuildGraphRequest.setBuildId(buildId);
+      try {
+        storeBuildGraphRequest.setBuildGraph(ThriftUtil.serialize(buildGraphSerializerProtocol,buildJobState));
+      }
+ catch (      TException e) {
+        throw new IOException(e);
+      }
+      FrontendRequest request=new FrontendRequest();
+      request.setType(FrontendRequestType.STORE_BUILD_GRAPH);
+      request.setStoreBuildGraphRequest(storeBuildGraphRequest);
+      makeRequestChecked(request);
+      return null;
+    }
+  }
+);
+}
