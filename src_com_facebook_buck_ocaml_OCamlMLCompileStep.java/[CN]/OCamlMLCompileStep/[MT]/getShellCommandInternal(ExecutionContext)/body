@@ -3,5 +3,17 @@
   if (args.stdlib.isPresent()) {
     cmd.add("-nostdlib",OCamlCompilables.OCAML_INCLUDE_FLAG,args.stdlib.get());
   }
-  return cmd.add("-cc",args.cCompiler.get(0)).addAll(MoreIterables.zipAndConcat(Iterables.cycle("-ccopt"),args.cCompiler.subList(1,args.cCompiler.size()))).add("-c").add("-annot").add("-bin-annot").add("-o",args.output.toString()).addAll(args.flags).add(args.input.toString()).build();
+  String ext=Files.getFileExtension(args.input.toString());
+  String dotExt="." + ext;
+  boolean isImplementation=dotExt.equals(OCamlCompilables.OCAML_ML) || dotExt.equals(OCamlCompilables.OCAML_RE);
+  boolean isReason=dotExt.equals(OCamlCompilables.OCAML_RE) || dotExt.equals(OCamlCompilables.OCAML_REI);
+  cmd.add("-cc",args.cCompiler.get(0)).addAll(MoreIterables.zipAndConcat(Iterables.cycle("-ccopt"),args.cCompiler.subList(1,args.cCompiler.size()))).add("-c").add("-annot").add("-bin-annot").add("-o",args.output.toString()).addAll(args.flags);
+  if (isReason && isImplementation) {
+    cmd.add("-pp").add("refmt").add("-intf-suffix").add("rei").add("-impl");
+  }
+  if (isReason && !isImplementation) {
+    cmd.add("-pp").add("refmt").add("-intf");
+  }
+  cmd.add(args.input.toString());
+  return cmd.build();
 }

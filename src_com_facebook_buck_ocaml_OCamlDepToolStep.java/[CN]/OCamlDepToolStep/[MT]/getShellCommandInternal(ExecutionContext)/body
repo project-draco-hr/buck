@@ -1,3 +1,22 @@
 {
-  return ImmutableList.<String>builder().addAll(ocamlDepTool.getCommandPrefix(resolver)).add("-one-line").add("-native").addAll(flags).addAll(FluentIterable.from(input).transform(resolver.getAbsolutePathFunction()).transform(Functions.toStringFunction())).build();
+  ImmutableList.Builder<String> cmd=ImmutableList.<String>builder();
+  cmd.addAll(ocamlDepTool.getCommandPrefix(resolver)).add("-one-line").add("-native").addAll(flags).add("-ml-synonym").add(".re").add("-mli-synonym").add(".rei");
+  boolean previousFileWasReason=false;
+  for (  SourcePath sourcePath : input) {
+    String filePath=resolver.getAbsolutePath(sourcePath).toString();
+    String ext=Files.getFileExtension(filePath);
+    String dotExt="." + ext;
+    boolean isImplementation=dotExt.equals(OCamlCompilables.OCAML_ML) || dotExt.equals(OCamlCompilables.OCAML_RE);
+    boolean isReason=dotExt.equals(OCamlCompilables.OCAML_RE) || dotExt.equals(OCamlCompilables.OCAML_REI);
+    if (isReason && !previousFileWasReason) {
+      cmd.add("-pp").add("refmt");
+    }
+ else     if (!isReason && previousFileWasReason) {
+      cmd.add("-pp").add("cat");
+    }
+    cmd.add(isImplementation ? "-impl" : "-intf");
+    cmd.add(filePath);
+    previousFileWasReason=isReason;
+  }
+  return cmd.build();
 }
