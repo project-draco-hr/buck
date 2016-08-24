@@ -1,9 +1,11 @@
 {
   ImmutableList.Builder<Step> stepsBuilder=ImmutableList.builder();
   stepsBuilder.add(new MakeCleanDirectoryStep(getProjectFilesystem(),bundleRoot));
+  Path resourcesDestinationPath=bundleRoot.resolve(this.destinations.getResourcesPath());
   if (assetCatalog.isPresent()) {
+    stepsBuilder.add(new MkdirStep(getProjectFilesystem(),resourcesDestinationPath));
     Path bundleDir=assetCatalog.get().getOutputDir();
-    stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),bundleDir,bundleRoot,CopyStep.DirectoryMode.CONTENTS_ONLY));
+    stepsBuilder.add(CopyStep.forDirectory(getProjectFilesystem(),bundleDir,resourcesDestinationPath,CopyStep.DirectoryMode.CONTENTS_ONLY));
   }
   Path metadataPath=getMetadataPath();
   Path infoPlistInputPath=getResolver().getAbsolutePath(infoPlist);
@@ -14,7 +16,6 @@
     appendCopyBinarySteps(stepsBuilder);
     appendCopyDsymStep(stepsBuilder,buildableContext);
   }
-  Path resourcesDestinationPath=bundleRoot.resolve(this.destinations.getResourcesPath());
   if (!Iterables.isEmpty(Iterables.concat(resources.getResourceDirs(),resources.getDirsContainingResourceDirs(),resources.getResourceFiles()))) {
     stepsBuilder.add(new MkdirStep(getProjectFilesystem(),resourcesDestinationPath));
     for (    SourcePath dir : resources.getResourceDirs()) {
