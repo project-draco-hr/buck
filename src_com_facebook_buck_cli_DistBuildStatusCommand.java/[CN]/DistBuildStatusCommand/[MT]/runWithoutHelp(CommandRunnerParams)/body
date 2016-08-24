@@ -1,0 +1,20 @@
+{
+  BuildId buildId=getBuildId();
+  Console console=params.getConsole();
+  ObjectMapper objectMapper=params.getObjectMapper().copy();
+  objectMapper.enable(SerializationFeature.INDENT_OUTPUT);
+  objectMapper.disable(JsonGenerator.Feature.AUTO_CLOSE_TARGET);
+  try (ThriftService<FrontendRequest,FrontendResponse> service=DistBuildCommand.newFrontendService(params)){
+    Optional<BuildJob> buildJob=BuildStatusGetter.getBuildJob(getBuildId(),service);
+    if (buildJob.isPresent()) {
+      objectMapper.writeValue(console.getStdOut(),buildJob.get());
+      console.getStdOut().println();
+      console.printSuccess(String.format("Successfully fetched the build status for [%s].",buildId));
+      return 0;
+    }
+ else {
+      console.printBuildFailure(String.format("Distributed build with [%s] does not exist.",buildId));
+      return -1;
+    }
+  }
+ }
