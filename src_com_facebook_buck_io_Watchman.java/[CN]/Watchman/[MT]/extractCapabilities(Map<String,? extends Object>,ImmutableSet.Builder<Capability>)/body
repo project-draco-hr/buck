@@ -1,0 +1,27 @@
+{
+  if (versionResponse.containsKey("error")) {
+    LOG.warn("Error in watchman output: %s",versionResponse.get("error"));
+    return false;
+  }
+  if (versionResponse.containsKey("warning")) {
+    LOG.warn("Warning in watchman output: %s",versionResponse.get("warning"));
+  }
+  Object capabilitiesResponse=versionResponse.get("capabilities");
+  if (!(capabilitiesResponse instanceof Map<?,?>)) {
+    LOG.warn("capabilities response is not map, got %s",capabilitiesResponse);
+    return false;
+  }
+  LOG.debug("Got capabilities response: %s",capabilitiesResponse);
+  Map<String,Boolean> capabilities=(Map<String,Boolean>)capabilitiesResponse;
+  for (  Map.Entry<String,Boolean> capabilityEntry : capabilities.entrySet()) {
+    Capability capability=ALL_CAPABILITIES.get(capabilityEntry.getKey());
+    if (capability == null) {
+      LOG.warn("Unexpected capability in response: %s",capabilityEntry.getKey());
+      return false;
+    }
+    if (capabilityEntry.getValue()) {
+      capabilitiesBuilder.add(capability);
+    }
+  }
+  return true;
+}

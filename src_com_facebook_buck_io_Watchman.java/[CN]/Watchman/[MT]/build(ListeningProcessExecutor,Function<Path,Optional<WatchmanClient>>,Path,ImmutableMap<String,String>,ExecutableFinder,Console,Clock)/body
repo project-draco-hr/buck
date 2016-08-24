@@ -26,11 +26,32 @@
       return NULL_WATCHMAN;
     }
     LOG.debug("Connected to Watchman");
-    ImmutableSet<Capability> capabilities=deriveCapabilities(rawVersion.get());
+    long versionQueryStartTimeNanos=clock.nanoTime();
+    remainingTimeNanos-=versionQueryStartTimeNanos - startTimeNanos;
+    ImmutableSet.Builder<Capability> capabilitiesBuilder=ImmutableSet.builder();
+    if (VERSION_COMPARATOR.compare(rawVersion.get(),WATCHMAN_CAPABILITIES_VERSION) >= 0) {
+      result=watchmanClient.get().queryWithTimeout(remainingTimeNanos,"version",ImmutableMap.of("optional",ALL_CAPABILITIES.keySet()));
+      LOG.info("Took %d ms to query capabilities %s",TimeUnit.NANOSECONDS.toMillis(clock.nanoTime() - versionQueryStartTimeNanos),ALL_CAPABILITIES);
+      if (!result.isPresent()) {
+        LOG.warn("Could not get version response from Watchman, disabling Watchman");
+        watchmanClient.get().close();
+        return NULL_WATCHMAN;
+      }
+      if (!extractCapabilities(result.get(),capabilitiesBuilder)) {
+        LOG.warn("Could not extract capabilities, disabling Watchman");
+        watchmanClient.get().close();
+        return NULL_WATCHMAN;
+      }
+    }
+ else {
+      deriveCapabilities(rawVersion.get(),capabilitiesBuilder);
+    }
+    ImmutableSet<Capability> capabilities=capabilitiesBuilder.build();
+    LOG.debug("Got Watchman capabilities: %s",capabilities);
     Path absoluteRootPath=rootPath.toAbsolutePath();
     LOG.info("Adding watchman root: %s",absoluteRootPath);
     long watchStartTimeNanos=clock.nanoTime();
-    remainingTimeNanos-=(watchStartTimeNanos - startTimeNanos);
+    remainingTimeNanos-=(watchStartTimeNanos - versionQueryStartTimeNanos);
     if (capabilities.contains(Capability.SUPPORTS_PROJECT_WATCH)) {
       result=watchmanClient.get().queryWithTimeout(remainingTimeNanos,"watch-project",absoluteRootPath.toString());
     }
