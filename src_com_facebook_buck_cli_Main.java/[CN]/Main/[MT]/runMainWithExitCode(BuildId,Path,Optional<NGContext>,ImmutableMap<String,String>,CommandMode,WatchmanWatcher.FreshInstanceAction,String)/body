@@ -117,10 +117,10 @@
       ScheduledExecutorService counterAggregatorExecutor=Executors.newSingleThreadScheduledExecutor(new CommandThreadFactory("CounterAggregatorThread"));
       VersionControlStatsGenerator vcStatsGenerator;
       Locale locale=Locale.getDefault();
-      Map<ExecutionContext.ExecutorPool,ListeningExecutorService> executors=new HashMap<>();
-      executors.put(ExecutionContext.ExecutorPool.CPU,listeningDecorator(Executors.newCachedThreadPool()));
-      executors.put(ExecutionContext.ExecutorPool.NETWORK,newDirectExecutorService());
-      executors.put(ExecutionContext.ExecutorPool.PROJECT,listeningDecorator(MostExecutors.newMultiThreadExecutor("Project",buckConfig.getNumThreads())));
+      Map<ExecutorPool,ListeningExecutorService> executors=new HashMap<>();
+      executors.put(ExecutorPool.CPU,listeningDecorator(Executors.newCachedThreadPool()));
+      executors.put(ExecutorPool.NETWORK,newDirectExecutorService());
+      executors.put(ExecutorPool.PROJECT,listeningDecorator(MostExecutors.newMultiThreadExecutor("Project",buckConfig.getNumThreads())));
       BroadcastEventListener broadcastEventListener=getBroadcastEventListener(isDaemon,rootCell,objectMapper);
       InvocationInfo invocationInfo=InvocationInfo.of(buildId,command.getSubCommandNameForLogging(),filesystem.getBuckPaths().getLogDir());
       try (Closeable loggersSetup=GlobalStateManager.singleton().setupLoggers(invocationInfo,console.getStdErr(),stdErr,verbosity);AbstractConsoleEventBusListener consoleListener=createConsoleEventListener(clock,new SuperConsoleConfig(buckConfig),console,testConfig.getResultSummaryVerbosity(),executionEnvironment,webServer,locale,filesystem.getBuckPaths().getLogDir().resolve("test.log"));AsyncCloseable asyncCloseable=new AsyncCloseable(diskIoExecutorService);BuckEventBus buildEventBus=new BuckEventBus(clock,buildId);BroadcastEventListener.BroadcastEventBusClosable broadcastEventBusClosable=broadcastEventListener.addEventBus(buildEventBus);CounterRegistry counterRegistry=new CounterRegistryImpl(counterAggregatorExecutor,buildEventBus,buckConfig.getCountersFirstFlushIntervalMillis(),buckConfig.getCountersFlushIntervalMillis())){
@@ -202,7 +202,7 @@
         if (isDaemon && shouldCleanUpTrash) {
           TRASH_CLEANER.startCleaningDirectory();
         }
-        for (        ExecutionContext.ExecutorPool p : executors.keySet()) {
+        for (        ExecutorPool p : executors.keySet()) {
           closeExecutorService(p.toString(),executors.get(p),EXECUTOR_SERVICES_TIMEOUT_SECONDS);
         }
       }
