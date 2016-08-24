@@ -1,0 +1,17 @@
+{
+  ImmutableList.Builder<String> compilerCommand=ImmutableList.builder();
+  compilerCommand.addAll(swiftCompiler.getCommandPrefix(getResolver()));
+  compilerCommand.addAll(MoreIterables.zipAndConcat(Iterables.cycle("-Xcc"),getSwiftIncludeArgs()));
+  compilerCommand.addAll(MoreIterables.zipAndConcat(Iterables.cycle(LOCAL.getFlag()),FluentIterable.from(getDeps()).filter(SwiftCompile.class).transform(SourcePaths.getToBuildTargetSourcePath()).transform(new Function<SourcePath,String>(){
+    @Override public String apply(    SourcePath input){
+      return getResolver().getAbsolutePath(input).toString();
+    }
+  }
+)));
+  compilerCommand.add("-c",enableObjcInterop ? "-enable-objc-interop" : "",hasMainEntry ? "" : "-parse-as-library","-module-name",moduleName,"-emit-module","-emit-module-path",modulePath.toString(),"-o",objectPath.toString(),"-emit-objc-header-path",headerPath.toString());
+  for (  SourcePath sourcePath : srcs) {
+    compilerCommand.add(getResolver().getRelativePath(sourcePath).toString());
+  }
+  ProjectFilesystem projectFilesystem=getProjectFilesystem();
+  return new SwiftCompileStep(projectFilesystem.getRootPath(),ImmutableMap.<String,String>of(),compilerCommand.build());
+}
