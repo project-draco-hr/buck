@@ -2,21 +2,19 @@
   final ImmutableSet.Builder<String> undefined=ImmutableSet.builder();
   final ImmutableSet.Builder<String> global=ImmutableSet.builder();
   final ImmutableSet.Builder<String> all=ImmutableSet.builder();
-  final Pattern re=Pattern.compile("\\s*" + "(?<address>[0-9a-f]{8})" + " "+ "(?<global>.)"+ "(?<weak>.)"+ "(?<constructor>.)"+ "(?<warning>.)"+ "(?<indirect>.)"+ "(?<debugging>.)"+ "(?<type>.)"+ "\\s*"+ "(?<section>[^\\s]*)"+ "\\s*"+ "(?<align>[0-9a-f]*)"+ " "+ "(?<name>[^\\s]*)");
   runObjdump(objdump,resolver,lib,ImmutableList.of("-T"),new LineProcessor<Void>(){
     @Override public boolean processLine(    String line) throws IOException {
-      Matcher m=re.matcher(line);
-      if (!m.matches()) {
+      SymbolInfo si=extractSymbolInfo(line);
+      if (si == null) {
         return true;
       }
-      String symbol=m.group("name");
-      if ("*UND*".equals(m.group("section"))) {
-        undefined.add(symbol);
+      if (si.isUndefined) {
+        undefined.add(si.symbol);
       }
- else       if ("gu!".contains(m.group("global"))) {
-        global.add(symbol);
+ else       if (si.isGlobal) {
+        global.add(si.symbol);
       }
-      all.add(symbol);
+      all.add(si.symbol);
       return true;
     }
     @Override public Void getResult(){
