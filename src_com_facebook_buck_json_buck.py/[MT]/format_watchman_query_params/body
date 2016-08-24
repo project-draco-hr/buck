@@ -1,10 +1,16 @@
-def format_watchman_query_params(includes, excludes, include_dotfiles, relative_root):
-    match_exprs = ['allof', 'exists', ['anyof', ['type', 'f'], ['type', 'l']]]
+def format_watchman_query_params(includes, excludes, include_dotfiles, relative_root, watchman_use_glob_generator):
+    match_exprs = ['allof', ['anyof', ['type', 'f'], ['type', 'l']]]
     match_flags = {}
     if include_dotfiles:
         match_flags['includedotfiles'] = True
-    if includes:
-        match_exprs.append((['anyof'] + [['match', COLLAPSE_SLASHES.sub('/', i), 'wholename', match_flags] for i in includes]))
     if excludes:
         match_exprs.append(['not', (['anyof'] + [['match', COLLAPSE_SLASHES.sub('/', x), 'wholename', match_flags] for x in excludes])])
-    return {'relative_root': relative_root, 'path': [''], 'fields': ['name'], 'expression': match_exprs, }
+    query = {'relative_root': relative_root, 'fields': ['name'], }
+    if watchman_use_glob_generator:
+        query['glob'] = includes
+    else:
+        match_exprs.append('exists')
+        query['path'] = ['']
+        match_exprs.append((['anyof'] + [['match', COLLAPSE_SLASHES.sub('/', i), 'wholename', match_flags] for i in includes]))
+    query['expression'] = match_exprs
+    return query
