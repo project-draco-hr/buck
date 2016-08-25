@@ -4,9 +4,15 @@
   }
   materializedPaths.add(path);
   BuildJobStateFileHashEntry fileHashEntry=remoteFileHashes.get(path);
-  if (fileHashEntry == null || fileHashEntry.isIsDirectory() || fileHashEntry.isPathIsAbsolute() || !fileHashEntry.isSetContents()) {
+  if (fileHashEntry == null || fileHashEntry.isIsDirectory() || fileHashEntry.isPathIsAbsolute()) {
     return;
   }
+  Optional<InputStream> sourceStreamOptional=provider.getFileContents(fileHashEntry);
+  if (!sourceStreamOptional.isPresent()) {
+    throw new HumanReadableException(String.format("Input source file is missing from stampede. File=[%s]",fileHashEntry.toString()));
+  }
   Files.createDirectories(path.getParent());
-  Files.write(path,fileHashEntry.getContents());
-}
+  try (InputStream sourceStream=sourceStreamOptional.get()){
+    Files.copy(sourceStream,path);
+  }
+ }

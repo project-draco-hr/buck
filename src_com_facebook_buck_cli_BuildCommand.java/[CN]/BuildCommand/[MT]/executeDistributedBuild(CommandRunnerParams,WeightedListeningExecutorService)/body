@@ -14,42 +14,14 @@
   }
 );
   if (distributedBuildStateFile != null) {
+    BuildJobState jobState=computeDistributedBuildJobState(targetGraphCodec,params,executorService);
     Path stateDumpPath=Paths.get(distributedBuildStateFile);
-    TTransport transport;
-    boolean loading=Files.exists(stateDumpPath);
-    if (loading) {
-      transport=new TIOStreamTransport(filesystem.newFileInputStream(stateDumpPath));
-    }
- else {
-      transport=new TIOStreamTransport(filesystem.newFileOutputStream(stateDumpPath));
-    }
-    transport=new TZlibTransport(transport);
-    TProtocol protocol=new TTupleProtocol(transport);
-    try {
-      if (loading) {
-        DistributedBuildState state=DistributedBuildState.load(protocol,params.getCell());
-        return executeDistributedBuildFromStateDump(state,targetGraphCodec,params,executorService);
-      }
- else {
-        BuildJobState jobState=computeDistributedBuildJobState(targetGraphCodec,params,executorService);
-        jobState.write(protocol);
-        transport.flush();
-        return 0;
-      }
-    }
- catch (    TException e) {
-      throw new RuntimeException(e);
-    }
- finally {
-      transport.close();
-    }
+    BuildJobStateSerializer.serialize(jobState,filesystem.newFileOutputStream(stateDumpPath));
+    return 0;
   }
  else {
-    DistBuildConfig config=new DistBuildConfig(params.getBuckConfig());
-    ClientSideSlb slb=config.getFrontendConfig().createHttpClientSideSlb(params.getClock(),params.getBuckEventBus(),new CommandThreadFactory("BuildCommand.HttpLoadBalancer"));
-    OkHttpClient client=config.createOkHttpClient();
-    try (HttpService httpService=new LoadBalancedService(slb,client,params.getBuckEventBus());FrontendService service=new FrontendService(ThriftOverHttpServiceConfig.of(httpService))){
-      DistributedBuild build=new DistributedBuild(computeDistributedBuildJobState(targetGraphCodec,params,executorService),new DistBuildService(service),1000);
+    try (DistBuildService service=DistBuildFactory.newDistBuildService(params)){
+      DistributedBuild build=new DistributedBuild(computeDistributedBuildJobState(targetGraphCodec,params,executorService),service,1000);
       return build.executeAndPrintFailuresToEventBus(executorService,params.getBuckEventBus());
     }
    }
