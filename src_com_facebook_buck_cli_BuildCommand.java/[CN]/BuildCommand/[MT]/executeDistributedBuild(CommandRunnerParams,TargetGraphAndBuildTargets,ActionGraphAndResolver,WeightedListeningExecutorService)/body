@@ -13,16 +13,20 @@
     }
   }
 );
+  BuildJobState jobState=computeDistributedBuildJobState(targetGraphCodec,params,targetGraphAndBuildTargets,actionGraphAndResolver,executorService);
   if (distributedBuildStateFile != null) {
-    BuildJobState jobState=computeDistributedBuildJobState(targetGraphCodec,params,executorService);
     Path stateDumpPath=Paths.get(distributedBuildStateFile);
     BuildJobStateSerializer.serialize(jobState,filesystem.newFileOutputStream(stateDumpPath));
     return 0;
   }
  else {
     try (DistBuildService service=DistBuildFactory.newDistBuildService(params)){
-      DistributedBuild build=new DistributedBuild(computeDistributedBuildJobState(targetGraphCodec,params,executorService),service,1000);
-      return build.executeAndPrintFailuresToEventBus(executorService,params.getBuckEventBus());
+      DistributedBuild build=new DistributedBuild(jobState,service,1000);
+      int exitCode=build.executeAndPrintFailuresToEventBus(executorService,params.getBuckEventBus());
+      if (exitCode == 0) {
+        exitCode=executeLocalBuild(params,actionGraphAndResolver,executorService);
+      }
+      return exitCode;
     }
    }
 }
