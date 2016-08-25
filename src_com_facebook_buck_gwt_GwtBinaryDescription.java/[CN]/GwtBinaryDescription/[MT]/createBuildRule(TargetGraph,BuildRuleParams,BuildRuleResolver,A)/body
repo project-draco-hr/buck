@@ -8,8 +8,17 @@
         return ImmutableSet.of();
       }
       JavaLibrary javaLibrary=(JavaLibrary)rule;
+      if (javaLibrary.getPathToOutput() == null) {
+        return rule.getDeps();
+      }
       BuildTarget gwtModuleTarget=BuildTargets.createFlavoredBuildTarget(javaLibrary.getBuildTarget().checkUnflavored(),JavaLibrary.GWT_MODULE_FLAVOR);
       Optional<BuildRule> gwtModule=resolver.getRuleOptional(gwtModuleTarget);
+      if (!gwtModule.isPresent() && javaLibrary.getPathToOutput() != null) {
+        ImmutableSortedSet<SourcePath> filesForGwtModule=ImmutableSortedSet.<SourcePath>naturalOrder().addAll(javaLibrary.getSources()).addAll(javaLibrary.getResources()).build();
+        ImmutableSortedSet<BuildRule> deps=ImmutableSortedSet.copyOf(new SourcePathResolver(resolver).filterBuildRuleInputs(filesForGwtModule));
+        BuildRule module=resolver.addToIndex(new GwtModule(params.copyWithChanges(gwtModuleTarget,Suppliers.ofInstance(deps),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),new SourcePathResolver(resolver),filesForGwtModule));
+        gwtModule=Optional.of(module);
+      }
       if (gwtModule.isPresent()) {
         extraDeps.add(gwtModule.get());
         gwtModuleJarsBuilder.add(Preconditions.checkNotNull(gwtModule.get().getPathToOutput()));
