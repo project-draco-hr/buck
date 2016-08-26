@@ -1,0 +1,27 @@
+{
+  String key=root.toString() + "/" + pattern;
+  Path result=cachedPaths.get(key);
+  if (result == null) {
+    String[] segments=pattern.split("/");
+    result=root;
+    for (    String s : segments) {
+      if (s.contains("{")) {
+        s=s.replace("{toolchain}",targetConfiguration.getToolchain().toString());
+        s=s.replace("{toolchain_target}",targetConfiguration.getToolchainTarget().toString());
+        s=s.replace("{compiler_version}",targetConfiguration.getCompiler().getVersion());
+        s=s.replace("{compiler_type}",targetConfiguration.getCompiler().getType().getName());
+        s=s.replace("{gcc_compiler_version}",targetConfiguration.getCompiler().getGccVersion());
+        s=s.replace("{hostname}",hostName);
+        s=s.replace("{target_platform}",targetConfiguration.getTargetAppPlatform());
+        s=s.replace("{target_arch}",targetConfiguration.getTargetArch().toString());
+        s=s.replace("{target_arch_abi}",targetConfiguration.getTargetArchAbi().toString());
+      }
+      result=result.resolve(s);
+    }
+    if (strict) {
+      Assertions.assertCondition(result.toFile().exists(),result.toString() + " doesn't exist.");
+    }
+    cachedPaths.put(key,result);
+  }
+  return result;
+}
