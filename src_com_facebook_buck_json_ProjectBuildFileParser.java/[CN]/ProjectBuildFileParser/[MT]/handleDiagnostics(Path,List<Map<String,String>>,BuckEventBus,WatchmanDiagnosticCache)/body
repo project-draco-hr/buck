@@ -7,20 +7,33 @@
       throw new IOException(String.format("Invalid diagnostic(level=%s, message=%s, source=%s)",level,message,source));
     }
     if (source != null && source.equals("watchman")) {
-      handleWatchmanDiagnostic(level,message,buckEventBus,watchmanDiagnosticCache);
+      handleWatchmanDiagnostic(buildFile,level,message,buckEventBus,watchmanDiagnosticCache);
     }
  else {
+      String header;
+      if (source != null) {
+        header=buildFile + " (" + source+ ")";
+      }
+ else {
+        header=buildFile.toString();
+      }
 switch (level) {
+case "debug":
+        LOG.debug("%s: %s",header,message);
+      break;
+case "info":
+    LOG.info("%s: %s",header,message);
+  break;
 case "warning":
-        LOG.warn("Warning raised by BUCK file parser for file %s: %s",buildFile,message);
-      buckEventBus.post(ConsoleEvent.warning("Warning raised by BUCK file parser: %s",message));
-    break;
+LOG.warn("Warning raised by BUCK file parser for file %s: %s",header,message);
+buckEventBus.post(ConsoleEvent.warning("Warning raised by BUCK file parser: %s",message));
+break;
 case "error":
-  LOG.warn("Error raised by BUCK file parser for file %s: %s",buildFile,message);
+LOG.warn("Error raised by BUCK file parser for file %s: %s",header,message);
 buckEventBus.post(ConsoleEvent.severe("Error raised by BUCK file parser: %s",message));
 break;
 case "fatal":
-LOG.warn("Fatal error raised by BUCK file parser for file %s: %s",buildFile,message);
+LOG.warn("Fatal error raised by BUCK file parser for file %s: %s",header,message);
 throw BuildFileParseException.createForBuildFileParseError(buildFile,new IOException(message));
 default :
 LOG.warn("Unknown diagnostic (level %s) raised by BUCK file parser for build file %s: %s",level,buildFile,message);
