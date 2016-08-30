@@ -1,0 +1,65 @@
+{
+  String projectDir=getDestDir().trim();
+  if (projectDir.isEmpty()) {
+    projectDir=promptForPath(params,"Enter the directory where you would like to create the project: ");
+  }
+  File dir=new File(projectDir);
+  while (!dir.isDirectory() && !dir.mkdirs() && !projectDir.isEmpty()) {
+    projectDir=promptForPath(params,"Cannot create project directory. Enter another directory: ");
+    dir=new File(projectDir);
+  }
+  if (projectDir.isEmpty()) {
+    params.getBuckEventBus().post(ConsoleEvent.severe("No project directory specified. Aborting quickstart."));
+    return 1;
+  }
+  PackagedResource resource=new PackagedResource(params.getCell().getFilesystem(),QuickstartCommand.class,Preconditions.checkNotNull(PATHS_TO_QUICKSTART_DIR.get(type)));
+  Path origin=resource.get();
+  final Path destination=Paths.get(projectDir);
+switch (type) {
+case ANDROID:
+{
+      String sdkLocation=getAndroidSdkDir(params.getAndroidPlatformTargetSupplier());
+      if (sdkLocation.isEmpty()) {
+        sdkLocation=promptForPath(params,"Enter your Android SDK's location: ");
+      }
+      File sdkLocationFile=new File(sdkLocation);
+      if (!sdkLocationFile.isDirectory()) {
+        params.getBuckEventBus().post(ConsoleEvent.severe("WARNING: That Android SDK directory does not exist."));
+      }
+      sdkLocation=sdkLocationFile.getAbsoluteFile().toString();
+      params.getCell().getFilesystem().copyFolder(origin,destination);
+      File buckConfig=new File(projectDir + "/.buckconfig");
+      Files.append("[android]\n    target = " + AndroidPlatformTarget.DEFAULT_ANDROID_PLATFORM_TARGET + "\n",buckConfig,StandardCharsets.UTF_8);
+      break;
+    }
+case IOS:
+{
+    ImmutableMap<AppleSdk,AppleSdkPaths> appleSdkPaths;
+    try (PrintStream stdout=new PrintStream(new ByteArrayOutputStream());PrintStream stderr=new PrintStream(new ByteArrayOutputStream())){
+      AppleConfig appleConfig=new AppleConfig(params.getBuckConfig());
+      appleSdkPaths=appleConfig.getAppleSdkPaths(new ProcessExecutor(new Console(Verbosity.SILENT,stdout,stderr,Ansi.withoutTty())));
+    }
+     if (appleSdkPaths == null || appleSdkPaths.isEmpty()) {
+      throw new HumanReadableException("Could not find any Apple SDK, check your Xcode installation.");
+    }
+    params.getCell().getFilesystem().copyFolder(origin,destination);
+    File buckConfig=new File(projectDir + "/.buckconfig");
+    Files.append("\n",buckConfig,StandardCharsets.UTF_8);
+    break;
+  }
+}
+java.nio.file.Files.walkFileTree(destination,new SimpleFileVisitor<Path>(){
+@Override public FileVisitResult visitFile(Path file,BasicFileAttributes attrs) throws IOException {
+  if ("BUCK.tmpl".equals(file.getFileName().toString())) {
+    Path actualBuck=file.getParent().resolve("BUCK");
+    java.nio.file.Files.copy(file,actualBuck);
+    java.nio.file.Files.delete(file);
+  }
+  return FileVisitResult.CONTINUE;
+}
+}
+);
+params.getConsole().getStdOut().print(params.getCell().getFilesystem().readFileIfItExists(origin.resolve("README.md")).get());
+params.getConsole().getStdOut().flush();
+return 0;
+}
