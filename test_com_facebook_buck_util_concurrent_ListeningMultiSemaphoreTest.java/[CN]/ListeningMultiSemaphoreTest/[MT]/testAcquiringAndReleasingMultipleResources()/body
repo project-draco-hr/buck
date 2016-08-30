@@ -1,0 +1,29 @@
+{
+  ImmutableMap<String,Integer> values=ImmutableMap.of("cpu",7,"mem",7);
+  ListeningMultiSemaphore array=new ListeningMultiSemaphore(values);
+  ListenableFuture<Void> cpuOnly=array.acquire(ImmutableMap.of("cpu",5));
+  ListenableFuture<Void> memOnly=array.acquire(ImmutableMap.of("mem",5));
+  assertThat(cpuOnly.isDone(),Matchers.equalTo(true));
+  assertThat(memOnly.isDone(),Matchers.equalTo(true));
+  assertThat(array.getAvailableResources(),Matchers.equalTo(ImmutableMap.of("cpu",2,"mem",2)));
+  ListenableFuture<Void> cpuAndMem1=array.acquire(ImmutableMap.of("cpu",4,"mem",4));
+  assertThat(cpuAndMem1.isDone(),Matchers.equalTo(false));
+  ListenableFuture<Void> cpuAndMem2=array.acquire(ImmutableMap.of("cpu",2,"mem",2));
+  assertThat(cpuAndMem2.isDone(),Matchers.equalTo(true));
+  assertThat(array.getAvailableResources(),Matchers.equalTo(ImmutableMap.of("cpu",0,"mem",0)));
+  ListenableFuture<Void> cpuAndMem3=array.acquire(ImmutableMap.of("cpu",3,"mem",3));
+  assertThat(cpuAndMem3.isDone(),Matchers.equalTo(false));
+  assertThat(array.getQueueLength(),Matchers.equalTo(2));
+  array.release(ImmutableMap.of("cpu",5));
+  assertThat(cpuAndMem1.isDone(),Matchers.equalTo(false));
+  assertThat(cpuAndMem3.isDone(),Matchers.equalTo(false));
+  assertThat(array.getAvailableResources(),Matchers.equalTo(ImmutableMap.of("cpu",5,"mem",0)));
+  array.release(ImmutableMap.of("mem",5));
+  assertThat(cpuAndMem1.isDone(),Matchers.equalTo(true));
+  assertThat(cpuAndMem3.isDone(),Matchers.equalTo(false));
+  assertThat(array.getAvailableResources(),Matchers.equalTo(ImmutableMap.of("cpu",1,"mem",1)));
+  assertThat(array.getQueueLength(),Matchers.equalTo(1));
+  array.release(ImmutableMap.of("cpu",2,"mem",2));
+  assertThat(cpuAndMem3.isDone(),Matchers.equalTo(true));
+  assertThat(array.getAvailableResources(),Matchers.equalTo(ImmutableMap.of("cpu",0,"mem",0)));
+}
