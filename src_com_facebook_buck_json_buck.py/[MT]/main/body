@@ -8,9 +8,7 @@ def main():
     parser.add_option('--use_watchman_glob', action='store_true', dest='use_watchman_glob', help='Invokes `watchman query` to get lists of files instead of globbing in-process.')
     parser.add_option('--watchman_use_glob_generator', action='store_true', dest='watchman_use_glob_generator', help='Uses Watchman glob generator to speed queries')
     parser.add_option('--watchman_glob_stat_results', action='store_true', dest='watchman_glob_stat_results', help='Invokes `stat()` to sanity check result of `watchman query`.')
-    parser.add_option('--watchman_watch_root', action='store', type='string', dest='watchman_watch_root', help='Path to root of watchman watch as returned by `watchman watch-project`.')
     parser.add_option('--watchman_socket_path', action='store', type='string', dest='watchman_socket_path', help='Path to Unix domain socket/named pipe as returned by `watchman get-sockname`.')
-    parser.add_option('--watchman_project_prefix', action='store', type='string', dest='watchman_project_prefix', help='Relative project prefix as returned by `watchman watch-project`.')
     parser.add_option('--watchman_query_timeout_ms', action='store', type='int', dest='watchman_query_timeout_ms', help='Maximum time in milliseconds to wait for watchman query to respond.')
     parser.add_option('--include', action='append', dest='include')
     parser.add_option('--config', help='BuckConfig settings available at parse time.')
@@ -47,7 +45,7 @@ def main():
     if (options.ignore_paths is not None):
         with open(options.ignore_paths, 'rb') as f:
             ignore_paths = [make_glob(i) for i in bser.loads(f.read())]
-    buildFileProcessor = BuildFileProcessor(project_root, options.watchman_watch_root, options.watchman_project_prefix, options.build_file_name, options.allow_empty_globs, options.ignore_buck_autodeps_files, watchman_client, watchman_error, options.watchman_glob_stat_results, options.watchman_use_glob_generator, options.enable_build_file_sandboxing, project_import_whitelist=(options.build_file_import_whitelist or []), implicit_includes=(options.include or []), configs=configs, ignore_paths=ignore_paths)
+    buildFileProcessor = BuildFileProcessor(project_root, options.build_file_name, options.allow_empty_globs, options.ignore_buck_autodeps_files, watchman_client, watchman_error, options.watchman_glob_stat_results, options.watchman_use_glob_generator, options.enable_build_file_sandboxing, project_import_whitelist=(options.build_file_import_whitelist or []), implicit_includes=(options.include or []), configs=configs, ignore_paths=ignore_paths)
     buildFileProcessor.install_builtins(__builtin__.__dict__)
     orig_excepthook = None
     if options.quiet:
@@ -55,7 +53,7 @@ def main():
         sys.excepthook = silent_excepthook
     with buildFileProcessor.with_env_interceptors():
         for build_file in args:
-            query = {'buildFile': build_file, }
+            query = {'buildFile': build_file, 'watchRoot': project_root, 'projectPrefix': project_root, }
             process_with_diagnostics(query, buildFileProcessor, to_parent, should_profile=options.profile)
         for build_file_query in iter((lambda : bser.load(sys.stdin)), None):
             process_with_diagnostics(build_file_query, buildFileProcessor, to_parent, should_profile=options.profile)

@@ -1,6 +1,11 @@
 def process_with_diagnostics(build_file_query, build_file_processor, to_parent, should_profile=False):
     build_file = build_file_query.get('buildFile')
-    build_file = cygwin_adjusted_path(build_file).rstrip()
+    watch_root = build_file_query.get('watchRoot')
+    project_prefix = build_file_query.get('projectPrefix')
+    build_file = cygwin_adjusted_path(build_file).rstrip().encode('ascii')
+    watch_root = cygwin_adjusted_path(watch_root).rstrip().encode('ascii')
+    if (project_prefix is not None):
+        project_prefix = cygwin_adjusted_path(project_prefix).rstrip().encode('ascii')
     diagnostics = set()
     values = []
     if should_profile:
@@ -10,7 +15,7 @@ def process_with_diagnostics(build_file_query, build_file_processor, to_parent, 
         profile = None
     try:
         try:
-            values = build_file_processor.process(build_file, diagnostics=diagnostics)
+            values = build_file_processor.process(watch_root, project_prefix, build_file, diagnostics=diagnostics)
         except Exception as e:
             if (not ((e is KeyboardInterrupt) or (e is SystemExit))):
                 diagnostics.add(Diagnostic(message=format_traceback_and_exception(), level='fatal', source='parse'))
