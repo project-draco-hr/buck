@@ -1,13 +1,13 @@
 {
-  ImmutableMap<String,Integer> values=ImmutableMap.of("cpu",7);
+  ResourceAmounts values=amountsOfCpu(7);
   ListeningMultiSemaphore array=new ListeningMultiSemaphore(values);
-  ListenableFuture<Void> f1=array.acquire(ImmutableMap.of("cpu",5));
+  ListenableFuture<Void> f1=array.acquire(amountsOfCpu(5));
   assertThat(f1.isDone(),Matchers.equalTo(true));
-  assertThat(array.getAvailableResources(),Matchers.equalTo(ImmutableMap.of("cpu",2)));
-  final ListenableFuture<Void> toBeCancelled=array.acquire(ImmutableMap.of("cpu",5));
+  assertThat(array.getAvailableResources(),Matchers.equalTo(amountsOfCpu(2)));
+  final ListenableFuture<Void> toBeCancelled=array.acquire(amountsOfCpu(5));
   assertThat(toBeCancelled.isDone(),Matchers.equalTo(false));
   assertThat(array.getQueueLength(),Matchers.equalTo(1));
-  assertThat(array.getAvailableResources(),Matchers.equalTo(ImmutableMap.of("cpu",2)));
+  assertThat(array.getAvailableResources(),Matchers.equalTo(amountsOfCpu(2)));
   toBeCancelled.cancel(true);
   final AtomicBoolean toBeCancelledIsReleased=new AtomicBoolean(false);
   toBeCancelled.addListener(new Runnable(){
@@ -16,10 +16,10 @@
     }
   }
 ,MoreExecutors.newDirectExecutorService());
-  final ListenableFuture<Void> toBeReleaseAfterCancellation=array.acquire(ImmutableMap.of("cpu",6));
+  final ListenableFuture<Void> toBeReleaseAfterCancellation=array.acquire(amountsOfCpu(6));
   assertThat(toBeReleaseAfterCancellation.isDone(),Matchers.equalTo(false));
   assertThat(array.getQueueLength(),Matchers.equalTo(2));
-  assertThat(array.getAvailableResources(),Matchers.equalTo(ImmutableMap.of("cpu",2)));
+  assertThat(array.getAvailableResources(),Matchers.equalTo(amountsOfCpu(2)));
   final AtomicBoolean toBeReleaseAfterCancellationIsReleased=new AtomicBoolean(false);
   toBeReleaseAfterCancellation.addListener(new Runnable(){
     @Override public void run(){
@@ -27,11 +27,11 @@
     }
   }
 ,MoreExecutors.newDirectExecutorService());
-  array.release(ImmutableMap.of("cpu",5));
+  array.release(amountsOfCpu(5));
   assertThat(toBeCancelledIsReleased.get(),Matchers.equalTo(true));
   assertThat(toBeReleaseAfterCancellationIsReleased.get(),Matchers.equalTo(false));
   assertThat(array.getQueueLength(),Matchers.equalTo(0));
-  assertThat(array.getAvailableResources(),Matchers.equalTo(ImmutableMap.of("cpu",1)));
-  array.release(ImmutableMap.of("cpu",6));
+  assertThat(array.getAvailableResources(),Matchers.equalTo(amountsOfCpu(1)));
+  array.release(amountsOfCpu(6));
   assertThat(array.getAvailableResources(),Matchers.equalTo(array.getMaximumValues()));
 }
