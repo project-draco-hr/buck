@@ -1,0 +1,9 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  BuildTarget target=BuildTargetFactory.newInstance("//:lib");
+  SourcePath lib1=new FakeSourcePath("dir/lib1.so");
+  PathSourcePath lib2=new FakeSourcePath("dir/lib2.so");
+  NativeLinkable lib=(NativeLinkable)new PrebuiltCxxLibraryGroupBuilder(target).setSharedLink(ImmutableList.of("--something","$(lib lib1.so)","--something-else","$(rel-lib lib2.so)")).setSharedLibs(ImmutableMap.of("lib1.so",lib1,"lib2.so",lib2)).build(resolver);
+  assertThat(lib.getNativeLinkableInput(CxxPlatformUtils.DEFAULT_PLATFORM,Linker.LinkableDepType.SHARED),Matchers.equalTo(NativeLinkableInput.builder().addArgs(new StringArg("--something"),new SourcePathArg(pathResolver,lib1),new StringArg("--something-else"),new RelativeLinkArg(lib2)).build()));
+}

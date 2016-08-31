@@ -1,0 +1,63 @@
+{
+  final SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  return new CustomPrebuiltCxxLibrary(params,pathResolver){
+    private final LoadingCache<CxxPreprocessables.CxxPreprocessorInputCacheKey,ImmutableMap<BuildTarget,CxxPreprocessorInput>> transitiveCxxPreprocessorInputCache=CxxPreprocessables.getTransitiveCxxPreprocessorInputCache(this);
+    @Override public Iterable<AndroidPackageable> getRequiredPackageables(){
+      return AndroidPackageableCollector.getPackageableRules(params.getDeps());
+    }
+    @Override public void addToCollector(    AndroidPackageableCollector collector){
+      collector.addNativeLinkable(this);
+    }
+    @Override public Iterable<? extends CxxPreprocessorDep> getCxxPreprocessorDeps(    CxxPlatform cxxPlatform){
+      return FluentIterable.from(getDeps()).filter(CxxPreprocessorDep.class);
+    }
+    @Override public Optional<HeaderSymlinkTree> getExportedHeaderSymlinkTree(    CxxPlatform cxxPlatform){
+      return Optional.absent();
+    }
+    @Override public CxxPreprocessorInput getCxxPreprocessorInput(    CxxPlatform cxxPlatform,    HeaderVisibility headerVisibility) throws NoSuchBuildTargetException {
+      CxxPreprocessorInput.Builder builder=CxxPreprocessorInput.builder();
+switch (headerVisibility) {
+case PUBLIC:
+        builder.putAllPreprocessorFlags(CxxFlags.getLanguageFlags(args.exportedPreprocessorFlags,Optional.<PatternMatchedCollection<ImmutableList<String>>>absent(),Optional.<ImmutableMap<CxxSource.Type,ImmutableList<String>>>absent(),cxxPlatform));
+      for (      SourcePath includeDir : args.includeDirs.or(ImmutableList.<SourcePath>of())) {
+        builder.addIncludes(CxxHeadersDir.of(CxxPreprocessables.IncludeType.SYSTEM,includeDir));
+      }
+    return builder.build();
+case PRIVATE:
+  return builder.build();
+}
+throw new RuntimeException("Invalid header visibility: " + headerVisibility);
+}
+@Override public ImmutableMap<BuildTarget,CxxPreprocessorInput> getTransitiveCxxPreprocessorInput(CxxPlatform cxxPlatform,HeaderVisibility headerVisibility) throws NoSuchBuildTargetException {
+return transitiveCxxPreprocessorInputCache.getUnchecked(ImmutableCxxPreprocessorInputCacheKey.of(cxxPlatform,headerVisibility));
+}
+@Override public Iterable<? extends NativeLinkable> getNativeLinkableDeps(CxxPlatform cxxPlatform){
+return FluentIterable.from(params.getDeclaredDeps().get()).filter(NativeLinkable.class);
+}
+@Override public Iterable<? extends NativeLinkable> getNativeLinkableExportedDeps(CxxPlatform cxxPlatform){
+return ImmutableList.of();
+}
+@Override public NativeLinkableInput getNativeLinkableInput(CxxPlatform cxxPlatform,Linker.LinkableDepType type) throws NoSuchBuildTargetException {
+NativeLinkableInput.Builder builder=NativeLinkableInput.builder();
+switch (type) {
+case STATIC:
+builder.addAllArgs(getStaticLinkArgs(getBuildTarget(),pathResolver,args.staticLibs.or(ImmutableList.<SourcePath>of()),args.staticLink.or(ImmutableList.<String>of())));
+break;
+case STATIC_PIC:
+builder.addAllArgs(getStaticLinkArgs(getBuildTarget(),pathResolver,args.staticPicLibs.or(ImmutableList.<SourcePath>of()),args.staticPicLink.or(ImmutableList.<String>of())));
+break;
+case SHARED:
+builder.addAllArgs(getSharedLinkArgs(getBuildTarget(),pathResolver,args.sharedLibs.or(ImmutableMap.<String,SourcePath>of()),args.sharedLink.or(ImmutableList.<String>of())));
+break;
+}
+return builder.build();
+}
+@Override public Linkage getPreferredLinkage(CxxPlatform cxxPlatform){
+return Linkage.ANY;
+}
+@Override public ImmutableMap<String,SourcePath> getSharedLibraries(CxxPlatform cxxPlatform) throws NoSuchBuildTargetException {
+return args.sharedLibs.or(ImmutableMap.<String,SourcePath>of());
+}
+}
+;
+}

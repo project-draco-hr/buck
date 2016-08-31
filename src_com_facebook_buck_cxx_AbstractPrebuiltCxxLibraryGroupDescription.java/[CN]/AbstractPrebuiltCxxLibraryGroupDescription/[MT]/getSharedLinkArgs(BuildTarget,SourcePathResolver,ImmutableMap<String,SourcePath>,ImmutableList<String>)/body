@@ -1,0 +1,30 @@
+{
+  ImmutableList.Builder<Arg> builder=ImmutableList.builder();
+  for (  String arg : args) {
+    Optional<Pair<String,String>> libRef=getLibRef(ImmutableSet.of(LIB_MACRO,REL_LIB_MACRO),arg);
+    if (libRef.isPresent()) {
+      SourcePath lib=libs.get(libRef.get().getSecond());
+      if (lib == null) {
+        throw new HumanReadableException("%s: library \"%s\" (in \"%s\") must refer to keys in the `sharedLibs` parameter",target,libRef.get().getSecond(),arg);
+      }
+      Arg libArg;
+      if (libRef.get().getFirst().equals(LIB_MACRO)) {
+        libArg=new SourcePathArg(pathResolver,lib);
+      }
+ else       if (libRef.get().getFirst().equals(REL_LIB_MACRO)) {
+        if (!(lib instanceof PathSourcePath)) {
+          throw new HumanReadableException("%s: can only link prebuilt DSOs without sonames",target);
+        }
+        libArg=new RelativeLinkArg((PathSourcePath)lib);
+      }
+ else {
+        throw new IllegalStateException();
+      }
+      builder.add(libArg);
+    }
+ else {
+      builder.add(new StringArg(arg));
+    }
+  }
+  return builder.build();
+}
