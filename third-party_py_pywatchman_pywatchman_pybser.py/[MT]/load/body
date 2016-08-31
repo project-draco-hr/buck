@@ -1,0 +1,17 @@
+def load(fp, mutable=True):
+    'Deserialize bser from a file-like object'
+    buf = ctypes.create_string_buffer(8192)
+    SNIFF_BUFFER_SIZE = 13
+    header = (ctypes.c_char * SNIFF_BUFFER_SIZE).from_buffer(buf)
+    num_bytes = _read_bytes(fp, header)
+    if (num_bytes < SNIFF_BUFFER_SIZE):
+        return None
+    (expected_len, pos) = _pdu_info_helper(header)
+    total_len = (expected_len + pos)
+    if (len(buf) < total_len):
+        ctypes.resize(buf, total_len)
+    body = (ctypes.c_char * (total_len - len(header))).from_buffer(buf, len(header))
+    num_bytes = _read_bytes(fp, body)
+    if (num_bytes < (total_len - len(header))):
+        raise RuntimeError('bser data ended early')
+    return _bser_loads_recursive(buf, pos, mutable)[0]
