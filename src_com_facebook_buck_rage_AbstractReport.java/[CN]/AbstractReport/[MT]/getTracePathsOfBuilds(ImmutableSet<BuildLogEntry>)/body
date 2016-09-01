@@ -1,0 +1,27 @@
+{
+  ImmutableSet.Builder<Path> tracePaths=new ImmutableSet.Builder<>();
+  long reportSizeBytes=0;
+  for (  BuildLogEntry entry : entries) {
+    reportSizeBytes+=entry.getSize();
+    if (entry.getTraceFile().isPresent()) {
+      try {
+        Path traceFile=filesystem.getPathForRelativeExistingPath(entry.getTraceFile().get());
+        long traceFileSizeBytes=Files.size(traceFile);
+        if (rageConfig.getReportMaxSizeBytes().isPresent()) {
+          if (reportSizeBytes + traceFileSizeBytes < rageConfig.getReportMaxSizeBytes().get()) {
+            tracePaths.add(entry.getTraceFile().get());
+            reportSizeBytes+=traceFileSizeBytes;
+          }
+        }
+ else {
+          tracePaths.add(entry.getTraceFile().get());
+          reportSizeBytes+=traceFileSizeBytes;
+        }
+      }
+ catch (      IOException e) {
+        LOG.info("Trace path %s wasn't valid, skipping it.",entry.getTraceFile().get());
+      }
+    }
+  }
+  return tracePaths.build();
+}

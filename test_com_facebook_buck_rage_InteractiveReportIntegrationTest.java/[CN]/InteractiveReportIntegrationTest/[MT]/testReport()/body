@@ -1,23 +1,10 @@
 {
   ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"interactive_report",temporaryFolder);
   workspace.setUp();
-  ProjectFilesystem filesystem=workspace.asCell().getFilesystem();
-  ObjectMapper objectMapper=ObjectMappers.newDefaultInstance();
-  BuckConfig buckConfig=workspace.asCell().getBuckConfig();
-  DefectReporter defectReporter=new DefaultDefectReporter(filesystem,objectMapper,RageBuckConfig.create(buckConfig));
-  CapturingPrintStream outputStream=new CapturingPrintStream();
-  ExtraInfoCollector extraInfoCollector=new ExtraInfoCollector(){
-    @Override public Optional<ExtraInfoResult> run() throws IOException, InterruptedException, ExtraInfoExecutionException {
-      return Optional.absent();
-    }
-  }
-;
-  ByteArrayInputStream inputStream=new ByteArrayInputStream("0,1\nreport text\n".getBytes("UTF-8"));
-  InteractiveReport interactiveReport=new InteractiveReport(defectReporter,filesystem,outputStream,inputStream,TestBuildEnvironmentDescription.INSTANCE,VcsInfoCollector.create(new NoOpCmdLineInterface()),extraInfoCollector);
-  DefectSubmitResult defectSubmitResult=interactiveReport.collectAndSubmitResult();
-  Path reportFile=filesystem.resolve(defectSubmitResult.getReportLocalLocation().get());
+  DefectSubmitResult report=createDefectReport(workspace,new ByteArrayInputStream("0,1\nreport text\n".getBytes("UTF-8")));
+  Path reportFile=workspace.asCell().getFilesystem().resolve(report.getReportLocalLocation().get());
   ZipInspector zipInspector=new ZipInspector(reportFile);
   zipInspector.assertFileExists("report.json");
-  zipInspector.assertFileExists("buck-out/log/" + "2016-06-21_16h16m24s_buildcommand_ac8bd626-6137-4747-84dd-5d4f215c876c/buck.log");
-  zipInspector.assertFileExists("buck-out/log/" + "2016-06-21_16h18m51s_autodepscommand_d09893d5-b11e-4e3f-a5bf-70c60a06896e/buck.log");
+  zipInspector.assertFileExists(BUILD_PATH + "buck.log");
+  zipInspector.assertFileExists(DEPS_PATH + "buck.log");
 }
