@@ -1,30 +1,31 @@
 {
   try {
-    Optional<? extends Map<String,? extends Object>> queryResponse=watchmanClient.queryWithTimeout(TimeUnit.MILLISECONDS.toNanos(timeoutMillis),query.toArray());
-    if (!queryResponse.isPresent()) {
-      LOG.warn("Could get response from Watchman for query %s within %d ms",query,timeoutMillis);
-      postWatchEvent(createOverflowEvent("Query to Watchman timed out after " + timeoutMillis + "ms"));
-      return;
-    }
-    Map<String,? extends Object> response=queryResponse.get();
-    String error=(String)response.get("error");
-    if (error != null) {
-      watchmanDiagnosticCache.addDiagnostic(WatchmanDiagnostic.of(WatchmanDiagnostic.Level.ERROR,error));
-      WatchmanWatcherException e=new WatchmanWatcherException(error);
-      LOG.error(e,"Error in Watchman output. Posting an overflow event to flush the caches");
-      postWatchEvent(createOverflowEvent("Watchman Error occurred - " + e.getMessage()));
-      throw e;
-    }
-    String warning=(String)response.get("warning");
-    if (warning != null) {
+    for (    List<Object> query : queries) {
+      Optional<? extends Map<String,? extends Object>> queryResponse=watchmanClient.queryWithTimeout(TimeUnit.MILLISECONDS.toNanos(timeoutMillis),query.toArray());
+      if (!queryResponse.isPresent()) {
+        LOG.warn("Could get response from Watchman for query %s within %d ms",query,timeoutMillis);
+        postWatchEvent(createOverflowEvent("Query to Watchman timed out after " + timeoutMillis + "ms"));
+        return;
+      }
+      Map<String,? extends Object> response=queryResponse.get();
+      String error=(String)response.get("error");
+      if (error != null) {
+        watchmanDiagnosticCache.addDiagnostic(WatchmanDiagnostic.of(WatchmanDiagnostic.Level.ERROR,error));
+        WatchmanWatcherException e=new WatchmanWatcherException(error);
+        LOG.error(e,"Error in Watchman output. Posting an overflow event to flush the caches");
+        postWatchEvent(createOverflowEvent("Watchman Error occurred - " + e.getMessage()));
+        throw e;
+      }
+      String warning=(String)response.get("warning");
+      if (warning != null) {
 switch (watchmanDiagnosticCache.addDiagnostic(WatchmanDiagnostic.of(WatchmanDiagnostic.Level.WARNING,warning))) {
 case NEW_DIAGNOSTIC:
-        buckEventBus.post(ConsoleEvent.warning("Watchman has produced a warning: %s",warning));
-      LOG.warn("Watchman has produced a warning: %s",warning);
-    break;
+          buckEventBus.post(ConsoleEvent.warning("Watchman has produced a warning: %s",warning));
+        LOG.warn("Watchman has produced a warning: %s",warning);
+      break;
 case DUPLICATE_DIAGNOSTIC:
-  LOG.verbose("Watchman has produced a duplicate warning: %s",warning);
-break;
+    LOG.verbose("Watchman has produced a duplicate warning: %s",warning);
+  break;
 }
 }
 Boolean isFreshInstance=(Boolean)response.get("is_fresh_instance");
@@ -67,6 +68,7 @@ builder.setDeletionEvent();
 postWatchEvent(builder.build());
 }
 LOG.debug("Posted %d Watchman events.",files.size());
+}
 }
 }
  catch (InterruptedException e) {

@@ -5,14 +5,15 @@
   }
   LOG.debug("Finding build files for %s under %s...",getBasePath(),filesystem.getRootPath());
   long walkStartTimeNanos=System.nanoTime();
-  boolean tryWatchman=buildFileSearchMethod == ParserConfig.BuildFileSearchMethod.WATCHMAN && watchman.getWatchmanClient().isPresent() && watchman.getWatchRoot().isPresent();
+  boolean tryWatchman=buildFileSearchMethod == ParserConfig.BuildFileSearchMethod.WATCHMAN && watchman.getWatchmanClient().isPresent() && !watchman.getProjectWatches().isEmpty();
   boolean walkComplete=false;
   if (tryWatchman) {
-    LOG.debug("Searching for %s files (watch root %s, project prefix %s, base path %s) with Watchman",buildFileName,watchman.getWatchRoot().get(),watchman.getProjectPrefix(),getBasePath());
-    walkComplete=forEachBuildFileWatchman(filesystem,watchman.getWatchmanClient().get(),watchman.getWatchRoot().get(),watchman.getProjectPrefix(),getBasePath(),buildFileName,function);
+    ProjectWatch projectWatch=Optional.fromNullable(watchman.getProjectWatches().get(filesystem.getRootPath())).or(ProjectWatch.of(filesystem.getRootPath().toString(),Optional.<String>absent()));
+    LOG.debug("Searching for %s files (watch root %s, project prefix %s, base path %s) with Watchman",buildFileName,projectWatch.getWatchRoot(),projectWatch.getProjectPrefix(),getBasePath());
+    walkComplete=forEachBuildFileWatchman(filesystem,watchman.getWatchmanClient().get(),projectWatch.getWatchRoot(),projectWatch.getProjectPrefix(),getBasePath(),buildFileName,function);
   }
  else {
-    LOG.debug("Not using Watchman (search method %s, client present %s, root present %s)",buildFileSearchMethod,watchman.getWatchmanClient().isPresent(),watchman.getWatchRoot().isPresent());
+    LOG.debug("Not using Watchman (search method %s, client present %s, root present %s)",buildFileSearchMethod,watchman.getWatchmanClient().isPresent(),!watchman.getProjectWatches().isEmpty());
   }
   if (!walkComplete) {
     LOG.debug("Searching for %s files under %s using physical filesystem crawl (note: this is slow)",buildFileName,filesystem.getRootPath());

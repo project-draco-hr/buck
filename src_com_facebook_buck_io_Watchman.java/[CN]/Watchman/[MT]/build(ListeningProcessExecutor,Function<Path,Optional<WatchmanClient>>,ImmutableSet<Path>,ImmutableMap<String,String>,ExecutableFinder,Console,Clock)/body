@@ -1,0 +1,85 @@
+{
+  LOG.info("Creating for: " + projectWatchList);
+  Optional<WatchmanClient> watchmanClient=Optional.absent();
+  try {
+    Path watchmanPath=exeFinder.getExecutable(WATCHMAN,env).toAbsolutePath();
+    Optional<? extends Map<String,? extends Object>> result;
+    long remainingTimeNanos=TIMEOUT_NANOS;
+    long startTimeNanos=clock.nanoTime();
+    result=execute(executor,console,clock,remainingTimeNanos,watchmanPath,"get-sockname");
+    if (!result.isPresent()) {
+      return NULL_WATCHMAN;
+    }
+    String rawSockname=(String)result.get().get("sockname");
+    if (rawSockname == null) {
+      return NULL_WATCHMAN;
+    }
+    Path socketPath=Paths.get(rawSockname);
+    LOG.info("Connecting to Watchman version %s at %s",result.get().get("version"),socketPath);
+    watchmanClient=watchmanConnector.apply(socketPath);
+    if (!watchmanClient.isPresent()) {
+      LOG.warn("Could not connect to Watchman, disabling.");
+      return NULL_WATCHMAN;
+    }
+    LOG.debug("Connected to Watchman");
+    long versionQueryStartTimeNanos=clock.nanoTime();
+    remainingTimeNanos-=versionQueryStartTimeNanos - startTimeNanos;
+    result=watchmanClient.get().queryWithTimeout(remainingTimeNanos,"version",ImmutableMap.of("required",REQUIRED_CAPABILITIES,"optional",ALL_CAPABILITIES.keySet()));
+    LOG.info("Took %d ms to query capabilities %s",TimeUnit.NANOSECONDS.toMillis(clock.nanoTime() - versionQueryStartTimeNanos),ALL_CAPABILITIES);
+    if (!result.isPresent()) {
+      LOG.warn("Could not get version response from Watchman, disabling Watchman");
+      watchmanClient.get().close();
+      return NULL_WATCHMAN;
+    }
+    ImmutableSet.Builder<Capability> capabilitiesBuilder=ImmutableSet.builder();
+    if (!extractCapabilities(result.get(),capabilitiesBuilder)) {
+      LOG.warn("Could not extract capabilities, disabling Watchman");
+      watchmanClient.get().close();
+      return NULL_WATCHMAN;
+    }
+    ImmutableSet<Capability> capabilities=capabilitiesBuilder.build();
+    LOG.debug("Got Watchman capabilities: %s",capabilities);
+    ImmutableMap.Builder<Path,ProjectWatch> projectWatchesBuilder=ImmutableMap.<Path,ProjectWatch>builder();
+    for (    Path path : projectWatchList) {
+      Path absoluteRootPath=path.toAbsolutePath();
+      LOG.info("Adding watchman root: %s",absoluteRootPath);
+      long watchStartTimeNanos=clock.nanoTime();
+      remainingTimeNanos-=(watchStartTimeNanos - startTimeNanos);
+      result=watchmanClient.get().queryWithTimeout(remainingTimeNanos,"watch-project",absoluteRootPath.toString());
+      LOG.info("Took %d ms to add root %s",TimeUnit.NANOSECONDS.toMillis(clock.nanoTime() - watchStartTimeNanos),absoluteRootPath);
+      if (!result.isPresent()) {
+        watchmanClient.get().close();
+        return NULL_WATCHMAN;
+      }
+      Map<String,? extends Object> map=result.get();
+      if (map.containsKey("error")) {
+        LOG.warn("Error in watchman output: %s",map.get("error"));
+        watchmanClient.get().close();
+        return NULL_WATCHMAN;
+      }
+      if (map.containsKey("warning")) {
+        LOG.warn("Warning in watchman output: %s",map.get("warning"));
+      }
+      if (!map.containsKey("watch")) {
+        watchmanClient.get().close();
+        return NULL_WATCHMAN;
+      }
+      String watchRoot=(String)map.get("watch");
+      Optional<String> watchPrefix=Optional.fromNullable((String)map.get("relative_path"));
+      projectWatchesBuilder.put(path,ProjectWatch.of(watchRoot,watchPrefix));
+    }
+    return new Watchman(projectWatchesBuilder.build(),capabilities,Optional.of(socketPath),watchmanClient);
+  }
+ catch (  ClassCastException|HumanReadableException|IOException e) {
+    LOG.warn(e,"Unable to determine the version of watchman. Going without.");
+    if (watchmanClient.isPresent()) {
+      try {
+        watchmanClient.get().close();
+      }
+ catch (      IOException ioe) {
+        LOG.warn(ioe,"Could not close watchman query client");
+      }
+    }
+    return NULL_WATCHMAN;
+  }
+}

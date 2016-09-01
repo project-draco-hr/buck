@@ -2,6 +2,13 @@
   final int parsersCount=4;
   final AtomicInteger parserCount=new AtomicInteger(0);
   Cell cell=EasyMock.createMock(Cell.class);
+  EasyMock.expect(cell.getRoot()).andAnswer(new IAnswer<Path>(){
+    @Override public Path answer(){
+      return Paths.get(".");
+    }
+  }
+).anyTimes();
+  EasyMock.replay(cell);
   ListeningExecutorService executorService=MoreExecutors.listeningDecorator(Executors.newFixedThreadPool(parsersCount));
   final CountDownLatch createParserLatch=new CountDownLatch(parsersCount);
   try (ProjectBuildFileParserPool parserPool=new ProjectBuildFileParserPool(parsersCount,new Function<Cell,ProjectBuildFileParser>(){
@@ -9,7 +16,7 @@
       parserCount.incrementAndGet();
       final ProjectBuildFileParser parser=EasyMock.createMock(ProjectBuildFileParser.class);
       try {
-        EasyMock.expect(parser.getAllRulesAndMetaRules(EasyMock.anyObject(Path.class))).andAnswer(new IAnswer<ImmutableList<Map<String,Object>>>(){
+        EasyMock.expect(parser.getAllRulesAndMetaRules(EasyMock.anyObject(Path.class),EasyMock.anyObject(Path.class))).andAnswer(new IAnswer<ImmutableList<Map<String,Object>>>(){
           @Override public ImmutableList<Map<String,Object>> answer() throws Throwable {
             createParserLatch.countDown();
             createParserLatch.await();

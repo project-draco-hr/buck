@@ -30,7 +30,9 @@
   Path canonicalRootPath=projectRoot.toRealPath().normalize();
   Config config=Configs.createDefaultConfig(canonicalRootPath,command.getConfigOverrides().getForCell(RelativeCellName.ROOT_CELL_NAME));
   ProjectFilesystem filesystem=new ProjectFilesystem(canonicalRootPath,config);
-  BuckConfig buckConfig=new BuckConfig(config,filesystem,architecture,platform,clientEnvironment,new DefaultCellPathResolver(filesystem.getRootPath(),config));
+  DefaultCellPathResolver cellPathResolver=new DefaultCellPathResolver(filesystem.getRootPath(),config);
+  BuckConfig buckConfig=new BuckConfig(config,filesystem,architecture,platform,clientEnvironment,cellPathResolver);
+  ImmutableSet<Path> projectWatches=cellPathResolver.getKnownRoots();
   Verbosity verbosity=VerbosityParser.parse(args);
   Optional<String> color;
   if (context.isPresent() && (context.get().getEnv() != null)) {
@@ -76,7 +78,7 @@
       clock=new DefaultClock();
     }
     ParserConfig parserConfig=new ParserConfig(buckConfig);
-    try (Watchman watchman=buildWatchman(context,parserConfig,projectRoot,clientEnvironment,console,clock)){
+    try (Watchman watchman=buildWatchman(context,parserConfig,projectWatches,clientEnvironment,console,clock)){
       final boolean isDaemon=context.isPresent() && (watchman != Watchman.NULL_WATCHMAN);
       if (!isDaemon && shouldCleanUpTrash) {
         TRASH_CLEANER.startCleaningDirectory();
@@ -147,7 +149,7 @@
         if (isDaemon) {
           try {
             Daemon daemon=getDaemon(rootCell,objectMapper);
-            WatchmanWatcher watchmanWatcher=new WatchmanWatcher(watchman.getWatchRoot().or(canonicalRootPath.toString()),daemon.getFileEventBus(),ImmutableSet.<PathOrGlobMatcher>builder().addAll(filesystem.getIgnorePaths()).addAll(DEFAULT_IGNORE_GLOBS).build(),watchman,daemon.getWatchmanQueryUUID());
+            WatchmanWatcher watchmanWatcher=new WatchmanWatcher(watchman.getProjectWatches(),daemon.getFileEventBus(),ImmutableSet.<PathOrGlobMatcher>builder().addAll(filesystem.getIgnorePaths()).addAll(DEFAULT_IGNORE_GLOBS).build(),watchman,daemon.getWatchmanQueryUUID());
             parser=getParserFromDaemon(context,rootCell,startedEvent,buildEventBus,watchmanWatcher,watchmanFreshInstanceAction,watchmanDiagnosticCache);
             actionGraphCache=daemon.getActionGraphCache();
           }
