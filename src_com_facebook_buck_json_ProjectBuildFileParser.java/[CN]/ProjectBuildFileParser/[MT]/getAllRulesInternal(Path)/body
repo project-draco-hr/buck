@@ -1,0 +1,36 @@
+{
+  ensureNotClosed();
+  initIfNeeded();
+  Preconditions.checkNotNull(buckPyStdinWriter);
+  Preconditions.checkNotNull(buckPyProcess);
+  ParseBuckFileEvent.Started parseBuckFileStarted=ParseBuckFileEvent.started(buildFile);
+  buckEventBus.post(parseBuckFileStarted);
+  ImmutableList<Map<String,Object>> values=ImmutableList.of();
+  String profile="";
+  try (AssertScopeExclusiveAccess.Scope scope=assertSingleThreadedParsing.scope()){
+    bserSerializer.serializeToStream(ImmutableMap.of("buildFile",buildFile.toString(),"watchRoot",options.getWatchman().getWatchRoot().or(""),"projectPrefix",options.getWatchman().getProjectPrefix().or("")),buckPyStdinWriter);
+    buckPyStdinWriter.flush();
+    LOG.debug("Parsing output of process %s...",buckPyProcess);
+    Object deserializedValue;
+    try {
+      deserializedValue=bserDeserializer.deserializeBserValue(buckPyProcess.getInputStream());
+    }
+ catch (    BserDeserializer.BserEofException e) {
+      LOG.warn(e,"Parser exited while decoding BSER data");
+      throw new IOException("Parser exited unexpectedly",e);
+    }
+    BuildFilePythonResult resultObject=handleDeserializedValue(deserializedValue);
+    handleDiagnostics(buildFile,resultObject.getDiagnostics(),buckEventBus,watchmanDiagnosticCache);
+    values=resultObject.getValues();
+    LOG.verbose("Got rules: %s",values);
+    LOG.debug("Parsed %d rules from process",values.size());
+    profile=resultObject.getProfile();
+    if (profile != null) {
+      LOG.debug("Profile result: %s",profile);
+    }
+    return values;
+  }
+  finally {
+    buckEventBus.post(ParseBuckFileEvent.finished(parseBuckFileStarted,values,profile));
+  }
+}
