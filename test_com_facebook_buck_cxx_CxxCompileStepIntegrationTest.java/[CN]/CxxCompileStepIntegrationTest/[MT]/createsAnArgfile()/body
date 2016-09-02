@@ -14,20 +14,14 @@
   ImmutableList.Builder<String> preprocessorArguments=ImmutableList.builder();
   ImmutableList.Builder<String> compilerArguments=ImmutableList.builder();
   compilerArguments.add("-g");
-  DebugPathSanitizer sanitizer=new DebugPathSanitizer(200,File.separatorChar,compDir,ImmutableBiMap.<Path,Path>of());
-  CxxPreprocessAndCompileStep step=new CxxPreprocessAndCompileStep(filesystem,CxxPreprocessAndCompileStep.Operation.COMPILE_MUNGE_DEBUGINFO,output,depFile,relativeInput,CxxSource.Type.C,Optional.of(new CxxPreprocessAndCompileStep.ToolCommand(compiler,preprocessorArguments.build(),ImmutableMap.<String,String>of(),Optional.<ImmutableList<String>>absent())),Optional.of(new CxxPreprocessAndCompileStep.ToolCommand(compiler,compilerArguments.build(),ImmutableMap.<String,String>of(),Optional.<ImmutableList<String>>absent())),HeaderPathNormalizer.empty(pathResolver),sanitizer,CxxPlatformUtils.DEFAULT_CONFIG.getHeaderVerification(),scratchDir,true);
+  CxxPreprocessAndCompileStep step=new CxxPreprocessAndCompileStep(filesystem,CxxPreprocessAndCompileStep.Operation.COMPILE_MUNGE_DEBUGINFO,output,depFile,relativeInput,CxxSource.Type.C,Optional.of(new CxxPreprocessAndCompileStep.ToolCommand(compiler,preprocessorArguments.build(),ImmutableMap.<String,String>of(),Optional.<ImmutableList<String>>absent())),Optional.of(new CxxPreprocessAndCompileStep.ToolCommand(compiler,compilerArguments.build(),ImmutableMap.<String,String>of(),Optional.<ImmutableList<String>>absent())),HeaderPathNormalizer.empty(pathResolver),CxxPlatformUtils.DEFAULT_DEBUG_PATH_SANITIZER,CxxPlatformUtils.DEFAULT_CONFIG.getHeaderVerification(),scratchDir,true);
   ExecutionContext executionContext=TestExecutionContext.newInstance();
   TestConsole console=(TestConsole)executionContext.getConsole();
   int exitCode=step.execute(executionContext).getExitCode();
-  if (failure.isPresent()) {
-    assertNotEquals("compile step succeeded",0,exitCode);
-    assertThat(console.getTextWrittenToStdErr(),console.getTextWrittenToStdErr(),Matchers.containsString(failure.get()));
-  }
- else {
-    assertEquals("compile step failed: " + console.getTextWrittenToStdErr(),0,exitCode);
-    String contents=new String(Files.readAllBytes(output));
-    assertThat(contents,Matchers.containsString(sanitizer.getCompilationDirectory()));
-  }
+  assertEquals("compile step failed: " + console.getTextWrittenToStdErr(),0,exitCode);
+  Path argfile=filesystem.resolve(scratchDir.resolve("argfile.txt"));
+  assertThat(filesystem,pathExists(argfile));
+  assertThat(Files.readAllLines(argfile,StandardCharsets.UTF_8),hasItem(equalTo("-g")));
   Files.delete(input);
   Files.deleteIfExists(output);
 }
