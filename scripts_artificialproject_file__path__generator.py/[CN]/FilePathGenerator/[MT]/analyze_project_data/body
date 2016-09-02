@@ -1,17 +1,22 @@
 def analyze_project_data(self, project_data):
     dir_entries = collections.defaultdict(set)
+    build_file_entries = collections.defaultdict(set)
     for target_data in project_data.values():
         base_path = target_data['buck.base_path']
+        build_file_entries[base_path].add(target_data['name'])
         components = []
         while base_path:
             (base_path, component) = os.path.split(base_path)
             self._component_generator.add_string_sample(component)
             components.append(component)
-        self._package_depths.update([len(components)])
+        if components:
+            self._package_depths.update([len(components)])
         components = components[::(-1)]
         for i in range(len(components)):
             prefix = components[:i]
             name = components[i]
             dir_entries[tuple(prefix)].add(name)
+    for (base_path, names) in build_file_entries.items():
+        self._build_file_sizes.update([len(names)])
     for (path, entries) in dir_entries.items():
         self._sizes_by_depth[len(path)].update([len(entries)])
