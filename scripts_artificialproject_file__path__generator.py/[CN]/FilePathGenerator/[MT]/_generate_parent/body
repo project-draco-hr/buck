@@ -1,0 +1,22 @@
+def _generate_parent(self, package_key, root, depth, sizes_by_depth, component_generator):
+    if (depth == 0):
+        return ('', root)
+    key = (package_key, depth)
+    value = self._available_directories.get(key)
+    if (value is not None):
+        key_found = True
+        (path, directory, size) = value
+    else:
+        key_found = False
+        (parent_path, parent_dir) = self._generate_parent(package_key, root, (depth - 1), sizes_by_depth, component_generator)
+        name = self._generate_name(parent_dir, component_generator)
+        path = os.path.join(parent_path, name)
+        directory = {}
+        parent_dir[name] = directory
+        size = weighted_choice(sizes_by_depth[depth])
+    size -= 1
+    if (size > 0):
+        self._available_directories[key] = (path, directory, size)
+    elif key_found:
+        del self._available_directories[key]
+    return (path, directory)
