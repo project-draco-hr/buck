@@ -1,0 +1,16 @@
+{
+  ImmutableMultimap.Builder<APKModule,DexWithClasses> inputDexes=ImmutableMultimap.builder();
+  for (int i=0; i < numberOfPrimaryDexes; i++) {
+    inputDexes.put(moduleGraph.getRootAPKModule(),createFakeDexWithClasses(Paths.get("primary").resolve(String.format("/primary%d.dex",i)),ImmutableSet.of(String.format("primary.primary%d.class",i)),STANDARD_DEX_FILE_ESTIMATE));
+  }
+  for (int i=0; i < numberOfSecondaryDexes; i++) {
+    inputDexes.put(moduleGraph.getRootAPKModule(),createFakeDexWithClasses(Paths.get("secondary").resolve(String.format("secondary%d.dex",i)),ImmutableSet.of(String.format("secondary.secondary%d.class",i)),STANDARD_DEX_FILE_ESTIMATE));
+  }
+  for (int i=0; i < numberOfExtraDexes; i++) {
+    inputDexes.put(extraModule,createFakeDexWithClasses(Paths.get("extra").resolve(String.format("extra%d.dex",i)),ImmutableSet.of(String.format("extra.extra%d.class",i)),STANDARD_DEX_FILE_ESTIMATE));
+  }
+  PreDexedFilesSorter sorter=new PreDexedFilesSorter(Optional.<DexWithClasses>absent(),inputDexes.build(),ImmutableSet.of(PRIMARY_DEX_PATTERN),moduleGraph,tempDir.newFolder("scratch").toPath(),LINEAR_ALLOC_LIMIT,DexStore.JAR,tempDir.newFolder("secondary").toPath(),tempDir.newFolder("additional").toPath());
+  ImmutableList.Builder<Step> steps=ImmutableList.builder();
+  FakeProjectFilesystem filesystem=new FakeProjectFilesystem();
+  return sorter.sortIntoPrimaryAndSecondaryDexes(FakeBuildContext.NOOP_CONTEXT,filesystem,steps);
+}

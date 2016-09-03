@@ -1,0 +1,18 @@
+{
+  int numberOfPrimaryDexes=10;
+  int numberOfSecondaryDexes=0;
+  int numberOfExtraDexes=10;
+  ImmutableMap<String,PreDexedFilesSorter.Result> sortResults=generatePreDexSorterResults(numberOfPrimaryDexes,numberOfSecondaryDexes,numberOfExtraDexes);
+  for (  String store : sortResults.keySet()) {
+    assertThat(store,oneOf(moduleGraph.getRootAPKModule().getName(),extraModule.getName()));
+  }
+  assertThat(sortResults.size(),is(2));
+  PreDexedFilesSorter.Result rootResult=sortResults.get(APKModuleGraph.ROOT_APKMODULE_NAME);
+  assertThat(rootResult.primaryDexInputs.size(),is(numberOfPrimaryDexes));
+  PreDexedFilesSorter.Result extraResult=sortResults.get(extraModule.getName());
+  assertThat(extraResult.metadataTxtDexEntries.size(),is(1));
+  assertThat(extraResult.secondaryOutputToInputs.size(),is(numberOfExtraDexes + 1));
+  for (  DexWithClasses dexWithClasses : extraResult.metadataTxtDexEntries.values()) {
+    assertThat(dexWithClasses.getClassNames().asList().get(0),Matchers.endsWith("/Canary"));
+  }
+}
