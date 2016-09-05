@@ -1,7 +1,7 @@
 {
-  ListeningSemaphore semaphore=new ListeningSemaphore(1);
+  ListeningMultiSemaphore semaphore=new ListeningMultiSemaphore(ResourceAmounts.of(1,0,0,0));
   ExplicitRunExecutorService wrappedService=new ExplicitRunExecutorService();
-  WeightedListeningExecutorService service=new WeightedListeningExecutorService(semaphore,1,wrappedService);
+  WeightedListeningExecutorService service=new WeightedListeningExecutorService(semaphore,ResourceAmounts.of(1,0,0,0),wrappedService);
   final AtomicBoolean flag=new AtomicBoolean(false);
   ListenableFuture<Void> future=service.submit(new Callable<Void>(){
     @Override public Void call() throws Exception {
@@ -11,10 +11,10 @@
   }
 );
   assertFalse(future.isDone());
-  assertThat(semaphore.availablePermits(),Matchers.equalTo(0));
+  assertThat(semaphore.getAvailableResources(),Matchers.equalTo(ResourceAmounts.ZERO));
   future.cancel(false);
   wrappedService.run();
   assertTrue(future.isCancelled());
   assertFalse(flag.get());
-  assertThat(semaphore.availablePermits(),Matchers.equalTo(1));
+  assertThat(semaphore.getAvailableResources(),Matchers.equalTo(ResourceAmounts.of(1,0,0,0)));
 }
