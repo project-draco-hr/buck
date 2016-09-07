@@ -4,9 +4,10 @@
   try {
     Path watchmanPath=exeFinder.getExecutable(WATCHMAN,env).toAbsolutePath();
     Optional<? extends Map<String,? extends Object>> result;
-    long remainingTimeNanos=TIMEOUT_NANOS;
+    long timeoutMillis=commandTimeoutMillis.or(DEFAULT_COMMAND_TIMEOUT_MILLIS);
+    long remainingTimeNanos=TimeUnit.MILLISECONDS.toNanos(timeoutMillis);
     long startTimeNanos=clock.nanoTime();
-    result=execute(executor,console,clock,remainingTimeNanos,watchmanPath,"get-sockname");
+    result=execute(executor,console,clock,timeoutMillis,remainingTimeNanos,watchmanPath,"get-sockname");
     if (!result.isPresent()) {
       return NULL_WATCHMAN;
     }
@@ -62,7 +63,7 @@
       watchmanClient.get().close();
       return NULL_WATCHMAN;
     }
-    return new Watchman(Optional.fromNullable((String)map.get("relative_path")),Optional.fromNullable((String)map.get("watch")),capabilities,Optional.of(socketPath),watchmanClient);
+    return new Watchman(Optional.fromNullable((String)map.get("relative_path")),Optional.fromNullable((String)map.get("watch")),capabilities,Optional.of(socketPath),watchmanClient,timeoutMillis);
   }
  catch (  ClassCastException|HumanReadableException|IOException e) {
     LOG.warn(e,"Unable to determine the version of watchman. Going without.");
