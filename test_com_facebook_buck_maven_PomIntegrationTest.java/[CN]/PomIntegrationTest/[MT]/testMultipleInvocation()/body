@@ -1,17 +1,25 @@
 {
-  HasMavenCoordinates dep=mockMavenPublishable("com.othercorp:no-deps:1.0",ImmutableSortedSet.<HasMavenCoordinates>of());
-  MavenPublishable item=mockMavenPublishable("com.example:with-deps:1.0",ImmutableSortedSet.of(dep));
+  BuildRule dep=createMavenPublishable("//example:dep","com.othercorp:no-deps:1.0",null);
+  MavenPublishable item=createMavenPublishable("//example:has-deps","com.example:with-deps:1.0",null,dep);
   Path pomPath=tmp.getRoot().resolve("pom.xml");
-  File pomFile=pomPath.toFile();
-  assertFalse(pomFile.exists());
+  assertFalse(Files.exists(pomPath));
   Pom.generatePomFile(item,pomPath);
-  Model pomModel=parseAndVerifyPomFile(pomFile);
-  removeDependencies(pomModel,pomFile);
+  Model pomModel=parse(pomPath);
+  assertEquals("com.example",pomModel.getGroupId());
+  assertEquals("with-deps",pomModel.getArtifactId());
+  assertEquals("1.0",pomModel.getVersion());
+  List<Dependency> dependencies=pomModel.getDependencies();
+  assertEquals(1,dependencies.size());
+  Dependency dependency=dependencies.get(0);
+  assertEquals("com.othercorp",dependency.getGroupId());
+  assertEquals("no-deps",dependency.getArtifactId());
+  assertEquals("1.0",dependency.getVersion());
+  removeDependencies(pomModel,pomPath);
   Pom.generatePomFile(item,pomPath);
-  pomModel=parseAndVerifyPomFile(pomFile);
+  pomModel=parse(pomPath);
   pomModel.setUrl(URL);
-  serializePom(pomModel,pomFile);
+  serializePom(pomModel,pomPath);
   Pom.generatePomFile(item,pomPath);
-  pomModel=parseAndVerifyPomFile(pomFile);
+  pomModel=parse(pomPath);
   assertEquals(URL,pomModel.getUrl());
 }
