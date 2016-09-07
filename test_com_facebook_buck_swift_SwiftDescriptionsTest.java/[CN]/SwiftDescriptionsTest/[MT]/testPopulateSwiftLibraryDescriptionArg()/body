@@ -1,0 +1,17 @@
+{
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  BuildTarget buildTarget=BuildTargetFactory.newInstance("//foo:bar");
+  SwiftLibraryDescription.Arg output=FakeAppleRuleDescriptions.SWIFT_LIBRARY_DESCRIPTION.createUnpopulatedConstructorArg();
+  CxxLibraryDescription.Arg args=CxxLibraryDescription.createEmptyConstructorArg();
+  FakeSourcePath swiftSrc=new FakeSourcePath("foo/bar.swift");
+  args.srcs=Optional.of(ImmutableSortedSet.<SourceWithFlags>of(SourceWithFlags.of(new FakeSourcePath("foo/foo.cpp")),SourceWithFlags.of(swiftSrc)));
+  args.compilerFlags=Optional.absent();
+  args.supportedPlatformsRegex=Optional.absent();
+  SwiftDescriptions.populateSwiftLibraryDescriptionArg(pathResolver,output,args,buildTarget);
+  assertThat(output.moduleName.get(),Matchers.equalTo("bar"));
+  assertThat(output.srcs.get(),Matchers.equalTo(ImmutableSortedSet.<SourcePath>of(swiftSrc)));
+  args.moduleName=Optional.of("baz");
+  SwiftDescriptions.populateSwiftLibraryDescriptionArg(pathResolver,output,args,buildTarget);
+  assertThat(output.moduleName.get(),Matchers.equalTo("baz"));
+}
