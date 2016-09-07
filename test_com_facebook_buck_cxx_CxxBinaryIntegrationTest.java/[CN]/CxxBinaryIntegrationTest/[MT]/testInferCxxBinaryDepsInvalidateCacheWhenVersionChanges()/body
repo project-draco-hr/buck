@@ -35,13 +35,12 @@
   for (  String t : locallyBuiltTargets) {
     buildLog.assertTargetBuiltLocally(t);
   }
-  Set<String> builtFromCacheTargets=Sets.newHashSet(Iterables.transform(buildLog.getAllTargets(),new Function<BuildTarget,String>(){
-    @Override public String apply(    BuildTarget input){
-      return input.toString();
+  Set<String> builtFromCacheTargets=FluentIterable.from(buildLog.getAllTargets()).filter(new Predicate<BuildTarget>(){
+    @Override public boolean apply(    BuildTarget target){
+      return (!target.getFlavors().contains(CxxDescriptionEnhancer.EXPORTED_HEADER_SYMLINK_TREE_FLAVOR) && !target.getFlavors().contains(CxxDescriptionEnhancer.HEADER_SYMLINK_TREE_FLAVOR));
     }
   }
-));
-  builtFromCacheTargets.removeAll(locallyBuiltTargets);
+).transform(Functions.toStringFunction()).filter(Predicates.not(Predicates.in(locallyBuiltTargets))).toSet();
   for (  String t : builtFromCacheTargets) {
     buildLog.assertTargetWasFetchedFromCache(t);
   }
