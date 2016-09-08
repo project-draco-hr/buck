@@ -1,10 +1,17 @@
 {
-  nativeLibraryMergeGlue.isPresent();
   Iterable<NativeLinkable> allLinkables=FluentIterable.from(Iterables.concat(linkables,linkablesAssets)).toSortedList(HasBuildTarget.BUILD_TARGET_COMPARATOR);
   final ImmutableSet<NativeLinkable> linkableAssetSet=ImmutableSet.copyOf(linkablesAssets);
   Map<NativeLinkable,MergedNativeLibraryConstituents> linkableMembership=makeConstituentMap(buildRuleParams,mergeMap,allLinkables,linkableAssetSet);
   Iterable<MergedNativeLibraryConstituents> orderedConstituents=getOrderedMergedConstituents(buildRuleParams,linkableMembership);
-  Set<MergedLibNativeLinkable> mergedLinkables=createLinkables(cxxBuckConfig,ruleResolver,pathResolver,buildRuleParams,orderedConstituents);
+  Optional<NativeLinkable> glueLinkable=Optional.absent();
+  if (nativeLibraryMergeGlue.isPresent()) {
+    BuildRule rule=ruleResolver.getRule(nativeLibraryMergeGlue.get());
+    if (!(rule instanceof NativeLinkable)) {
+      throw new RuntimeException("Native library merge glue " + rule.getBuildTarget() + " for application "+ buildRuleParams.getBuildTarget()+ " is not linkable.");
+    }
+    glueLinkable=Optional.of(((NativeLinkable)rule));
+  }
+  Set<MergedLibNativeLinkable> mergedLinkables=createLinkables(cxxBuckConfig,ruleResolver,pathResolver,buildRuleParams,glueLinkable,orderedConstituents);
   return NativeLibraryMergeEnhancementResult.builder().addAllMergedLinkables(FluentIterable.from(mergedLinkables).filter(new Predicate<MergedLibNativeLinkable>(){
     @Override public boolean apply(    MergedLibNativeLinkable linkable){
       return Collections.disjoint(linkable.constituents.getLinkables(),linkableAssetSet);
