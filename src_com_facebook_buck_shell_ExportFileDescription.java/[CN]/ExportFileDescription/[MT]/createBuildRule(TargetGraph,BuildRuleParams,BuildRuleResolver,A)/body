@@ -1,3 +1,26 @@
 {
-  return new ExportFile(params,new SourcePathResolver(resolver),args);
+  BuildTarget target=params.getBuildTarget();
+  Mode mode=args.mode.or(ExportFileDescription.Mode.COPY);
+  String name;
+  if (args.out.isPresent()) {
+    if (mode == ExportFileDescription.Mode.REFERENCE) {
+      throw new HumanReadableException("%s: must not set `out` for `export_file` when using `REFERENCE` mode",params.getBuildTarget());
+    }
+    name=args.out.get();
+  }
+ else {
+    name=target.getShortNameAndFlavorPostfix();
+  }
+  SourcePath src;
+  SourcePathResolver pathResolver=new SourcePathResolver(resolver);
+  if (args.src.isPresent()) {
+    if (mode == ExportFileDescription.Mode.REFERENCE && !pathResolver.getFilesystem(args.src.get()).equals(params.getProjectFilesystem())) {
+      throw new HumanReadableException("%s: must use `COPY` mode for `export_file` when source (%s) uses a different cell",target,args.src.get());
+    }
+    src=args.src.get();
+  }
+ else {
+    src=new PathSourcePath(params.getProjectFilesystem(),target.getBasePath().resolve(target.getShortNameAndFlavorPostfix()));
+  }
+  return new ExportFile(params,pathResolver,name,mode,src);
 }
