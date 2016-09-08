@@ -5,6 +5,11 @@
   collector.addPackageables(AndroidPackageableCollector.getPackageableRules(originalDeps));
   AndroidPackageableCollection packageableCollection=collector.build();
   AndroidPackageableCollection.ResourceDetails resourceDetails=packageableCollection.getResourceDetails();
+  Optional<CopyNativeLibraries> copyNativeLibraries=nativeLibsEnhancer.getCopyNativeLibraries(packageableCollection);
+  if (copyNativeLibraries.isPresent()) {
+    ruleResolver.addToIndex(copyNativeLibraries.get());
+    enhancedDeps.add(copyNativeLibraries.get());
+  }
   ImmutableSortedSet<BuildRule> resourceRules=getTargetsAsRules(resourceDetails.getResourcesWithNonEmptyResDir());
   ImmutableCollection<BuildRule> rulesWithResourceDirectories=pathResolver.filterBuildRuleInputs(resourceDetails.getResourceDirectories());
   FilteredResourcesProvider filteredResourcesProvider;
@@ -63,11 +68,6 @@
     enhancedDeps.add(compileUberRDotJava);
   }
   enhancedDeps.addAll(pathResolver.filterBuildRuleInputs(packageableCollection.getPathsToThirdPartyJars()));
-  Optional<CopyNativeLibraries> copyNativeLibraries=nativeLibsEnhancer.getCopyNativeLibraries(packageableCollection);
-  if (copyNativeLibraries.isPresent()) {
-    ruleResolver.addToIndex(copyNativeLibraries.get());
-    enhancedDeps.add(copyNativeLibraries.get());
-  }
   Optional<ComputeExopackageDepsAbi> computeExopackageDepsAbi=Optional.absent();
   if (!exopackageModes.isEmpty()) {
     BuildRuleParams paramsForComputeExopackageAbi=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(CALCULATE_ABI_FLAVOR),Suppliers.ofInstance(enhancedDeps.build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
