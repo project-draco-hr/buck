@@ -1,6 +1,7 @@
 {
   ImmutableSortedSet.Builder<BuildRule> enhancedDeps=ImmutableSortedSet.naturalOrder();
   enhancedDeps.addAll(originalDeps);
+  ImmutableList.Builder<BuildRule> additionalJavaLibrariesBuilder=ImmutableList.builder();
   AndroidPackageableCollector collector=new AndroidPackageableCollector(originalBuildTarget,buildTargetsToExcludeFromDex,resourcesToExclude,apkModuleGraph);
   collector.addPackageables(AndroidPackageableCollector.getPackageableRules(originalDeps));
   AndroidPackageableCollection packageableCollection=collector.build();
@@ -10,6 +11,18 @@
   if (copyNativeLibraries.isPresent()) {
     ruleResolver.addToIndex(copyNativeLibraries.get());
     enhancedDeps.add(copyNativeLibraries.get());
+  }
+  Optional<ImmutableSortedMap<String,String>> sonameMergeMap=nativeLibsEnhancementResult.getSonameMergeMap();
+  if (sonameMergeMap.isPresent() && nativeLibraryMergeCodeGenerator.isPresent()) {
+    BuildRule generatorRule=ruleResolver.getRule(nativeLibraryMergeCodeGenerator.get());
+    BuildTarget writeMapTarget=createBuildTargetWithFlavor(GENERATE_NATIVE_LIB_MERGE_MAP_GENERATED_CODE_FLAVOR);
+    GenerateCodeForMergedLibraryMap generateCodeForMergedLibraryMap=new GenerateCodeForMergedLibraryMap(buildRuleParams.copyWithChanges(writeMapTarget,Suppliers.ofInstance(ImmutableSortedSet.of(generatorRule)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,sonameMergeMap.get(),generatorRule);
+    ruleResolver.addToIndex(generateCodeForMergedLibraryMap);
+    BuildTarget compileMergedNativeLibGenCode=createBuildTargetWithFlavor(COMPILE_NATIVE_LIB_MERGE_MAP_GENERATED_CODE_FLAVOR);
+    BuildRuleParams paramsForCompileGenCode=buildRuleParams.copyWithChanges(compileMergedNativeLibGenCode,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(generateCodeForMergedLibraryMap)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
+    DefaultJavaLibrary compileMergedNativeLibMapGenCode=new DefaultJavaLibrary(paramsForCompileGenCode,pathResolver,ImmutableSet.of(new BuildTargetSourcePath(generateCodeForMergedLibraryMap.getBuildTarget(),generateCodeForMergedLibraryMap.getPathToOutput())),ImmutableSet.<SourcePath>of(),javacOptions.getGeneratedSourceFolderName(),Optional.<SourcePath>absent(),ImmutableList.<String>of(),ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of(),new BuildTargetSourcePath(compileMergedNativeLibGenCode),false,ImmutableSet.<Path>of(),new JavacToJarStepFactory(javacOptions.withSourceLevel("7").withTargetLevel("7"),JavacOptionsAmender.IDENTITY),Optional.<Path>absent(),Optional.<String>absent(),ImmutableSortedSet.<BuildTarget>of(),ImmutableSet.<Pattern>of());
+    ruleResolver.addToIndex(compileMergedNativeLibMapGenCode);
+    additionalJavaLibrariesBuilder.add(compileMergedNativeLibMapGenCode);
   }
   ImmutableSortedSet<BuildRule> resourceRules=getTargetsAsRules(resourceDetails.getResourcesWithNonEmptyResDir());
   ImmutableCollection<BuildRule> rulesWithResourceDirectories=pathResolver.filterBuildRuleInputs(resourceDetails.getResourceDirectories());
@@ -39,7 +52,6 @@
     ruleResolver.addToIndex(packageStringAssets.get());
     enhancedDeps.add(packageStringAssets.get());
   }
-  ImmutableList.Builder<BuildRule> additionalJavaLibrariesBuilder=ImmutableList.builder();
   if (packageType != PackageType.INSTRUMENTED) {
     addBuildConfigDeps(packageableCollection,enhancedDeps,additionalJavaLibrariesBuilder);
   }
