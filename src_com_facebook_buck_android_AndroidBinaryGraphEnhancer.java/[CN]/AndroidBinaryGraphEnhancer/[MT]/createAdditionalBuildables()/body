@@ -33,22 +33,14 @@
     ruleResolver.addToIndex(packageStringAssets.get());
     enhancedDeps.add(packageStringAssets.get());
   }
-  ImmutableList<DexProducedFromJavaLibrary> preDexBuildConfigs;
-  ImmutableList<SourcePath> buildConfigJarFiles;
-  if (packageType == PackageType.INSTRUMENTED) {
-    preDexBuildConfigs=ImmutableList.of();
-    buildConfigJarFiles=ImmutableList.of();
+  ImmutableList.Builder<BuildRule> additionalJavaLibrariesBuilder=ImmutableList.builder();
+  if (packageType != PackageType.INSTRUMENTED) {
+    addBuildConfigDeps(packageableCollection,enhancedDeps,additionalJavaLibrariesBuilder);
   }
- else {
-    ImmutableList.Builder<DexProducedFromJavaLibrary> preDexBuildConfigsBuilder=ImmutableList.builder();
-    ImmutableList.Builder<SourcePath> buildConfigJarFilesBuilder=ImmutableList.builder();
-    addBuildConfigDeps(shouldPreDex,packageableCollection,enhancedDeps,preDexBuildConfigsBuilder,buildConfigJarFilesBuilder);
-    preDexBuildConfigs=preDexBuildConfigsBuilder.build();
-    buildConfigJarFiles=buildConfigJarFilesBuilder.build();
-  }
+  ImmutableList<BuildRule> additionalJavaLibraries=additionalJavaLibrariesBuilder.build();
   ImmutableMultimap<APKModule,DexProducedFromJavaLibrary> preDexedLibraries=ImmutableMultimap.of();
   if (shouldPreDex) {
-    preDexedLibraries=createPreDexRulesForLibraries(preDexBuildConfigs,packageableCollection);
+    preDexedLibraries=createPreDexRulesForLibraries(additionalJavaLibraries,packageableCollection);
   }
   Collection<DexProducedFromJavaLibrary> preDexedLibrariesForResourceIdFiltering=trimResourceIds ? preDexedLibraries.values() : ImmutableList.<DexProducedFromJavaLibrary>of();
   BuildRuleParams paramsForTrimUberRDotJava=buildRuleParams.copyWithChanges(createBuildTargetWithFlavor(TRIM_UBER_R_DOT_JAVA_FLAVOR),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().add(aaptPackageResources).addAll(preDexedLibrariesForResourceIdFiltering).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
@@ -83,5 +75,10 @@
     ruleResolver.addToIndex(computeExopackageDepsAbi.get());
     enhancedDeps.add(computeExopackageDepsAbi.get());
   }
-  return AndroidGraphEnhancementResult.builder().setPackageableCollection(packageableCollection).setAaptPackageResources(aaptPackageResources).setCompiledUberRDotJava(compileUberRDotJava).setCopyNativeLibraries(copyNativeLibraries).setPackageStringAssets(packageStringAssets).setPreDexMerge(preDexMerge).setComputeExopackageDepsAbi(computeExopackageDepsAbi).setClasspathEntriesToDex(ImmutableSet.<SourcePath>builder().addAll(packageableCollection.getClasspathEntriesToDex()).addAll(buildConfigJarFiles).build()).setFinalDeps(enhancedDeps.build()).setAPKModuleGraph(apkModuleGraph).build();
+  return AndroidGraphEnhancementResult.builder().setPackageableCollection(packageableCollection).setAaptPackageResources(aaptPackageResources).setCompiledUberRDotJava(compileUberRDotJava).setCopyNativeLibraries(copyNativeLibraries).setPackageStringAssets(packageStringAssets).setPreDexMerge(preDexMerge).setComputeExopackageDepsAbi(computeExopackageDepsAbi).setClasspathEntriesToDex(ImmutableSet.<SourcePath>builder().addAll(packageableCollection.getClasspathEntriesToDex()).addAll(FluentIterable.from(additionalJavaLibraries).transform(new Function<BuildRule,SourcePath>(){
+    @Override public SourcePath apply(    BuildRule rule){
+      return new BuildTargetSourcePath(rule.getBuildTarget());
+    }
+  }
+).toList()).build()).setFinalDeps(enhancedDeps.build()).setAPKModuleGraph(apkModuleGraph).build();
 }
