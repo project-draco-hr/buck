@@ -1,4 +1,5 @@
 {
+  @SuppressWarnings("PMD.PrematureDeclaration") AndroidNativeLibsGraphEnhancementResult.Builder resultBuilder=AndroidNativeLibsGraphEnhancementResult.builder();
   ImmutableList<NativeLinkable> nativeLinkables=packageableCollection.getNativeLinkables();
   ImmutableList<NativeLinkable> nativeLinkablesAssets=packageableCollection.getNativeLinkablesAssets();
   if (nativeLibraryMergeMap.isPresent() && !nativeLibraryMergeMap.get().isEmpty()) {
@@ -21,7 +22,7 @@
   ImmutableMap<Pair<NdkCxxPlatforms.TargetCpuType,String>,SourcePath> nativeLinkableLibs=nativeLinkableLibsBuilder.build();
   ImmutableMap<Pair<NdkCxxPlatforms.TargetCpuType,String>,SourcePath> nativeLinkableLibsAssets=nativeLinkableLibsAssetsBuilder.build();
   if (packageableCollection.getNativeLibsDirectories().isEmpty() && nativeLinkableLibs.isEmpty() && nativeLinkableLibsAssets.isEmpty()) {
-    return Optional.absent();
+    return AndroidNativeLibsGraphEnhancementResult.builder().build();
   }
   if (relinkerMode == RelinkerMode.ENABLED && (!nativeLinkableLibs.isEmpty() || !nativeLinkableLibsAssets.isEmpty())) {
     NativeRelinker relinker=new NativeRelinker(buildRuleParams.copyWithExtraDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(pathResolver.filterBuildRuleInputs(nativeLinkableLibs.values())).addAll(pathResolver.filterBuildRuleInputs(nativeLinkableLibsAssets.values())).build())),pathResolver,cxxBuckConfig,nativePlatforms,nativeLinkableLibs,nativeLinkableLibsAssets);
@@ -36,5 +37,5 @@
   BuildTarget targetForCopyNativeLibraries=BuildTarget.builder(originalBuildTarget).addFlavors(COPY_NATIVE_LIBS_FLAVOR).build();
   ImmutableSortedSet<BuildRule> nativeLibsRules=BuildRules.toBuildRulesFor(originalBuildTarget,ruleResolver,packageableCollection.getNativeLibsTargets());
   BuildRuleParams paramsForCopyNativeLibraries=buildRuleParams.copyWithChanges(targetForCopyNativeLibraries,Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(nativeLibsRules).addAll(pathResolver.filterBuildRuleInputs(packageableCollection.getNativeLibsDirectories())).addAll(strippedLibsMap.keySet()).addAll(strippedLibsAssetsMap.keySet()).build()),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of()));
-  return Optional.of(new CopyNativeLibraries(paramsForCopyNativeLibraries,pathResolver,packageableCollection.getNativeLibsDirectories(),ImmutableSet.copyOf(strippedLibsMap.values()),ImmutableSet.copyOf(strippedLibsAssetsMap.values()),cpuFilters));
+  return resultBuilder.setCopyNativeLibraries(Optional.of(new CopyNativeLibraries(paramsForCopyNativeLibraries,pathResolver,packageableCollection.getNativeLibsDirectories(),ImmutableSet.copyOf(strippedLibsMap.values()),ImmutableSet.copyOf(strippedLibsAssetsMap.values()),cpuFilters))).build();
 }
