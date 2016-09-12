@@ -7,7 +7,16 @@
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
   Path pathToTestOutput=getPathToTestOutputDirectory();
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),pathToTestOutput));
-  junit=getJUnitStep(executionContext,options,Optional.of(pathToTestOutput),Optional.of(pathToTestLogs));
-  steps.add(junit);
+  if (forkMode() == ForkMode.PER_TEST) {
+    ImmutableList.Builder<JUnitStep> junitsBuilder=ImmutableList.builder();
+    for (    String testClass : testClassNames) {
+      junitsBuilder.add(getJUnitStep(executionContext,options,Optional.of(pathToTestOutput),Optional.of(pathToTestLogs),Collections.singleton(testClass)));
+    }
+    junits=junitsBuilder.build();
+  }
+ else {
+    junits=ImmutableList.of(getJUnitStep(executionContext,options,Optional.of(pathToTestOutput),Optional.of(pathToTestLogs),testClassNames));
+  }
+  steps.addAll(junits);
   return steps.build();
 }
