@@ -13,7 +13,15 @@
   JavaTestDescription.CxxLibraryEnhancement cxxLibraryEnhancement=new JavaTestDescription.CxxLibraryEnhancement(params,args.useCxxLibraries,resolver,pathResolver,cxxPlatform);
   params=cxxLibraryEnhancement.updatedParams;
   BuildTarget abiJarTarget=params.getBuildTarget().withAppendedFlavors(CalculateAbi.FLAVOR);
-  RobolectricTest test=resolver.addToIndex(new RobolectricTest(params.appendExtraDeps(Iterables.concat(BuildRules.getExportedRules(Iterables.concat(params.getDeclaredDeps().get(),resolver.getAllRules(args.providedDeps.get()))),pathResolver.filterBuildRuleInputs(javacOptions.getInputs(pathResolver)))),pathResolver,args.srcs.get(),validateResources(pathResolver,params.getProjectFilesystem(),args.resources.get()),args.labels.get(),args.contacts.get(),args.proguardConfig.transform(SourcePaths.toSourcePath(params.getProjectFilesystem())),new BuildTargetSourcePath(abiJarTarget),additionalClasspathEntries,javacOptions,javaOptions,vmArgs,cxxLibraryEnhancement.nativeLibsEnvironment,args.resourcesRoot,args.mavenCoords,dummyRDotJava,args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs),args.env.get(),args.getRunTestSeparately(),args.getForkMode(),args.stdOutLogLevel,args.stdErrLogLevel));
-  resolver.addToIndex(CalculateAbi.of(abiJarTarget,pathResolver,params,new BuildTargetSourcePath(test.getBuildTarget())));
-  return test;
+  BuildRuleParams testsLibraryParams=params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>naturalOrder().addAll(params.getDeclaredDeps().get()).addAll(FluentIterable.from(params.getDeclaredDeps().get()).filter(JavaTest.class).transform(new Function<JavaTest,BuildRule>(){
+    @Override public BuildRule apply(    JavaTest input){
+      return input.getCompiledTestsLibrary();
+    }
+  }
+)).build()),params.getExtraDeps());
+  testsLibraryParams=testsLibraryParams.appendExtraDeps(Iterables.concat(BuildRules.getExportedRules(Iterables.concat(testsLibraryParams.getDeclaredDeps().get(),resolver.getAllRules(args.providedDeps.get()))),pathResolver.filterBuildRuleInputs(javacOptions.getInputs(pathResolver)))).withFlavor(JavaTest.COMPILED_TESTS_LIBRARY_FLAVOR);
+  JavaLibrary testsLibrary=resolver.addToIndex(new DefaultJavaLibrary(testsLibraryParams,pathResolver,args.srcs.get(),validateResources(pathResolver,params.getProjectFilesystem(),args.resources.get()),javacOptions.getGeneratedSourceFolderName(),args.proguardConfig.transform(SourcePaths.toSourcePath(params.getProjectFilesystem())),ImmutableList.<String>of(),ImmutableSortedSet.<BuildRule>of(),ImmutableSortedSet.<BuildRule>of(),new BuildTargetSourcePath(abiJarTarget),javacOptions.trackClassUsage(),additionalClasspathEntries,new JavacToJarStepFactory(javacOptions,new BootClasspathAppender()),args.resourcesRoot,args.mavenCoords,ImmutableSortedSet.<BuildTarget>of(),ImmutableSet.<Pattern>of()));
+  RobolectricTest robolectricTest=resolver.addToIndex(new RobolectricTest(params.copyWithDeps(Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of(testsLibrary)),Suppliers.ofInstance(ImmutableSortedSet.<BuildRule>of())),pathResolver,testsLibrary,additionalClasspathEntries,args.labels.get(),args.contacts.get(),TestType.JUNIT,javaOptions,vmArgs,cxxLibraryEnhancement.nativeLibsEnvironment,dummyRDotJava,args.testRuleTimeoutMs.or(defaultTestRuleTimeoutMs),args.env.get(),args.getRunTestSeparately(),args.getForkMode(),args.stdOutLogLevel,args.stdErrLogLevel));
+  resolver.addToIndex(CalculateAbi.of(abiJarTarget,pathResolver,params,new BuildTargetSourcePath(testsLibrary.getBuildTarget())));
+  return robolectricTest;
 }
