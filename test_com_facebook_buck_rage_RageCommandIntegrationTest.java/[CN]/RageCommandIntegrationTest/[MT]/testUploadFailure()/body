@@ -14,7 +14,9 @@
     ObjectMapper objectMapper=ObjectMappers.newDefaultInstance();
     DefectReporter reporter=new DefaultDefectReporter(filesystem,objectMapper,rageConfig);
     AutomatedReport automatedReport=new AutomatedReport(reporter,filesystem,new CapturingPrintStream(),TestBuildEnvironmentDescription.INSTANCE,VcsInfoCollector.create(new NoOpCmdLineInterface()),rageConfig,EMPTY_EXTRA_INFO_HELPER);
-    expectedException.expect(HumanReadableException.class);
-    automatedReport.collectAndSubmitResult();
+    DefectSubmitResult submitReport=automatedReport.collectAndSubmitResult().get();
+    assertFalse(submitReport.getReportSubmitErrorMessage().get().isEmpty());
+    ZipInspector zipInspector=new ZipInspector(filesystem.resolve(submitReport.getReportSubmitLocation()));
+    assertEquals(zipInspector.getZipFileEntries().size(),5);
   }
  }

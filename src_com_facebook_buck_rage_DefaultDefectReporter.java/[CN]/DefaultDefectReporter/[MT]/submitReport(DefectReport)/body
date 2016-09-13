@@ -1,15 +1,20 @@
 {
+  DefectSubmitResult.Builder defectSubmitResult=DefectSubmitResult.builder();
   if (rageConfig.getReportUploadUri().isPresent()) {
     URI uri=rageConfig.getReportUploadUri().get();
-    String response=uploadReport(defectReport,uri);
-    return DefectSubmitResult.builder().setReportSubmitLocation(uri.toString()).setReportSubmitMessage(response).build();
-  }
- else {
-    filesystem.mkdirs(filesystem.getBuckPaths().getBuckOut());
-    Path defectReportPath=filesystem.createTempFile(filesystem.getBuckPaths().getBuckOut(),"defect_report",".zip");
-    try (OutputStream outputStream=filesystem.newFileOutputStream(defectReportPath)){
-      writeReport(defectReport,outputStream);
+    try {
+      String response=uploadReport(defectReport,uri);
+      return defectSubmitResult.setReportSubmitLocation(uri.toString()).setReportSubmitMessage(response).setUploadSuccess(true).build();
     }
-     return DefectSubmitResult.builder().setReportSubmitLocation(defectReportPath.toString()).setReportLocalLocation(defectReportPath).build();
+ catch (    IOException e) {
+      defectSubmitResult.setReportSubmitErrorMessage(e.getMessage());
+      defectSubmitResult.setUploadSuccess(false);
+    }
   }
+  filesystem.mkdirs(filesystem.getBuckPaths().getBuckOut());
+  Path defectReportPath=filesystem.createTempFile(filesystem.getBuckPaths().getBuckOut(),"defect_report",".zip");
+  try (OutputStream outputStream=filesystem.newFileOutputStream(defectReportPath)){
+    writeReport(defectReport,outputStream);
+  }
+   return defectSubmitResult.setReportSubmitLocation(defectReportPath.toString()).build();
 }
