@@ -14,11 +14,15 @@
  else {
     report=new AutomatedReport(new DefaultDefectReporter(filesystem,params.getObjectMapper(),rageConfig),filesystem,stdOut,params.getBuildEnvironmentDescription(),gatherVcsInfo ? vcsInfoCollector : Optional.<VcsInfoCollector>absent(),rageConfig,extraInfoCollector);
   }
-  DefectSubmitResult defectSubmitResult=report.collectAndSubmitResult();
-  String uploadPrefix=(defectSubmitResult.getReportSubmitLocation().startsWith("http://")) ? ("Uploading report to") : ("Report saved to");
-  stdOut.printf("%s %s\n",uploadPrefix,defectSubmitResult.getReportSubmitLocation());
-  if (defectSubmitResult.getReportSubmitMessage().isPresent()) {
-    stdOut.println(defectSubmitResult.getReportSubmitMessage().get());
+  Optional<DefectSubmitResult> defectSubmitResult=report.collectAndSubmitResult();
+  if (!defectSubmitResult.isPresent()) {
+    stdOut.println("No logs of interesting commands were found. Check if buck-out/log contains " + "commands except buck launch & buck rage.");
+    return 0;
+  }
+  String uploadPrefix=(defectSubmitResult.get().getReportSubmitLocation().startsWith("http://")) ? ("Uploading report to") : ("Report saved to");
+  stdOut.printf("%s %s\n",uploadPrefix,defectSubmitResult.get().getReportSubmitLocation());
+  if (defectSubmitResult.get().getReportSubmitMessage().isPresent()) {
+    stdOut.println(defectSubmitResult.get().getReportSubmitMessage().get());
   }
   return 0;
 }
