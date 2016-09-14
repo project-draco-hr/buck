@@ -1,0 +1,28 @@
+{
+  if (shouldGenerateTabbedOutput() && shouldGenerateJsonOutput()) {
+    params.getBuckEventBus().post(ConsoleEvent.severe("--json and --tab cannot both be specified"));
+    return 1;
+  }
+  final BuckConfig buckConfig=params.getBuckConfig();
+  final ImmutableList<ConfigValue> configs=FluentIterable.from(getArguments()).transform(new Function<String,ConfigValue>(){
+    @Override public ConfigValue apply(    String input){
+      String[] parts=input.split("\\.",2);
+      if (parts.length != 2) {
+        params.getConsole().getStdErr().println(String.format("%s is not a valid section/property string",input));
+        return ConfigValue.of(input,"",input,Optional.<String>absent());
+      }
+      return ConfigValue.of(input,parts[0],parts[1],buckConfig.getValue(parts[0],parts[1]));
+    }
+  }
+).toList();
+  if (shouldGenerateJsonOutput()) {
+    printJsonOutput(params,configs);
+  }
+ else   if (shouldGenerateTabbedOutput()) {
+    printTabbedOutput(params,configs);
+  }
+ else {
+    printBuckconfigOutput(params,configs);
+  }
+  return 0;
+}
