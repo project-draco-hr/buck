@@ -1,0 +1,42 @@
+{
+  Manifest manifest=new Manifest();
+  manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION,"1.0");
+  if (mergeManifests) {
+    for (    Path entry : entriesToJar) {
+      entry=filesystem.getPathForRelativePath(entry);
+      Manifest readManifest;
+      if (Files.isDirectory(entry)) {
+        Path manifestPath=entry.resolve(JarFile.MANIFEST_NAME);
+        if (!Files.exists(manifestPath)) {
+          continue;
+        }
+        try (InputStream inputStream=Files.newInputStream(manifestPath)){
+          readManifest=new Manifest(inputStream);
+        }
+       }
+ else {
+        try (ZipFile zipFile=new ZipFile(entry.toFile())){
+          ZipEntry manifestEntry=zipFile.getEntry(JarFile.MANIFEST_NAME);
+          if (manifestEntry == null) {
+            continue;
+          }
+          try (InputStream inputStream=zipFile.getInputStream(manifestEntry)){
+            readManifest=new Manifest(inputStream);
+          }
+         }
+       }
+      merge(manifest,readManifest);
+    }
+  }
+  if (manifestFile.isPresent()) {
+    Path path=filesystem.getPathForRelativePath(manifestFile.get());
+    try (InputStream stream=Files.newInputStream(path)){
+      Manifest readManifest=new Manifest(stream);
+      merge(manifest,readManifest);
+    }
+   }
+  if (mainClass.isPresent()) {
+    manifest.getMainAttributes().put(Attributes.Name.MAIN_CLASS,mainClass.get());
+  }
+  return manifest;
+}

@@ -1,13 +1,23 @@
 {
-  Manifest manifest=new Manifest();
-  manifest.getMainAttributes().put(Attributes.Name.MANIFEST_VERSION,"1.0");
-  Path absoluteOutputPath=filesystem.getPathForRelativePath(pathToOutputFile);
   Set<String> alreadyAddedEntries=Sets.newHashSet(alreadyAddedEntriesToOutputFile);
+  JarEntry metaInf=new JarEntry("META-INF/");
+  metaInf.setTime(ZipConstants.getFakeTime());
+  outputFile.putNextEntry(metaInf);
+  outputFile.closeEntry();
+  alreadyAddedEntries.add("META-INF/");
+  Manifest manifest=createManifest(filesystem,entriesToJar,mainClass,manifestFile,mergeManifests);
+  JarEntry manifestEntry=new JarEntry(JarFile.MANIFEST_NAME);
+  manifestEntry.setTime(ZipConstants.getFakeTime());
+  outputFile.putNextEntry(manifestEntry);
+  manifest.write(outputFile);
+  outputFile.closeEntry();
+  alreadyAddedEntries.add(JarFile.MANIFEST_NAME);
+  Path absoluteOutputPath=filesystem.getPathForRelativePath(pathToOutputFile);
   for (  Path entry : entriesToJar) {
     Path file=filesystem.getPathForRelativePath(entry);
     if (Files.isRegularFile(file)) {
       Preconditions.checkArgument(!file.equals(absoluteOutputPath),"Trying to put file %s into itself",file);
-      copyZipEntriesToJar(file,pathToOutputFile,outputFile,manifest,alreadyAddedEntries,context.getBuckEventBus(),blacklist);
+      copyZipEntriesToJar(file,pathToOutputFile,outputFile,alreadyAddedEntries,context.getBuckEventBus(),blacklist);
     }
  else     if (Files.isDirectory(file)) {
       addFilesInDirectoryToJar(filesystem,file,outputFile,alreadyAddedEntries,blacklist,context.getBuckEventBus());
@@ -16,27 +26,9 @@
       throw new IllegalStateException("Must be a file or directory: " + file);
     }
   }
-  if (manifestFile.isPresent()) {
-    try (InputStream manifestStream=Files.newInputStream(filesystem.getPathForRelativePath(manifestFile.get()))){
-      Manifest userSupplied=new Manifest(manifestStream);
-      if (mergeManifests) {
-        merge(manifest,userSupplied);
-      }
- else {
-        manifest=userSupplied;
-      }
-    }
-   }
-  if (mainClass.isPresent()) {
-    if (!mainClassPresent(mainClass.get(),alreadyAddedEntries)) {
-      context.getStdErr().print(String.format("ERROR: Main class %s does not exist.\n",mainClass.get()));
-      return 1;
-    }
-    manifest.getMainAttributes().put(Attributes.Name.MAIN_CLASS,mainClass.get());
+  if (mainClass.isPresent() && !mainClassPresent(mainClass.get(),alreadyAddedEntries)) {
+    context.getStdErr().print(String.format("ERROR: Main class %s does not exist.\n",mainClass.get()));
+    return 1;
   }
-  JarEntry manifestEntry=new JarEntry(JarFile.MANIFEST_NAME);
-  manifestEntry.setTime(ZipConstants.getFakeTime());
-  outputFile.putNextEntry(manifestEntry);
-  manifest.write(outputFile);
   return 0;
 }

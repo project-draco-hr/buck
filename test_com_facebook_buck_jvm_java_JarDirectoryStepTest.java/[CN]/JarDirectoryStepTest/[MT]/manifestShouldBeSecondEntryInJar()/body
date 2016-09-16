@@ -1,0 +1,52 @@
+{
+  Path manifestPath=Paths.get(JarFile.MANIFEST_NAME);
+  Path dir=folder.newFolder();
+  Manifest dirManifest=new Manifest();
+  Attributes attrs=new Attributes();
+  attrs.putValue("From-Dir","cheese");
+  dirManifest.getEntries().put("Section",attrs);
+  Files.createDirectories(dir.resolve(manifestPath).getParent());
+  try (OutputStream out=Files.newOutputStream(dir.resolve(manifestPath))){
+    dirManifest.write(out);
+  }
+   Files.write(dir.resolve("A.txt"),"hello world".getBytes(UTF_8));
+  Files.write(dir.resolve("B.txt"),"hello world".getBytes(UTF_8));
+  Files.write(dir.resolve("aa.txt"),"hello world".getBytes(UTF_8));
+  Files.write(dir.resolve("bb.txt"),"hello world".getBytes(UTF_8));
+  Path inputJar=folder.newFile("example.jar");
+  try (ZipOutputStream zos=new ZipOutputStream(Files.newOutputStream(inputJar))){
+    byte[] data="hello world".getBytes(UTF_8);
+    ZipEntry entry=new ZipEntry("C.txt");
+    zos.putNextEntry(entry);
+    zos.write(data,0,data.length);
+    zos.closeEntry();
+    entry=new ZipEntry("cc.txt");
+    zos.putNextEntry(entry);
+    zos.write(data,0,data.length);
+    zos.closeEntry();
+    entry=new ZipEntry("META-INF/");
+    zos.putNextEntry(entry);
+    zos.closeEntry();
+    entry=new ZipEntry(JarFile.MANIFEST_NAME);
+    zos.putNextEntry(entry);
+    Manifest zipManifest=new Manifest();
+    attrs=new Attributes();
+    attrs.putValue("From-Zip","peas");
+    zipManifest.getEntries().put("Section",attrs);
+    zipManifest.write(zos);
+    zos.closeEntry();
+  }
+   Path output=folder.newFile("output.jar");
+  JarDirectoryStep step=new JarDirectoryStep(new FakeProjectFilesystem(folder.getRoot()),output,ImmutableSortedSet.of(dir,inputJar),null,null);
+  int exitCode=step.execute(TestExecutionContext.newInstance()).getExitCode();
+  assertEquals(0,exitCode);
+  Manifest manifest;
+  try (InputStream is=Files.newInputStream(output);JarInputStream jis=new JarInputStream(is)){
+    manifest=jis.getManifest();
+  }
+   assertNotNull(manifest);
+  Attributes readAttributes=manifest.getAttributes("Section");
+  assertEquals(2,readAttributes.size());
+  assertEquals("cheese",readAttributes.getValue("From-Dir"));
+  assertEquals("peas",readAttributes.getValue("From-Zip"));
+}
