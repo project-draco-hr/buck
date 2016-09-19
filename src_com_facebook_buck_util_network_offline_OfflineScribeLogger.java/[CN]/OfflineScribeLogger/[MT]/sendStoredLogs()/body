@@ -24,7 +24,14 @@
         LOG.warn("Total size of offline logs exceeds the limit. Ceasing to send them to Scribe.");
         return;
       }
-      InputStream logFileStream=new BufferedInputStream(new FileInputStream(logFile),BUFFER_SIZE);
+      InputStream logFileStream=null;
+      try {
+        logFileStream=new BufferedInputStream(new FileInputStream(logFile),BUFFER_SIZE);
+      }
+ catch (      FileNotFoundException e) {
+        LOG.info(e,"There was a problem getting stream for logfile: %s. Likely logfile was resent and" + "deleted by a concurrent Buck command.",logPath);
+        continue;
+      }
       it=new ObjectMapper().readValues(new JsonFactory().createParser(logFileStream),ScribeData.class);
     }
  catch (    Exception e) {
