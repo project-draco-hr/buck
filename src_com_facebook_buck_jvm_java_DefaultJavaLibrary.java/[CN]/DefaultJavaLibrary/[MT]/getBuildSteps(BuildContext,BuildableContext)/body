@@ -1,17 +1,29 @@
 {
   ImmutableList.Builder<Step> steps=ImmutableList.builder();
-  ImmutableSetMultimap<JavaLibrary,Path> declaredClasspathEntries=ImmutableSetMultimap.<JavaLibrary,Path>builder().putAll(getDeclaredClasspathEntries()).putAll(this,additionalClasspathEntries).build();
+  FluentIterable<JavaLibrary> declaredClasspathDeps=JavaLibraryClasspathProvider.getJavaLibraryDeps(getDepsForTransitiveClasspathEntries());
   BuildTarget target=getBuildTarget();
   Path outputDirectory=getClassesDir(target,getProjectFilesystem());
   steps.add(new MakeCleanDirectoryStep(getProjectFilesystem(),outputDirectory));
-  SuggestBuildRules suggestBuildRule=DefaultSuggestBuildRules.createSuggestBuildFunction(JAR_RESOLVER,declaredClasspathEntries.keySet(),ImmutableSet.<JavaLibrary>builder().addAll(getTransitiveClasspathDeps()).add(this).build(),context.getActionGraph().getNodes());
+  SuggestBuildRules suggestBuildRule=DefaultSuggestBuildRules.createSuggestBuildFunction(JAR_RESOLVER,declaredClasspathDeps.toSet(),ImmutableSet.<JavaLibrary>builder().addAll(getTransitiveClasspathDeps()).add(this).build(),context.getActionGraph().getNodes());
   Collection<Path> provided=JavaLibraryClasspathProvider.getJavaLibraryDeps(providedDeps).transformAndConcat(new Function<JavaLibrary,Collection<Path>>(){
     @Override public Collection<Path> apply(    JavaLibrary input){
       return input.getOutputClasspaths();
     }
   }
 ).filter(Predicates.notNull()).toSet();
-  ImmutableSortedSet<Path> declared=ImmutableSortedSet.<Path>naturalOrder().addAll(declaredClasspathEntries.values()).addAll(provided).build();
+  final ProjectFilesystem projectFilesystem=getProjectFilesystem();
+  Iterable<Path> declaredClasspaths=declaredClasspathDeps.transformAndConcat(new Function<JavaLibrary,Iterable<Path>>(){
+    @Override public Iterable<Path> apply(    JavaLibrary input){
+      return input.getOutputClasspaths();
+    }
+  }
+).transform(new Function<Path,Path>(){
+    @Override public Path apply(    Path input){
+      return projectFilesystem.resolve(input);
+    }
+  }
+);
+  ImmutableSortedSet<Path> declared=ImmutableSortedSet.<Path>naturalOrder().addAll(declaredClasspaths).addAll(additionalClasspathEntries).addAll(provided).build();
   Step mkdir=new MakeCleanDirectoryStep(getProjectFilesystem(),getPathToAbiOutputDir());
   steps.add(mkdir);
   JavaPackageFinder finder=context.getJavaPackageFinder();
