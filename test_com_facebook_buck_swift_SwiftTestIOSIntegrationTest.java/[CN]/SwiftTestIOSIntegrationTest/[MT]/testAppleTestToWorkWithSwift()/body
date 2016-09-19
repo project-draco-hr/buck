@@ -1,0 +1,17 @@
+{
+  assumeThat(AppleNativeIntegrationTestUtils.isSwiftAvailable(ApplePlatform.IPHONESIMULATOR),is(true));
+  ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"swift_test",tmp);
+  workspace.setUp();
+  workspace.copyRecursively(TestDataHelper.getTestDataDirectory(AppleTestBuilder.class).resolve("fbxctest"),Paths.get("fbxctest"));
+  workspace.writeContentsToPath("[apple]\n  xctool_path = fbxctest/bin/fbxctest\n",".buckconfig.local");
+  ProjectFilesystem filesystem=new ProjectFilesystem(workspace.getDestPath());
+  BuildTarget target=workspace.newBuildTarget("//:MixedTest#iphonesimulator-x86_64");
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("test",target.getFullyQualifiedName());
+  result.assertSuccess();
+  Path binaryOutput=workspace.getPath(BuildTargets.getGenPath(filesystem,BuildTarget.builder(target).addFlavors(ImmutableFlavor.of("iphonesimulator-x86_64"),ImmutableFlavor.of("apple-test-bundle"),AppleDebugFormat.DWARF.getFlavor(),AppleDescriptions.NO_INCLUDE_FRAMEWORKS_FLAVOR).build(),"%s/MixedTest.xctest")).resolve("MixedTest");
+  assertThat(Files.exists(binaryOutput),CoreMatchers.is(true));
+  assertThat(workspace.runCommand("file",binaryOutput.toString()).getStdout().get(),containsString("bundle x86_64"));
+  assertThat(workspace.runCommand("otool","-hv",binaryOutput.toString()).getStdout().get(),containsString("X86_64"));
+  assertThat(workspace.runCommand("otool","-L",binaryOutput.toString()).getStdout().get(),containsString("XCTest.framework/XCTest"));
+  assertThat(workspace.runCommand("otool","-l",binaryOutput.toString()).getStdout().get(),containsString("@loader_path/Frameworks"));
+}
