@@ -1,5 +1,7 @@
 {
-  JavaLibrary lib=(JavaLibrary)z;
-  assertEquals("root does not appear if output jar not present.",ImmutableSet.of(c,e),JavaLibraryClasspathProvider.getTransitiveClasspathDeps(lib,Optional.<SourcePath>absent()));
-  assertEquals("root does appear if output jar present.",ImmutableSet.of(z,c,e),JavaLibraryClasspathProvider.getTransitiveClasspathDeps(lib,Optional.of(sourcePathFunction.apply(lib.getPathToOutput()))));
+  JavaLibrary noOutput=makeRule("//no:output",ImmutableSet.<String>of(),ImmutableSet.of(z),ruleResolver,filesystem);
+  assertEquals("root does not appear if output jar not present.",ImmutableSet.of(c,e,z),JavaLibraryClasspathProvider.getTransitiveClasspathDeps(noOutput));
+  assertEquals("root does appear if output jar present.",ImmutableSet.of(z,c,e),JavaLibraryClasspathProvider.getTransitiveClasspathDeps((JavaLibrary)z));
+  BuildRule mavenCoord=new JavaLibraryBuilder(BuildTargetFactory.newInstance("//has:output"),filesystem,HashCode.fromString("aaaa")).setMavenCoords("com.example:buck:1.0").addDep(z.getBuildTarget()).build(ruleResolver);
+  assertEquals("Does appear if no output jar but maven coordinate present.",ImmutableSet.of(z,c,e,mavenCoord),JavaLibraryClasspathProvider.getTransitiveClasspathDeps((JavaLibrary)mavenCoord));
 }
