@@ -1,11 +1,8 @@
 {
-  if (!importClass.isPresent() || !currentClass.isPresent()) {
-    return;
-  }
   BuckAuditOwner.execute(mProject,new FutureCallback<String>(){
     @Override public void onSuccess(    @Nullable String buckTargetResult){
       try {
-        String currentClassPath=currentClass.get().getPath();
+        String currentClassPath=currentClass.getPath();
         Map<String,List<String>> pathAndTargetData=mObjectMapper.readValue(buckTargetResult,Map.class);
         String importTargetName="";
         String importPath="";
@@ -22,7 +19,10 @@
             importPath=pathAndTarget[0];
           }
         }
-        BuckDeps.addDeps(mProject,importPath,currentPath,importTargetName,currentTargetName);
+        if (!Strings.isNullOrEmpty(currentTargetName) && !Strings.isNullOrEmpty(currentPath) && !Strings.isNullOrEmpty(importTargetName)&& !Strings.isNullOrEmpty(importPath)) {
+          BuckDeps.addDeps(mProject,importPath,currentPath,importTargetName,currentTargetName);
+          BuckDeps.addVisibility(mProject,importPath,currentPath,importTargetName,currentTargetName);
+        }
       }
  catch (      IOException e) {
         LOG.error(e.toString());
@@ -31,5 +31,5 @@
     @Override public void onFailure(    Throwable throwable){
     }
   }
-,importClass.get().getPath(),currentClass.get().getPath());
+,importClass.getPath(),currentClass.getPath());
 }

@@ -3,11 +3,22 @@
     @Override public void beforeDocumentChange(    DocumentEvent documentEvent){
     }
     @Override public void documentChanged(    DocumentEvent documentEvent){
-      if (BuckSettingsProvider.getInstance().getState().enableAutoDeps) {
-        String newLine=documentEvent.getNewFragment().toString();
-        if (importPattern.matcher(newLine).matches()) {
-          addDependency(getVirtualFileFromImportLine(newLine),Optional.fromNullable(FileDocumentManager.getInstance().getFile(document)));
+      if (!BuckSettingsProvider.getInstance().getState().enableAutoDeps) {
+        return;
+      }
+      VirtualFile documentFile=FileDocumentManager.getInstance().getFile(document);
+      if (documentFile == null) {
+        return;
+      }
+      CharSequence fragment=documentEvent.getNewFragment();
+      Matcher matcher=importPattern.matcher(fragment);
+      while (matcher.find()) {
+        String classname=matcher.group(1);
+        VirtualFile classFile=getVirtualFileFromClassname(classname);
+        if (classFile == null) {
+          continue;
         }
+        addDependency(classFile,documentFile);
       }
     }
   }

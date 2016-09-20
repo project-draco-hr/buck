@@ -1,18 +1,9 @@
 {
-  String absoluteCurrentBuckPath=project.getBaseDir().getPath() + "/" + currentBuckPath;
-  StringBuilder importBuck=new StringBuilder(readBuckFile(absoluteCurrentBuckPath + "/BUCK"));
-  String newDep="'//" + importBuckPath + ":"+ importTarget+ "'";
-  int startOfNewTarget=importBuck.indexOf("'" + currentTarget + "'");
-  int startOfDeps=0;
-  int endOfDeps;
-  Matcher startMatcher=depsStartPattern.matcher(importBuck);
-  if (startMatcher.find(startOfNewTarget)) {
-    startOfDeps=startMatcher.end();
+  String buckPath=project.getBaseDir().getPath() + "/" + currentBuckPath+ "/BUCK";
+  String contents=readBuckFile(buckPath);
+  String dependency="//" + importBuckPath + ":"+ importTarget;
+  String newContents=maybeAddDepToTarget(contents,dependency,currentTarget);
+  if (!contents.equals(newContents)) {
+    writeBuckFile(buckPath,newContents);
   }
-  endOfDeps=importBuck.indexOf("]",startOfDeps);
-  if (!importBuck.substring(startOfDeps,endOfDeps).contains(newDep)) {
-    importBuck.insert(startOfDeps,"\n\t\t" + newDep + ",");
-    writeBuckFile(absoluteCurrentBuckPath + "/BUCK",importBuck.toString());
-  }
-  addVisibility(project,importBuckPath,currentBuckPath,importTarget,currentTarget);
 }
