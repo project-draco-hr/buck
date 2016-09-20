@@ -1,25 +1,19 @@
 {
-  ProcessBuilder builder=new ProcessBuilder();
-  builder.command(command);
-  if (workingDirectory.isPresent()) {
-    builder.directory(filesystem.resolve(workingDirectory.get()).toFile());
-  }
+  Map<String,String> environment=new HashMap<>(System.getenv());
   if (env.isPresent()) {
-    builder.environment().putAll(env.get());
+    environment.putAll(env.get());
   }
-  builder.redirectOutput(filesystem.resolve(output).toFile());
-  builder.redirectErrorStream(true);
-  Process process;
+  ProcessExecutorParams params=ProcessExecutorParams.builder().setCommand(command).setDirectory(workingDirectory).setEnvironment(environment).setRedirectOutput(ProcessBuilder.Redirect.to(filesystem.resolve(output).toFile())).setRedirectErrorStream(true).build();
+  ProcessExecutor.Result result;
   try {
-    process=BgProcessKiller.startProcess(builder);
+    ProcessExecutor executor=context.getProcessExecutor();
+    ImmutableSet<ProcessExecutor.Option> options=ImmutableSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT);
+    result=executor.launchAndExecute(params,options,Optional.<String>absent(),testRuleTimeoutMs,Optional.<Function<Process,Void>>absent());
   }
  catch (  IOException e) {
     context.logError(e,"Error starting command %s",command);
     return StepExecutionResult.ERROR;
   }
-  ProcessExecutor executor=context.getProcessExecutor();
-  ImmutableSet<ProcessExecutor.Option> options=ImmutableSet.of(ProcessExecutor.Option.EXPECTING_STD_OUT);
-  ProcessExecutor.Result result=executor.execute(process,options,Optional.<String>absent(),testRuleTimeoutMs,Optional.<Function<Process,Void>>absent());
   if (result.isTimedOut()) {
     throw new HumanReadableException("Timed out after %d ms running test command %s",testRuleTimeoutMs.or(-1L),command);
   }

@@ -1,7 +1,30 @@
 {
+  ImmutableList<String> command=params.getCommand();
+  if (Platform.detect() == Platform.WINDOWS) {
+    command=ImmutableList.copyOf(Iterables.transform(command,Escaper.CREATE_PROCESS_ESCAPER));
+  }
+  ProcessBuilder pb=new ProcessBuilder(command);
+  if (params.getDirectory().isPresent()) {
+    pb.directory(params.getDirectory().get().toFile());
+  }
+  if (params.getEnvironment().isPresent()) {
+    pb.environment().clear();
+    pb.environment().putAll(params.getEnvironment().get());
+  }
+  if (params.getRedirectInput().isPresent()) {
+    pb.redirectInput(params.getRedirectInput().get());
+  }
+  if (params.getRedirectOutput().isPresent()) {
+    pb.redirectOutput(params.getRedirectOutput().get());
+  }
+  if (params.getRedirectError().isPresent()) {
+    pb.redirectError(params.getRedirectError().get());
+  }
+  if (params.getRedirectErrorStream().isPresent()) {
+    pb.redirectErrorStream(params.getRedirectErrorStream().get());
+  }
   try {
-    Process process=launchProcessInternal(params);
-    return new LaunchedProcessImpl(process);
+    return new LaunchedProcessImpl(BgProcessKiller.startProcess(pb));
   }
  catch (  IOException ex) {
     stdErrStream.println("Failed to launch " + params);
