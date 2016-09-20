@@ -1,0 +1,18 @@
+{
+  BuckEventBus eventBus=BuckEventBusFactory.newInstance();
+  final BlockingQueue<BuckEvent> events=new LinkedBlockingQueue<>();
+  eventBus.register(new Object(){
+    @Subscribe public void event(    BuckEvent event){
+      events.add(event);
+    }
+  }
+);
+  try (PerfStatsTrackingForTest perfStatsTracking=new PerfStatsTrackingForTest(eventBus,FakeInvocationInfoFactory.create())){
+    perfStatsTracking.runOneIteration();
+    BuckEvent event=events.poll(100,TimeUnit.MILLISECONDS);
+    assertThat(event,Matchers.notNullValue());
+    assertThat(event,Matchers.instanceOf(PerfStatsTracking.MemoryPerfStatsEvent.class));
+    PerfStatsTracking.MemoryPerfStatsEvent memoryEvent=(PerfStatsTracking.MemoryPerfStatsEvent)event;
+    assertThat(memoryEvent.getTotalMemoryBytes(),Matchers.greaterThan(0L));
+  }
+ }
