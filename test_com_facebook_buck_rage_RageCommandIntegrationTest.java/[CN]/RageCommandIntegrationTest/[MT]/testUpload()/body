@@ -4,6 +4,7 @@
   final AtomicReference<String> requestMethod=new AtomicReference<>();
   final AtomicReference<String> requestPath=new AtomicReference<>();
   final AtomicReference<byte[]> requestBody=new AtomicReference<>();
+  final String successMessage="Upload successful";
   try (HttpdForTests httpd=new HttpdForTests()){
     httpd.addHandler(new AbstractHandler(){
       @Override public void handle(      String s,      Request request,      HttpServletRequest httpServletRequest,      HttpServletResponse httpServletResponse) throws IOException, ServletException {
@@ -12,21 +13,22 @@
         requestBody.set(ByteStreams.toByteArray(httpServletRequest.getInputStream()));
         httpServletResponse.setStatus(200);
         try (DataOutputStream out=new DataOutputStream(httpServletResponse.getOutputStream())){
-          out.writeBytes("Upload successful");
+          out.writeBytes(successMessage);
         }
        }
     }
 );
     httpd.start();
-    RageConfig rageConfig=RageConfig.builder().setReportUploadUri(httpd.getUri("/rage")).build();
+    RageConfig rageConfig=createRageConfig(httpd);
     ProjectFilesystem filesystem=new ProjectFilesystem(temporaryFolder.getRoot());
     ObjectMapper objectMapper=ObjectMappers.newDefaultInstance();
-    DefectReporter reporter=new DefaultDefectReporter(filesystem,objectMapper,rageConfig);
+    Clock clock=new DefaultClock();
+    DefectReporter reporter=new DefaultDefectReporter(filesystem,objectMapper,rageConfig,BuckEventBusFactory.newInstance(clock),clock);
     AutomatedReport automatedReport=new AutomatedReport(reporter,filesystem,new CapturingPrintStream(),TestBuildEnvironmentDescription.INSTANCE,VcsInfoCollector.create(new NoOpCmdLineInterface()),rageConfig,EMPTY_EXTRA_INFO_HELPER);
     DefectSubmitResult defectSubmitResult=automatedReport.collectAndSubmitResult().get();
-    assertThat(defectSubmitResult.getReportSubmitMessage(),Matchers.equalTo(Optional.of("Upload successful")));
+    assertThat(defectSubmitResult.getReportSubmitMessage(),Matchers.equalTo(Optional.of(successMessage)));
     assertThat(requestMethod.get(),Matchers.equalTo("POST"));
-    assertThat(requestPath.get(),Matchers.equalTo("/rage"));
+    assertThat(requestPath.get(),Matchers.equalTo(UPLOAD_PATH));
     filesystem.mkdirs(filesystem.getBuckPaths().getBuckOut());
     Path report=filesystem.createTempFile(filesystem.getBuckPaths().getBuckOut(),"report","zip");
     filesystem.writeBytesToPath(requestBody.get(),report);

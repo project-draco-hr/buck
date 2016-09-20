@@ -1,0 +1,34 @@
+{
+  long timeout=rageConfig.getHttpTimeout();
+  OkHttpClient httpClient=new OkHttpClient.Builder().connectTimeout(timeout,TimeUnit.MILLISECONDS).readTimeout(timeout,TimeUnit.MILLISECONDS).writeTimeout(timeout,TimeUnit.MILLISECONDS).build();
+  HttpService httpService=new RetryingHttpService(buckEventBus,new LoadBalancedService(slb,httpClient,buckEventBus),rageConfig.getMaxUploadRetries());
+  try {
+    Request.Builder requestBuilder=new Request.Builder();
+    requestBuilder.post(new RequestBody(){
+      @Override public MediaType contentType(){
+        return MediaType.parse("application/x-www-form-urlencoded");
+      }
+      @Override public void writeTo(      BufferedSink bufferedSink) throws IOException {
+        writeReport(defectReport,bufferedSink.outputStream());
+      }
+    }
+);
+    HttpResponse response=httpService.makeRequest(rageConfig.getReportUploadPath(),requestBuilder);
+    String responseBody;
+    try (InputStream inputStream=response.getBody()){
+      responseBody=CharStreams.toString(new InputStreamReader(inputStream,Charsets.UTF_8));
+    }
+     if (response.code() == HTTP_SUCCESS_CODE) {
+      return defectSubmitResult.setReportSubmitLocation(response.requestUrl()).setReportSubmitMessage(responseBody).setUploadSuccess(true).build();
+    }
+ else {
+      throw new IOException(String.format("Connection to %s returned code %d and message: %s",response.requestUrl(),response.code(),responseBody));
+    }
+  }
+ catch (  IOException e) {
+    throw new IOException(String.format("Failed uploading report because [%s].",e.getMessage()));
+  }
+ finally {
+    httpService.close();
+  }
+}

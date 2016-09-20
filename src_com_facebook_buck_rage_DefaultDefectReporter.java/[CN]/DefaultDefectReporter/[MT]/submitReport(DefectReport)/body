@@ -1,14 +1,16 @@
 {
   DefectSubmitResult.Builder defectSubmitResult=DefectSubmitResult.builder();
-  if (rageConfig.getReportUploadUri().isPresent()) {
-    URI uri=rageConfig.getReportUploadUri().get();
-    try {
-      String response=uploadReport(defectReport,uri);
-      return defectSubmitResult.setReportSubmitLocation(uri.toString()).setReportSubmitMessage(response).setUploadSuccess(true).build();
-    }
- catch (    IOException e) {
-      defectSubmitResult.setReportSubmitErrorMessage(e.getMessage());
-      defectSubmitResult.setUploadSuccess(false);
+  Optional<SlbBuckConfig> frontendConfig=rageConfig.getFrontendConfig();
+  if (frontendConfig.isPresent()) {
+    Optional<ClientSideSlb> slb=frontendConfig.get().tryCreatingHttpClientSideSlb(clock,buckEventBus,new CommandThreadFactory("RemoteLog.HttpLoadBalancer"));
+    if (slb.isPresent()) {
+      try {
+        return uploadReport(defectReport,defectSubmitResult,slb.get());
+      }
+ catch (      IOException e) {
+        defectSubmitResult.setReportSubmitErrorMessage(e.getMessage());
+        defectSubmitResult.setUploadSuccess(false);
+      }
     }
   }
   filesystem.mkdirs(filesystem.getBuckPaths().getBuckOut());

@@ -9,10 +9,11 @@
     }
 );
     httpd.start();
-    RageConfig rageConfig=RageConfig.builder().setReportUploadUri(httpd.getUri("/rage")).build();
+    RageConfig rageConfig=createRageConfig(httpd);
     ProjectFilesystem filesystem=new ProjectFilesystem(temporaryFolder.getRoot());
     ObjectMapper objectMapper=ObjectMappers.newDefaultInstance();
-    DefectReporter reporter=new DefaultDefectReporter(filesystem,objectMapper,rageConfig);
+    Clock clock=new DefaultClock();
+    DefectReporter reporter=new DefaultDefectReporter(filesystem,objectMapper,rageConfig,BuckEventBusFactory.newInstance(clock),clock);
     AutomatedReport automatedReport=new AutomatedReport(reporter,filesystem,new CapturingPrintStream(),TestBuildEnvironmentDescription.INSTANCE,VcsInfoCollector.create(new NoOpCmdLineInterface()),rageConfig,EMPTY_EXTRA_INFO_HELPER);
     DefectSubmitResult submitReport=automatedReport.collectAndSubmitResult().get();
     assertFalse(submitReport.getReportSubmitErrorMessage().get().isEmpty());
