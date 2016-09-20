@@ -1,0 +1,17 @@
+{
+  FileSystem fs=Jimfs.newFileSystem(Configuration.unix());
+  Path root=fs.getPath(JIMFS_WORKING_DIRECTORY);
+  ProjectFilesystemDelegate delegate=new DefaultProjectFilesystemDelegate(root);
+  EdenMount mount=createMock(EdenMount.class);
+  Path path=fs.getPath("buck-out/gen/some-output");
+  Files.createDirectories(path.getParent());
+  Files.createFile(path);
+  byte[] bytes=new byte[]{66,85,67,75};
+  Files.write(path,bytes);
+  expect(mount.getBindMounts()).andReturn(ImmutableList.of(fs.getPath("buck-out")));
+  expect(mount.getPathRelativeToProjectRoot(root.resolve(path))).andReturn(Optional.of(path));
+  replay(mount);
+  EdenProjectFilesystemDelegate edenDelegate=new EdenProjectFilesystemDelegate(mount,delegate);
+  assertEquals("EdenProjectFilesystemDelegate.computeSha1() should compute the SHA-1 directly via " + "DefaultProjectFilesystemDelegate because the path is behind a bind mount.",Sha1HashCode.fromHashCode(Hashing.sha1().hashBytes(bytes)),edenDelegate.computeSha1(path));
+  verify(mount);
+}
