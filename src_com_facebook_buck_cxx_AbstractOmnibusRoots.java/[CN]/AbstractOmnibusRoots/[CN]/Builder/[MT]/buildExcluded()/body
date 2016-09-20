@@ -1,14 +1,32 @@
 {
   final Map<BuildTarget,NativeLinkable> excluded=new LinkedHashMap<>();
   excluded.putAll(excludedRoots);
-  new AbstractBreadthFirstTraversal<NativeLinkable>(excludedRoots.values()){
-    @Override public Iterable<NativeLinkable> visit(    NativeLinkable linkable){
-      if (includedRoots.containsKey(linkable.getBuildTarget())) {
+  Map<BuildTarget,NativeLinkable> includedRootDeps=new LinkedHashMap<>();
+  for (  NativeLinkTarget target : includedRoots.values()) {
+    for (    NativeLinkable linkable : target.getNativeLinkTargetDeps(cxxPlatform)) {
+      includedRootDeps.put(linkable.getBuildTarget(),linkable);
+    }
+  }
+  new AbstractBreadthFirstTraversal<NativeLinkable>(includedRootDeps.values()){
+    @Override public Iterable<NativeLinkable> visit(    NativeLinkable linkable) throws RuntimeException {
+      if (linkable.getPreferredLinkage(cxxPlatform) == NativeLinkable.Linkage.SHARED) {
         excluded.put(linkable.getBuildTarget(),linkable);
+        return ImmutableSet.of();
       }
       return Iterables.concat(linkable.getNativeLinkableDeps(cxxPlatform),linkable.getNativeLinkableExportedDeps(cxxPlatform));
     }
   }
 .start();
-  return ImmutableMap.copyOf(excluded);
+  final Map<BuildTarget,NativeLinkable> updatedExcludedRoots=new LinkedHashMap<>();
+  updatedExcludedRoots.putAll(excludedRoots);
+  new AbstractBreadthFirstTraversal<NativeLinkable>(excluded.values()){
+    @Override public Iterable<NativeLinkable> visit(    NativeLinkable linkable){
+      if (includedRoots.containsKey(linkable.getBuildTarget())) {
+        updatedExcludedRoots.put(linkable.getBuildTarget(),linkable);
+      }
+      return Iterables.concat(linkable.getNativeLinkableDeps(cxxPlatform),linkable.getNativeLinkableExportedDeps(cxxPlatform));
+    }
+  }
+.start();
+  return ImmutableMap.copyOf(updatedExcludedRoots);
 }
