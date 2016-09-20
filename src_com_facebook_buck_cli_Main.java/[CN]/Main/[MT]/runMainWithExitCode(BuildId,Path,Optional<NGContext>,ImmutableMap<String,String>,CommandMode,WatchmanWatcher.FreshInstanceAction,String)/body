@@ -31,6 +31,14 @@
   Config config=Configs.createDefaultConfig(canonicalRootPath,command.getConfigOverrides().getForCell(RelativeCellName.ROOT_CELL_NAME));
   ProjectFilesystem filesystem=new ProjectFilesystem(canonicalRootPath,config);
   BuckConfig buckConfig=new BuckConfig(config,filesystem,architecture,platform,clientEnvironment,new DefaultCellPathResolver(filesystem.getRootPath(),config));
+  Optional<ImmutableList<String>> allowedJavaSpecificiationVersions=buckConfig.getAllowedJavaSpecificationVersions();
+  if (allowedJavaSpecificiationVersions.isPresent()) {
+    String specificationVersion=System.getProperty("java.specification.version");
+    boolean javaSpecificationVersionIsAllowed=allowedJavaSpecificiationVersions.get().contains(specificationVersion);
+    if (!javaSpecificationVersionIsAllowed) {
+      throw new HumanReadableException("Current Java version '%s' is not in the allowed java specification versions:\n%s",specificationVersion,Joiner.on(", ").join(allowedJavaSpecificiationVersions.get()));
+    }
+  }
   Verbosity verbosity=VerbosityParser.parse(args);
   Optional<String> color;
   if (context.isPresent() && (context.get().getEnv() != null)) {
