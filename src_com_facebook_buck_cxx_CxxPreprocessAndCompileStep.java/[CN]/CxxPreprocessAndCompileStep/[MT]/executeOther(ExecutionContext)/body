@@ -1,17 +1,19 @@
 {
-  ProcessBuilder builder=makeSubprocessBuilder(context);
+  ProcessExecutorParams.Builder builder=makeSubprocessBuilder(context,ImmutableMap.<String,String>of());
   if (useArgfile) {
     filesystem.writeLinesToPath(Iterables.transform(getArguments(context.getAnsi().isAnsiTerminal()),Escaper.ARGFILE_ESCAPER),getArgfile());
-    builder.command(ImmutableList.<String>builder().addAll(getCommandPrefix()).add("@" + getArgfile()).build());
+    builder.setCommand(ImmutableList.<String>builder().addAll(getCommandPrefix()).add("@" + getArgfile()).build());
   }
  else {
-    builder.command(ImmutableList.<String>builder().addAll(getCommandPrefix()).addAll(getArguments(context.getAnsi().isAnsiTerminal())).build());
+    builder.setCommand(ImmutableList.<String>builder().addAll(getCommandPrefix()).addAll(getArguments(context.getAnsi().isAnsiTerminal())).build());
   }
   if (operation == Operation.PREPROCESS) {
-    builder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+    builder.setRedirectOutput(ProcessBuilder.Redirect.PIPE);
   }
-  LOG.debug("Running command (pwd=%s): %s",builder.directory(),getDescription(context));
-  Process process=BgProcessKiller.startProcess(builder);
+  ProcessExecutorParams params=builder.build();
+  LOG.debug("Running command (pwd=%s): %s",params.getDirectory(),getDescription(context));
+  ProcessExecutor executor=new ProcessExecutor(Console.createNullConsole());
+  ProcessExecutor.LaunchedProcess process=executor.launchProcess(params);
   ByteArrayOutputStream error=new ByteArrayOutputStream();
   int exitCode;
   try {
@@ -23,21 +25,21 @@
           outputProcessor.waitFor();
         }
  catch (        Throwable thrown) {
-          process.destroy();
+          executor.destroyLaunchedProcess(process);
           throw thrown;
         }
       }
       errorProcessor.waitFor();
     }
  catch (    Throwable thrown) {
-      process.destroy();
+      executor.destroyLaunchedProcess(process);
       throw thrown;
     }
-    exitCode=process.waitFor();
+    exitCode=executor.waitForLaunchedProcess(process).getExitCode();
   }
   finally {
-    process.destroy();
-    process.waitFor();
+    executor.destroyLaunchedProcess(process);
+    executor.waitForLaunchedProcess(process);
   }
   String err=new String(error.toByteArray());
   if (!err.isEmpty()) {

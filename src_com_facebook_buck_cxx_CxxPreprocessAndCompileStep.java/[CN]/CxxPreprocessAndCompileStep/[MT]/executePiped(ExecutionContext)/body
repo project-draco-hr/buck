@@ -2,35 +2,30 @@
   Preconditions.checkState(preprocessorCommand.isPresent());
   Preconditions.checkState(compilerCommand.isPresent());
   ByteArrayOutputStream preprocessError=new ByteArrayOutputStream();
-  ProcessBuilder preprocessBuilder=makeSubprocessBuilder(context);
-  preprocessBuilder.command(ImmutableList.<String>builder().addAll(preprocessorCommand.get().getCommandPrefix()).addAll(makePreprocessArguments(context.getAnsi().isAnsiTerminal())).build());
-  preprocessBuilder.environment().putAll(preprocessorCommand.get().getEnvironment());
-  preprocessBuilder.redirectOutput(ProcessBuilder.Redirect.PIPE);
+  ProcessExecutorParams preprocessParams=makeSubprocessBuilder(context,preprocessorCommand.get().getEnvironment()).setCommand(ImmutableList.<String>builder().addAll(preprocessorCommand.get().getCommandPrefix()).addAll(makePreprocessArguments(context.getAnsi().isAnsiTerminal())).build()).setRedirectOutput(ProcessBuilder.Redirect.PIPE).build();
   ByteArrayOutputStream compileError=new ByteArrayOutputStream();
-  ProcessBuilder compileBuilder=makeSubprocessBuilder(context);
-  compileBuilder.command(ImmutableList.<String>builder().addAll(compilerCommand.get().getCommandPrefix()).addAll(makeCompileArguments("-",inputType.getPreprocessedLanguage(),false,context.getAnsi().isAnsiTerminal())).build());
-  compileBuilder.environment().putAll(compilerCommand.get().getEnvironment());
-  compileBuilder.redirectInput(ProcessBuilder.Redirect.PIPE);
-  Process preprocess=null;
-  Process compile=null;
+  ProcessExecutorParams compileParams=makeSubprocessBuilder(context,compilerCommand.get().getEnvironment()).setCommand(ImmutableList.<String>builder().addAll(compilerCommand.get().getCommandPrefix()).addAll(makeCompileArguments("-",inputType.getPreprocessedLanguage(),false,context.getAnsi().isAnsiTerminal())).build()).setRedirectInput(ProcessBuilder.Redirect.PIPE).build();
+  ProcessExecutor.LaunchedProcess preprocess=null;
+  ProcessExecutor.LaunchedProcess compile=null;
   LineProcessorRunnable errorProcessorPreprocess=null;
   LineProcessorRunnable errorProcessorCompile=null;
   LineProcessorRunnable lineDirectiveMunger=null;
   CxxErrorTransformerFactory errorStreamTransformerFactory=createErrorTransformerFactory(context);
+  ProcessExecutor executor=new ProcessExecutor(Console.createNullConsole());
   try {
     if (LOG.isDebugEnabled()) {
-      LOG.debug("Running command (pwd=%s): %s",preprocessBuilder.directory(),getDescription(context));
+      LOG.debug("Running command (pwd=%s): %s",preprocessParams.getDirectory(),getDescription(context));
     }
-    preprocess=BgProcessKiller.startProcess(preprocessBuilder);
-    compile=BgProcessKiller.startProcess(compileBuilder);
+    preprocess=executor.launchProcess(preprocessParams);
+    compile=executor.launchProcess(compileParams);
     errorProcessorPreprocess=errorStreamTransformerFactory.createTransformerThread(context,preprocess.getErrorStream(),preprocessError);
     errorProcessorPreprocess.start();
     errorProcessorCompile=errorStreamTransformerFactory.createTransformerThread(context,compile.getErrorStream(),compileError);
     errorProcessorCompile.start();
     lineDirectiveMunger=createPreprocessorOutputTransformerFactory().createTransformerThread(context,preprocess.getInputStream(),compile.getOutputStream());
     lineDirectiveMunger.start();
-    int compileStatus=compile.waitFor();
-    int preprocessStatus=preprocess.waitFor();
+    int compileStatus=executor.waitForLaunchedProcess(compile).getExitCode();
+    int preprocessStatus=executor.waitForLaunchedProcess(preprocess).getExitCode();
     safeCloseProcessor(errorProcessorPreprocess);
     safeCloseProcessor(errorProcessorCompile);
     String preprocessErr=new String(preprocessError.toByteArray());
@@ -57,12 +52,12 @@
   }
   finally {
     if (preprocess != null) {
-      preprocess.destroy();
-      preprocess.waitFor();
+      executor.destroyLaunchedProcess(preprocess);
+      executor.waitForLaunchedProcess(preprocess);
     }
     if (compile != null) {
-      compile.destroy();
-      compile.waitFor();
+      executor.destroyLaunchedProcess(compile);
+      executor.waitForLaunchedProcess(compile);
     }
     safeCloseProcessor(errorProcessorPreprocess);
     safeCloseProcessor(errorProcessorCompile);
