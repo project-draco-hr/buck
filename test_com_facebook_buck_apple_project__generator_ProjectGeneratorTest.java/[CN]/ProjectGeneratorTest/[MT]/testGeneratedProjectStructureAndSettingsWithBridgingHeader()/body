@@ -1,0 +1,15 @@
+{
+  BuildTarget buildTarget=BuildTarget.builder(rootPath,"//foo","lib").build();
+  TargetNode<?> node=AppleLibraryBuilder.createBuilder(buildTarget).setConfigs(Optional.of(ImmutableSortedMap.of("Debug",ImmutableMap.<String,String>of()))).setSrcs(Optional.of(ImmutableSortedSet.<SourceWithFlags>of())).setBridgingHeader(Optional.<SourcePath>of(new FakeSourcePath("BridgingHeader/header1.h"))).build();
+  ProjectGenerator projectGenerator=createProjectGeneratorForCombinedProject(ImmutableSet.<TargetNode<?>>of(node));
+  projectGenerator.createXcodeProjects();
+  PBXProject project=projectGenerator.getGeneratedProject();
+  PBXGroup targetGroup=project.getMainGroup().getOrCreateChildGroupByName(buildTarget.getFullyQualifiedName());
+  PBXGroup sourcesGroup=targetGroup.getOrCreateChildGroupByName("Sources");
+  assertThat(sourcesGroup.getChildren(),hasSize(1));
+  PBXFileReference fileRefBridgingHeader=(PBXFileReference)Iterables.get(sourcesGroup.getChildren(),0);
+  assertEquals("header1.h",fileRefBridgingHeader.getName());
+  PBXTarget target=assertTargetExistsAndReturnTarget(project,"//foo:lib");
+  ImmutableMap<String,String> buildSettings=getBuildSettings(buildTarget,target,"Debug");
+  assertEquals("$(SRCROOT)/../BridgingHeader/header1.h",buildSettings.get("SWIFT_OBJC_BRIDGING_HEADER"));
+}
