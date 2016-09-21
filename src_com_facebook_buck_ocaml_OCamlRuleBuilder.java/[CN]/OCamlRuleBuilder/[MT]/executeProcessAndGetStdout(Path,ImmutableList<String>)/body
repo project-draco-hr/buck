@@ -1,14 +1,11 @@
 {
-  try (CapturingPrintStream stdout=new CapturingPrintStream();CapturingPrintStream stderr=new CapturingPrintStream()){
-    ImmutableSet.Builder<ProcessExecutor.Option> options=ImmutableSet.builder();
-    options.add(ProcessExecutor.Option.EXPECTING_STD_OUT);
-    Console console=new Console(Verbosity.SILENT,stdout,stderr,Ansi.withoutTty());
-    ProcessExecutor exe=new ProcessExecutor(console);
-    ProcessExecutorParams params=ProcessExecutorParams.builder().setCommand(cmd).setDirectory(baseDir).build();
-    ProcessExecutor.Result result=exe.launchAndExecute(params,options.build(),Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
-    if (result.getExitCode() != 0) {
-      throw new HumanReadableException(stderr.getContentsAsString(StandardCharsets.UTF_8));
-    }
-    return result.getStdout();
+  ImmutableSet.Builder<ProcessExecutor.Option> options=ImmutableSet.builder();
+  options.add(ProcessExecutor.Option.EXPECTING_STD_OUT);
+  ProcessExecutor exe=new ProcessExecutor(Console.createNullConsole());
+  ProcessExecutorParams params=ProcessExecutorParams.builder().setCommand(cmd).setDirectory(baseDir).build();
+  ProcessExecutor.Result result=exe.launchAndExecute(params,options.build(),Optional.<String>absent(),Optional.<Long>absent(),Optional.<Function<Process,Void>>absent());
+  if (result.getExitCode() != 0) {
+    throw new HumanReadableException(result.getStderr().get());
   }
- }
+  return result.getStdout();
+}
