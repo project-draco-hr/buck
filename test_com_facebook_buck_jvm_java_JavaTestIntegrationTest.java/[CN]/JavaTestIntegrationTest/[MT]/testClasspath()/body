@@ -1,0 +1,14 @@
+{
+  final ProjectWorkspace workspace=TestDataHelper.createProjectWorkspaceForScenario(this,"test_rule_classpath",temp);
+  workspace.setUp();
+  ProjectWorkspace.ProcessResult result=workspace.runBuckCommand("audit","classpath","//:top");
+  result.assertSuccess();
+  ImmutableSortedSet<Path> actualPaths=FluentIterable.from(Arrays.asList(result.getStdout().split("\\s+"))).transform(new Function<String,Path>(){
+    @Override public Path apply(    String input){
+      return temp.getRoot().relativize(Paths.get(input));
+    }
+  }
+).toSortedSet(Ordering.natural());
+  ImmutableSortedSet<Path> expectedPaths=ImmutableSortedSet.of(Paths.get("buck-out/gen/lib__top__output/top.jar"),Paths.get("buck-out/gen/lib__direct_dep__output/direct_dep.jar"),Paths.get("buck-out/gen/lib__mid_test#testsjar__output/mid_test#testsjar.jar"),Paths.get("buck-out/gen/lib__transitive_lib__output/transitive_lib.jar"));
+  assertEquals(expectedPaths,actualPaths);
+}
