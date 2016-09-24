@@ -136,19 +136,8 @@ catch (  PropertyListFormatException|SAXException|ParserConfigurationException|P
   PreprocessorProvider cxxpp=new PreprocessorProvider(new ConstantToolProvider(clangXxPath),CxxToolProvider.Type.CLANG);
   CompilerProvider cxx=new CompilerProvider(new ConstantToolProvider(clangXxPath),CxxToolProvider.Type.CLANG);
   CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,config,as,aspp,cc,cxx,cpp,cxxpp,new DefaultLinkerProvider(LinkerProvider.Type.DARWIN,new ConstantToolProvider(clangXxPath)),ImmutableList.<String>builder().addAll(cflags).addAll(ldflagsBuilder.build()).build(),strip,new BsdArchiver(ar),ranlib,new PosixNmSymbolNameTool(nm),cflagsBuilder.build(),ImmutableList.<String>of(),cflags,ImmutableList.<String>of(),"dylib","%s.dylib",Optional.of(debugPathSanitizer),macros);
-  ApplePlatform platform=targetSdk.getApplePlatform();
-  ImmutableList<String> swiftParams=ImmutableList.of("-frontend","-sdk",sdkPaths.getSdkPath().toString(),"-target",targetArchitecture + "-apple-" + platform.getSwiftName().or(platform.getName())+ targetSdk.getVersion());
-  ImmutableList<String> swiftStdlibToolParams=ImmutableList.of("--copy","--verbose","--strip-bitcode","--platform",platform.getName());
-  platformBuilder.setCxxPlatform(cxxPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setMinVersion(minVersion).setBuildVersion(buildVersion).setActool(actool).setIbtool(ibtool).setMomc(momc).setXctest(xctest).setDsymutil(dsymutil).setLipo(lipo).setStubBinary(stubBinaryPath).setLldb(lldb).setCodesignAllocate(getOptionalTool("codesign_allocate",toolSearchPaths,executableFinder,version)).setSwift(getOptionalToolWithParams("swift",toolSearchPaths,executableFinder,version,swiftParams)).setSwiftStdlibTool(getOptionalToolWithParams("swift-stdlib-tool",toolSearchPaths,executableFinder,version,swiftStdlibToolParams));
-  for (  Path toolchainPath : sdkPaths.getToolchainPaths()) {
-    Path swiftRuntimePath=toolchainPath.resolve("usr/lib/swift").resolve(platform.getName());
-    if (Files.isDirectory(swiftRuntimePath)) {
-      platformBuilder.addSwiftRuntimePaths(swiftRuntimePath);
-    }
-    Path swiftStaticRuntimePath=toolchainPath.resolve("usr/lib/swift_static").resolve(platform.getName());
-    if (Files.isDirectory(swiftStaticRuntimePath)) {
-      platformBuilder.addSwiftStaticRuntimePaths(swiftStaticRuntimePath);
-    }
-  }
+  ApplePlatform applePlatform=targetSdk.getApplePlatform();
+  Optional<SwiftPlatform> swiftPlatform=getSwiftPlatform(applePlatform.getName(),targetArchitecture + "-apple-" + applePlatform.getSwiftName().or(applePlatform.getName())+ targetSdk.getVersion(),version,sdkPaths,toolSearchPaths,executableFinder);
+  platformBuilder.setCxxPlatform(cxxPlatform).setSwiftPlatform(swiftPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setMinVersion(minVersion).setBuildVersion(buildVersion).setActool(actool).setIbtool(ibtool).setMomc(momc).setXctest(xctest).setDsymutil(dsymutil).setLipo(lipo).setStubBinary(stubBinaryPath).setLldb(lldb).setCodesignAllocate(getOptionalTool("codesign_allocate",toolSearchPaths,executableFinder,version));
   return platformBuilder.build();
 }

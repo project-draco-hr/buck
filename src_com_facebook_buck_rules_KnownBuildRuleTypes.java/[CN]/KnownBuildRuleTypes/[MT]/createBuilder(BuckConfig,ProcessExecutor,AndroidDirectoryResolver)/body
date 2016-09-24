@@ -6,8 +6,15 @@
     ndkVersion=androidDirectoryResolver.getNdkVersion();
   }
   AppleConfig appleConfig=new AppleConfig(config);
-  ImmutableList<AppleCxxPlatform> appleCxxPlatforms=buildAppleCxxPlatforms(appleConfig.getAppleDeveloperDirectorySupplier(processExecutor),appleConfig.getExtraToolchainPaths(),appleConfig.getExtraPlatformPaths(),config,appleConfig,processExecutor);
-  FlavorDomain<AppleCxxPlatform> platformFlavorsToAppleCxxPlatforms=FlavorDomain.from("Apple C++ Platform",appleCxxPlatforms);
+  final ImmutableList<AppleCxxPlatform> appleCxxPlatforms=buildAppleCxxPlatforms(appleConfig.getAppleDeveloperDirectorySupplier(processExecutor),appleConfig.getExtraToolchainPaths(),appleConfig.getExtraPlatformPaths(),config,appleConfig,processExecutor);
+  final FlavorDomain<AppleCxxPlatform> platformFlavorsToAppleCxxPlatforms=FlavorDomain.from("Apple C++ Platform",appleCxxPlatforms);
+  ImmutableMap.Builder<Flavor,SwiftPlatform> swiftPlatforms=ImmutableMap.builder();
+  for (  Flavor flavor : platformFlavorsToAppleCxxPlatforms.getFlavors()) {
+    Optional<SwiftPlatform> swiftPlatformOptional=platformFlavorsToAppleCxxPlatforms.getValue(flavor).getSwiftPlatform();
+    if (swiftPlatformOptional.isPresent()) {
+      swiftPlatforms.put(flavor,swiftPlatformOptional.get());
+    }
+  }
   CxxBuckConfig cxxBuckConfig=new CxxBuckConfig(config);
   Optional<Path> ndkRoot=androidDirectoryResolver.getNdkOrAbsent();
   ImmutableMap.Builder<NdkCxxPlatforms.TargetCpuType,NdkCxxPlatform> ndkCxxPlatformsBuilder=ImmutableMap.builder();
@@ -91,7 +98,8 @@
   SwiftBuckConfig swiftBuckConfig=new SwiftBuckConfig(config);
   CxxBinaryDescription cxxBinaryDescription=new CxxBinaryDescription(cxxBuckConfig,inferBuckConfig,defaultCxxPlatform,cxxPlatforms);
   CxxLibraryDescription cxxLibraryDescription=new CxxLibraryDescription(cxxBuckConfig,defaultCxxPlatform,inferBuckConfig,cxxPlatforms);
-  SwiftLibraryDescription swiftLibraryDescription=new SwiftLibraryDescription(cxxBuckConfig,swiftBuckConfig,cxxPlatforms,platformFlavorsToAppleCxxPlatforms,defaultCxxPlatform);
+  FlavorDomain<SwiftPlatform> platformFlavorsToSwiftPlatforms=new FlavorDomain<>("Swift Platform",swiftPlatforms.build());
+  SwiftLibraryDescription swiftLibraryDescription=new SwiftLibraryDescription(cxxBuckConfig,swiftBuckConfig,cxxPlatforms,platformFlavorsToSwiftPlatforms);
   builder.register(swiftLibraryDescription);
   CodeSignIdentityStore codeSignIdentityStore=CodeSignIdentityStore.fromSystem(processExecutor);
   ProvisioningProfileStore provisioningProfileStore=ProvisioningProfileStore.fromSearchPath(appleConfig.getProvisioningProfileSearchPath());

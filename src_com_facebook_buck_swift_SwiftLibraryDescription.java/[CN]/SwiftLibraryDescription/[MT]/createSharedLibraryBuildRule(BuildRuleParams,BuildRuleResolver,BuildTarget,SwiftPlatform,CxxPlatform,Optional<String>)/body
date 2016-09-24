@@ -1,0 +1,11 @@
+{
+  SourcePathResolver sourcePathResolver=new SourcePathResolver(resolver);
+  String sharedLibrarySoname=CxxDescriptionEnhancer.getSharedLibrarySoname(soname,buildTarget.withoutFlavors(SUPPORTED_FLAVORS),cxxPlatform);
+  Path sharedLibOutput=CxxDescriptionEnhancer.getSharedLibraryPath(params.getProjectFilesystem(),buildTarget,sharedLibrarySoname);
+  SwiftRuntimeNativeLinkable swiftRuntimeLinkable=new SwiftRuntimeNativeLinkable(swiftPlatform);
+  NativeLinkableInput.Builder inputBuilder=NativeLinkableInput.builder().from(swiftRuntimeLinkable.getNativeLinkableInput(cxxPlatform,Linker.LinkableDepType.SHARED));
+  BuildTarget requiredBuildTarget=buildTarget.withoutFlavors(ImmutableSet.of(CxxDescriptionEnhancer.SHARED_FLAVOR)).withAppendedFlavors(SWIFT_COMPILE_FLAVOR);
+  SwiftCompile rule=(SwiftCompile)resolver.requireRule(requiredBuildTarget);
+  inputBuilder.addAllArgs(rule.getLinkArgs());
+  return resolver.addToIndex(CxxLinkableEnhancer.createCxxLinkableBuildRule(cxxBuckConfig,cxxPlatform,params,resolver,sourcePathResolver,buildTarget,Linker.LinkType.SHARED,Optional.of(sharedLibrarySoname),sharedLibOutput,Linker.LinkableDepType.SHARED,FluentIterable.from(params.getDeps()).filter(NativeLinkable.class).append(swiftRuntimeLinkable),Optional.<Linker.CxxRuntimeType>absent(),Optional.<SourcePath>absent(),ImmutableSet.<BuildTarget>of(),inputBuilder.build()));
+}
