@@ -7,13 +7,24 @@
   ImmutableList.Builder<AppleCxxPlatform> appleCxxPlatformsBuilder=ImmutableList.builder();
   ImmutableMap<String,AppleToolchain> toolchains=AppleToolchainDiscovery.discoverAppleToolchains(appleDeveloperDirectory,extraToolchainPaths);
   ImmutableMap<AppleSdk,AppleSdkPaths> sdkPaths=AppleSdkDiscovery.discoverAppleSdkPaths(appleDeveloperDirectory,extraPlatformPaths,toolchains,appleConfig);
+  Optional<String> swiftVersion=swiftBuckConfig.getVersion();
+  Optional<AppleToolchain> swiftToolChain=Optional.absent();
+  if (swiftVersion.isPresent()) {
+    final Optional<String> swiftToolChainName=swiftVersion.transform(AppleCxxPlatform.SWIFT_VERSION_TO_TOOLCHAIN_IDENTIFIER);
+    swiftToolChain=FluentIterable.from(toolchains.values()).firstMatch(new Predicate<AppleToolchain>(){
+      @Override public boolean apply(      AppleToolchain input){
+        return input.getIdentifier().equals(swiftToolChainName.get());
+      }
+    }
+);
+  }
   for (  Map.Entry<AppleSdk,AppleSdkPaths> entry : sdkPaths.entrySet()) {
     AppleSdk sdk=entry.getKey();
     AppleSdkPaths appleSdkPaths=entry.getValue();
     String targetSdkVersion=appleConfig.getTargetSdkVersion(sdk.getApplePlatform()).or(sdk.getVersion());
     LOG.debug("SDK %s using default version %s",sdk,targetSdkVersion);
     for (    String architecture : sdk.getArchitectures()) {
-      AppleCxxPlatform appleCxxPlatform=AppleCxxPlatforms.build(sdk,targetSdkVersion,architecture,appleSdkPaths,buckConfig,appleConfig,Optional.of(processExecutor));
+      AppleCxxPlatform appleCxxPlatform=AppleCxxPlatforms.build(sdk,targetSdkVersion,architecture,appleSdkPaths,buckConfig,appleConfig,Optional.of(processExecutor),swiftToolChain);
       appleCxxPlatformsBuilder.add(appleCxxPlatform);
     }
   }

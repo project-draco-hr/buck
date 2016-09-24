@@ -1,0 +1,24 @@
+{
+  Path tempRoot=temp.getRoot();
+  AppleToolchain swiftToolchain=AppleToolchain.builder().setIdentifier("com.apple.dt.XcodeDefault").setPath(tempRoot).setVersion("1").build();
+  temp.newFolder("usr","bin");
+  MoreFiles.makeExecutable(temp.newFile("usr/bin/swift"));
+  MoreFiles.makeExecutable(temp.newFile("usr/bin/swift-stdlib-tool"));
+  Optional<AppleToolchain> selectedSwiftToolChain=useDefaultSwift ? Optional.<AppleToolchain>absent() : Optional.of(swiftToolchain);
+  final ImmutableSet<Path> knownPaths=ImmutableSet.<Path>builder().addAll(COMMON_KNOWN_PATHS).add(Paths.get("Platforms/iPhoneOS.platform/Developer/usr/bin/libtool")).add(Paths.get("Platforms/iPhoneOS.platform/Developer/usr/bin/ar")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/swift")).add(Paths.get("Toolchains/XcodeDefault.xctoolchain/usr/bin/swift-stdlib-tool")).build();
+  return AppleCxxPlatforms.buildWithExecutableChecker(FakeAppleRuleDescriptions.DEFAULT_IPHONEOS_SDK,"8.0","i386",FakeAppleRuleDescriptions.DEFAULT_IPHONEOS_SDK_PATHS,FakeBuckConfig.builder().build(),new FakeAppleConfig(),new ExecutableFinder(){
+    @Override public Optional<Path> getOptionalExecutable(    Path suggestedPath,    ImmutableCollection<Path> searchPath,    ImmutableCollection<String> fileSuffixes){
+      Optional<Path> realPath=super.getOptionalExecutable(suggestedPath,searchPath,fileSuffixes);
+      if (realPath.isPresent()) {
+        return realPath;
+      }
+      for (      Path path : knownPaths) {
+        if (suggestedPath.equals(path.getFileName())) {
+          return Optional.of(path);
+        }
+      }
+      return Optional.absent();
+    }
+  }
+,Optional.of(FakeAppleRuleDescriptions.PROCESS_EXECUTOR),selectedSwiftToolChain);
+}
