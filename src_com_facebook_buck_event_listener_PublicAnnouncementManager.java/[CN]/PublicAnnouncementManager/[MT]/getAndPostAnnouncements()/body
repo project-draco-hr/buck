@@ -1,0 +1,42 @@
+{
+  final ListenableFuture<ImmutableList<Announcement>> message=service.submit(new Callable<ImmutableList<Announcement>>(){
+    @Override public ImmutableList<Announcement> call() throws Exception {
+      Optional<ClientSideSlb> slb=logConfig.getFrontendConfig().tryCreatingClientSideSlb(clock,eventBus,new CommandThreadFactory("PublicAnnouncement"));
+      if (slb.isPresent()) {
+        try (FrontendService frontendService=new FrontendService(ThriftOverHttpServiceConfig.of(new LoadBalancedService(slb.get(),logConfig.createOkHttpClient(),eventBus)))){
+          AnnouncementRequest announcementRequest=new AnnouncementRequest();
+          announcementRequest.setBuckVersion(getBuckVersion());
+          announcementRequest.setRepository(repository);
+          FrontendRequest request=new FrontendRequest();
+          request.setType(FrontendRequestType.ANNOUNCEMENT);
+          request.setAnnouncementRequest(announcementRequest);
+          FrontendResponse response=frontendService.makeRequest(request);
+          return ImmutableList.copyOf(response.announcementResponse.announcements);
+        }
+ catch (        IOException e) {
+          throw new HumanReadableException("Failed to perform request",e);
+        }
+      }
+ else {
+        throw new HumanReadableException("Failed to establish connection to server.");
+      }
+    }
+  }
+);
+  Futures.addCallback(message,new FutureCallback<ImmutableList<Announcement>>(){
+    @Override public void onSuccess(    ImmutableList<Announcement> announcements){
+      if (!announcements.isEmpty()) {
+        ImmutableList.Builder<String> finalMessages=ImmutableList.builder();
+        finalMessages.add(HEADER_MSG);
+        for (        Announcement announcement : announcements) {
+          finalMessages.add(String.format(ANNOUNCEMENT_TEMPLATE,announcement.getErrorMessage(),announcement.getSolutionMessage()));
+        }
+        consoleEventBusListener.setPublicAnnouncements(finalMessages.build());
+      }
+    }
+    @Override public void onFailure(    Throwable t){
+      LOG.warn("Failed to get public announcements. Reason: %s",t.getMessage());
+    }
+  }
+);
+}
