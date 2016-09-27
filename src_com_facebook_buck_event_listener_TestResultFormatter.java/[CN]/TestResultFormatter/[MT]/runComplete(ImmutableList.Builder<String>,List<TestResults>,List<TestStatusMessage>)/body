@@ -3,6 +3,7 @@
   boolean isAnyAssumptionViolated=false;
   ListMultimap<TestResults,TestCaseSummary> failingTests=ArrayListMultimap.create();
   int numFailures=0;
+  int numTestResults=0;
   ImmutableList.Builder<Path> testLogPathsBuilder=ImmutableList.builder();
   for (  TestResults summary : completedResults) {
     testLogPathsBuilder.addAll(summary.getTestLogPaths());
@@ -12,15 +13,17 @@
       failingTests.putAll(summary,summary.getFailures());
     }
     for (    TestCaseSummary testCaseSummary : summary.getTestCases()) {
+      numTestResults+=testCaseSummary.getFailureCount() + testCaseSummary.getPassedCount();
       if (testCaseSummary.hasAssumptionViolations()) {
+        numTestResults+=testCaseSummary.getSkippedCount();
         isAnyAssumptionViolated=true;
         break;
       }
     }
   }
   ImmutableList<Path> testLogPaths=testLogPathsBuilder.build();
-  if (completedResults.isEmpty()) {
-    addTo.add(ansi.asHighlightedFailureText("NO TESTS RAN"));
+  if (numTestResults == 0) {
+    addTo.add(ansi.asHighlightedFailureText("TESTS PASSED (NO TESTS RAN)"));
   }
  else   if (isAllTestsPassed) {
     if (testLogsPath.isPresent() && verbosity != Verbosity.SILENT) {
