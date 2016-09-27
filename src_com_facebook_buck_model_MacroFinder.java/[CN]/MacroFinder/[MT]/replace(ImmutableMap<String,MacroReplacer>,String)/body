@@ -1,28 +1,26 @@
 {
   StringBuilder expanded=new StringBuilder();
   int lastEnd=0;
-  Matcher matcher=MACRO_PATTERN.matcher(blob);
-  while (matcher.find()) {
-    if (matcher.start() > 0 && blob.charAt(matcher.start() - 1) == '\\') {
-      expanded.append(blob.substring(lastEnd,matcher.start() - 1));
-      expanded.append(blob.substring(matcher.start(),matcher.end()));
+  MacroFinderAutomaton matcher=new MacroFinderAutomaton(blob);
+  while (matcher.hasNext()) {
+    MacroMatchResult matchResult=matcher.next();
+    expanded.append(blob.substring(lastEnd,matchResult.getStartIndex()));
+    if (matchResult.isEscaped()) {
+      expanded.append(blob.substring(matchResult.getStartIndex() + 1,matchResult.getEndIndex()));
     }
  else {
-      expanded.append(blob.substring(lastEnd,matcher.start()));
-      String name=matcher.group(1);
-      MacroReplacer replacer=replacers.get(name);
+      MacroReplacer replacer=replacers.get(matchResult.getMacroType());
       if (replacer == null) {
-        throw new MacroException(String.format("expanding %s: no such macro \"%s\"",matcher.group(),name));
+        throw new MacroException(String.format("expanding %s: no such macro \"%s\"",blob.substring(matchResult.getStartIndex(),matchResult.getEndIndex()),matchResult.getMacroType()));
       }
-      ImmutableList<String> args=ImmutableList.copyOf(Splitter.on(' ').trimResults().split(Optional.fromNullable(matcher.group(2)).or("")));
       try {
-        expanded.append(replacer.replace(args));
+        expanded.append(replacer.replace(matchResult.getMacroInput()));
       }
  catch (      MacroException e) {
-        throw new MacroException(String.format("expanding %s: %s",matcher.group(),e.getMessage()),e);
+        throw new MacroException(String.format("expanding %s: %s",blob.substring(matchResult.getStartIndex(),matchResult.getEndIndex()),e.getMessage()),e);
       }
     }
-    lastEnd=matcher.end();
+    lastEnd=matchResult.getEndIndex();
   }
   expanded.append(blob.substring(lastEnd,blob.length()));
   return expanded.toString();

@@ -1,17 +1,10 @@
 {
-  Matcher matcher=MACRO_PATTERN.matcher(blob);
-  if (matcher.matches()) {
-    if (!macros.contains(matcher.group(1))) {
-      throw new MacroException(String.format("expanding %s: no such macro \"%s\"",matcher.group(),matcher.group(1)));
+  MacroMatchResult result=new MacroFinderAutomaton(blob).next();
+  if (result != null && !result.isEscaped() && result.getStartIndex() == 0 && result.getEndIndex() == blob.length()) {
+    if (!macros.contains(result.getMacroType())) {
+      throw new MacroException(String.format("expanding %s: no such macro \"%s\"",blob,result.getMacroType()));
     }
-    MacroMatchResult.Builder result=MacroMatchResult.builder();
-    result.setMacroType(matcher.group(1));
-    if (matcher.group(2) != null) {
-      result.addAllMacroInput(Splitter.on(' ').trimResults().split(matcher.group(2)));
-    }
-    result.setStartIndex(0);
-    result.setEndIndex(blob.length());
-    return Optional.of(result.build());
+    return Optional.of(result);
   }
   return Optional.absent();
 }

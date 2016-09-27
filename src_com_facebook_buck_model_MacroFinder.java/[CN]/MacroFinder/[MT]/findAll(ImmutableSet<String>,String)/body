@@ -1,23 +1,15 @@
 {
   ImmutableList.Builder<MacroMatchResult> results=ImmutableList.builder();
-  Matcher matcher=MACRO_PATTERN.matcher(blob);
-  while (matcher.find()) {
-    if (matcher.start() > 0 && blob.charAt(matcher.start() - 1) == '\\') {
+  MacroFinderAutomaton matcher=new MacroFinderAutomaton(blob);
+  while (matcher.hasNext()) {
+    MacroMatchResult matchResult=matcher.next();
+    if (matchResult.isEscaped()) {
       continue;
     }
-    String name=matcher.group(1);
-    if (!macros.contains(name)) {
-      throw new MacroException(String.format("no such macro \"%s\"",name));
+    if (!macros.contains(matchResult.getMacroType())) {
+      throw new MacroException(String.format("no such macro \"%s\"",matchResult.getMacroType()));
     }
-    MatchResult matchResult=matcher.toMatchResult();
-    MacroMatchResult.Builder result=MacroMatchResult.builder();
-    result.setMacroType(matcher.group(1));
-    if (matcher.group(2) != null) {
-      result.addAllMacroInput(Splitter.on(' ').trimResults().split(matcher.group(2)));
-    }
-    result.setStartIndex(matchResult.start());
-    result.setEndIndex(matchResult.end());
-    results.add(result.build());
+    results.add(matchResult);
   }
   return results.build();
 }

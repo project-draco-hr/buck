@@ -1,0 +1,109 @@
+{
+switch (this.state) {
+case SEARCHING:
+switch (c) {
+case '\\':
+      returnState=State.SEARCHING;
+    return State.IN_ESCAPE_SEQUENCE;
+case '$':
+  currentResultBuilder=MacroMatchResult.builder().setStartIndex(index).setEscaped(false);
+return State.FOUND_DOLLAR;
+default :
+return State.SEARCHING;
+}
+case IN_ESCAPE_SEQUENCE:
+switch (c) {
+case '$':
+currentResultBuilder=MacroMatchResult.builder().setStartIndex(index - 1).setEscaped(true);
+return State.FOUND_DOLLAR;
+default :
+return returnState;
+}
+case FOUND_DOLLAR:
+switch (c) {
+case '(':
+parenthesesDepth+=1;
+return State.READING_MACRO_NAME;
+case '\\':
+returnState=State.SEARCHING;
+return State.IN_ESCAPE_SEQUENCE;
+case '$':
+currentResultBuilder=MacroMatchResult.builder().setStartIndex(index).setEscaped(false);
+return State.FOUND_DOLLAR;
+default :
+return State.SEARCHING;
+}
+case READING_MACRO_NAME:
+switch (c) {
+case ')':
+parenthesesDepth-=1;
+currentResultBuilder.setMacroInput(ImmutableList.<String>of()).setMacroType(takeBuffer()).setEndIndex(index + 1);
+return State.FOUND_MACRO;
+case '\t':
+case ' ':
+case '\n':
+case '\r':
+currentResultBuilder.setMacroType(takeBuffer());
+return State.READING_ARGS;
+default :
+buffer.append(c);
+return State.READING_MACRO_NAME;
+}
+case READING_ARGS:
+switch (c) {
+case ' ':
+currentResultBuilder.addMacroInput(takeBuffer().trim());
+return State.READING_ARGS;
+case '\\':
+returnState=State.READING_ARGS;
+return State.IN_ESCAPE_ARG_SEQUENCE;
+case '\'':
+case '"':
+startQuote=c;
+buffer.append(c);
+return State.READING_QUOTED_ARGS;
+case '(':
+parenthesesDepth+=1;
+buffer.append(c);
+return State.READING_ARGS;
+case ')':
+parenthesesDepth-=1;
+if (parenthesesDepth == 0) {
+currentResultBuilder.addMacroInput(takeBuffer().trim()).setEndIndex(index + 1);
+return State.FOUND_MACRO;
+}
+ else {
+buffer.append(c);
+}
+return State.READING_ARGS;
+default :
+buffer.append(c);
+return State.READING_ARGS;
+}
+case READING_QUOTED_ARGS:
+switch (c) {
+case '\\':
+returnState=State.READING_QUOTED_ARGS;
+return State.IN_ESCAPE_ARG_SEQUENCE;
+case '"':
+case '\'':
+buffer.append(c);
+if (c == startQuote) {
+startQuote='\0';
+return State.READING_ARGS;
+}
+ else {
+return State.READING_QUOTED_ARGS;
+}
+default :
+buffer.append(c);
+return State.READING_QUOTED_ARGS;
+}
+case IN_ESCAPE_ARG_SEQUENCE:
+buffer.append(c);
+return returnState;
+case FOUND_MACRO:
+throw new IllegalStateException("The state must be reset to searching before more input may be consumed");
+}
+throw new IllegalStateException("Unknown state " + state);
+}
