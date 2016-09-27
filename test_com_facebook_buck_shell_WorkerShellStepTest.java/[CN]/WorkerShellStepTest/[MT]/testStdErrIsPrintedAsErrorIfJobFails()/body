@@ -1,0 +1,13 @@
+{
+  String stderr="my stderr";
+  ExecutionContext context=createExecutionContextWith(1,"",stderr);
+  WorkerShellStep step=createXargsShellStep(createJobParams(ImmutableList.of("startupCommand"),"startupArgs",ImmutableMap.<String,String>of(),"myJobArgs"),null,null);
+  FakeBuckEventListener listener=new FakeBuckEventListener();
+  context.getBuckEventBus().register(listener);
+  int exitCode=step.execute(context).getExitCode();
+  assertThat(exitCode,Matchers.equalTo(1));
+  BuckEvent secondEvent=listener.getEvents().get(0);
+  assertTrue(secondEvent instanceof ConsoleEvent);
+  assertThat(((ConsoleEvent)secondEvent).getLevel(),Matchers.is(Level.SEVERE));
+  assertThat(((ConsoleEvent)secondEvent).getMessage(),Matchers.is(stderr));
+}
