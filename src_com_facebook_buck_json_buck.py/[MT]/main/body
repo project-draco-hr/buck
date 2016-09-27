@@ -3,6 +3,7 @@ def main():
     os.dup2(sys.stderr.fileno(), sys.stdout.fileno())
     parser = optparse.OptionParser()
     parser.add_option('--project_root', action='store', type='string', dest='project_root')
+    parser.add_option('--cell_root', action='callback', type='string', dest='cell_roots', metavar='NAME=PATH', help='Cell roots that can be referenced by includes.', callback=_optparse_store_kv, default={})
     parser.add_option('--build_file_name', action='store', type='string', dest='build_file_name')
     parser.add_option('--allow_empty_globs', action='store_true', dest='allow_empty_globs', help='Tells the parser not to raise an error when glob returns no results.')
     parser.add_option('--use_watchman_glob', action='store_true', dest='use_watchman_glob', help='Invokes `watchman query` to get lists of files instead of globbing in-process.')
@@ -21,6 +22,7 @@ def main():
     (options, args) = parser.parse_args()
     options.project_root = cygwin_adjusted_path(options.project_root)
     project_root = os.path.abspath(options.project_root)
+    cell_roots = dict(((k, os.path.abspath(cygwin_adjusted_path(v))) for (k, v) in options.cell_roots.iteritems()))
     watchman_client = None
     watchman_error = None
     if options.use_watchman_glob:
@@ -45,7 +47,7 @@ def main():
     if (options.ignore_paths is not None):
         with open(options.ignore_paths, 'rb') as f:
             ignore_paths = [make_glob(i) for i in bser.loads(f.read())]
-    buildFileProcessor = BuildFileProcessor(project_root, options.build_file_name, options.allow_empty_globs, options.ignore_buck_autodeps_files, watchman_client, watchman_error, options.watchman_glob_stat_results, options.watchman_use_glob_generator, options.enable_build_file_sandboxing, project_import_whitelist=(options.build_file_import_whitelist or []), implicit_includes=(options.include or []), configs=configs, ignore_paths=ignore_paths)
+    buildFileProcessor = BuildFileProcessor(project_root, cell_roots, options.build_file_name, options.allow_empty_globs, options.ignore_buck_autodeps_files, watchman_client, watchman_error, options.watchman_glob_stat_results, options.watchman_use_glob_generator, options.enable_build_file_sandboxing, project_import_whitelist=(options.build_file_import_whitelist or []), implicit_includes=(options.include or []), configs=configs, ignore_paths=ignore_paths)
     buildFileProcessor.install_builtins(__builtin__.__dict__)
     orig_excepthook = None
     if options.quiet:

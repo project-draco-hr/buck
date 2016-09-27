@@ -1,6 +1,14 @@
 def _get_include_path(self, name):
-    '\n        Resolve the given include def name to a full path.\n        '
-    if (not name.startswith('//')):
-        raise ValueError(('include_defs argument "%s" must begin with //' % name))
-    relative_path = name[2:]
-    return os.path.join(self._project_root, relative_path)
+    'Resolve the given include def name to a full path.'
+    match = re.match('^([A-Za-z0-9_]*)//(.*)$', name)
+    if (match is None):
+        raise ValueError('include_defs argument {} should be in the form of //path or cellname//path'.format(name))
+    cell_name = match.group(1)
+    relative_path = match.group(2)
+    if (len(cell_name) > 0):
+        cell_root = self._cell_roots.get(cell_name)
+        if (cell_root is None):
+            raise KeyError('include_defs argument {} references an unknown cell named {}known cells: {!r}'.format(name, cell_name, self._cell_roots))
+        return os.path.normpath(os.path.join(cell_root, relative_path))
+    else:
+        return os.path.normpath(os.path.join(self._project_root, relative_path))
