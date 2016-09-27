@@ -1,0 +1,14 @@
+{
+  BuildTarget target=BuildTargetFactory.newInstance("//:rule");
+  HaskellLibraryBuilder builder=new HaskellLibraryBuilder(target).setLinkWhole(true);
+  BuildRuleResolver resolver=new BuildRuleResolver(TargetGraphFactory.newInstance(builder.build()),new DefaultTargetNodeToBuildRuleTransformer());
+  HaskellLibrary library=(HaskellLibrary)builder.build(resolver);
+  Linker linker=CxxPlatformUtils.DEFAULT_PLATFORM.getLd().resolve(resolver);
+  ImmutableList<String> linkWholeFlags=FluentIterable.from(linker.linkWhole(new StringArg("sentinel"))).transformAndConcat(Arg.stringListFunction()).filter(Predicates.not(Predicates.equalTo("sentinel"))).toList();
+  NativeLinkableInput staticInput=library.getNativeLinkableInput(CxxPlatformUtils.DEFAULT_PLATFORM,Linker.LinkableDepType.STATIC);
+  assertThat(Arg.stringify(staticInput.getArgs()),hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()])));
+  NativeLinkableInput staticPicInput=library.getNativeLinkableInput(CxxPlatformUtils.DEFAULT_PLATFORM,Linker.LinkableDepType.STATIC_PIC);
+  assertThat(Arg.stringify(staticPicInput.getArgs()),hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()])));
+  NativeLinkableInput sharedInput=library.getNativeLinkableInput(CxxPlatformUtils.DEFAULT_PLATFORM,Linker.LinkableDepType.SHARED);
+  assertThat(Arg.stringify(sharedInput.getArgs()),not(hasItems(linkWholeFlags.toArray(new String[linkWholeFlags.size()]))));
+}
