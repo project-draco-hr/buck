@@ -138,10 +138,12 @@ catch (  PropertyListFormatException|SAXException|ParserConfigurationException|P
   CxxPlatform cxxPlatform=CxxPlatforms.build(targetFlavor,config,as,aspp,cc,cxx,cpp,cxxpp,new DefaultLinkerProvider(LinkerProvider.Type.DARWIN,new ConstantToolProvider(clangXxPath)),ImmutableList.<String>builder().addAll(cflags).addAll(ldflagsBuilder.build()).build(),strip,new BsdArchiver(ar),ranlib,new PosixNmSymbolNameTool(nm),cflagsBuilder.build(),ImmutableList.<String>of(),cflags,ImmutableList.<String>of(),"dylib","%s.dylib",Optional.of(debugPathSanitizer),macros);
   ApplePlatform applePlatform=targetSdk.getApplePlatform();
   ImmutableList.Builder<Path> swiftOverrideSearchPathBuilder=ImmutableList.builder();
+  AppleSdkPaths.Builder swiftSdkPathsBuilder=AppleSdkPaths.builder().from(sdkPaths);
   if (swiftToolChain.isPresent()) {
     swiftOverrideSearchPathBuilder.add(swiftToolChain.get().getPath().resolve(USR_BIN));
+    swiftSdkPathsBuilder.setToolchainPaths(ImmutableList.of(swiftToolChain.get().getPath()));
   }
-  Optional<SwiftPlatform> swiftPlatform=getSwiftPlatform(applePlatform.getName(),targetArchitecture + "-apple-" + applePlatform.getSwiftName().or(applePlatform.getName())+ targetSdk.getVersion(),version,sdkPaths,swiftOverrideSearchPathBuilder.addAll(toolSearchPaths).build(),executableFinder);
+  Optional<SwiftPlatform> swiftPlatform=getSwiftPlatform(applePlatform.getName(),targetArchitecture + "-apple-" + applePlatform.getSwiftName().or(applePlatform.getName())+ targetSdk.getVersion(),version,swiftSdkPathsBuilder.build(),swiftOverrideSearchPathBuilder.addAll(toolSearchPaths).build(),executableFinder);
   platformBuilder.setCxxPlatform(cxxPlatform).setSwiftPlatform(swiftPlatform).setAppleSdk(targetSdk).setAppleSdkPaths(sdkPaths).setMinVersion(minVersion).setBuildVersion(buildVersion).setActool(actool).setIbtool(ibtool).setMomc(momc).setXctest(xctest).setDsymutil(dsymutil).setLipo(lipo).setStubBinary(stubBinaryPath).setLldb(lldb).setCodesignAllocate(getOptionalTool("codesign_allocate",toolSearchPaths,executableFinder,version));
   return platformBuilder.build();
 }
