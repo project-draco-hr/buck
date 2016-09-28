@@ -1,0 +1,31 @@
+{
+  String packageName=null;
+  Matcher m;
+  Optional<Pattern> keepPattern=keepResourcePattern.transform(new Function<String,Pattern>(){
+    @NonNull @Override public Pattern apply(    @NonNull String input){
+      return Pattern.compile(input);
+    }
+  }
+);
+  for (  String line : rDotJavaLines) {
+    if (packageName == null) {
+      m=R_DOT_JAVA_PACKAGE_NAME_PATTERN.matcher(line);
+      if (m.find()) {
+        packageName=m.group(1);
+      }
+ else {
+        continue;
+      }
+    }
+    m=R_DOT_JAVA_LINE_PATTERN.matcher(line);
+    if (m.find()) {
+      final String resource=m.group(1);
+      boolean shouldWriteLine=allReferencedResources.contains(packageName + "." + resource) || (keepPattern.isPresent() && keepPattern.get().matcher(resource).find());
+      if (!shouldWriteLine) {
+        continue;
+      }
+    }
+    output.write(line.getBytes(Charsets.UTF_8));
+    output.write('\n');
+  }
+}

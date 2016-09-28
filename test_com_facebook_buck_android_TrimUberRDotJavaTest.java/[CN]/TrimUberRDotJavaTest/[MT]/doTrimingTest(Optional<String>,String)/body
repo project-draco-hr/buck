@@ -1,0 +1,22 @@
+{
+  ProjectFilesystem filesystem=new ProjectFilesystem(tmpFolder.getRoot());
+  BuildRuleResolver ruleResolver=new BuildRuleResolver(TargetGraph.EMPTY,new DefaultTargetNodeToBuildRuleTransformer());
+  SourcePathResolver pathResolver=new SourcePathResolver(ruleResolver);
+  AaptPackageResources aaptPackageResources=new AaptPackageResources(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:aapt")).setProjectFilesystem(filesystem).build(),null,null,null,null,null,null,null,false,false,false,EnumSet.noneOf(RType.class),null);
+  String rDotJavaContents="package com.test;\n" + "\n" + "public class R {\n"+ "  public static class string {\n"+ "    public static final int my_first_resource=0x7f08005c;\n"+ "    public static final int my_second_resource=0x7f083bc1;\n"+ "    public static final int keep_resource=0x7f083bc2;\n"+ "  }\n"+ "}\n";
+  Path rDotJavaPath=aaptPackageResources.getPathToGeneratedRDotJavaSrcFiles().resolve("com/test/R.java");
+  filesystem.createParentDirs(rDotJavaPath);
+  filesystem.writeContentsToPath(rDotJavaContents,rDotJavaPath);
+  DexProducedFromJavaLibrary dexProducedFromJavaLibrary=new DexProducedFromJavaLibrary(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:dex")).setProjectFilesystem(filesystem).build(),null,null);
+  dexProducedFromJavaLibrary.getBuildOutputInitializer().setBuildOutput(dexProducedFromJavaLibrary.initializeFromDisk(new FakeOnDiskBuildInfo().putMetadata(DexProducedFromJavaLibrary.LINEAR_ALLOC_KEY_ON_DISK_METADATA,"1").putMetadata(DexProducedFromJavaLibrary.CLASSNAMES_TO_HASHES,"{}").putMetadata(DexProducedFromJavaLibrary.REFERENCED_RESOURCES,ImmutableList.of("com.test.my_first_resource"))));
+  TrimUberRDotJava trimUberRDotJava=new TrimUberRDotJava(new FakeBuildRuleParamsBuilder(BuildTargetFactory.newInstance("//:trim")).setProjectFilesystem(filesystem).build(),pathResolver,aaptPackageResources,ImmutableList.of(dexProducedFromJavaLibrary),keepResourcePattern);
+  BuildContext buildContext=FakeBuildContext.newBuilder().setActionGraph(new ActionGraph(ImmutableList.<BuildRule>of())).setJavaPackageFinder(new FakeJavaPackageFinder()).build();
+  BuildableContext buildableContext=new FakeBuildableContext();
+  ExecutionContext executionContext=TestExecutionContext.newInstance();
+  ImmutableList<Step> steps=trimUberRDotJava.getBuildSteps(buildContext,buildableContext);
+  for (  Step step : steps) {
+    step.execute(executionContext);
+  }
+  ZipInspector inspector=new ZipInspector(filesystem.resolve(trimUberRDotJava.getPathToOutput()));
+  inspector.assertFileContents("com/test/R.java",rDotJavaContentsAfterFiltering);
+}

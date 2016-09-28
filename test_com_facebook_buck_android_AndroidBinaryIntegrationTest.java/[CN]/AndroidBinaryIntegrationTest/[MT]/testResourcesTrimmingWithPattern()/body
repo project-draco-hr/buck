@@ -1,0 +1,12 @@
+{
+  workspace.replaceFileContents("apps/multidex/BUCK","# ARGS_FOR_APP","keep_resource_pattern = '^app_.*', trim_resource_ids = True,  # ARGS_FOR_APP");
+  workspace.runBuckCommand("build","//apps/multidex:disassemble_app_r_dot_java").assertSuccess();
+  verifyTrimmedRDotJava(ImmutableSet.of("app_icon","app_name","top_layout","title"));
+  workspace.replaceFileContents("java/com/sample/lib/Sample.java","R.layout.top_layout","0 /* NO RESOURCE HERE */");
+  workspace.resetBuildLogFile();
+  workspace.runBuckCommand("build","//apps/multidex:disassemble_app_r_dot_java").assertSuccess();
+  BuckBuildLog buildLog=workspace.getBuildLog();
+  buildLog.assertTargetBuiltLocally("//apps/multidex:app#compile_uber_r_dot_java");
+  buildLog.assertTargetBuiltLocally("//apps/multidex:app#dex_uber_r_dot_java");
+  verifyTrimmedRDotJava(ImmutableSet.of("app_icon","app_name","title"));
+}
