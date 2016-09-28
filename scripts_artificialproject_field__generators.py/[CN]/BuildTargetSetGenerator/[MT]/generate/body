@@ -15,14 +15,20 @@ def generate(self, base_path, force_length=None):
             extension = None
         type_extension_counts.update([(type, extension)])
     output = []
+    if self._process_output_extensions:
+        all_targets_dict = self._context.gen_targets_with_output_by_type
+        accepted_targets_dict = self._accepted_targets_with_output_by_type
+    else:
+        all_targets_dict = self._context.gen_targets_by_type
+        accepted_targets_dict = self._accepted_targets_by_type
     for ((type, extension), count) in type_extension_counts.items():
-        if self._process_output_extensions:
-            options = self._context.gen_targets_with_output_by_type[type]
-        else:
-            options = self._context.gen_targets_by_type[type]
+        options = accepted_targets_dict.get(type)
+        if (options is None):
+            options = self.DynamicFilteredList(all_targets_dict[type], (lambda x: self._is_accepted(x)))
+            accepted_targets_dict[type] = options
+        options = options.get_values()
         if (extension is not None):
             options = [x for x in options if (self._get_output_extension(self._context.gen_target_data[x]) == extension)]
-        options = [x for x in options if self._is_accepted(x)]
         if (count > len(options)):
             raise GenerationFailedException()
         output.extend(random.sample(options, count))
