@@ -1,5 +1,14 @@
 {
   long freeMemoryBytes=Runtime.getRuntime().freeMemory();
   long totalMemoryBytes=Runtime.getRuntime().totalMemory();
-  eventBus.post(new MemoryPerfStatsEvent(freeMemoryBytes,totalMemoryBytes));
+  long totalGcTimeMs=0;
+  for (  GarbageCollectorMXBean gcMxBean : ManagementFactory.getGarbageCollectorMXBeans()) {
+    long collectionTimeMs=gcMxBean.getCollectionTime();
+    if (collectionTimeMs == -1) {
+      totalGcTimeMs=-1;
+      break;
+    }
+    totalGcTimeMs+=collectionTimeMs;
+  }
+  eventBus.post(new MemoryPerfStatsEvent(freeMemoryBytes,totalMemoryBytes,totalGcTimeMs));
 }
