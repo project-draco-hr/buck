@@ -1,5 +1,5 @@
 {
-  ReferenceCountedWriter writer=rotateDefaultLogFileWriter(info.getLogFilePath());
+  ReferenceCountedWriter defaultWriter=rotateDefaultLogFileWriter(info.getLogFilePath());
   final long threadId=Thread.currentThread().getId();
   final String commandId=info.getCommandId();
   threadIdToCommandId.putIfAbsent(threadId,commandId);
@@ -14,14 +14,11 @@
  catch (  IOException e) {
     LOG.error(e,"Failed to created 'per command log directory': [%s]",logDirectory.toAbsolutePath());
   }
-  commandIdToLogFileHandlerWriter.put(commandId,writer.newReference());
+  ReferenceCountedWriter newWriter=defaultWriter.newReference();
+  putReferenceCountedWriter(commandId,newWriter);
   return new Closeable(){
     @Override public void close() throws IOException {
-      Writer writer=commandIdToLogFileHandlerWriter.remove(commandId);
-      if (writer != null) {
-        writer.flush();
-        writer.close();
-      }
+      removeReferenceCountedWriter(commandId);
       commandIdToConsoleHandlerWriter.put(commandId,ConsoleHandler.utf8OutputStreamWriter(consoleHandlerOriginalStream));
       commandIdToConsoleHandlerLevel.remove(commandId);
       List<Long> allKeys=Lists.newArrayList(threadIdToCommandId.keySet());
