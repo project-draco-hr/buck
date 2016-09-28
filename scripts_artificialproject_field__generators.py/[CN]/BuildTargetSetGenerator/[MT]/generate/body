@@ -1,4 +1,7 @@
 def generate(self, base_path, force_length=None):
+    if self._unique_values_dirty:
+        self._update_choice_probability()
+        self._unique_values_dirty = False
     if (force_length is not None):
         length = force_length
     else:
@@ -7,7 +10,7 @@ def generate(self, base_path, force_length=None):
     for i in range(length):
         type = weighted_choice(self._types)
         if self._process_output_extensions:
-            extension = weighted_choice(self._output_extensions)
+            extension = weighted_choice(self._output_extensions_by_type[type])
         else:
             extension = None
         type_extension_counts.update([(type, extension)])
@@ -15,9 +18,11 @@ def generate(self, base_path, force_length=None):
     for ((type, extension), count) in type_extension_counts.items():
         if self._process_output_extensions:
             options = self._context.gen_targets_with_output_by_type[type]
-            options = [x for x in options if (self._get_output_extension(self._context.gen_target_data[x]) == extension)]
         else:
             options = self._context.gen_targets_by_type[type]
+        if (extension is not None):
+            options = [x for x in options if (self._get_output_extension(self._context.gen_target_data[x]) == extension)]
+        options = [x for x in options if self._is_accepted(x)]
         if (count > len(options)):
             raise GenerationFailedException()
         output.extend(random.sample(options, count))
