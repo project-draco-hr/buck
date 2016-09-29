@@ -1,11 +1,28 @@
 {
   CxxPlatform.Builder builder=CxxPlatform.builder();
-  builder.setFlavor(flavor).setAs(config.getCompilerProvider("as").or(as)).setAspp(config.getPreprocessorProvider("aspp").or(aspp)).setCc(config.getCompilerProvider("cc").or(cc)).setCxx(config.getCompilerProvider("cxx").or(cxx)).setCpp(config.getPreprocessorProvider("cpp").or(cpp)).setCxxpp(config.getPreprocessorProvider("cxxpp").or(cxxpp)).setCuda(config.getCompilerProvider("cuda")).setCudapp(config.getPreprocessorProvider("cudapp")).setAsm(config.getCompilerProvider("asm")).setAsmpp(config.getPreprocessorProvider("asmpp")).setLd(config.getLinkerProvider("ld",ld.getType()).or(ld)).addAllLdflags(ldFlags).setAr(getTool("ar",config).transform(getArchiver(ar.getClass(),config)).or(ar)).setRanlib(getTool("ranlib",config).or(ranlib)).setStrip(getTool("strip",config).or(strip)).setSharedLibraryExtension(sharedLibraryExtension).setSharedLibraryVersionedExtensionFormat(sharedLibraryVersionedExtensionFormat).setDebugPathSanitizer(debugPathSanitizer.or(new DebugPathSanitizer(config.getDebugPathSanitizerLimit(),File.separatorChar,Paths.get("."),ImmutableBiMap.<Path,Path>of()))).setFlagMacros(flagMacros);
-  Optional<Tool> configNm=getTool("nm",config);
-  if (configNm.isPresent()) {
-    nm=new PosixNmSymbolNameTool(configNm.get());
+  builder.setFlavor(flavor).setAs(config.getCompilerProvider("as").or(as)).setAspp(config.getPreprocessorProvider("aspp").or(aspp)).setCc(config.getCompilerProvider("cc").or(cc)).setCxx(config.getCompilerProvider("cxx").or(cxx)).setCpp(config.getPreprocessorProvider("cpp").or(cpp)).setCxxpp(config.getPreprocessorProvider("cxxpp").or(cxxpp)).setCuda(config.getCompilerProvider("cuda")).setCudapp(config.getPreprocessorProvider("cudapp")).setAsm(config.getCompilerProvider("asm")).setAsmpp(config.getPreprocessorProvider("asmpp")).setLd(config.getLinkerProvider("ld",ld.getType()).or(ld)).addAllLdflags(ldFlags).setAr(new LazyDelegatingArchiver(new Supplier<Archiver>(){
+    @Override public Archiver get(){
+      return getTool("ar",config).transform(getArchiver(ar.getClass(),config)).or(ar);
+    }
   }
-  builder.setSymbolNameTool(nm);
+)).setRanlib(new LazyDelegatingTool(new Supplier<Tool>(){
+    @Override public Tool get(){
+      return getTool("ranlib",config).or(ranlib);
+    }
+  }
+)).setStrip(getTool("strip",config).or(strip)).setSharedLibraryExtension(sharedLibraryExtension).setSharedLibraryVersionedExtensionFormat(sharedLibraryVersionedExtensionFormat).setDebugPathSanitizer(debugPathSanitizer.or(new DebugPathSanitizer(config.getDebugPathSanitizerLimit(),File.separatorChar,Paths.get("."),ImmutableBiMap.<Path,Path>of()))).setFlagMacros(flagMacros);
+  builder.setSymbolNameTool(new LazyDelegatingSymbolNameTool(new Supplier<SymbolNameTool>(){
+    @Override public SymbolNameTool get(){
+      Optional<Tool> configNm=getTool("nm",config);
+      if (configNm.isPresent()) {
+        return new PosixNmSymbolNameTool(configNm.get());
+      }
+ else {
+        return nm;
+      }
+    }
+  }
+));
   builder.addAllCflags(cflags);
   builder.addAllCxxflags(cflags);
   builder.addAllCppflags(cppflags);
