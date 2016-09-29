@@ -2,16 +2,27 @@
   if (!isLoggable(record)) {
     return;
   }
-  int ix=(start + count) % buffer.length;
-  buffer[ix]=record;
-  if (count < buffer.length) {
-    count++;
-  }
+  List<LogRecord> recordsToLog=null;
+synchronized (buffer) {
+    int ix=(start + count) % buffer.length;
+    buffer[ix]=record;
+    if (count < buffer.length) {
+      count++;
+    }
  else {
-    start++;
-    start%=buffer.length;
-  }
-  if (record.getLevel().intValue() >= pushLevel.intValue()) {
-    push();
+      start++;
+      start%=buffer.length;
+    }
+    if (record.getLevel().intValue() >= pushLevel.intValue()) {
+      recordsToLog=new ArrayList<>();
+      while (count > 0) {
+        LogRecord oldRecord=buffer[start];
+        recordsToLog.add(oldRecord);
+        buffer[start]=null;
+        start++;
+        start%=buffer.length;
+        count--;
+      }
+    }
   }
 }
